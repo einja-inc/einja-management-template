@@ -1,216 +1,227 @@
+---
+description: "タスクの仕様書（requirements.md、design.md、tasks.md）を段階的に作成・修正するワークフローを実行します。ARGUMENTS: タスク内容の説明またはAsanaタスクURL（必須）、既存仕様書のパス（オプション）"
+allowed-tools: Read, Write, Edit, MultiEdit, Bash, Grep, Glob, TodoRead, TodoWrite, mcp__asana__*, mcp__figma_dev_mode__*, mcp__github__*
+---
+
+> **⚠️ Cursor での動作について**
+>
+> このコマンドは `.claude/agents/` 配下のサブエージェント定義ファイルを参照します。
+> サブエージェント呼び出し箇所では、該当する `.md` ファイルを Read で読み込み、
+> そのプロンプト内容に従って処理を実行してください。
+>
+> **サブエージェント実行の手順**:
+> 1. サブエージェント `.md` ファイルを Read で読み込む
+> 2. YAML フロントマターを除外し、本文プロンプトを取得
+> 3. プロンプトの指示に従って処理を実行
+> 4. プロンプト内の「出力形式」に従った報告を生成
+
 # タスク仕様書作成コマンド
 
 ## あなたの役割
 プロダクト開発のシニアテクニカルアーキテクト兼シニアプロダクトエンジニアとして、ATDD（受け入れテスト駆動開発）に基づく仕様書を段階的に作成します。
 
-## 実行フロー概要
+## タスク管理
+TodoWriteツールを使用して全体の進捗を可視化し、ユーザーに現在の状況を明確に伝えます：
+- 各仕様書作成フェーズ（requirements.md、design.md、GitHub Issueへのタスク記述）をトップレベルタスクとして管理
+- エージェント起動前にタスクを「in_progress」に更新
+- エージェント完了後に「completed」に更新
+- ユーザー承認待ちの状態も明示的に表示
 
-このコマンドは3段階のワークフローで実行されます。各段階でユーザー承認を得てから次へ進行します：
+## 実行手順
 
-1. **requirements.md** (要件定義書) - ATDD形式のユーザーストーリーと受け入れ基準
-2. **design.md** (設計書) - 技術アーキテクチャとデータモデル
-3. **tasks.md** (タスク一覧) - 実装タスクの分解と依存関係
+### 1. 外部リソースの確認
 
-## 入力情報の解析
-
-### AsanaタスクURL の場合
-- Asana MCP でタスク情報を取得（タイトル、説明、カスタムフィールド）
+**AsanaタスクURL**の場合：
+- AsanaMCPでタスク情報を取得（タイトル、説明、カスタムフィールド）
 - タスクIDから適切なディレクトリ名を生成
 
-### Figma URL が含まれる場合
-- Figma Dev Mode MCP でデザイン分析
+**FigmaURL**が含まれる場合：
+- FigmaDevModeMCPでデザイン分析
 - UI要件、コンポーネント仕様、デザイントークンを抽出
 
-### 作業ディレクトリの決定
-- パス指定あり → 指定ディレクトリを使用
-- パス指定なし → `/docs/specs/tasks/{domain}/{YYYYMMDD}-{domain}-{feature}/` で自動作成
+### 2. GitHub Issue作成（最初に実行）
 
----
+1. **GitHub IssueをMCPで作成**
+   - タイトル: ユーザー指定またはAsanaタスクから取得
+   - 本文: 空または簡易的な説明
+   - `mcp__github__create_issue` を使用
+   - **Issue番号を取得して記録**
 
-## Phase 1: 要件定義書生成
+2. **Issue番号に基づいてディレクトリパスを決定**
+   - パス指定あり → 指定ディレクトリを使用
+   - パス指定なし → `/docs/specs/issues/{機能カテゴリ名}/issue{issue番号}-{機能名}/` で自動作成
 
-📄 **エージェント定義**: `../.claude/agents/specs/spec-requirements-generator.md`
+### 3. 段階的仕様書作成
+**重要**: 各段階で必ずユーザー承認を得て、コミット＆プッシュしてから次へ進行すること。
 
-### 実行指示
+#### Phase 1: requirements.md（要件定義書）
 
-上記エージェント定義ファイルを読み込み、そのフロントマター（name, description, tools, model, color）とすべての指示内容に完全に従って `requirements.md` を生成してください。
+1. **spec-requirements-generator の処理を実行**：
 
-### 重要なポイント
+   **📖 サブエージェントプロンプトの読み込み**
+   - `.claude/agents/specs/spec-requirements-generator.md` を Read ツールで読み込む
+   - YAML フロントマター（`---` で囲まれた部分）を除外
+   - 本文のプロンプト内容を取得
 
-- **AC番号形式**: AC1.1, AC1.2, AC2.1... の形式を厳守（タスク分解とQAテストで参照される）
-- **ATDD形式**: 受け入れテスト駆動開発の原則に従った構造
-- **既存コード分析**: Serena MCP を使用して既存実装パターンを調査
-- **調査優先順**: コード分析 → Web検索 → ユーザー質問（最終手段）
+   **🔨 プロンプトに従った処理の実行**
+   - 取得したプロンプト内容に記載された手順・指示に従って処理を実行
+   - プロンプト内の「ステップ0: 依頼事項の解析と不明点の解消」から順次実行
+   - エージェント内で既存コードの分析を実施（Serena MCP使用）
+   - ATDD形式のユーザーストーリーと受け入れ基準を作成
+   - プロンプト内の「出力とファイル分割」セクションに従ってファイル作成
 
-### エージェント定義の主な内容
+   **📋 完了報告**
+   - 作成したファイルのパスと概要を報告
+   - サブエージェント定義に記載された構造化マークダウン形式で出力
 
-- ロール: プロダクトマネージャー・要件エンジニアリング専門家（15年以上の経験）
-- 使用ツール: Read, Write, Edit, MultiEdit, Bash, Grep, Glob, TodoRead, TodoWrite
-- モデル: sonnet
-- カラー: pink
+2. **ユーザーに内容確認を依頼**
+   - 作成したファイルのパスと概要を提示
+   - 確認ポイントを明示（要件の過不足、受け入れ基準の明確性など）
 
-### 出力成果物
+3. **ユーザー承認後、コミット＆プッシュ**
+   - コミットメッセージ: `docs: add requirements for {feature-name}`
+   - ブランチは現在のブランチにプッシュ
+   - 他のメンバーがレビューできるようにする
 
+4. **承認を得てから次のステップ（design.md）に進む**
+
+#### Phase 2: design.md（設計書）
+
+1. **spec-design-generator の処理を実行**：
+
+   **📖 サブエージェントプロンプトの読み込み**
+   - `.claude/agents/specs/spec-design-generator.md` を Read ツールで読み込む
+   - YAML フロントマターを除外
+   - 本文のプロンプト内容を取得
+
+   **🔨 プロンプトに従った処理の実行**
+   - 取得したプロンプト内容に記載された手順・指示に従って処理を実行
+   - プロンプト内の「ステップ0: 依頼事項の解析と不明点の解消」から順次実行
+   - エージェント内で既存アーキテクチャの調査を実施（Serena MCP使用）
+   - 技術アーキテクチャとデータモデルを設計
+   - requirements.mdの内容を参照
+   - プロンプト内の「出力とファイル分割」セクションに従ってファイル作成
+   - Codex MCPでレビューと改善ループを実施
+
+   **📋 完了報告**
+   - 作成したファイルのパスと概要を報告
+   - サブエージェント定義に記載された構造化マークダウン形式で出力
+
+2. **ユーザーに内容確認を依頼**
+   - 作成したファイルのパスと概要を提示
+   - 確認ポイントを明示（アーキテクチャの妥当性、実装方針など）
+
+3. **ユーザー承認後、コミット＆プッシュ**
+   - コミットメッセージ: `docs: add design for {feature-name}`
+   - ブランチは現在のブランチにプッシュ
+
+4. **承認を得てから次のステップ（GitHub Issueへのタスク記述）に進む**
+
+#### Phase 3: GitHub Issueへのタスク記述
+
+1. **spec-tasks-generator の処理を実行**：
+
+   **📖 サブエージェントプロンプトの読み込み**
+   - `.claude/agents/specs/spec-tasks-generator.md` を Read ツールで読み込む
+   - YAML フロントマターを除外
+   - 本文のプロンプト内容を取得
+
+   **🔨 プロンプトに従った処理の実行**
+   - 取得したプロンプト内容に記載された手順・指示に従って処理を実行
+   - エージェント内で実装の影響範囲を分析（Serena MCP使用）
+   - 実装タスクの分解と依存関係を定義
+   - requirements.mdとdesign.mdの内容を参照
+   - **GitHub Issueの説明文にタスク一覧を記述**（tasks.mdファイルは作成しない）
+   - `mcp__github__issue_write`（method: update）を使用してIssue本文を更新
+
+   **📋 完了報告**
+   - 更新したGitHub IssueのURLを報告
+   - タスク分解の概要を報告
+
+2. **ユーザーに内容確認を依頼**
+   - 更新したGitHub IssueのURL（#{issue_number}）と概要を提示
+   - 確認ポイントを明示（タスク分解の粒度、依存関係の妥当性など）
+
+3. **ユーザー承認後、以下の処理を実行**
+
+   a. **Issueブランチ作成（MCP）**
+   - `mcp__github__create_branch` を使用
+   - branch: `issue/{issue番号}`
+   - from_branch: デフォルトブランチ（main/masterなど）
+
+   b. **仕様書ファイルをプッシュ（MCP）**
+   - `mcp__github__push_files` を使用
+   - branch: `issue/{issue番号}`
+   - files: requirements.md, design.md（または分割された各ファイル）
+   - message: `docs: add specs for {feature-name} (Issue #{issue_number})`
+
+   c. **PR作成（MCP）**
+   - `mcp__github__create_pull_request` を使用
+   - base: デフォルトブランチ
+   - head: `issue/{issue番号}`
+   - title: `docs: {機能名} 仕様書`
+   - body: `Issue #{issue番号} の仕様書を作成しました。`
+   - **PR URLを記録**
+
+   d. **GitHub Issue説明文を更新（MCP）**
+   - `mcp__github__issue_write` を使用（method: update）
+   - 本文に以下を含める:
+     - Spec PR へのリンク
+     - 要件ドキュメントへのリンク（requirements.mdまたはrequirements/README.md）
+     - 設計ドキュメントへのリンク（design.mdまたはdesign/README.md）
+     - タスク一覧（Phase別チェックボックス形式）
+
+4. **全ての仕様書作成が完了したことを報告**
+   - GitHub Issue URLを明記
+   - Spec PR URLを明記
+
+
+### 4. 既存ファイル処理
+- 既存ファイルは内容確認後に次段階へ進行
+- 修正指示がある場合のみ該当エージェントで再生成
+
+### 5. 成果物の構成
+
+#### 基本構成（各ファイルが1000行以下の場合）
 ```
-docs/specs/tasks/{domain}/{YYYYMMDD}-{feature}/requirements.md
-```
-
-### ユーザー承認
-
-**requirements.md の生成が完了したら、内容を確認してユーザーの承認を待ってください。**
-
-承認されるまで次のフェーズに進まないでください。
-
----
-
-## Phase 2: 設計書生成
-
-📄 **エージェント定義**: `../.claude/agents/specs/spec-design-generator.md`
-
-### 実行指示
-
-上記エージェント定義ファイルを読み込み、そのフロントマター（name, description, tools, model, color）とすべての指示内容に完全に従って `design.md` を生成してください。
-
-### 前提条件
-
-- **requirements.md を必ず参照**: すべてのユーザーストーリーと受け入れ基準に対応する設計を含める
-- **既存アーキテクチャ調査**: Serena MCP で既存のアーキテクチャパターンを分析
-
-### 重要なポイント
-
-- **Mermaid 図の使用**: すべての図は Mermaid 形式で記述（システム構成図、ERD、シーケンス図）
-- **Prisma スキーマ**: @@index ディレクティブを含む標準形式
-- **実装コード禁止**: テストケースと型定義以外のコードブロックは記述しない（日本語で説明）
-- **技術スタック**: Next.js + Hono + Prisma + MongoDB
-
-### エージェント定義の主な内容
-
-- ロール: シニアソフトウェアアーキテクト（20年以上の経験）
-- 使用ツール: Read, Write, Edit, MultiEdit, Bash, Grep, Glob, TodoRead, TodoWrite
-- モデル: sonnet
-- カラー: orange
-
-### 出力成果物
-
-```
-docs/specs/tasks/{domain}/{YYYYMMDD}-{feature}/design.md
-```
-
-### ユーザー承認
-
-**design.md の生成が完了したら、内容を確認してユーザーの承認を待ってください。**
-
-承認されるまで次のフェーズに進まないでください。
-
----
-
-## Phase 3: タスク分解
-
-📄 **エージェント定義**: `../.claude/agents/specs/spec-tasks-generator.md`
-
-### 実行指示
-
-上記エージェント定義ファイルを読み込み、そのフロントマター（name, description, tools, model, color）とすべての指示内容に完全に従って `tasks.md` を生成してください。
-
-### 前提条件（必須）
-
-- **requirements.md と design.md を必ず読み込む**: この2つのファイルの内容に基づいてタスク分解を行う
-- **既存実装の影響範囲分析**: Serena MCP で既存コードの依存関係を調査
-
-### 重要なポイント
-
-- **AC番号参照**: 各タスクの完了条件に requirements.md の AC番号（AC1.1, AC1.2...）を明記
-- **フェーズ構造**: Phase 1-X（並列実行可能な基盤タスク）→ Phase 2+（機能実装タスク）
-- **タスクID形式**: {Phase}.{Group}.{Sequence} （例: 1.1.1, 1.1.2, 1.2.1）
-- **依存関係管理**: 各タスクの依存関係を明示（なし、または先行タスクID）
-
-### エージェント定義の主な内容
-
-- ロール: ATDD タスク分解専門家
-- 使用ツール: Read, Write, Edit, MultiEdit, Bash, Grep, Glob, TodoRead, TodoWrite
-- モデル: sonnet
-- カラー: yellow
-
-### 出力成果物
-
-```
-docs/specs/tasks/{domain}/{YYYYMMDD}-{feature}/tasks.md
-```
-
-### 完了報告
-
-**tasks.md の生成が完了したら、以下の形式で完了報告を出力してください:**
-
-```markdown
-# 仕様書作成完了
-
-## 作成された仕様書
-
-📁 **ディレクトリ**: `docs/specs/tasks/{domain}/{YYYYMMDD}-{feature}/`
-
-- ✅ **requirements.md**: {行数}行（{ユーザーストーリー数}個のストーリー、{AC数}個の受け入れ基準）
-- ✅ **design.md**: {行数}行（{図数}個の Mermaid 図、{API数}個の API エンドポイント）
-- ✅ **tasks.md**: {行数}行（{フェーズ数}個のフェーズ、{タスク数}個のタスク）
-
-## 次のステップ
-
-1. 仕様書の内容を確認してください
-2. 必要に応じて修正が必要な場合は、該当フェーズのエージェント定義を参照して再生成できます
-3. タスクを実行する準備ができたら `/task-exec` コマンドを使用してください
-
-## ATDD 準拠チェック
-
-- ✅ AC番号形式が正しい（AC1.1, AC2.1...）
-- ✅ tasks.md の完了条件に AC番号が含まれている
-- ✅ すべてのユーザーストーリーに対応するタスクが存在する
-```
-
----
-
-## 既存ファイル処理
-
-既存のファイルが存在する場合：
-
-1. **内容確認**: 既存ファイルを読み込んで内容を確認
-2. **次段階へ進行**: 既存の requirements.md が存在する場合、内容を確認してから design.md の生成へ
-3. **修正指示がある場合**: ユーザーから修正指示があれば、該当エージェントで再生成
-
-## 成果物の構造
-
-```
-/docs/specs/tasks/
-└── {domain}/
-    └── {YYYYMMDD}-{domain}-{feature}/
+/docs/specs/issues/
+└── {機能カテゴリ名}/
+    └── issue{issue番号}-{機能名}/
         ├── requirements.md  # 要件定義書（ATDD形式）
-        ├── design.md        # 設計書（技術詳細）
-        └── tasks.md         # タスク一覧（実装手順）
+        └── design.md        # 設計書（技術詳細）
+
+（注: タスク一覧はGitHub Issueに記述）
 ```
+
+#### 分割構成（ファイルが1000行超過の場合）
+```
+/docs/specs/issues/
+└── {機能カテゴリ名}/
+    └── issue{issue番号}-{機能名}/
+        ├── requirements/             # 要件定義書ディレクトリ
+        │   ├── README.md            # 目次
+        │   ├── overview.md          # 概要とスコープ
+        │   ├── stories.md           # ユーザーストーリー
+        │   └── technical.md         # 技術要件
+        └── design/                  # 設計書ディレクトリ
+            ├── README.md            # 目次
+            ├── architecture.md      # アーキテクチャ
+            ├── implementation.md    # 実装詳細
+            └── quality.md           # 品質と運用
+
+（注: タスク一覧はGitHub Issueに記述）
+```
+
+**自動分割機能**:
+- 各エージェント（requirements/design）は生成後に自動的にファイルサイズをチェック
+- 1000行を超える場合、意味のあるまとまりで2-3個のパートに自動分割
+- README.mdで全体構成とナビゲーションを提供
+- 分割されたファイルも他エージェントから正しく参照可能
 
 ## 重要な原則
+- 段階的開発：各フェーズの承認を必須
+- ATDD形式による受け入れ基準の明確化
+- Next.js + Hono + Prisma技術スタック対応
+- Asana/Figma連携によるトレーサビリティ確保
 
-1. **段階的開発**: 各フェーズの承認を必須とする
-2. **ATDD形式**: 受け入れ基準の明確化とAC番号の一貫性
-3. **技術スタック対応**: Next.js + Hono + Prisma + MongoDB
-4. **トレーサビリティ**: Asana/Figma連携による要件追跡
-5. **既存コード尊重**: Serena MCP で既存パターンを分析し、一貫性を保つ
-
-## 使用例
-
-### 例1: Asana タスクから仕様書作成
-```
-/spec-create https://app.asana.com/0/project/task
-```
-
-### 例2: タスク説明から仕様書作成
-```
-/spec-create ユーザー認証機能の実装（マジックリンク方式）
-```
-
-### 例3: 既存仕様書の修正
-```
-/spec-create docs/specs/tasks/auth/20251105-auth-magic-link 修正: セキュリティ要件を追加
-```
-
----
-
-**実行を開始します...**
+実行を開始します...

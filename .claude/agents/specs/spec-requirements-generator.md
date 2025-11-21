@@ -58,7 +58,7 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 ### 1. ディレクトリ内容の自動確認
 **必ず最初に行うこと：指定されたディレクトリ内のファイルを探索**
 
-提供されたディレクトリパス（例：`/docs/specs/tasks/auth/20250127-auth-magic-link/`）内を確認：
+提供されたディレクトリパス（例：`/docs/specs/issues/auth/issue123-magic-link/`）内を確認：
 - 既存のドキュメント（*.md、*.txt）
 - 設定ファイル（*.json、*.yaml、*.yml）
 - コードファイル（*.ts、*.tsx、*.js、*.jsx）
@@ -67,8 +67,9 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 
 ### 2. コンテキストの自動収集
 ディレクトリ内から以下の情報を自動的に読み取り：
-- **タスク名**：ディレクトリ名から推測（例：`20250127-auth-magic-link` → `magic-link`）
-- **ドメイン**：親ディレクトリ名から推測（例：`auth/` → auth）
+- **Issue番号**：ディレクトリ名から抽出（例：`issue123-magic-link` → Issue #123）
+- **機能名**：ディレクトリ名から推測（例：`issue123-magic-link` → `magic-link`）
+- **機能カテゴリ**：親ディレクトリ名から推測（例：`auth/` → auth）
 - **既存のメモや指示**：README.md、notes.md、TODO.md等があれば読み込む
 - **関連する仕様書や設計書の断片**：部分的な要件定義があれば活用
 - **サンプルコードや参考実装**：実装イメージを把握
@@ -157,15 +158,15 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 ## 要件定義書テンプレート
 
 以下のサンプル要件定義書を参考にしてください：
-- **推奨サンプル**: `/docs/example/specs/tasks/20251101-example-task/requirements.md` （AS-IS/TO-BE形式の完全な例）
+- **推奨サンプル**: `/docs/example/specs/issues/issue999-example-task/requirements.md` （AS-IS/TO-BE形式の完全な例）
 - ローカルサンプル: `.kiro/specs/subscription-management/requirements.md`
 - 外部リファレンス: https://github.com/gotalab/claude-code-spec/blob/main/.claude/commands/kiro/spec-requirements.md
 
-これらのサンプルを基に、プロジェクトの文脈に適した要件定義書を作成します。特に`/docs/example/specs/tasks/20251101-example-task/requirements.md`のAS-IS/TO-BE構造を参考にしてください。
+これらのサンプルを基に、プロジェクトの文脈に適した要件定義書を作成します。特に`/docs/example/specs/issues/issue999-example-task/requirements.md`のAS-IS/TO-BE構造を参考にしてください。
 
 ## 要件定義書の構造
 
-**重要**: 必ず`/docs/example/specs/tasks/20251101-example-task/requirements.md`のサンプルと同じ構造・順序で作成してください。
+**重要**: 必ず`/docs/example/specs/issues/issue999-example-task/requirements.md`のサンプルと同じ構造・順序で作成してください。
 
 requirements.mdファイルは、この正確な構造と順序に従う必要があります：
 
@@ -346,7 +347,7 @@ P0 (必須)
 1. **ディレクトリ探索（最重要）**:
    - 指定されたディレクトリ内のすべてのファイルをリストアップ
    - 関連しそうなファイルを全て読み込む
-   - **必ず** `/docs/example/specs/tasks/20251101-example-task/requirements.md` サンプルを確認
+   - **必ず** `/docs/example/specs/issues/issue999-example-task/requirements.md` サンプルを確認
    
 2. **現状分析（AS-IS）**:
    - 既存コードやドキュメントから現在の実装状況を把握

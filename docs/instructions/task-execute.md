@@ -6,7 +6,7 @@
 
 開発プロセスは2つの主要なコマンドで構成されています：
 
-1. **`/spec-create`**: 仕様書の作成（要件定義 → 設計 → タスク分解）
+1. **`/spec-create`**: 仕様書の作成（要件定義 → 設計 → GitHub Issueへのタスク記述）
 2. **`/task-exec`**: タスクの実行（選定 → 実装 → レビュー → QA → 完了）
 
 ## 全体フロー図
@@ -34,11 +34,11 @@ graph TD
 
     L --> M["技術アーキテクチャ / データモデル設計 / API仕様"]
     M --> N{ユーザー承認}
-    N -->|承認| O["tasks.md 作成 (spec-tasks-generator)"]
+    N -->|承認| O["GitHub Issueにタスク記述 (spec-tasks-generator)"]
     N -->|修正依頼| L
 
     O --> P["実装タスク分解 / 依存関係管理 / 優先順位設定"]
-    P --> Q["出力: /docs/specs/tasks/{domain}/{date}-{feature}/"]
+    P --> Q["出力: /docs/specs/issues/{domain}/issue{番号}-{feature}/"]
 
     style I fill:#e1f5ff
     style L fill:#e1f5ff
@@ -52,8 +52,8 @@ graph TD
 
 ```mermaid
 graph TD
-    A["入力: tasks.md パス + タスク指定オプション"] --> B["ステップ1: タスク選定 (task-starter)"]
-    B --> C["tasks.md を読み込み"]
+    A["入力: Issue番号 + タスクグループ指定オプション"] --> B["ステップ1: タスクグループ選定 (task-starter)"]
+    B --> C["GitHub Issueを読み込み"]
     C --> D["依存関係チェック"]
     D --> E{自然言語指定あり?}
     E -->|Yes| F["該当タスクを選定<br/>（1個または複数可）"]
@@ -83,9 +83,9 @@ graph TD
 
     LoopEnd --> U["ステップ5: 完了処理<br/>(task-finisher)"]
 
-    U --> V["タスクを x 完了状態に変更"]
+    U --> V["タスクグループを x 完了状態に変更"]
     V --> W["修正ファイル一覧を更新"]
-    W --> X["出力: 実装コード +<br/>更新されたtasks.md"]
+    W --> X["出力: 実装コード +<br/>更新されたGitHub Issue"]
 
     style B fill:#fff9c4
     style LoopStart fill:#ffecb3
@@ -103,16 +103,16 @@ graph TD
 graph LR
     A[/spec-create] --> B[requirements.md]
     A --> C[design.md]
-    A --> D[tasks.md]
+    A --> D[GitHub Issue]
 
     D --> E[/task-exec]
     B --> E
     C --> E
 
     E --> F[実装コード]
-    E --> G[更新されたtasks.md]
+    E --> G[更新されたGitHub Issue]
 
-    G --> H{次のタスク?}
+    G --> H{次のタスクグループ?}
     H -->|Yes| E
     H -->|No| I[完了]
 
@@ -139,7 +139,7 @@ graph LR
 /spec-create "ユーザー認証機能の実装：マジックリンク認証とセッション管理"
 
 # 既存仕様書を修正
-/spec-create "認証機能の改善" /docs/specs/tasks/auth/20250111-auth-magic-link/
+/spec-create "認証機能の改善" /docs/specs/issues/auth/20250111-auth-magic-link/
 ```
 
 #### 処理フロー詳細
@@ -157,7 +157,7 @@ Step 1: 外部リソース確認
 │     ├─ コンポーネント仕様
 │     └─ デザイントークン
 └─ 出力ディレクトリ決定
-   └─ /docs/specs/tasks/{domain}/{YYYYMMDD}-{domain}-{feature}/
+   └─ /docs/specs/issues/{domain}/{YYYYMMDD}-{domain}-{feature}/
 
 Step 2: requirements.md 作成（要件定義書）
 ├─ spec-requirements-generator エージェント起動
@@ -193,23 +193,25 @@ Step 3: design.md 作成（設計書）
    - セキュリティ設計
    - エラーハンドリング
 
-Step 4: tasks.md 作成（タスク一覧）
+Step 4: GitHub Issueにタスク一覧を記述
 ├─ spec-tasks-generator エージェント起動
 ├─ 実装タスクの洗い出し
 ├─ タスクの分解（Phase別）
 ├─ 依存関係の定義
 ├─ 優先順位の設定
+├─ GitHub Issueの本文にタスク一覧を記述
 ├─ ユーザー承認待ち
-│  ├─ 承認 → コミット＆プッシュ
-│  │  └─ メッセージ: "docs: add tasks for {feature-name}"
+│  ├─ 承認 → Issueブランチ作成、ファイルプッシュ、PR作成、Issue更新
 │  └─ 修正依頼 → 再作成
 └─ 📄 成果物構成:
    **基本構成**（各ファイル1000行以下）:
-   - requirements.md, design.md, tasks.md
+   - requirements.md, design.md
+   - GitHub Issueにタスク一覧
 
    **分割構成**（1000行超過時）:
-   - requirements/, design/, tasks/ ディレクトリ
+   - requirements/, design/ ディレクトリ
    - 各ディレクトリ内にREADME.mdと複数の詳細ファイル
+   - GitHub Issueにタスク一覧
 ```
 
 
@@ -227,33 +229,33 @@ Step 4: tasks.md 作成（タスク一覧）
 #### 実行方法
 
 ```bash
-# タスクファイルを指定（自動選定）
-/task-exec /docs/specs/tasks/auth/20250111-auth-magic-link/tasks.md
+# Issue番号を指定（自動選定）
+/task-exec #123
 
-# 特定のタスクを自然言語で指定
-/task-exec /docs/specs/tasks/auth/20250111-auth-magic-link/tasks.md "認証機能の実装"
+# 特定のタスクグループを指定
+/task-exec #123 1.1
 
-# パスなしで実行（入力を要求）
-/task-exec
+# Issue番号のみ（#なし）
+/task-exec 123
 ```
 
 #### 処理フロー詳細
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ ステップ1: タスク選定 [task-starter]                  │
-│ 🎯 目的: 着手可能なタスクを1つ選定                    │
+│ ステップ1: タスクグループ選定 [task-starter]          │
+│ 🎯 目的: 着手可能なタスクグループを1つ選定           │
 └─────────────────────────────────────────────────────┘
   ↓
-  ├─ tasks.md を読み込み・解析
+  ├─ GitHub Issueを読み込み・解析
   ├─ 依存関係チェック
-  │  └─ 先行タスクが [x] 完了状態か確認
-  ├─ 自然言語指定がある場合
-  │  └─ 該当タスクのみ選定
+  │  └─ 先行タスクグループが [x] 完了状態か確認
+  ├─ タスクグループ指定がある場合
+  │  └─ 該当タスクグループのみ選定
   ├─ 指定がない場合
-  │  └─ 最も優先順位が高いタスクを選定
-  ├─ 選定タスクを [🔄] 着手中に変更
-  └─ 完了報告: "## 📋 タスク選定完了"
+  │  └─ 最も優先順位が高いタスクグループを選定
+  ├─ 選定タスクグループを [🔄] 着手中に変更
+  └─ 完了報告: "## 📋 タスクグループ選定完了"
 
 ┌─────────────────────────────────────────────────────┐
 │ ステップ2: 実装フェーズ [task-executer]               │
@@ -321,15 +323,15 @@ Step 4: tasks.md 作成（タスク一覧）
 
 ┌─────────────────────────────────────────────────────┐
 │ ステップ5: 完了処理フェーズ [task-finisher]           │
-│ 🎯 目的: タスクの完了処理                            │
+│ 🎯 目的: タスクグループの完了処理                    │
 └─────────────────────────────────────────────────────┘
   ↓
-  ├─ tasks.md 更新
-  │  └─ タスクを [x] 完了状態に変更
+  ├─ GitHub Issue 更新
+  │  └─ タスクグループを [x] 完了状態に変更
   ├─ 修正ファイル一覧更新
   │  └─ 変更されたファイルを記録
-  ├─ 次タスクの依存関係更新
-  └─ 完了報告: "## 🎉 タスク完了"
+  ├─ 次タスクグループの依存関係更新
+  └─ 完了報告: "## 🎉 タスクグループ完了"
 
 ┌─────────────────────────────────────────────────────┐
 │ ステップ6: 追加修正対応フェーズ [task-modification-  │
@@ -390,72 +392,78 @@ Step 4: tasks.md 作成（タスク一覧）
 
 **生成される仕様書**:
 ```
-/docs/specs/tasks/auth/20250111-auth-magic-link/
+/docs/specs/issues/auth/issue123-auth-magic-link/
 ├── requirements.md    ← ユーザーストーリー、受け入れ基準
-├── design.md          ← API設計、データモデル、セキュリティ
-└── tasks.md           ← 実装タスク（Phase 1〜3）
+└── design.md          ← API設計、データモデル、セキュリティ
+
+GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 ```
 
 #### Step 2: タスク実行（Phase 1-1）
 
 ```bash
 # Phase 1-1: トークン生成APIの実装
-/task-exec /docs/specs/tasks/auth/20250111-auth-magic-link/tasks.md
+/task-exec #123
 
 # 実行内容:
 # 1. task-starter: "Phase 1-1: トークン生成API実装" を選定
 # 2. task-exec内で直接実装: API実装、バリデーション追加
 # 3. task-reviewer: 設計との整合性確認
 # 4. task-qa: curlでAPIテスト
-# 5. task-finisher: タスクを完了状態に変更
+# 5. task-finisher: タスクグループを完了状態に変更
 ```
 
 #### Step 3: タスク実行（Phase 1-2）
 
 ```bash
 # Phase 1-2: メール送信機能の実装
-/task-exec /docs/specs/tasks/auth/20250111-auth-magic-link/tasks.md
+/task-exec #123
 
 # 実行内容:
 # 1. task-starter: "Phase 1-2: メール送信機能実装" を選定（Phase 1-1 が完了しているため着手可能）
 # 2. task-exec内で直接実装: メールサービス実装
 # 3. task-reviewer: テンプレート確認
 # 4. task-qa: メール送信テスト
-# 5. task-finisher: タスクを完了状態に変更
+# 5. task-finisher: タスクグループを完了状態に変更
 ```
 
 #### Step 4: 全フェーズ完了まで繰り返し
 
 ```bash
-# Phase 2, Phase 3 のタスクを順次実行
-/task-exec /docs/specs/tasks/auth/20250111-auth-magic-link/tasks.md
-/task-exec /docs/specs/tasks/auth/20250111-auth-magic-link/tasks.md
+# Phase 2, Phase 3 のタスクグループを順次実行
+/task-exec #123
+/task-exec #123
 ...
 
-# 最終的にすべてのタスクが [x] 完了状態になる
+# 最終的にすべてのタスクグループが [x] 完了状態になる
 ```
 
 ---
 
 ## タスク状態管理
 
-### tasks.md のフォーマット
+### GitHub Issueのフォーマット
 
 ```markdown
-## Phase 1: 基礎実装
+## タスク一覧
 
-### Phase 1-1: トークン生成API実装
-- [ ] トークン生成ロジックの実装
-- [ ] APIエンドポイントの作成
-- [ ] バリデーションの追加
+### Phase 1: 基礎実装
 
-### Phase 1-2: メール送信機能実装
-- 依存: Phase 1-1
-- [ ] メールサービスの実装
-- [ ] テンプレートの作成
-- [ ] 送信ログの記録
+- [ ] **1.1 トークン生成API実装**
+  - 1.1.1 トークン生成ロジックの実装
+  - 1.1.2 APIエンドポイントの作成
+  - 1.1.3 バリデーションの追加
+  - **依存関係**: なし
+  - **完了条件**: APIテストが通ること（AC1.1を満たす）
 
-## Phase 2: UI実装
+- [ ] **1.2 メール送信機能実装**
+  - 1.2.1 メールサービスの実装
+  - 1.2.2 テンプレートの作成
+  - 1.2.3 送信ログの記録
+  - **依存関係**: 1.1
+  - **完了条件**: メール送信テストが通ること（AC1.2を満たす）
+
+### Phase 2: UI実装
 ...
 ```
 
@@ -535,7 +543,7 @@ stateDiagram-v2
 graph TD
     A["Asanaタスク"] --> B["requirements.md (受け入れ基準)"]
     B --> C["design.md (技術仕様)"]
-    C --> D["tasks.md (実装タスク)"]
+    C --> D["GitHub Issue (実装タスク一覧)"]
     D --> E["コード実装"]
     E --> F["QAテスト (受け入れ基準を検証)"]
 
@@ -553,13 +561,13 @@ graph TD
 
 ### よくある問題と対処法
 
-#### 1. タスクが選定されない
+#### 1. タスクグループが選定されない
 
 ```bash
 # 原因: 依存関係が満たされていない
-# 対処: 先行タスクを先に完了させる
+# 対処: 先行タスクグループを先に完了させる
 
-/task-exec /path/to/tasks.md "Phase 1-1"  # 先行タスクを指定して実行
+/task-exec #123 1.1  # 先行タスクグループを指定して実行
 ```
 
 #### 2. レビューで差し戻される
@@ -603,11 +611,11 @@ sequenceDiagram
     SpecCreate->>SpecCreate: design.md 作成
     SpecCreate->>User: 承認依頼
     User->>SpecCreate: 承認
-    SpecCreate->>SpecCreate: tasks.md 作成
+    SpecCreate->>SpecCreate: GitHub Issueにタスク一覧を記述
     SpecCreate->>User: 仕様書完成
 
-    User->>TaskExec: tasks.md パス
-    TaskExec->>Starter: タスク選定依頼
+    User->>TaskExec: Issue番号
+    TaskExec->>Starter: タスクグループ選定依頼
     Starter->>TaskExec: 選定完了
 
     TaskExec->>TaskExec: 実装フェーズ実行
@@ -621,7 +629,7 @@ sequenceDiagram
             QA->>TaskExec: QA合格
             TaskExec->>Finisher: 完了処理依頼
             Finisher->>TaskExec: 完了
-            TaskExec->>User: タスク完了
+            TaskExec->>User: タスクグループ完了
         else テスト失敗
             QA->>TaskExec: QA不合格
             TaskExec->>TaskExec: 再実装
@@ -647,13 +655,13 @@ sequenceDiagram
 
 ### 実行の流れ
 
-1. **仕様書作成**: `/spec-create`で要件・設計・タスクを作成
-2. **タスク実行**: `/task-exec`でタスクを1つずつ実行
-   - task-starterでタスク選定
+1. **仕様書作成**: `/spec-create`で要件・設計を作成し、GitHub Issueにタスク一覧を記述
+2. **タスク実行**: `/task-exec`でタスクグループを1つずつ実行
+   - task-starterでタスクグループ選定
    - **task-exec内で直接実装**（task-executerエージェントは不要）
    - task-reviewerでレビュー
    - task-qaでQA
    - task-finisherで完了処理
-3. **繰り返し**: 全タスクが完了するまで`/task-exec`を繰り返す
+3. **繰り返し**: 全タスクグループが完了するまで`/task-exec`を繰り返す
 
-開発を始める際は、まず`/spec-create`で仕様書を作成し、その後`/task-exec`でタスクを順次実行していきます。
+開発を始める際は、まず`/spec-create`で仕様書を作成し、その後`/task-exec`でタスクグループを順次実行していきます。

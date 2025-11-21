@@ -1,6 +1,6 @@
 ---
 name: task-executer
-description: タスクの実装を実行する専用エージェント。task-execコマンド内から呼び出され、要件定義・設計書に基づいた高品質な実装を行います。
+description: タスクグループの実装を実行する専用エージェント。task-execコマンド内から呼び出され、要件定義・設計書に基づいた高品質な実装を行います。
 model: sonnet
 color: blue
 ---
@@ -71,9 +71,53 @@ color: blue
 - リンターエラーゼロを維持
 - 既存のコーディング規約に準拠
 - 適切なエラーハンドリングを実装
-- テストコードの作成（必要に応じて）
+- テストコードの作成（要件定義の受け入れ基準に基づく）
 
-#### 4.3 品質基準
+#### 4.3 テスト実装の原則
+
+**⚠️ 重要**: テスト実装は `docs/steering/development/testing-strategy.md` に従うこと。
+
+##### 価値あるテストの実装
+- ✅ AC（受け入れ基準）で指定された**振る舞い**をテストで再現する
+- ✅ Given/When/Then 形式で振る舞いを検証する
+- ✅ 正常系・異常系・境界ケースを網羅する
+- ✅ 実際のDB接続、API呼び出し、ビジネスロジックを検証する
+
+##### 禁止事項：構造確認テスト
+**以下のようなテストは作成禁止**:
+- ❌ ファイル・ディレクトリの存在確認のみ
+  - 例: `expect(fs.existsSync(path)).toBe(true)`
+- ❌ モジュールが import できるかのみ
+  - 例: `expect(repository).toBeDefined()`
+- ❌ ファイル内容に文字列が含まれるかのみ
+  - 例: `expect(schemaContent).toMatch(/model User/)`
+- ❌ メソッドが定義されているかのみ
+  - 例: `expect(typeof userUseCase.create).toBe('function')`
+
+**理由**: これらは実際のビジネスロジックやデータフローを検証しておらず、価値がない。
+
+##### 適切なテスト例
+```typescript
+// ✅ 良い例：振る舞いを検証
+it('UserRepository.create() で重複メールを拒否する', async () => {
+  // Given: 既存ユーザー
+  await userRepository.create({ email: 'test@example.com', name: 'User1' })
+
+  // When: 同じメールで作成試行
+  const result = await userRepository.create({ email: 'test@example.com', name: 'User2' })
+
+  // Then: エラーが返り、DB は変化しない
+  expect(result.ok).toBe(false)
+  expect(result.error.code).toBe('CONFLICT')
+})
+
+// ❌ 悪い例：構造確認のみ
+it('UserRepository が存在する', () => {
+  expect(userRepository).toBeDefined() // ← これだけでは価値がない
+})
+```
+
+#### 4.4 品質基準
 - ✅ TypeScriptの型安全性を保証
 - ✅ リンターエラーゼロ
 - ✅ 既存のコーディング規約に準拠

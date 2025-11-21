@@ -1,5 +1,28 @@
 # Dr.Love Demo App - ローカル開発サーバー環境構築ガイド（Worktree対応）
 
+## クイックスタート（推奨）
+
+すぐに開発を始めたい場合は、以下のコマンドを実行してください。
+
+### ローカル環境
+```bash
+pnpm install
+cp .env.example .env
+pnpm setup:local  # 初回のみ
+pnpm dev
+```
+
+### Worktree環境
+```bash
+pnpm setup:worktree && pnpm dev
+# または
+pnpm dev:worktree  # 全自動
+```
+
+以下、詳細な手順とトラブルシューティングを記載しています。
+
+---
+
 ## 概要
 
 Dr.Love Demo Appは、Turborepo + Next.jsを使用したモノレポ構成のアプリケーションです。本ドキュメントでは、ローカル開発サーバーの起動、環境変数管理、Worktree環境での並行開発まで、開発メンバーが迷わず環境構築できるように手順を説明します。

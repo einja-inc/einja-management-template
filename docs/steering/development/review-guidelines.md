@@ -2,6 +2,59 @@
 
 このドキュメントは、task-reviewerエージェントおよび開発者が実装レビューを行う際の観点を定義します。
 
+## 🚨 レビュー前の必須確認事項
+
+すべての実装レビューでは、以下のドキュメントへの準拠を**必ず確認**してください：
+
+### フロントエンド実装（tsx, css ファイル）のレビュー時
+
+**📘 [フロントエンド開発ガイド](frontend-development.md) への準拠必須**
+
+レビュー時に確認すべき主要項目：
+- [ ] **Server Component / Client Componentの適切な使い分け**
+  - page.tsxでの`'use client'`使用は禁止
+  - インタラクティブ機能のみClient Component化
+  - `'use client'`境界が最小限に抑えられているか
+- [ ] **Tanstack Queryの正しい使用**
+  - useQuery / useMutationがClient Componentで使用されているか
+  - queryKeyが適切に設計されているか
+  - データ更新時のキャッシュ無効化が適切に実装されているか
+- [ ] **React Hook Formの正しい使用**
+  - Zodスキーマとの統合（zodResolver）
+  - フォームバリデーションの実装
+- [ ] **Hono Clientによる型安全なAPI呼び出し**
+  - エンドツーエンド型推論が機能しているか
+  - 適切なエラーハンドリング
+
+### バックエンド実装（API, ビジネスロジック）のレビュー時
+
+**📙 [バックエンドアーキテクチャ](backend-architecture.md) への準拠必須**
+
+レビュー時に確認すべき主要項目：
+- [ ] **4層レイヤードアーキテクチャの遵守**
+  - Presentation層: API Routes（Hono Router）
+  - Application層: UseCases（各アプリ内に配置）
+  - Domain層: エンティティ、Repository Interface
+  - Infrastructure層: Repository実装、Mapper
+- [ ] **Repositoryパターンの正しい実装**
+  - Domain層にインターフェース定義
+  - Infrastructure層に実装
+  - SearchCriteria型の設計（すべてオプショナル）
+- [ ] **Mapperパターンの使用**
+  - Prismaモデル ⇔ Domainエンティティの変換
+  - Infrastructure層に配置
+- [ ] **Result型パターンの使用**
+  - 例外を使わないエラーハンドリング
+  - `{ isSuccess: true/false, value/error }` の形式
+- [ ] **UseCase統合パターン**
+  - リソース単位で1ファイルに統合
+  - オブジェクトリテラル形式（クラスではない）
+- [ ] **パッケージエクスポート**
+  - index.ts不使用（直接ファイルパス指定）
+  - 絶対パスインポート（`@repo/server-core/...`）
+
+---
+
 ## API開発ガイドへの準拠確認
 
 APIエンドポイントやアプリケーション機能の実装レビュー時は、必ず以下を確認：
@@ -13,7 +66,7 @@ APIエンドポイントやアプリケーション機能の実装レビュー�
   - **🔗 Honoのメソッドチェーン形式が守られているか** - `new Hono().get().post().put().delete()`の形式で実装し、Context関数形式は使用しない
   - エラーハンドリングがApplicationErrorで統一されているか
   - loggerが使用され、console.logが使われていないか
-  - **import文で相対パスが使用されていないか** - 必ず絶対パス（`@/`）を使用すること
+  - **相対パスの使用禁止** - import文、require文、ファイルパス指定で`../`や`./`などの相対パスが使用されていないか。必ず絶対パス（`@/`）またはパッケージ名を使用すること
 
 ## APIクライアント実装ガイドへの準拠確認
 

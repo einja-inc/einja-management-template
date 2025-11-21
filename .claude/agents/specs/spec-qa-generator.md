@@ -69,7 +69,7 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 ### 1. ディレクトリ内容の完全探索（最重要）
 **必ず最初に行うこと：指定されたディレクトリ内のすべてのファイルを探索**
 
-提供されたディレクトリパス（例：`/docs/specs/tasks/auth/20250127-auth-magic-link/`）内を探索：
+提供されたディレクトリパス（例：`/docs/specs/issues/auth/20250127-auth-magic-link/`）内を探索：
 1. ディレクトリ内のすべてのファイルをリストアップ
 2. 特に以下を優先的に読み込む：
    - `tasks.md` - タスク一覧（必須）
@@ -115,7 +115,7 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 ## QAテスト仕様テンプレート
 
 以下のサンプルQAテスト仕様を参考にしてください：
-- **テストファイル例**: `/docs/example/specs/tasks/20251101-example-task/qa-tests`内の各ディレクトリにあるファイル （フェーズ別テスト）
+- **テストファイル例**: `/docs/example/specs/issues/issue999-example-task/qa-tests`内の各ディレクトリにあるファイル （フェーズ別テスト）
 
 これらのサンプルを基に、プロジェクトの文脈に適したQAテスト仕様を作成します。
 
@@ -279,7 +279,7 @@ curl -X POST http://localhost:3000/api/auth/magic-link \
    - 指定されたディレクトリ内のすべてのファイルをリストアップ
    - `tasks.md`、`requirements.md`、`design.md`を最優先で読み込む
    - その他のドキュメント（メモ等）もすべて読み込む
-   - **必ず** `/docs/example/specs/tasks/20251101-example-task/qa-tests/` サンプルを確認
+   - **必ず** `/docs/example/specs/issues/issue999-example-task/qa-tests/` サンプルを確認
 
 2. **タスク・フェーズ分析**:
    - tasks.mdからフェーズ構造を抽出（1-1, 1-2, 2-1等）

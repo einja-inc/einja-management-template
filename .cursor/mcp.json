@@ -1,3 +1,45 @@
 {
-	"mcpServers": {}
+	"mcpServers": {
+		"vibe_kanban": {
+			"command": "npx",
+			"args": ["-y", "vibe-kanban@latest", "--mcp"]
+		},
+		"codex": {
+			"type": "stdio",
+			"command": "codex",
+			"args": ["mcp-server"]
+		},
+		"context7": {
+			"command": "npx",
+			"args": ["-y", "@upstash/context7-mcp"]
+		},
+		"playwright": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@playwright/mcp", "--isolated"]
+		},
+		"serena": {
+			"command": "uvx",
+			"args": [
+				"--from",
+				"git+https://github.com/oraios/serena",
+				"serena-mcp-server",
+				"--context",
+				"ide-assistant",
+				".",
+				"--enable-web-dashboard=false"
+			]
+		},
+		"github": {
+			"type": "http",
+			"url": "https://api.githubcopilot.com/mcp/",
+			"headers": {
+				"Authorization": "Bearer ${GITHUB_TOKEN}"
+			}
+		},
+		"asana": {
+			"command": "npx",
+			"args": ["mcp-remote", "https://mcp.asana.com/sse"]
+		}
+	}
 }

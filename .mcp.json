@@ -1,5 +1,9 @@
 {
 	"mcpServers": {
+		"vibe_kanban": {
+			"command": "npx",
+			"args": ["-y", "vibe-kanban@latest", "--mcp"]
+		},
 		"codex": {
 			"type": "stdio",
 			"command": "codex",
@@ -21,7 +25,9 @@
 				"git+https://github.com/oraios/serena",
 				"serena-mcp-server",
 				"--context",
-				"ide-assistant"
+				"ide-assistant",
+				".",
+				"--enable-web-dashboard=false"
 			]
 		},
 		"github": {

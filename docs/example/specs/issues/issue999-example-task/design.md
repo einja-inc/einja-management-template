@@ -276,6 +276,430 @@ model SecurityLog {
 └── tokenStorage.ts           // トークン管理
 ```
 
+## 画面設計
+
+### 画面ワイヤーフレーム（Mermaid図）
+
+#### 1. ログイン画面 (Login Screen)
+
+```mermaid
+graph TB
+    subgraph "ログイン画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        Title[タイトル: マジックリンクでログイン]
+        Description[説明: メールアドレスを入力してログインリンクを受け取ります]
+        EmailField[入力フィールド: メールアドレス<br/>placeholder: your@email.com]
+        ValidationError[バリデーションエラー表示エリア<br/>条件付き表示: エラー時のみ赤文字]
+        SubmitBtn[ボタン: ログインリンクを送信<br/>状態: デフォルト/ローディング/無効化]
+        LoadingIndicator[ローディングスピナー<br/>条件付き表示: 送信中のみ]
+        PasswordLink[リンク: パスワードでログイン<br/>※並行運用期間中のみ]
+
+        Header --> Title
+        Title --> Description
+        Description --> EmailField
+        EmailField --> ValidationError
+        ValidationError --> SubmitBtn
+        SubmitBtn --> LoadingIndicator
+        LoadingIndicator --> PasswordLink
+    end
+```
+
+**レイアウト詳細**:
+- 中央寄せレイアウト、最大幅480px
+- 各要素間の余白: 16px
+- フィールド高さ: 48px
+- ボタン高さ: 48px
+
+**状態管理**:
+- デフォルト: 全要素表示、バリデーションエラーは非表示
+- 入力中: フィールドにフォーカスインジケーター表示
+- 送信中: ボタン無効化、ローディングスピナー表示
+- エラー: バリデーションエラーメッセージ表示、フィールド赤枠
+
+#### 2. メール送信確認画面 (Email Sent Screen)
+
+```mermaid
+graph TB
+    subgraph "メール送信確認画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        SuccessIcon[アイコン: メール送信成功✓]
+        Title[タイトル: メールを送信しました]
+        Message[メッセージ: {email}宛にログインリンクを送信しました<br/>メールを確認してリンクをクリックしてください]
+        ExpiryNote[注意書き: リンクは15分間有効です]
+        Divider[区切り線]
+        NoEmailTitle[サブタイトル: メールが届きませんか？]
+        CheckSpam[案内: 迷惑メールフォルダも確認してください]
+        ResendBtn[ボタン: 再送信<br/>状態: カウントダウン中は無効/1分後に有効化]
+        Countdown[カウントダウン表示: 00:XX<br/>条件付き表示: 1分間のみ]
+        TryAnotherLink[リンク: 別のメールアドレスを試す]
+
+        Header --> SuccessIcon
+        SuccessIcon --> Title
+        Title --> Message
+        Message --> ExpiryNote
+        ExpiryNote --> Divider
+        Divider --> NoEmailTitle
+        NoEmailTitle --> CheckSpam
+        CheckSpam --> ResendBtn
+        ResendBtn --> Countdown
+        Countdown --> TryAnotherLink
+    end
+```
+
+**レイアウト詳細**:
+- 中央寄せレイアウト、最大幅540px
+- 成功アイコンサイズ: 64x64px
+- 再送信ボタンは1分間カウントダウン表示
+
+**状態管理**:
+- 初期表示: 再送信ボタン無効、カウントダウン60秒開始
+- カウントダウン中: ボタンに「再送信 (00:XX)」と表示
+- カウントダウン完了: ボタン有効化、「再送信」のみ表示
+
+#### 3. トークン検証画面 (Token Verification Screen)
+
+```mermaid
+graph TB
+    subgraph "トークン検証画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        Spinner[ローディングスピナー: 大サイズ]
+        Message[メッセージ: 認証しています...<br/>しばらくお待ちください]
+        ProgressBar[プログレスバー: インジケーター<br/>条件付き表示: 3秒以上経過時]
+
+        Header --> Spinner
+        Spinner --> Message
+        Message --> ProgressBar
+    end
+```
+
+**レイアウト詳細**:
+- 中央寄せレイアウト、最小高さ400px
+- スピナーサイズ: 48x48px
+- 自動リダイレクト: 検証成功後3秒以内
+
+**状態管理**:
+- 検証中: スピナー表示、メッセージ表示
+- 3秒以上: プログレスバー追加表示
+- 検証完了: 自動リダイレクト
+
+#### 4. エラー画面 (Error Screen)
+
+```mermaid
+graph TB
+    subgraph "エラー画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        ErrorIcon[アイコン: エラーアイコン ⚠️]
+        ErrorTitle[タイトル: エラー種別により変動<br/>- リンクの有効期限が切れています<br/>- このリンクは既に使用されています<br/>- 無効なリンクです<br/>- リクエスト回数の上限に達しました]
+        ErrorMessage[メッセージ: エラー詳細と対処法]
+        ActionBtn[ボタン: リカバリーアクション<br/>- 新しいリンクを送信<br/>- ログインページに戻る<br/>- 時間経過後リトライ]
+        RetryAfter[リトライ可能時刻表示<br/>条件付き表示: レート制限エラー時のみ]
+        BackLink[リンク: ホームに戻る]
+
+        Header --> ErrorIcon
+        ErrorIcon --> ErrorTitle
+        ErrorTitle --> ErrorMessage
+        ErrorMessage --> ActionBtn
+        ActionBtn --> RetryAfter
+        RetryAfter --> BackLink
+    end
+```
+
+**エラー種別ごとの表示内容**:
+
+| エラー種別 | タイトル | ボタンラベル | 追加表示 |
+|-----------|---------|------------|---------|
+| TOKEN_EXPIRED | リンクの有効期限が切れています | 新しいリンクを送信 | - |
+| TOKEN_USED | このリンクは既に使用されています | 新しいリンクを送信 | - |
+| TOKEN_INVALID | 無効なリンクです | ログインページに戻る | - |
+| RATE_LIMIT | リクエスト回数の上限に達しました | - | 次回リクエスト可能時刻 |
+
+#### 5. セッション無効化確認画面 (Session Revocation Screen)
+
+```mermaid
+graph TB
+    subgraph "セッション無効化確認画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        WarningIcon[アイコン: 警告アイコン ⚠️]
+        Title[タイトル: セッションの無効化]
+        Message[メッセージ: 以下のセッションを無効化しますか？]
+        SessionInfo[セッション情報カード<br/>- デバイス情報<br/>- IPアドレス<br/>- ログイン日時<br/>- 最終アクティビティ]
+        WarningNote[警告: この操作は取り消せません]
+        ButtonGroup[ボタングループ]
+        RevokeBtn[ボタン: 無効化する - 危険アクション]
+        CancelBtn[ボタン: キャンセル - 通常アクション]
+
+        Header --> WarningIcon
+        WarningIcon --> Title
+        Title --> Message
+        Message --> SessionInfo
+        SessionInfo --> WarningNote
+        WarningNote --> ButtonGroup
+        ButtonGroup --> RevokeBtn
+        ButtonGroup --> CancelBtn
+    end
+```
+
+**レイアウト詳細**:
+- 中央寄せレイアウト、最大幅480px
+- ボタングループ: 横並び配置、間隔12px
+- 無効化ボタン: 赤色系（危険アクション）
+- キャンセルボタン: グレー系（通常アクション）
+
+### 画面遷移フロー図（詳細版）
+
+```mermaid
+stateDiagram-v2
+    [*] --> LoginScreen: ユーザーアクセス
+
+    LoginScreen --> LoginScreen: バリデーションエラー
+    LoginScreen --> EmailSentScreen: メール送信成功
+
+    EmailSentScreen --> EmailSentScreen: 再送信（1分待機後）
+    EmailSentScreen --> RateLimitError: レート制限超過
+    EmailSentScreen --> LoginScreen: 別のアドレスを試す
+
+    RateLimitError --> LoginScreen: 時間経過後リトライ
+
+    note right of EmailSentScreen
+        メール受信
+        ↓
+        リンククリック
+    end note
+
+    EmailSentScreen --> VerificationScreen: リンククリック
+
+    VerificationScreen --> Dashboard: 検証成功
+    VerificationScreen --> ExpiredError: トークン期限切れ
+    VerificationScreen --> UsedError: トークン使用済み
+    VerificationScreen --> InvalidError: トークン無効
+
+    ExpiredError --> LoginScreen: 新しいリンクを送信
+    UsedError --> LoginScreen: 新しいリンクを送信
+    InvalidError --> LoginScreen: ログインページに戻る
+
+    Dashboard --> SessionRevocationScreen: セキュリティ通知から遷移
+    SessionRevocationScreen --> SessionRevoked: 無効化実行
+    SessionRevocationScreen --> Dashboard: キャンセル
+
+    SessionRevoked --> [*]: 完了
+    Dashboard --> [*]: ログアウト
+```
+
+## UIインタラクション設計
+
+### コンポーネント詳細仕様
+
+#### MagicLinkForm.tsx
+
+**Props**:
+```typescript
+interface MagicLinkFormProps {
+  onSubmit: (email: string) => Promise<void>;
+  defaultEmail?: string;  // エラー後の再表示用
+  isLoading?: boolean;
+  error?: string | null;
+}
+```
+
+**State**:
+```typescript
+interface MagicLinkFormState {
+  email: string;
+  validationError: string | null;
+  isSubmitting: boolean;
+  focusedField: 'email' | null;
+}
+```
+
+**Events**:
+- `onChange`: メールアドレス入力時
+- `onBlur`: フィールドフォーカスアウト時、バリデーション実行
+- `onSubmit`: フォーム送信時、バリデーション後API呼び出し
+
+**バリデーションロジック**:
+```typescript
+const validateEmail = (email: string): string | null => {
+  if (!email.trim()) return 'メールアドレスを入力してください';
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) return '有効なメールアドレスを入力してください';
+  return null;
+};
+```
+
+**インタラクション詳細**:
+1. **フィールドフォーカス**
+   - フォーカス時: 枠線色変更
+   - フォーカスアウト時: バリデーション実行
+
+2. **送信ボタンクリック**
+   - バリデーション実行
+   - エラーがあれば表示してreturn
+   - エラーなければボタン無効化、ローディング表示
+   - API呼び出し
+   - 成功時: 確認画面へ遷移
+   - 失敗時: エラー表示、ボタン再有効化
+
+3. **ローディング状態**
+   - ボタン内にスピナー表示
+   - 3秒以上かかる場合: 追加メッセージ表示
+
+#### VerificationMessage.tsx
+
+**Props**:
+```typescript
+interface VerificationMessageProps {
+  email: string;
+  onResend: () => Promise<void>;
+  onChangeEmail: () => void;
+  expiryMinutes?: number;  // デフォルト: 15
+}
+```
+
+**State**:
+```typescript
+interface VerificationMessageState {
+  resendCountdown: number;  // 秒単位
+  canResend: boolean;
+  isResending: boolean;
+}
+```
+
+**Events**:
+- `onResend`: 再送信ボタンクリック時
+- `onChangeEmail`: 別のアドレスを試すリンククリック時
+
+**カウントダウンロジック**:
+```typescript
+useEffect(() => {
+  const timer = setInterval(() => {
+    setCountdown(prev => {
+      if (prev <= 1) {
+        setCanResend(true);
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, []);
+```
+
+**インタラクション詳細**:
+1. **初期表示**
+   - カウントダウン60秒開始
+   - 再送信ボタン無効化
+   - カウントダウン表示: 「再送信 (00:XX)」
+
+2. **カウントダウン完了**
+   - 再送信ボタン有効化
+   - ボタンラベル: 「再送信」
+
+3. **再送信ボタンクリック**
+   - ボタン無効化、ローディング表示
+   - API呼び出し
+   - 成功時: カウントダウンリセット
+   - 失敗時: エラー表示
+
+#### TokenVerifying.tsx
+
+**Props**:
+```typescript
+interface TokenVerifyingProps {
+  token: string;
+  onSuccess: (user: User) => void;
+  onError: (error: TokenVerificationError) => void;
+}
+```
+
+**State**:
+```typescript
+interface TokenVerifyingState {
+  status: 'verifying' | 'success' | 'error';
+  elapsedTime: number;  // 秒単位
+  showProgressBar: boolean;
+}
+```
+
+**Events**:
+- `useEffect`: マウント時に自動的にトークン検証開始
+- `onVerificationComplete`: 検証完了時
+
+**検証フロー**:
+```typescript
+useEffect(() => {
+  const verifyToken = async () => {
+    try {
+      const result = await authApi.verifyToken(token);
+      setStatus('success');
+      setTimeout(() => onSuccess(result.user), 3000);
+    } catch (error) {
+      setStatus('error');
+      onError(error);
+    }
+  };
+
+  verifyToken();
+}, [token]);
+```
+
+**インタラクション詳細**:
+1. **検証中**
+   - ローディングスピナー表示
+   - メッセージ: 「認証しています...」
+   - 3秒経過後: プログレスバー追加表示
+
+2. **検証成功**
+   - メッセージ変更: 「ログインしています...」
+   - 3秒以内に自動リダイレクト
+
+3. **検証失敗**
+   - エラー画面へ遷移
+   - エラー種別に応じたメッセージとアクション表示
+
+### フォームバリデーション設計
+
+**バリデーションタイミング**:
+- リアルタイムバリデーション: 実施しない（UX配慮）
+- フォーカスアウト時: 実施する
+- 送信時: 必ず実施する
+
+**エラー表示ルール**:
+- エラーメッセージ: フィールド直下に赤文字で表示
+- フィールド枠: エラー時は赤色に変更
+- エラー自動消去: しない（ユーザーが修正するまで表示）
+
+### ローディング状態管理
+
+**ローディングインジケーター**:
+- 短時間（< 3秒）: ボタン内スピナーのみ
+- 長時間（≥ 3秒）: 追加メッセージ表示
+
+**ローディング中のユーザー操作制限**:
+- ボタン無効化
+- フォーム入力フィールド無効化
+- 戻るボタン/リロードの警告表示（検証画面）
+
+### エラーハンドリングUI
+
+**エラー表示パターン**:
+
+1. **インラインエラー** (フォームバリデーション)
+   - 位置: フィールド直下
+   - 色: 赤色
+   - アイコン: エラーアイコン（小）
+
+2. **ページレベルエラー** (API エラー)
+   - 位置: 専用のエラー画面
+   - 色: 赤色系
+   - アイコン: エラーアイコン（大）
+   - リカバリーアクションボタン必須
+
+3. **通知バナーエラー** (セキュリティ通知)
+   - 位置: ページ上部
+   - 色: 黄色系（警告）または赤色系（重大）
+   - 閉じるボタン: あり
+
 ## エラーハンドリング
 
 ### エラー分類とコード体系

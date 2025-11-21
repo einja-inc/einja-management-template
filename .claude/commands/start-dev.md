@@ -1,5 +1,5 @@
 ---
-description: "ローカル開発環境を起動します。環境構築済みの場合に使用"
+description: "ローカル開発環境を起動します"
 allowed-tools: Bash
 ---
 
@@ -7,72 +7,37 @@ allowed-tools: Bash
 
 ## コマンドの目的
 
-既に環境構築が完了している環境でローカル開発環境を起動します。
+環境を自動判定してセットアップ + 開発サーバー起動を実行します。
 
 ## 実行手順
 
-### 1. PostgreSQL起動
-```bash
-echo "=== PostgreSQL起動 ==="
-docker-compose up -d postgres
-echo "✅ PostgreSQL起動完了"
-```
+### 環境判定とセットアップ + 起動
 
-### 2. 依存関係インストール
 ```bash
-echo "=== 依存関係インストール ==="
-npm install
-echo "✅ npm install完了"
-```
-
-### 3. Prismaクライアント生成とマイグレーション
-```bash
-echo "=== Prismaクライアント生成 ==="
-npm run db:generate
-echo "✅ Prismaクライアント生成完了"
-
-echo "=== データベースマイグレーション ==="
-npm run db:push
-echo "✅ マイグレーション完了"
-```
-
-### 4. 既存プロセス終了とログクリア
-```bash
-echo "=== 既存プロセス終了とログクリア ==="
-echo "" > dev.log
-echo "既存のNext.jsプロセスを終了中..."
-pkill -f "npm run dev" 2>/dev/null || true
-pkill -f "next-server" 2>/dev/null || true
-pkill -f "next dev" 2>/dev/null || true
-sleep 2
-echo "✅ プロセス終了とログクリア完了"
-```
-
-### 5. Next.js アプリケーション起動（Turbopack）
-```bash
-echo "=== Next.js サーバー起動（Turbopack） ==="
-npm run dev > dev.log 2>&1 &
-echo "✅ Next.jsサーバー起動中..."
-echo "起動ログ: tail -f dev.log で確認可能"
-```
-
-### 6. 起動確認
-```bash
-echo "=== 起動確認 ==="
-sleep 15
-if curl -s http://localhost:3000 > /dev/null 2>&1; then
-    echo "✅ Next.js App: 起動完了 (http://localhost:3000)"
+# Worktree環境かどうかを判定
+if [ -d ".git/worktrees" ]; then
+  echo "🌳 Worktree環境を検出しました"
+  pnpm setup:worktree && pnpm dev
 else
-    echo "⏳ サーバーはまだ起動中です"
-    echo "ログを確認してください: tail -f dev.log"
+  echo "💻 ローカル環境を起動します"
+  pnpm setup:local && pnpm dev
 fi
+```
 
-echo ""
-echo "📋 利用可能なサービス:"
-echo "  • PostgreSQL: localhost:5432"
-echo "  • Next.js App: http://localhost:3000"
-echo ""
-echo "💡 開発サーバーの停止:"
-echo "  pkill -f 'npm run dev'"
-echo ""
+## 注意事項
+
+- 初回実行時は、セットアップに3-5分かかります
+- 2回目以降は`pnpm dev`のみで起動できます（セットアップ不要）
+
+## ターミナルから直接実行する場合
+
+### ローカル環境
+```bash
+pnpm setup:local  # 初回のみ
+pnpm dev
+```
+
+### Worktree環境
+```bash
+pnpm dev:worktree  # 全自動（セットアップ + 起動）
 ```

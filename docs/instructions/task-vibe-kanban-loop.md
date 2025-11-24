@@ -121,20 +121,51 @@ git show origin/{base_branch}:{task_file_path}
 
 ### セットアップ手順
 
-1. **アプリケーション起動**
-   ```bash
-   # 公式サイトからインストール or npxで実行
-   npx -y vibe-kanban@latest --mcp
-   ```
+#### 1. アプリケーション起動
 
-2. **プロジェクト登録**
-   ```bash
-   # プロジェクトIDを取得
+```bash
+npx vibe-kanban
+```
+
+起動後、ブラウザでUIが自動的に開きます。
+
+#### 2. プロジェクト登録
+
+1. **既存プロジェクトの確認**
+   - Vibe-Kanban UIで既存プロジェクトを確認
+   - または `mcp__vibe_kanban__list_projects` で確認
+
+2. **新規プロジェクト登録**（初回のみ）
+   - Vibe-Kanban UIの「+ New Project」ボタンをクリック
+   - プロジェクト名を入力（例: `einja-management-template`）
+   - 作成後、プロジェクトIDをメモ（UUID形式）
+
+3. **プロジェクトIDの取得**
+   ```
    mcp__vibe_kanban__list_projects
    ```
+   → 登録済みプロジェクト一覧とIDが表示される
 
-3. **ブランチ戦略**
-   - 詳細: [`docs/steering/task-management.md`](../steering/task-management.md)
+#### 3. Claude Code MCP設定
+
+Vibe-KanbanをMCPサーバーとして使用するため、`claude_desktop_config.json`または`.claude/settings.json`に設定が必要です：
+
+```json
+{
+  "mcpServers": {
+    "vibe_kanban": {
+      "command": "npx",
+      "args": ["-y", "vibe-kanban-mcp"]
+    }
+  }
+}
+```
+
+**注意**: `npx vibe-kanban`（UIアプリ）と`vibe-kanban-mcp`（MCPサーバー）は別パッケージです。
+
+#### 4. ブランチ戦略
+
+- 詳細: [`docs/steering/task-management.md`](../steering/task-management.md)
 
 ---
 

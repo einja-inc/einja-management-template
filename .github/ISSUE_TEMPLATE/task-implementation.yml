@@ -1,0 +1,131 @@
+name: タスク実装
+description: 新機能・バグ修正のタスク管理用Issue
+title: "[機能名]"
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## タスク実装用Issue
+
+        このテンプレートは新機能やバグ修正のタスク管理に使用します。
+
+  - type: textarea
+    id: as-is
+    attributes:
+      label: AS-IS（現状）
+      description: requirements.mdから抽出した現在の状態・問題点
+      placeholder: |
+        現在の実装状況と課題を記載
+
+        **現在の実装状況**:
+        - 状況1
+        - 状況2
+
+        **現状の課題**:
+        - 課題1
+        - 課題2
+    validations:
+      required: true
+
+  - type: textarea
+    id: to-be
+    attributes:
+      label: TO-BE（目標状態）
+      description: requirements.mdから抽出した実装後の期待する状態
+      placeholder: |
+        実現したい姿と期待される改善を記載
+
+        **実現したい姿**:
+        - 姿1
+        - 姿2
+
+        **期待される改善**:
+        - 改善1
+        - 改善2
+    validations:
+      required: true
+
+  - type: textarea
+    id: approach
+    attributes:
+      label: 対応方針
+      description: design.mdから抽出した技術的アプローチ、使用ライブラリ、実装方針
+      placeholder: |
+        技術選定、アーキテクチャ、実装方針を記載
+
+        **技術スタック**:
+        - フレームワーク: Next.js 15
+        - データベース: PostgreSQL
+        - 認証: NextAuth.js
+
+        **主要な実装方針**:
+        - 方針1
+        - 方針2
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: タスク一覧
+      description: 実装するタスクグループのリスト
+      placeholder: |
+        ### Phase 1: [フェーズ名]
+
+        - [ ] **1.1 [タスクグループ名]**
+          - 1.1.1 [タスク名]
+          - 1.1.2 [タスク名]
+          - **依存関係**: なし
+          - **完了条件**: [テスト条件]が通ること（AC1.1, AC1.2を満たす）
+          - **受け入れ基準**:
+            - AC1.1: Given [前提] When [操作] Then [結果]
+            - AC1.2: Given [前提] When [操作] Then [結果]
+          - **対応設計**: design.md「[セクション名]」セクション
+          - **関連ドキュメント**: `docs/specs/issues/[issue番号]-[機能名]/requirements.md`
+
+        - [ ] **1.2 [タスクグループ名]**
+          - 1.2.1 [タスク名]
+          - **依存関係**: 1.1
+          - **完了条件**: [テスト条件]が通ること（AC2.1を満たす）
+          - **受け入れ基準**:
+            - AC2.1: Given [前提] When [操作] Then [結果]
+          - **対応設計**: design.md「[セクション名]」セクション
+          - **関連ドキュメント**: `docs/specs/issues/[issue番号]-[機能名]/requirements.md`
+
+        ### Phase 2: [フェーズ名]
+
+        - [ ] **2.1 [タスクグループ名]**
+          - **依存関係**: 1.2
+          - **完了条件**:
+          - **受け入れ基準**:
+          - **対応設計**:
+          - **関連ドキュメント**:
+      value: |
+        ### Phase 1:
+
+        - [ ] **1.1 **
+          - **依存関係**: なし
+          - **完了条件**:
+          - **受け入れ基準**:
+            - AC1.1:
+          - **対応設計**:
+          - **関連ドキュメント**:
+    validations:
+      required: true
+
+  - type: textarea
+    id: related-docs
+    attributes:
+      label: 関連ドキュメント
+      description: 要件定義書、設計書、QAテストへのリンク
+      placeholder: |
+        - 要件定義: `docs/specs/issues/[issue番号]-[機能名]/requirements.md`
+        - 設計書: `docs/specs/issues/[issue番号]-[機能名]/design.md`
+        - QAテスト: `docs/specs/issues/[issue番号]-[機能名]/qa-tests/`
+      value: |
+        - 要件定義: `docs/specs/issues/`
+        - 設計書: `docs/specs/issues/`
+        - QAテスト: `docs/specs/issues/`
+    validations:
+      required: true

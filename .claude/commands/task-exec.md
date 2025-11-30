@@ -244,6 +244,110 @@ task-exec 123 1.1
      - パターンA: ドキュメント更新（必要な場合）→ task-executer のみ
      - パターンB: ドキュメント更新（必要な場合）→ executer → reviewer → qa → finisher
 
+---
+
+## 受け入れ条件の参照方法（重要）
+
+このセクションは、task-executer、task-reviewer、task-qaサブエージェントが受け入れ条件を参照する際の標準手順を定義します。
+
+### requirements.mdの標準構造
+
+**必須セクション**:
+- **受け入れ基準（Acceptance Criteria）**: このセクションには各ACが以下の形式で記載されます
+
+**AC（Acceptance Criteria）の形式**:
+```markdown
+##### 機能要件
+- [ ] Given: 前提条件
+      When: 実行する操作
+      Then: 期待される結果
+```
+
+### task-executerの受け入れ条件参照方法
+
+1. タスクグループの関連ドキュメント（`requirements.md`）を読み込む
+2. 各ユーザーストーリー配下の「受け入れ基準」セクションを特定
+3. 各AC（Given/When/Then）に対して実装を行う
+4. `design.md` の技術仕様に準拠した実装を行う
+
+### task-reviewerの受け入れ条件参照方法
+
+1. `requirements.md` の各ユーザーストーリー配下の「受け入れ基準」セクションを参照
+2. 実装が各ACを満たしているかを確認
+3. ACとの整合性をレビュー観点の最優先項目とする
+
+### task-qaの受け入れ条件参照方法
+
+**⚠️ 最重要**: QAエージェントは以下の手順で受け入れ条件を参照します
+
+1. **受け入れ基準の抽出**
+   - タスクグループの `requirements.md` を読み込む
+   - 各ユーザーストーリー配下の「受け入れ基準」セクションを特定
+   - 各AC（Given/When/Then形式）を抽出
+
+2. **テストシナリオの作成**
+   - 各ACに対して、Given/When/Thenに基づくテストシナリオを作成
+   - 正常系・異常系・境界ケースを含める
+   - QA仕様書（`qa-tests/phaseN/X-Y.md`）に記録
+
+3. **SUCCESS判定基準**
+   - **すべてのACが満たされた場合のみ**、SUCCESS判定
+   - 1つでもACを満たさない場合、FAILURE判定してtask-executerに差し戻し
+
+4. **参照ドキュメント**
+   - QAテスト項目作成方針: `docs/steering/acceptance-criteria-and-qa-guide.md`
+   - テンプレート: `docs/templates/requirements.md.template`
+
+---
+
+## QA仕様書の作成・更新フロー
+
+### 初回実行時（qa-tests/phaseN/X-Y.md が存在しない場合）
+
+1. **ファイルの新規作成**
+   - タスクグループ番号に基づいて `qa-tests/phaseN/X-Y.md` を新規作成
+   - 例: タスクグループ1.1 → `qa-tests/phase1/1-1.md`
+
+2. **受け入れ基準の抽出**
+   - `requirements.md` の各ユーザーストーリー配下の「受け入れ基準」セクションから各ACを抽出
+
+3. **テストシナリオの作成**
+   - 各ACに対してテストシナリオを作成
+   - テンプレート: `docs/steering/acceptance-criteria-and-qa-guide.md` 参照
+
+4. **QA仕様書の構造**:
+```markdown
+## 機能名: [タスク名]
+- 背景/価値: [requirements.mdから抽出]
+- 関連 AC: AC1.1, AC1.2, AC2.1
+- テスト範囲: Integration / E2E
+
+- シナリオ:
+  1. [AC1.1に対応するシナリオ]
+     - 前提: [Given]
+     - 操作: [When]
+     - 期待結果: [Then]
+     - ログ/メトリクス確認方法: [確認手段]
+
+### 実施結果（最終更新: YYYY-MM-DD）
+**ステータス: [✅ SUCCESS / ❌ FAILURE / ⚠️ PARTIAL]**
+```
+
+### 2回目以降の実行時（qa-tests/phaseN/X-Y.md が既に存在する場合）
+
+1. **既存ファイルの読み込み**
+   - `qa-tests/phaseN/X-Y.md` を読み込む
+
+2. **更新対象の特定**
+   - 「実施結果」セクションのみを更新対象とする
+   - シナリオ部分は**保持**（変更しない）
+
+3. **結果の記録**
+   - 最新のテスト実施結果を「実施結果」セクションに追記
+   - ステータスを更新（SUCCESS / FAILURE / PARTIAL）
+
+---
+
 ## 注意事項
 
 - GitHub Issueのタスク一覧は特定のフォーマットに従っている必要があります

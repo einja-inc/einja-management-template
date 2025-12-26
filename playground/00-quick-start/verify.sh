@@ -30,14 +30,14 @@ fi
 
 # 4. playground依存関係
 echo "[4/5] Checking playground dependencies..."
-cd ../..
+cd ..
 if [ -d "node_modules" ]; then
   echo "✅ Dependencies installed"
 else
   echo "❌ Dependencies not installed. Run 'bash playground/setup.sh'"
   exit 1
 fi
-cd playground/00-quick-start
+cd 00-quick-start
 
 # 5. .env.playground
 echo "[5/5] Checking .env.playground..."

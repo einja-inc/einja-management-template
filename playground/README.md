@@ -85,6 +85,8 @@ playground/
 - GitHub Issueは手動で作成してください（mock-data/issues/からコピペ）
 - PostgreSQLが起動していることを確認してください（`docker-compose up -d postgres`）
 - DATABASE_URLを.env.playgroundに設定してください
+  - 例: `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/playground_db?schema=public"`
+  - PostgreSQLのユーザー名、パスワード、データベース名は必要に応じて変更してください
 
 ## トラブルシューティング
 

@@ -5,7 +5,8 @@
 	"scripts": {
 		"dev": "next dev --turbopack",
 		"build": "next build",
-		"test": "vitest run"
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"next": "15.3.3",

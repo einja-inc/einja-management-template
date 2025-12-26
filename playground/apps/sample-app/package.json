@@ -5,7 +5,7 @@
 	"scripts": {
 		"dev": "next dev --turbopack",
 		"build": "next build",
-		"lint": "echo 'Lint check passed (not configured)' && exit 0",
+		"lint": "biome lint ./src",
 		"test": "vitest run",
 		"test:e2e": "echo 'E2E tests not implemented yet' && exit 0",
 		"typecheck": "tsc --noEmit"

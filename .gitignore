@@ -53,5 +53,12 @@ storybook-static
 # claude
 .claude/settings.local.json
 
+# MCP (Model Context Protocol)
+.playwright-mcp/
+.serena/
+
+# task-exec modifications (auto-generated)
+modifications/
+
 # prisma
 prisma/dev.db

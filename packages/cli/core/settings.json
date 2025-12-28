@@ -1,0 +1,42 @@
+{
+	"includeCoAuthoredBy": false,
+	"permissions": {
+		"allow": [
+			"Bash(git:*)",
+			"Bash(ls:*)",
+			"Bash(cd:*)",
+			"Bash(pwd:*)",
+			"Bash(cat:*)",
+			"Bash(grep:*)",
+			"Bash(find:*)",
+			"Bash(echo:*)",
+			"Bash(mkdir:*)",
+			"Bash(cp:*)",
+			"Bash(mv:*)",
+			"Bash(touch:*)",
+			"WebFetch",
+			"WebFetch(domain:*)",
+			"WebSearch",
+			"LS(*)",
+			"Read(**)",
+			"Glob(*)",
+			"Grep(*)",
+			"Edit(**)",
+			"MultiEdit(**)",
+			"Write",
+			"Task(*)",
+			"TodoRead(*)",
+			"TodoWrite(*)",
+			"NotebookRead(*)",
+			"NotebookEdit(*)"
+		],
+		"ask": [
+			"Bash(rm:*)",
+			"Bash(sudo:*)",
+			"Bash(chmod:*)",
+			"Bash(chown:*)"
+		]
+	},
+	"enableAllProjectMcpServers": true,
+	"enabledMcpjsonServers": []
+}

@@ -1,7 +1,13 @@
 import fs from "fs-extra";
 import path from "node:path";
 import type { CoreSettings, PresetConfig } from "../types/index.js";
-import { getCorePath, getPresetPath, processTemplateFile } from "./file-system.js";
+import {
+	getCorePath,
+	getPresetPath,
+	getScaffoldsPath,
+	getTemplatesPath,
+	processTemplateFile,
+} from "./file-system.js";
 
 /**
  * コアsettings.jsonとプリセット設定をマージ
@@ -104,4 +110,51 @@ async function copyAndProcessDirectory(
 			await fs.copy(srcPath, destPath);
 		}
 	}
+}
+
+/**
+ * ドキュメントテンプレートをコピー
+ */
+export async function copyDocTemplates(targetPath: string): Promise<void> {
+	const templatesPath = getTemplatesPath();
+
+	if (!await fs.pathExists(templatesPath)) {
+		return;
+	}
+
+	await fs.ensureDir(targetPath);
+	await fs.copy(templatesPath, targetPath);
+}
+
+/**
+ * CLAUDE.mdを生成
+ */
+export async function generateClaudeMd(
+	targetPath: string,
+	variables: Record<string, string>,
+): Promise<void> {
+	const scaffoldsPath = getScaffoldsPath();
+	const templatePath = path.join(scaffoldsPath, "CLAUDE.md.template");
+
+	if (!await fs.pathExists(templatePath)) {
+		return;
+	}
+
+	const processed = await processTemplateFile(templatePath, variables);
+	await fs.writeFile(targetPath, processed);
+}
+
+/**
+ * ステアリングドキュメントをコピー
+ */
+export async function copySteeringDocs(targetPath: string): Promise<void> {
+	const scaffoldsPath = getScaffoldsPath();
+	const steeringPath = path.join(scaffoldsPath, "steering");
+
+	if (!await fs.pathExists(steeringPath)) {
+		return;
+	}
+
+	await fs.ensureDir(targetPath);
+	await fs.copy(steeringPath, targetPath);
 }

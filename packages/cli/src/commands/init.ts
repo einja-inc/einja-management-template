@@ -5,13 +5,22 @@ import ora from "ora";
 import inquirer from "inquirer";
 import type { InitOptions } from "../types/index.js";
 import { backupDirectory } from "../lib/file-system.js";
-import { generateClaudeDirectory } from "../lib/merger.js";
+import {
+	copyDocTemplates,
+	copySteeringDocs,
+	generateClaudeDirectory,
+	generateClaudeMd,
+} from "../lib/merger.js";
 import { getAllPresets, loadPreset, presetExists } from "../lib/preset.js";
 
 export async function initCommand(options: InitOptions): Promise<void> {
 	const spinner = ora();
 	const cwd = process.cwd();
 	const claudeDir = path.join(cwd, ".claude");
+	const docsDir = path.join(cwd, "docs");
+	const templatesDir = path.join(docsDir, "templates");
+	const steeringDir = path.join(docsDir, "steering");
+	const claudeMdPath = path.join(cwd, "CLAUDE.md");
 
 	console.log(chalk.blue("\n🚀 Einja Claude CLI - .claude セットアップ\n"));
 
@@ -89,6 +98,9 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		console.log(`  - コアエージェント・コマンドをコピー`);
 		console.log(`  - プリセット固有のファイルをコピー`);
 		console.log(`  - settings.json をマージ・生成`);
+		console.log(`  - ${templatesDir} にドキュメントテンプレートをコピー`);
+		console.log(`  - ${steeringDir} にステアリングドキュメントをコピー`);
+		console.log(`  - ${claudeMdPath} を生成`);
 		return;
 	}
 
@@ -100,15 +112,56 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		await generateClaudeDirectory(claudeDir, preset.config);
 		spinner.succeed(".claudeのセットアップ完了");
 	} catch (error) {
-		spinner.fail("セットアップに失敗しました");
+		spinner.fail(".claudeのセットアップに失敗しました");
 		console.error(chalk.red(error instanceof Error ? error.message : String(error)));
 		process.exit(1);
 	}
 
-	// 7. 完了メッセージ
+	// 7. ドキュメントテンプレートをコピー
+	spinner.start("ドキュメントテンプレートをセットアップ中...");
+
+	try {
+		await copyDocTemplates(templatesDir);
+		spinner.succeed(`ドキュメントテンプレート: ${templatesDir}`);
+	} catch (error) {
+		spinner.fail("ドキュメントテンプレートのセットアップに失敗しました");
+		console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+		process.exit(1);
+	}
+
+	// 8. ステアリングドキュメントをコピー
+	spinner.start("ステアリングドキュメントをセットアップ中...");
+
+	try {
+		await copySteeringDocs(steeringDir);
+		spinner.succeed(`ステアリングドキュメント: ${steeringDir}`);
+	} catch (error) {
+		spinner.fail("ステアリングドキュメントのセットアップに失敗しました");
+		console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+		process.exit(1);
+	}
+
+	// 9. CLAUDE.mdを生成
+	spinner.start("CLAUDE.mdを生成中...");
+
+	try {
+		await generateClaudeMd(claudeMdPath, preset.config.variables);
+		spinner.succeed(`CLAUDE.md: ${claudeMdPath}`);
+	} catch (error) {
+		spinner.fail("CLAUDE.mdの生成に失敗しました");
+		console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+		process.exit(1);
+	}
+
+	// 10. 完了メッセージ
 	console.log(chalk.green("\n✅ セットアップ完了!"));
+	console.log(chalk.gray("\n生成されたファイル:"));
+	console.log(`  - .claude/           Claude Code設定`);
+	console.log(`  - docs/templates/    ドキュメントテンプレート`);
+	console.log(`  - docs/steering/     ステアリングドキュメント`);
+	console.log(`  - CLAUDE.md          プロジェクト設定`);
 	console.log(chalk.gray("\n次のステップ:"));
-	console.log("  1. settings.local.json を必要に応じて作成");
-	console.log("  2. CLAUDE.md をプロジェクトに合わせてカスタマイズ");
+	console.log("  1. CLAUDE.md をプロジェクトに合わせてカスタマイズ");
+	console.log("  2. settings.local.json を必要に応じて作成");
 	console.log("  3. claude code で開発を開始");
 }

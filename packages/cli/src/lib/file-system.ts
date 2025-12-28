@@ -27,6 +27,20 @@ export function getPresetsPath(): string {
 }
 
 /**
+ * テンプレートディレクトリのパスを取得
+ */
+export function getTemplatesPath(): string {
+	return path.join(getPackageRoot(), "templates");
+}
+
+/**
+ * スキャフォールドディレクトリのパスを取得
+ */
+export function getScaffoldsPath(): string {
+	return path.join(getPackageRoot(), "scaffolds");
+}
+
+/**
  * 特定のプリセットのパスを取得
  */
 export function getPresetPath(presetName: string): string {

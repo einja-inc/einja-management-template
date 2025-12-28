@@ -1,5 +1,7 @@
 # `/task-vibe-kanban-loop` コマンド
 
+> **クイックスタート**: [スキル・コマンド利用ガイド](../guides/README.md) | [クイックリファレンス](../guides/quick-reference.md)
+
 ## 概要
 
 タスクファイルから実行可能なタスクを自動選定し、Vibe-Kanbanに登録して連続実行するループ管理コマンド。
@@ -174,7 +176,7 @@ Vibe-KanbanをMCPサーバーとして使用するため、`claude_desktop_confi
 | コマンド | 用途 | 品質保証 | 推奨シーン |
 |---------|------|---------|----------|
 | **`/task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
-| **`/task-vibe-kanban-loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、並行開発 |
+| **`/task-vibe-kanban-loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、自動連続実行 |
 
 **詳細**: [task-execute.md](./task-execute.md#task-execとの使い分け)
 

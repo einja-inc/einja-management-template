@@ -1,0 +1,22 @@
+{
+	"name": "playground",
+	"version": "0.1.0",
+	"private": true,
+	"packageManager": "pnpm@10.14.0",
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"scripts": {
+		"dev": "turbo run dev",
+		"build": "turbo run build",
+		"test": "turbo run test",
+		"lint": "turbo run lint",
+		"db:generate": "turbo run db:generate",
+		"db:push": "turbo run db:push"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.10",
+		"turbo": "^2.5.8"
+	}
+}

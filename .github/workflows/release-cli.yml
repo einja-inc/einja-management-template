@@ -1,0 +1,86 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (skip actual publish)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # npm provenance用
+    steps:
+      # actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      # pnpm/action-setup@v4.1.0
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 10.14.0
+
+      # actions/setup-node@v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.16.0'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI package
+        run: pnpm --filter @einja/claude-cli build
+
+      - name: Get version info
+        id: version
+        run: |
+          PKG_VERSION=$(node -p "require('./packages/cli/package.json').version")
+          echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG_VERSION="${{ github.ref_name }}"
+            TAG_VERSION="${TAG_VERSION#cli-v}"
+            echo "tag_version=$TAG_VERSION" >> $GITHUB_OUTPUT
+            echo "source=tag" >> $GITHUB_OUTPUT
+          else
+            echo "source=manual" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify version (tag trigger)
+        if: ${{ steps.version.outputs.source == 'tag' }}
+        run: |
+          if [[ "${{ steps.version.outputs.pkg_version }}" != "${{ steps.version.outputs.tag_version }}" ]]; then
+            echo "::error::Version mismatch: package.json=${{ steps.version.outputs.pkg_version }}, tag=${{ steps.version.outputs.tag_version }}"
+            exit 1
+          fi
+          echo "✅ Version verified: ${{ steps.version.outputs.pkg_version }}"
+
+      - name: Show release info
+        run: |
+          echo "📦 Package: @einja/claude-cli"
+          echo "📌 Version: ${{ steps.version.outputs.pkg_version }}"
+          echo "🎯 Trigger: ${{ steps.version.outputs.source }}"
+          echo "🧪 Dry run: ${{ github.event.inputs.dry_run || 'false' }}"
+
+      - name: Verify package contents
+        run: |
+          cd packages/cli
+          pnpm pack --dry-run
+
+      - name: Publish to npm (dry-run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: pnpm --filter @einja/claude-cli publish --no-git-checks --access public --dry-run
+
+      - name: Publish to npm
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: pnpm --filter @einja/claude-cli publish --no-git-checks --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

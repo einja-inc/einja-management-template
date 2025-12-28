@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { helloWorld } from "./hello";
+import { helloWorld } from "@/playground/hello";
 
 describe("helloWorld", () => {
 	it("should log 'Hello, Playground!'", () => {

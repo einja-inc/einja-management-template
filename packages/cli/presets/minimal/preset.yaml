@@ -1,0 +1,30 @@
+name: minimal
+displayName: "Minimal"
+description: "最小限のATDDワークフロー構成"
+version: "1.0.0"
+
+# 変数定義
+variables:
+  BUILD_COMMAND: "npm run build"
+  TEST_COMMAND: "npm test"
+  LINT_COMMAND: "npm run lint"
+  TYPE_CHECK_COMMAND: "npm run typecheck"
+  PROJECT_STRUCTURE: |
+    src/           # ソースコード
+    tests/         # テストコード
+  CODING_STANDARDS_PATH: "README.md"
+  MCP_TOOLS: ""
+
+# MCP設定
+mcpServers: []
+
+# 追加パーミッション
+additionalPermissions:
+  - "Bash(npm:*)"
+  - "Bash(node:*)"
+
+# 追加エージェント（なし）
+additionalAgents: []
+
+# 追加コマンド（なし）
+additionalCommands: []

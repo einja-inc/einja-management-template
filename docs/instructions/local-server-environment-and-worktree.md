@@ -1,4 +1,4 @@
-# Dr.Love Demo App - ローカル開発サーバー環境構築ガイド（Worktree対応）
+# Einja Management Template - ローカル開発サーバー環境構築ガイド（Worktree対応）
 
 ## クイックスタート（推奨）
 
@@ -25,14 +25,17 @@ pnpm dev:worktree  # 全自動
 
 ## 概要
 
-Dr.Love Demo Appは、Turborepo + Next.jsを使用したモノレポ構成のアプリケーションです。本ドキュメントでは、ローカル開発サーバーの起動、環境変数管理、Worktree環境での並行開発まで、開発メンバーが迷わず環境構築できるように手順を説明します。
+Einja Management Templateは、Turborepo + Next.jsを使用したモノレポ構成のアプリケーションです。本ドキュメントでは、ローカル開発サーバーの起動、環境変数管理、Worktree環境での並行開発まで、開発メンバーが迷わず環境構築できるように手順を説明します。
 
 ### プロジェクト構成
 
-- **apps/web**: エンドユーザー向けWebアプリケーション (Next.js 14 App Router)
-- **apps/admin**: 管理画面アプリケーション (Next.js 14 App Router)
-- **apps/cron-worker**: バックグラウンドジョブ実行アプリ (Next.js API Routes)
-- **packages/server-core**: 共有サーバーロジック (Domain層 + Infrastructure層)
+- **apps/web**: メイン管理画面アプリケーション (Next.js 15 App Router)
+- **packages/config**: 共通設定（Biome, TypeScript, Panda CSS）
+- **packages/types**: 共通型定義
+- **packages/database**: Prismaスキーマとクライアント
+- **packages/auth**: NextAuth設定と認証ロジック
+- **packages/ui**: 共通UIコンポーネント（shadcn/ui）
+- **packages/cli**: Claude Code用CLIツール（@einja/claude-cli）
 
 ## 必要な環境
 
@@ -40,8 +43,8 @@ Dr.Love Demo Appは、Turborepo + Next.jsを使用したモノレポ構成のア
 
 | ソフトウェア | バージョン | インストール確認コマンド |
 |------------|----------|---------------------|
-| Node.js | 20.x以上 | `node --version` |
-| pnpm | 8.x以上 | `pnpm --version` |
+| Node.js | 22.x以上 | `node --version` |
+| pnpm | 10.x以上 | `pnpm --version` |
 | Docker | 24.x以上 | `docker --version` |
 | Docker Compose | 2.x以上 | `docker compose version` |
 | Git | 2.x以上 | `git --version` |
@@ -50,13 +53,15 @@ Dr.Love Demo Appは、Turborepo + Next.jsを使用したモノレポ構成のア
 
 #### Node.js & pnpm
 ```bash
-# Node.jsのインストール（推奨: nvm使用）
-nvm install 20
-nvm use 20
+# Node.jsのインストール（推奨: Volta使用）
+volta install node@22
 
 # pnpmのインストール
-npm install -g pnpm@8
+corepack enable
+corepack prepare pnpm@10 --activate
 ```
+
+> **Note**: このプロジェクトはVoltaでNode.jsバージョンを管理しています。Voltaを使用することで、自動的に正しいNode.jsバージョンが使用されます。
 
 #### Docker
 - macOS: [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
@@ -97,10 +102,10 @@ cp .env.example .env
 
 ```bash
 # PostgreSQL設定
-POSTGRES_PORT=5432
+POSTGRES_PORT=5433
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
-POSTGRES_DB=drlove_dev
+POSTGRES_DB=einja_management
 
 # ブランチ名（Worktree環境用）
 BRANCH_NAME=main
@@ -126,7 +131,7 @@ docker compose up -d
 docker compose ps
 ```
 
-正常に起動すると、PostgreSQLが`localhost:5432`（デフォルト）で利用可能になります。
+正常に起動すると、PostgreSQLが`localhost:5433`（デフォルト）で利用可能になります。
 
 ### 5. Prismaのセットアップ
 
@@ -148,11 +153,9 @@ pnpm db:migrate:dev
 pnpm dev
 ```
 
-各アプリケーションが以下のポートで起動します：
+アプリケーションが以下のURLで起動します：
 
 - Web: http://localhost:3000
-- Admin: http://localhost:4000
-- Cron Worker: http://localhost:5000
 
 ## セットアップフロー図
 
@@ -189,17 +192,9 @@ pnpm dev
 ```
 
 #### 特徴:
-- 固定ポート番号（web:3000, admin:4000, worker:5000）
+- 固定ポート番号（web:3000）
 - dotenv-cliがルート.envを自動読み込み
-- 全アプリケーションを同時起動
 - HMR（Hot Module Replacement）対応
-
-#### 個別アプリの起動:
-```bash
-pnpm dev:web      # Webアプリのみ起動
-pnpm dev:admin    # 管理画面のみ起動
-pnpm dev:worker   # Cron Workerのみ起動
-```
 
 ### Worktree開発（`pnpm dev:worktree`）
 
@@ -225,24 +220,21 @@ Worktreeモードでは、ブランチ名から決定論的にポート番号を
 2. ハッシュの最初の4文字を使用（"7a3d"）
 3. 各ポート番号を計算:
    - Web:        hash[0:2]を16進数変換 % 1000 + 3000  → 3000-3999
-   - Admin:      hash[0:2]を16進数変換 % 1000 + 4000  → 4000-4999
-   - Worker:     hash[0:2]を16進数変換 % 1000 + 5000  → 5000-5999
    - PostgreSQL: hash[2:4]を16進数変換 % 1000 + 15432 → 15432-16431
 ```
 
 **採番の特徴:**
 - ブランチ名が同じなら常に同じポート番号（再現性）
-- Web/Admin/Workerは同じハッシュ部分を使うため連番になる
 - PostgreSQLは異なるハッシュ部分を使うため独立した番号
 - 1000通りの組み合わせが可能（実用上十分）
 
 #### ポート番号の例:
 
-| ブランチ名 | Web | Admin | Worker | PostgreSQL |
-|----------|-----|-------|--------|-----------|
-| main | 3195 | 4195 | 5195 | 15651 |
-| feature/auth | 3122 | 4122 | 5122 | 15871 |
-| feature/payment | 3087 | 4087 | 5087 | 15643 |
+| ブランチ名 | Web | PostgreSQL |
+|----------|-----|-----------|
+| main | 3195 | 15651 |
+| feature/auth | 3122 | 15871 |
+| feature/payment | 3087 | 15643 |
 
 #### Worktree環境のセットアップ:
 
@@ -273,8 +265,6 @@ pnpm dev:worktree
 🌿 ブランチ: feature/auth
 📊 計算されたポート番号:
   - Web:        3122
-  - Admin:      4122
-  - Cron Worker: 5122
   - PostgreSQL:  15871
 
 🐘 PostgreSQLを起動します...
@@ -302,7 +292,7 @@ pnpm dev:worktree
 
 2. **PostgreSQLコンテナの起動**
    - `docker compose up -d`を環境変数付きで実行
-   - コンテナ名: `drlove-postgres-${BRANCH_NAME}`（ブランチごとに独立）
+   - コンテナ名: `einja-postgres-${BRANCH_NAME}`（ブランチごとに独立）
    - ポート: 計算された動的ポート
 
 3. **ヘルスチェック**
@@ -318,9 +308,9 @@ pnpm dev:worktree
 ```yaml
 services:
   postgres:
-    container_name: drlove-postgres-${BRANCH_NAME:-main}
+    container_name: einja-postgres-${BRANCH_NAME:-main}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
 ```
 
 **注意事項:**
@@ -344,13 +334,9 @@ flowchart TD
     CalcPorts --> HashBranch[MD5ハッシュ生成]
     HashBranch --> ExtractHash[ハッシュ4文字抽出]
     ExtractHash --> CalcWeb[Web: hash0-1 % 1000 + 3000]
-    ExtractHash --> CalcAdmin[Admin: hash0-1 % 1000 + 4000]
-    ExtractHash --> CalcWorker[Worker: hash0-1 % 1000 + 5000]
     ExtractHash --> CalcPG[PostgreSQL: hash2-3 % 1000 + 15432]
 
-    CalcWeb --> SetEnv[環境変数設定<br/>PORT_WEB, PORT_ADMIN, etc]
-    CalcAdmin --> SetEnv
-    CalcWorker --> SetEnv
+    CalcWeb --> SetEnv[環境変数設定<br/>PORT_WEB, POSTGRES_PORT]
     CalcPG --> SetEnv
 
     SetEnv --> DisplayPorts[計算されたポート表示]
@@ -406,10 +392,10 @@ sequenceDiagram
         Calc->>Calc: MD5ハッシュ生成
         Note over Calc: MD5("feature/auth")<br/>→ "7a3d..."<br/>→ hash[0:2]="7a" hash[2:4]="3d"
         Calc->>Calc: ポート計算
-        Note over Calc: Web: 0x7a % 1000 + 3000 = 3122<br/>Admin: 0x7a % 1000 + 4000 = 4122<br/>Worker: 0x7a % 1000 + 5000 = 5122<br/>PostgreSQL: 0x3d % 1000 + 15432 = 15871
+        Note over Calc: Web: 0x7a % 1000 + 3000 = 3122<br/>PostgreSQL: 0x3d % 1000 + 15432 = 15871
         Calc-->>Script: Portsオブジェクト
         Script->>Script: process.env設定
-        Note over Script: PORT_WEB=3122<br/>PORT_ADMIN=4122<br/>PORT_WORKER=5122<br/>POSTGRES_PORT=15871<br/>DATABASE_URL=postgresql://...@localhost:15871/...
+        Note over Script: PORT_WEB=3122<br/>POSTGRES_PORT=15871<br/>DATABASE_URL=postgresql://...@localhost:15871/...
         Script->>Script: コンソール出力
         Script->>App: pnpm turbo run dev<br/>（環境変数継承）
         App->>App: 環境変数読み込み
@@ -422,16 +408,11 @@ sequenceDiagram
 ### 開発サーバー
 
 ```bash
-# 全アプリケーション起動
+# 開発サーバー起動
 pnpm dev
 
 # Worktree環境での起動
 pnpm dev:worktree
-
-# 個別アプリ起動
-pnpm dev:web
-pnpm dev:admin
-pnpm dev:worker
 ```
 
 ### ビルド
@@ -630,8 +611,8 @@ pnpm clean:all
 
 2. **共有パッケージの変更の場合**:
    ```bash
-   # packages/server-coreで変更した場合
-   cd packages/server-core
+   # packages/ui等で変更した場合
+   cd packages/ui
    pnpm build
 
    # ルートに戻って開発サーバー再起動
@@ -662,10 +643,10 @@ pnpm build
 
 | 変数名 | デフォルト値 | 説明 |
 |-------|------------|------|
-| `POSTGRES_PORT` | 5432 | PostgreSQLポート |
+| `POSTGRES_PORT` | 5433 | PostgreSQLポート |
 | `POSTGRES_USER` | postgres | PostgreSQLユーザー名 |
 | `POSTGRES_PASSWORD` | postgres | PostgreSQLパスワード |
-| `POSTGRES_DB` | drlove_dev | データベース名 |
+| `POSTGRES_DB` | einja_management | データベース名 |
 | `BRANCH_NAME` | main | ブランチ名（Worktree用） |
 
 ### ルート/.env.local（オプション）
@@ -675,8 +656,6 @@ pnpm build
 | 変数名 | 例 | 説明 |
 |-------|-----|------|
 | `PORT_WEB` | 3001 | Webアプリのポート（カスタム） |
-| `PORT_ADMIN` | 4001 | 管理画面のポート（カスタム） |
-| `PORT_WORKER` | 5001 | Cron Workerのポート（カスタム） |
 | `DATABASE_URL` | postgresql://... | データベース接続文字列（完全カスタム） |
 
 ### apps/*//.env.local（オプション）
@@ -693,8 +672,9 @@ NEXT_PUBLIC_API_URL=http://localhost:8080
 環境構築が完了したら、以下のドキュメントも参照してください：
 
 - **[タスク実行ガイド](./task-execute.md)**: /task-execコマンドの使用方法
-- **[アーキテクチャ設計書](../specs/tasks/monorepo/20251104-monorepo-turborepo-nextjs-setup/design/architecture.md)**: システム構成の詳細
-- **[技術仕様書](../specs/tasks/monorepo/20251104-monorepo-turborepo-nextjs-setup/requirements/technical.md)**: 技術要件の詳細
+- **[コーディング規約](../coding-standards.mdc)**: TypeScript/Reactのコーディング規約
+- **[コンポーネント設計](../component-design.mdc)**: Reactコンポーネントの設計ガイドライン
+- **[テストガイドライン](../testing.mdc)**: Vitestを使用したテスト戦略
 
 ## 質問・サポート
 

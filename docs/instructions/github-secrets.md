@@ -2,6 +2,8 @@
 
 このドキュメントでは、GitHub ActionsでTurborepo Remote Cacheを使用するために必要なSecretsの設定手順を説明します。
 
+> **Note**: 一部のSecretsは将来の拡張用です。現在のプロジェクト構成（apps/webのみ）では、Turborepo Remote CacheとVercelデプロイ（Web）の設定のみが必要です。
+
 ## 必要なSecrets
 
 ### 1. TURBO_TOKEN
@@ -38,7 +40,7 @@ Vercelのチーム/組織ID。
    Vercel Dashboardから取得：
    - [Vercel Dashboard](https://vercel.com/account/tokens) にアクセス
    - "Create Token" をクリック
-   - トークン名を入力（例: `drlove-ci-turbo-token`）
+   - トークン名を入力（例: `einja-ci-turbo-token`）
    - Scopeを "Full Access" に設定（またはプロジェクト限定）
    - 生成されたトークンをコピー（**一度しか表示されません**）
 
@@ -94,7 +96,6 @@ GitHub Actionsでビルドが実行されると、以下のログでRemote Cache
 
 ```
 web:build: cache hit, replaying logs
-admin:build: cache hit, replaying logs
 ```
 
 ## トラブルシューティング
@@ -121,7 +122,7 @@ admin:build: cache hit, replaying logs
 
 ## Vercelデプロイ設定
 
-CI/CDパイプラインでwebとadminアプリをVercelに自動デプロイするために必要なSecretsを設定します。
+CI/CDパイプラインでwebアプリをVercelに自動デプロイするために必要なSecretsを設定します。
 
 **デプロイ方法**: Vercel CLI（公式ツール）を使用します。これにより、モノレポとTurborepoとの統合が最適化されます。
 
@@ -138,10 +139,6 @@ VercelのOrganization/チームID。
 #### 3. VERCEL_WEB_PROJECT_ID
 
 webアプリのVercelプロジェクトID。
-
-#### 4. VERCEL_ADMIN_PROJECT_ID
-
-adminアプリのVercelプロジェクトID。
 
 ### 設定手順
 
@@ -161,10 +158,6 @@ adminアプリのVercelプロジェクトID。
    - **Install Command**: `pnpm install`（モノレポのルートで実行）
    - "Deploy"をクリック
 
-3. **adminアプリのプロジェクトを作成**
-   - 同様の手順で`apps/admin`用のプロジェクトを作成
-   - **Build Command**: `cd ../.. && npx turbo run build --filter=admin`
-
 #### Step 2: トークンとIDの取得
 
 1. **VERCEL_TOKENの取得**
@@ -172,7 +165,7 @@ adminアプリのVercelプロジェクトID。
    Vercel Dashboardから取得：
    - [Account Settings > Tokens](https://vercel.com/account/tokens) にアクセス
    - "Create Token" をクリック
-   - トークン名を入力（例: `drlove-ci-deploy-token`）
+   - トークン名を入力（例: `einja-ci-deploy-token`）
    - Scopeは "Full Account" を推奨（プロジェクト限定も可）
    - Expiration（有効期限）を設定
    - 生成されたトークンをコピー（**一度しか表示されません**）
@@ -209,17 +202,6 @@ adminアプリのVercelプロジェクトID。
 
    `projectId`の値が`VERCEL_WEB_PROJECT_ID`として使用する値です。
 
-4. **VERCEL_ADMIN_PROJECT_IDの取得**
-
-   同様にadminアプリでも実行：
-   ```bash
-   cd apps/admin
-   npx vercel link
-   cat .vercel/project.json
-   ```
-
-   `projectId`の値が`VERCEL_ADMIN_PROJECT_ID`として使用する値です。
-
 #### Step 3: GitHub Secretsに登録
 
 1. **GitHubリポジトリにアクセス**
@@ -237,7 +219,6 @@ adminアプリのVercelプロジェクトID。
    | `VERCEL_TOKEN` | Step 2-1で取得したトークン |
    | `VERCEL_ORG_ID` | Step 2-2で取得した`orgId` |
    | `VERCEL_WEB_PROJECT_ID` | Step 2-3で取得した`projectId` |
-   | `VERCEL_ADMIN_PROJECT_ID` | Step 2-4で取得した`projectId` |
 
 ### 動作確認
 
@@ -248,9 +229,6 @@ Install Vercel CLI
 Pull Vercel Environment Information (web)
 Build Project Artifacts (web)
 Deploy to Vercel (web)
-Pull Vercel Environment Information (admin)
-Build Project Artifacts (admin)
-Deploy to Vercel (admin)
 ```
 
 **Vercel CLIの利点**:
@@ -283,9 +261,11 @@ Deploy to Vercel (admin)
 
 ---
 
-## Dockerレジストリ設定
+## Dockerレジストリ設定（将来の拡張用）
 
-CI/CDパイプラインでcron-workerのDockerイメージをビルド・プッシュするために必要なSecretsを設定します。
+> **Note**: このセクションは将来のバックグラウンドジョブ実行アプリ（cron-worker）追加時に使用します。現在のプロジェクト構成では不要です。
+
+CI/CDパイプラインでDockerイメージをビルド・プッシュするために必要なSecretsを設定します。
 
 ### 必要なSecrets
 
@@ -312,7 +292,7 @@ GitHub Container Registry (ghcr.io) を使用する場合の手順です。
 
 2. **新しいトークンを生成**
    - "Generate new token" > "Generate new token (classic)" をクリック
-   - Note（トークン名）を入力（例: `drlove-ghcr-token`）
+   - Note（トークン名）を入力（例: `einja-ghcr-token`）
    - Expirationを設定（90日推奨）
    - 以下のScopeを選択：
      - ✅ `write:packages` - パッケージのアップロード権限
@@ -349,7 +329,7 @@ Docker Hubを使用する場合の手順です。
 
 2. **Access Tokenを生成**
    - Account Settings > Security > "New Access Token" をクリック
-   - Access Token Descriptionを入力（例: `drlove-ci-token`）
+   - Access Token Descriptionを入力（例: `einja-ci-token`）
    - Access permissionsは "Read, Write, Delete" を選択
    - "Generate" をクリック
    - 生成されたトークンをコピー（**一度しか表示されません**）
@@ -399,9 +379,11 @@ GitHub Container Registryの場合、[Packages](https://github.com/your-org?tab=
 
 ---
 
-## Railway デプロイ設定
+## Railway デプロイ設定（将来の拡張用）
 
-cron-workerをRailwayにデプロイし、Cronジョブを設定する手順です。
+> **Note**: このセクションは将来のバックグラウンドジョブ実行アプリ（cron-worker）追加時に使用します。現在のプロジェクト構成では不要です。
+
+バックグラウンドジョブ実行アプリをRailwayにデプロイし、Cronジョブを設定する手順です。
 
 ### 前提条件
 

@@ -17,7 +17,7 @@ alwaysApply: false
 - **React Testing Library**: Reactコンポーネントテスト
 - **@testing-library/jest-dom**: DOM要素用カスタムマッチャー
 - **JSDOM**: ブラウザ環境のシミュレーション
-- **Playwright**: E2Eテスト
+- **Playwright**: E2Eテスト（今後実装予定）
 - **MSW** (必要に応じて): APIモック
 
 ### 設定ファイル
@@ -74,8 +74,10 @@ test/                                   # テスト設定・ユーティリテ�
 ### 2. 統合テスト
 複数のコンポーネントの相互作用をテスト
 
-### 3. E2Eテスト
+### 3. E2Eテスト（今後実装予定）
 実際のブラウザ環境でのエンドツーエンドテスト（Playwright）
+
+> **Note**: E2Eテスト環境は現在構築中です。`playwright.config.ts`の設定とテストの実装は今後追加予定です。
 
 ## コンポーネントテストの基本パターン
 

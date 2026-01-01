@@ -149,27 +149,11 @@ QA テスト結果記録のテンプレートです。
 
 **保存場所**: `docs/specs/tasks/[task-dir]/qa-tests/phaseN/X-Y.md`
 
-## 実装例を確認したい場合
-
-完全な実装例は `docs/example/specs/issues/issue999-example-task/` で確認できます。
-
-**この例で学べること**:
-- マジックリンク認証機能の完全な要件定義・設計・実装・QA
-- AC 番号体系の実際の使い方
-- 検証レベル別のテスト実施方法
-- QA 仕様書の構造と記録方法
-
-**活用方法**:
-1. requirements.md → design.md → tasks.md → qa-tests/ の順で読む
-2. 各フェーズでどのような内容を記述すべきか確認
-3. テンプレートと照らし合わせて理解を深める
-
 ## 関連ドキュメント
 
-- [タスク管理ガイド](../steering/task-management.md)
-- [受け入れ基準とQAガイド](../steering/acceptance-criteria-and-qa-guide.md)
-- [実装例](../example/specs/issues/issue999-example-task/)
+- [タスク管理ガイド](../docs/steering/task-management.md)
+- [受け入れ基準とQAガイド](../docs/steering/acceptance-criteria-and-qa-guide.md)
 
 ## サポート
 
-テンプレートの使用方法や記載内容について不明な点がある場合は、既存の実装例（`docs/example/specs/issues/issue999-example-task/`）を参照してください。
+テンプレートの使用方法や記載内容について不明な点がある場合は、既存の実装例を参照してください。

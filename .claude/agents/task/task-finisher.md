@@ -39,14 +39,24 @@ color: red
    git push
    ```
 
-4. **Issueブランチ名を取得**
-   - Issue番号から推測: `issue/{issue_number}` または `feature/issue-{issue_number}`
-   - 確認コマンド: `git branch -r | grep -i issue`
+4. **ベースブランチを決定**
+
+   以下の優先順位でベースブランチを決定：
+
+   1. **フェーズブランチが存在する場合**: フェーズブランチを使用
+      - 例: `feat/monorepo/20251104-turborepo-setup-phase1`
+      - 確認: `git branch -r | grep -i phase`
+
+   2. **Issueブランチが存在する場合**: Issueブランチを使用
+      - 例: `issue/{issue_number}` または `feature/issue-{issue_number}`
+      - 確認: `git branch -r | grep -i issue`
+
+   3. **上記が存在しない場合**: `main`ブランチを使用
 
 5. **PRを作成**
    ```bash
    gh pr create \
-     --base {issue_branch} \
+     --base {決定したベースブランチ} \
      --title "[{タスクグループ番号}] {タスクグループ名}" \
      --body "$(cat <<'EOF'
    ## タスクグループ

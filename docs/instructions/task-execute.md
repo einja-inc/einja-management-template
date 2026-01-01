@@ -1,5 +1,7 @@
 # Dr.Love Demo App - 開発ワークフロー
 
+> **クイックスタート**: [スキル・コマンド利用ガイド](../guides/README.md) | [クイックリファレンス](../guides/quick-reference.md)
+
 このドキュメントでは、`/spec-create`と`/task-exec`コマンドを使用したATDD（受け入れテスト駆動開発）に基づく開発ワークフローについて説明します。
 
 ## 概要
@@ -365,7 +367,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 | コマンド | 用途 | 品質保証 | 推奨シーン |
 |---------|------|---------|----------|
 | **`/task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
-| **`/task-vibe-kanban-loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、並行開発 |
+| **`/task-vibe-kanban-loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、自動連続実行 |
 
 **詳細な使い分け基準**: [task-vibe-kanban-loop.md](./task-vibe-kanban-loop.md#task-execとの使い分け)
 

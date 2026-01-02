@@ -38,6 +38,7 @@
 		"ora": "^8.2.0"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
 		"@einja/config": "workspace:*",
 		"@types/fs-extra": "^11.0.4",
 		"@types/js-yaml": "^4.0.9",

@@ -1,0 +1,71 @@
+# Claude Code 指示書
+
+- 回答は日本語で行ってください。
+- 必ずこのドキュメントの通りに作業を行ってください。
+
+## プロジェクト構成
+
+<!-- プロジェクト固有の構成を記載してください -->
+
+```
+{{PROJECT_NAME}}/
+├── src/
+│   ├── app/              # アプリケーションコード
+│   ├── components/       # コンポーネント
+│   └── lib/              # ユーティリティ
+├── package.json
+└── tsconfig.json
+```
+
+## 開発環境セットアップ
+
+### 依存関係のインストール
+```bash
+{{INSTALL_COMMAND}}
+```
+
+### 開発サーバー起動
+```bash
+{{DEV_COMMAND}}
+```
+
+### 主要な開発コマンド
+- `{{DEV_COMMAND}}` - 開発サーバーを起動
+- `{{BUILD_COMMAND}}` - プロダクションビルド
+- `{{START_COMMAND}}` - プロダクションサーバーを起動
+
+### コード品質チェックコマンド
+- `{{LINT_COMMAND}}` - Lintチェック
+- `{{FORMAT_COMMAND}}` - フォーマットチェック
+- `{{TYPE_CHECK_COMMAND}}` - 型チェック
+
+### テスト
+- `{{TEST_COMMAND}}` - テスト実行
+
+## アーキテクチャ
+
+### 使用技術スタック
+<!-- プロジェクト固有の技術スタックを記載 -->
+- フレームワーク: <!-- 例: Next.js 15 -->
+- 言語: TypeScript
+- スタイリング: <!-- 例: Panda CSS -->
+- テスト: <!-- 例: Vitest + Playwright -->
+
+### コード品質
+- Linter: <!-- 例: Biome / ESLint -->
+- Formatter: <!-- 例: Biome / Prettier -->
+
+## コーディング規約
+
+### 基本原則
+- TypeScriptのstrict型チェックを有効化
+- any型の使用禁止
+- 明確な命名規則に従う
+
+### 追加指示
+
+以下のドキュメントも参照して作業を進めてください:
+
+- @docs/steering/task-management.md - タスク管理ガイドライン
+- @docs/steering/acceptance-criteria-and-qa-guide.md - 受け入れ基準とQAガイド
+- @docs/templates/README.md - テンプレート使用方法

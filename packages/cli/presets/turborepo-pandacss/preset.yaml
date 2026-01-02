@@ -1,0 +1,114 @@
+name: turborepo-pandacss
+displayName: "Turborepo + Panda CSS + shadcn/ui"
+description: "Einja管理画面テンプレート互換構成（Next.js 15、Vibe-Kanban統合）"
+version: "1.0.0"
+
+# 変数定義
+variables:
+  BUILD_COMMAND: "pnpm build"
+  TEST_COMMAND: "pnpm test"
+  LINT_COMMAND: "pnpm lint"
+  TYPE_CHECK_COMMAND: "pnpm typecheck"
+  PROJECT_STRUCTURE: |
+    apps/
+    └── web/                      # メイン管理画面アプリ
+        ├── src/
+        │   ├── app/              # Next.js App Router
+        │   ├── components/       # アプリ固有のコンポーネント
+        │   └── lib/              # アプリ固有のユーティリティ
+    packages/
+    ├── config/                   # 共通設定（Biome, TypeScript, Panda CSS）
+    ├── types/                    # 共通型定義
+    ├── database/                 # Prismaスキーマとクライアント
+    ├── auth/                     # NextAuth設定と認証ロジック
+    └── ui/                       # 共通UIコンポーネント（shadcn/ui）
+  CODING_STANDARDS_PATH: "docs/coding-standards.mdc"
+  MCP_TOOLS: |
+    - Serena MCP: コード分析・編集
+    - Playwright MCP: ブラウザテスト
+    - GitHub MCP: Issue・PR操作
+    - Vibe-Kanban MCP: タスク自動化
+
+# MCP設定
+mcpServers:
+  - codex
+  - context7
+  - playwright
+  - serena
+  - github
+  - vibe_kanban
+
+# 追加パーミッション
+additionalPermissions:
+  - "Bash(npm:*)"
+  - "Bash(pnpm:*)"
+  - "Bash(npx:*)"
+  - "Bash(node:*)"
+  - "Bash(yarn:*)"
+  - "Bash(bun:*)"
+  - "Bash(python3:*)"
+  - "Bash(curl:*)"
+  - "Bash(wget:*)"
+  - "Bash(unzip:*)"
+  - "Bash(docker-compose :*)"
+  - "Bash(jq:*)"
+  - "mcp__codex__codex"
+  - "mcp__github__get_pull_request"
+  - "mcp__github__get_pull_request_files"
+  - "mcp__github__update_pull_request"
+  - "mcp__github__list_commits"
+  - "mcp__github__get_commit"
+  - "mcp__github__get_file_contents"
+  - "mcp__github__search_code"
+  - "mcp__playwright"
+  - "mcp__playwright__browser_navigate"
+  - "mcp__playwright__browser_click"
+  - "mcp__playwright__browser_wait_for"
+  - "mcp__playwright__browser_evaluate"
+  - "mcp__playwright__browser_snapshot"
+  - "mcp__playwright__browser_console_messages"
+  - "mcp__playwright__browser_handle_dialog"
+  - "mcp__playwright__browser_type"
+  - "mcp__serena"
+  - "mcp__serena__activate_project"
+  - "mcp__serena__check_onboarding_performed"
+  - "mcp__serena__find_file"
+  - "mcp__serena__find_referencing_symbols"
+  - "mcp__serena__find_symbol"
+  - "mcp__serena__get_symbols_overview"
+  - "mcp__serena__insert_before_symbol"
+  - "mcp__serena__list_dir"
+  - "mcp__serena__replace_symbol_body"
+  - "mcp__serena__search_for_pattern"
+  - "mcp__serena__think_about_collected_information"
+  - "mcp__serena__think_about_whether_you_are_done"
+  - "Bash(test:*)"
+  - "mcp__vibe_kanban__list_projects"
+  - "mcp__vibe_kanban__list_tasks"
+  - "mcp__vibe_kanban__get_task"
+  - "mcp__vibe_kanban__create_task"
+  - "mcp__vibe_kanban__update_task"
+  - "mcp__vibe_kanban__delete_task"
+  - "mcp__vibe_kanban__start_task_attempt"
+  - "Bash(gh pr view:*)"
+  - "Bash(gh pr close:*)"
+  - "Bash(gh pr create:*)"
+  - "Bash(gh pr list:*)"
+  - "Bash(tree:*)"
+  - "Bash(bash:*)"
+  - "Bash(./verify.sh:*)"
+  - "Bash(gh issue create:*)"
+  - "Skill(task-exec)"
+  - "Skill(task-qa)"
+
+# 追加エージェント
+additionalAgents:
+  - frontend-architect
+  - design-engineer
+  - frontend-coder
+
+# 追加コマンド
+additionalCommands:
+  - frontend-implement
+  - start-dev
+  - task-vibe-kanban-loop

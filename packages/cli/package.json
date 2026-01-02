@@ -1,0 +1,67 @@
+{
+	"name": "@einja/claude-cli",
+	"version": "0.1.0",
+	"description": "Einja Claude Code セットアップCLI - .claude設定をnpxでインストール",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"bin": {
+		"einja-claude": "./dist/cli.js"
+	},
+	"files": [
+		"dist",
+		"core",
+		"presets",
+		"templates",
+		"scaffolds"
+	],
+	"exports": {
+		".": "./dist/index.js"
+	},
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "pnpm clean && tsc",
+		"postbuild": "node ./scripts/add-shebang.mjs",
+		"dev": "tsc --watch",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome lint ./src",
+		"format": "biome format ./src",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"dependencies": {
+		"chalk": "^5.4.1",
+		"commander": "^13.1.0",
+		"fs-extra": "^11.3.0",
+		"inquirer": "^12.6.0",
+		"js-yaml": "^4.1.0",
+		"ora": "^8.2.0"
+	},
+	"devDependencies": {
+		"@einja/config": "workspace:*",
+		"@types/fs-extra": "^11.0.4",
+		"@types/js-yaml": "^4.0.9",
+		"@types/node": "^22.18.13",
+		"typescript": "^5",
+		"vitest": "^2.1.9"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/einja-inc/einja-management-template.git",
+		"directory": "packages/cli"
+	},
+	"keywords": [
+		"claude",
+		"claude-code",
+		"cli",
+		"einja",
+		"atdd"
+	],
+	"license": "MIT"
+}

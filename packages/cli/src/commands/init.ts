@@ -95,9 +95,9 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		console.log(chalk.blue("\n[Dry Run] 以下の操作が実行されます:"));
 		console.log(`  - ${claudeDir} を作成`);
 		console.log(`  - プリセット "${preset.name}" の設定を適用`);
-		console.log(`  - コアエージェント・コマンドをコピー`);
-		console.log(`  - プリセット固有のファイルをコピー`);
-		console.log(`  - settings.json をマージ・生成`);
+		console.log("  - コアエージェント・コマンドをコピー");
+		console.log("  - プリセット固有のファイルをコピー");
+		console.log("  - settings.json をマージ・生成");
 		console.log(`  - ${templatesDir} にドキュメントテンプレートをコピー`);
 		console.log(`  - ${steeringDir} にステアリングドキュメントをコピー`);
 		console.log(`  - ${claudeMdPath} を生成`);
@@ -156,10 +156,10 @@ export async function initCommand(options: InitOptions): Promise<void> {
 	// 10. 完了メッセージ
 	console.log(chalk.green("\n✅ セットアップ完了!"));
 	console.log(chalk.gray("\n生成されたファイル:"));
-	console.log(`  - .claude/           Claude Code設定`);
-	console.log(`  - docs/templates/    ドキュメントテンプレート`);
-	console.log(`  - docs/steering/     ステアリングドキュメント`);
-	console.log(`  - CLAUDE.md          プロジェクト設定`);
+	console.log("  - .claude/           Claude Code設定");
+	console.log("  - docs/templates/    ドキュメントテンプレート");
+	console.log("  - docs/steering/     ステアリングドキュメント");
+	console.log("  - CLAUDE.md          プロジェクト設定");
 	console.log(chalk.gray("\n次のステップ:"));
 	console.log("  1. CLAUDE.md をプロジェクトに合わせてカスタマイズ");
 	console.log("  2. settings.local.json を必要に応じて作成");

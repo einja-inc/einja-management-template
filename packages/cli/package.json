@@ -26,8 +26,8 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "biome lint ./src",
 		"format": "biome format ./src",
-		"test": "vitest run",
-		"test:watch": "vitest"
+		"test": "vitest run --passWithNoTests",
+		"test:watch": "vitest --passWithNoTests"
 	},
 	"dependencies": {
 		"chalk": "^5.4.1",
@@ -38,6 +38,7 @@
 		"ora": "^8.2.0"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
 		"@einja/config": "workspace:*",
 		"@types/fs-extra": "^11.0.4",
 		"@types/js-yaml": "^4.0.9",

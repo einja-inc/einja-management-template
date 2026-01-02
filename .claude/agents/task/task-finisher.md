@@ -206,6 +206,39 @@ PR作成後、レビュー中の記録としてコメントを追加：
 - `mcp__github__add_issue_comment`を使用
 - owner、repo、issue_number、bodyを指定
 
+### 4. Vibe-Kanbanステータスの更新（必須）
+
+**⚠️ 重要**: PR作成後、Vibe-Kanbanのタスクステータスを `in-review` に更新します。これにより、待機ループでのステータス確認が正確に機能します。
+
+#### 実行手順
+
+1. **タスクIDを確認**
+   - task-execコマンドから渡されたVibe-KanbanタスクIDを使用
+   - タスクIDが不明な場合は `mcp__vibe_kanban__list_tasks` でプロジェクト内のタスクを検索
+
+2. **ステータスを in-review に更新**
+   ```javascript
+   await mcp__vibe_kanban__update_task({
+     project_id: "<project_id>",
+     task_id: "<task_id>",
+     status: "in-review"  // ハイフン区切り（重要）
+   });
+   ```
+
+3. **更新確認**
+   - 更新成功をログ出力: `✅ Vibe-Kanbanステータスを in-review に更新しました`
+   - エラー時は警告を表示（処理は続行）:
+     ```
+     ⚠️ 警告: Vibe-Kanbanステータスの更新に失敗しました
+     エラー: {error_message}
+     → GitHub Issueの更新は完了しています
+     ```
+
+**注意事項**:
+- ステータス値は `in-review`（ハイフン区切り）を使用
+- Vibe-Kanban更新失敗時もPR作成・Issue更新は完了しているため、処理は続行
+- タスクIDが取得できない場合は警告を出力してスキップ
+
 ## 出力形式
 
 **⚠️ 超重要**: 処理完了後、**必ず最終メッセージとして**以下の形式で報告を出力すること。
@@ -229,6 +262,9 @@ PR作成後、レビュー中の記録としてコメントを追加：
 - タスクグループ番号: {task_group_number}
 - ステータスマーク: `<!-- 👀 レビュー中 -->`
 
+✅ Vibe-Kanbanステータスを in-review に更新しました
+- タスクID: {task_id}
+
 ### 次のステップ
 👉 PRのレビューとマージをお願いします
 👉 マージ後、GitHub Issueのチェックボックスを `[x]` に変更してください
@@ -251,6 +287,9 @@ PR作成後、レビュー中の記録としてコメントを追加：
 - タスクグループ番号: {task_group_number}
 - ステータスマーク: `<!-- 👀 レビュー中 -->`
 
+✅ Vibe-Kanbanステータスを in-review に更新しました
+- タスクID: {task_id}
+
 📋 **全タスクグループがレビュー中または完了**: PRマージ待ち
 
 ### 次のステップ
@@ -268,10 +307,12 @@ PR作成後、レビュー中の記録としてコメントを追加：
 #### タスクグループ [タスクグループ番号1]: [タスクグループ名1]
 ✅ PR作成: #{pr_number1}
 ✅ ステータスを `<!-- 👀 レビュー中 -->` に更新
+✅ Vibe-Kanban: in-review
 
 #### タスクグループ [タスクグループ番号2]: [タスクグループ名2]
 ✅ PR作成: #{pr_number2}
 ✅ ステータスを `<!-- 👀 レビュー中 -->` に更新
+✅ Vibe-Kanban: in-review
 
 ### サマリー
 - Issue番号: #{issue_number}

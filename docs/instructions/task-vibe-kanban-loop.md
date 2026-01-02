@@ -52,6 +52,7 @@ sequenceDiagram
     participant Starter as task-starter
     participant Vibe as Vibe-Kanban
     participant Agent as Claude Code Agent
+    participant GitHub as GitHub Issue/PR
 
     User->>CMD: コマンド実行
     CMD->>CMD: 初期化・ブランチ作成
@@ -65,7 +66,16 @@ sequenceDiagram
             CMD->>Vibe: タスク作成
             CMD->>Vibe: start_task_attempt
             Vibe->>Agent: エージェント起動
-            Agent-->>Vibe: 実行中...
+            Agent->>Agent: 実装・テスト
+            Agent->>GitHub: PR作成・レビュー中マーク
+            Agent-->>Vibe: 実行完了
+            CMD->>CMD: 次のタスクへ
+        else レビュー中タスクあり
+            Starter->>CMD: レビュー中タスク検出
+            CMD->>User: ⚠️ レビュー中タスクあり
+            Note over User,CMD: 人間がPRをマージするまで待機
+            User->>GitHub: PRマージ
+            GitHub->>GitHub: 完了マークに変更
             CMD->>CMD: 次のタスクへ
         else タスクなし（最大番号到達）
             Starter->>CMD: タスクなし
@@ -76,6 +86,33 @@ sequenceDiagram
         end
     end
 ```
+
+### 人間の介入ポイント
+
+```mermaid
+graph TD
+    subgraph 自動処理
+        A[タスク選定] --> B[実装・テスト]
+        B --> C[PR作成]
+    end
+
+    subgraph 人間の介入
+        C --> D[コードレビュー]
+        D --> E{承認?}
+        E -->|Yes| F[PRマージ]
+        E -->|No| B
+    end
+
+    subgraph 自動処理
+        F --> G[完了マーク更新]
+        G --> H[次のタスク]
+    end
+
+    style D fill:#fff9c4
+    style F fill:#fff9c4
+```
+
+**重要**: PRマージは人間が行う必要があります。task-vibe-kanban-loopはレビュー中タスクを検出した場合、ユーザーに通知して待機します。
 
 ---
 

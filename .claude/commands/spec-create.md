@@ -1,5 +1,5 @@
 ---
-description: "タスクの仕様書（requirements.md、design.md、tasks.md）を段階的に作成・修正するワークフローを実行します。ARGUMENTS: タスク内容の説明またはAsanaタスクURL（必須）、既存仕様書のパス（オプション）"
+description: "タスクの仕様書（requirements.md、design.md、qa-tests/）を段階的に作成・修正するワークフローを実行します。ARGUMENTS: タスク内容の説明またはAsanaタスクURL（必須）、既存仕様書のパス（オプション）"
 allowed-tools: Task, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, TodoRead, TodoWrite, mcp__asana__*, mcp__figma_dev_mode__*
 ---
 
@@ -10,10 +10,23 @@ allowed-tools: Task, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, TodoRead, T
 
 ## タスク管理
 TodoWriteツールを使用して全体の進捗を可視化し、ユーザーに現在の状況を明確に伝えます：
-- 各仕様書作成フェーズ（requirements.md、design.md、GitHub Issueへのタスク記述）をトップレベルタスクとして管理
+- 各仕様書作成フェーズ（requirements.md、design.md、QAテスト仕様、GitHub Issueへのタスク記述）をトップレベルタスクとして管理
 - エージェント起動前にタスクを「in_progress」に更新
 - エージェント完了後に「completed」に更新
 - ユーザー承認待ちの状態も明示的に表示
+
+## 命名規則
+
+⚠️ **重要**: ディレクトリ名とブランチ名の規則は異なります。混同しないこと。
+
+| 対象 | 規則 | 例 |
+|------|------|-----|
+| ディレクトリ | `issue{issue番号}-{機能名}` | `issue42-accs-admin-user-management` |
+| Issueブランチ | `issue/{issue番号}` | `issue/42` |
+| Phaseブランチ | `issue/{issue番号}-phase{N}` | `issue/42-phase1` |
+
+- **ディレクトリ**: 機能名を含める（人間が識別しやすくするため）
+- **ブランチ**: Issue番号のみ（[branch-strategy.md](../docs/steering/branch-strategy.md)参照）
 
 ## 実行手順
 
@@ -66,13 +79,28 @@ TodoWriteツールを使用して全体の進捗を可視化し、ユーザー�
 3. **ユーザー承認後、コミット＆プッシュ**
    - コミットメッセージ: `docs: add design for {feature-name}`
    - ブランチは現在のブランチにプッシュ
+4. **承認を得てから次のステップ（QAテスト仕様生成）に進む**
+
+#### Phase 3: QAテスト仕様生成（シナリオテスト含む）
+1. spec-qa-generatorエージェントで作成
+   - requirements.mdとdesign.mdの内容を参照
+   - **シナリオテスト（scenarios.md）**: 複数タスクをまたぐ継続操作フローのテスト仕様
+   - **フェーズ別テスト仕様**: 各タスクグループのテスト仕様
+   - 受け入れ基準（AC）との対応付け
+2. **ユーザーに内容確認を依頼**
+   - 作成したqa-tests/ディレクトリの構成と概要を提示
+   - 確認ポイントを明示（シナリオテストの網羅性、実施タイミングの妥当性など）
+3. **ユーザー承認後、コミット＆プッシュ**
+   - コミットメッセージ: `docs: add qa-test specs for {feature-name}`
+   - ブランチは現在のブランチにプッシュ
 4. **承認を得てから次のステップ（GitHub Issueへのタスク記述）に進む**
 
-#### Phase 3: GitHub Issueへのタスク記述
+#### Phase 4: GitHub Issueへのタスク記述
 1. spec-tasks-generatorエージェントで作成
    - エージェント内で実装の影響範囲を分析
    - 実装タスクの分解と依存関係
-   - requirements.mdとdesign.mdの内容を参照
+   - requirements.md、design.md、**qa-tests/scenarios.md**の内容を参照
+   - 各タスクに**シナリオテスト実施タイミング**を明記
    - **GitHub Issueの説明文にタスク一覧を記述**
 2. **ユーザーに内容確認を依頼**
    - 更新したGitHub IssueのURL（#{issue_number}）と概要を提示
@@ -81,13 +109,14 @@ TodoWriteツールを使用して全体の進捗を可視化し、ユーザー�
 
    a. **Issueブランチ作成（MCP）**
    - `mcp__github__create_branch` を使用
-   - branch: `issue/{issue番号}`
+   - branch: `issue/{issue番号}`（例: `issue/42`）
+   - ⚠️ **機能名は含めない**（ディレクトリ名とは異なる。上記「命名規則」参照）
    - from_branch: デフォルトブランチ（main/masterなど）
 
    b. **仕様書ファイルをプッシュ（MCP）**
    - `mcp__github__push_files` を使用
    - branch: `issue/{issue番号}`
-   - files: requirements.md, design.md（または分割された各ファイル）
+   - files: requirements.md, design.md, qa-tests/（または分割された各ファイル）
    - message: `docs: add specs for {feature-name} (Issue #{issue_number})`
 
    c. **PR作成（MCP）**
@@ -104,7 +133,8 @@ TodoWriteツールを使用して全体の進捗を可視化し、ユーザー�
      - Spec PR へのリンク
      - 要件ドキュメントへのリンク（requirements.mdまたはrequirements/README.md）
      - 設計ドキュメントへのリンク（design.mdまたはdesign/README.md）
-     - タスク一覧（Phase別チェックボックス形式）
+     - QAテスト仕様へのリンク（qa-tests/scenarios.md）
+     - タスク一覧（Phase別チェックボックス形式、シナリオテスト実施タイミング明記）
 
 4. **全ての仕様書作成が完了したことを報告**
    - GitHub Issue URLを明記
@@ -123,7 +153,10 @@ TodoWriteツールを使用して全体の進捗を可視化し、ユーザー�
 └── {機能カテゴリ名}/
     └── issue{issue番号}-{機能名}/
         ├── requirements.md  # 要件定義書（ATDD形式）
-        └── design.md        # 設計書（技術詳細）
+        ├── design.md        # 設計書（技術詳細）
+        └── qa-tests/        # QAテスト仕様
+            ├── scenarios.md # シナリオテスト（複数タスクをまたぐフロー）
+            └── phase{N}.md  # 各フェーズのテスト仕様
 
 （注: タスク一覧はGitHub Issueに記述）
 ```
@@ -138,11 +171,14 @@ TodoWriteツールを使用して全体の進捗を可視化し、ユーザー�
         │   ├── overview.md          # 概要とスコープ
         │   ├── stories.md           # ユーザーストーリー
         │   └── technical.md         # 技術要件
-        └── design/                  # 設計書ディレクトリ
-            ├── README.md            # 目次
-            ├── architecture.md      # アーキテクチャ
-            ├── implementation.md    # 実装詳細
-            └── quality.md           # 品質と運用
+        ├── design/                  # 設計書ディレクトリ
+        │   ├── README.md            # 目次
+        │   ├── architecture.md      # アーキテクチャ
+        │   ├── implementation.md    # 実装詳細
+        │   └── quality.md           # 品質と運用
+        └── qa-tests/                # QAテスト仕様
+            ├── scenarios.md         # シナリオテスト（複数タスクをまたぐフロー）
+            └── phase{N}.md          # 各フェーズのテスト仕様
 
 （注: タスク一覧はGitHub Issueに記述）
 ```

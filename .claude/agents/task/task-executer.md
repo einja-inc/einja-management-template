@@ -208,6 +208,5 @@ it('UserRepository が存在する', () => {
 
 ## 連携エージェント
 
-- **前提**: `task-starter` - タスクの選定
 - **後続**: `task-reviewer` - 実装内容のレビュー
 - **差し戻し元**: `task-reviewer` または `task-qa` - 問題発見時の再実装

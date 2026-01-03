@@ -40,7 +40,7 @@ Glob: .claude/commands/*.md
 `.claude/agents/` 配下を再帰的に検索し、`{サブエージェント名}.md` に一致するファイルを使用
 
 例：
-- `task-starter` → `.claude/agents/task/task-starter.md`
+- `task-executer` → `.claude/agents/task/task-executer.md`
 - `spec-requirements-generator` → `.claude/agents/specs/spec-requirements-generator.md`
 
 **変換テンプレート**:
@@ -116,15 +116,12 @@ Glob: .claude/commands/*.md
    - サブエージェント参照: 3箇所変換
 
 2. ✅ task-exec.md
-   - サブエージェント参照: 6箇所変換
+   - サブエージェント参照: 4箇所変換
 
-3. ✅ task-vibe-kanban-loop.md
-   - サブエージェント参照: 1箇所変換
-
-4. ✅ start-dev.md
+3. ✅ start-dev.md
    - 変換不要（サブエージェント参照なし）
 
-5. ✅ update-docs-by-task-specs.md
+4. ✅ update-docs-by-task-specs.md
    - 変換不要（サブエージェント参照なし）
 
 ### 除外されたファイル
@@ -134,7 +131,6 @@ Glob: .claude/commands/*.md
 Cursor で以下のコマンドが利用可能になりました：
 - `/spec-create`
 - `/task-exec`
-- `/task-vibe-kanban-loop`
 - `/start-dev`
 - `/update-docs-by-task-specs`
 ```
@@ -165,10 +161,9 @@ Cursor で以下のコマンドが利用可能になりました：
 /sync-cursor-commands
 
 # 実行結果
-✅ 5個のコマンドファイルを変換しました
+✅ 4個のコマンドファイルを変換しました
 - spec-create.md: 3箇所のサブエージェント参照を変換
-- task-exec.md: 6箇所のサブエージェント参照を変換
-- task-vibe-kanban-loop.md: 1箇所のサブエージェント参照を変換
+- task-exec.md: 4箇所のサブエージェント参照を変換
 - start-dev.md: 変換不要
 - update-docs-by-task-specs.md: 変換不要
 ```

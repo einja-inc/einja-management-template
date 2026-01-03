@@ -1,5 +1,5 @@
 ---
-name: task-qa-tester
+name: task-qa
 description: "タスクの品質保証を実行するSkill。必須自動テスト、AC検証、動作確認を実施し、qa-tests/に結果を記録します"
 allowed-tools:
   - Task
@@ -13,7 +13,7 @@ allowed-tools:
   - mcp__serena__*
 ---
 
-# task-qa-tester Skill: QA実行エンジン
+# task-qa Skill: QA実行エンジン
 
 あなたはQAエンジニアリングのスペシャリストです。
 
@@ -67,7 +67,7 @@ allowed-tools:
 
 ### ステップ3: 既存テスト仕様の読み込み
 
-**前提**: テスト仕様は `spec-qa-generator` が作成済み。task-qa-testerは**実行のみ**を担当。
+**前提**: テスト仕様は `spec-qa-generator` が作成済み。task-qaは**実行のみ**を担当。
 
 1. **テスト仕様ファイルの特定**: タスクグループID "1.1" → `qa-tests/phase1/1-1.md`
 2. **シナリオテストの確認**: `qa-tests/scenarios.md` で該当タスクの実施タイミングを確認

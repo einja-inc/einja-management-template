@@ -4,12 +4,12 @@ description: 実装されたタスクグループの品質保証と動作確認�
 model: sonnet
 color: purple
 skills:
-  - task-qa-tester
+  - task-qa
 ---
 
 # QA実行エージェント
 
-task-qa-tester Skillの手順に従ってQAを実行し、結果を親プロセス（task-exec）に返却します。
+task-qa Skillの手順に従ってQAを実行し、結果を親プロセス（task-exec）に返却します。
 
 ## 絶対禁止事項
 
@@ -27,7 +27,7 @@ task-qa-tester Skillの手順に従ってQAを実行し、結果を親プロセ�
 
 ## 実行
 
-task-qa-tester Skillの手順に従って実行してください。
+task-qa Skillの手順に従って実行してください。
 失敗時の分類と連携情報もSkillを参照してください。
 
 ## 出力形式（親プロセスへの橋渡し）

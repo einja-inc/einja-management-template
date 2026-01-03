@@ -1,6 +1,6 @@
 # 利用パターン（5パターン）
 
-task-qa-tester Skillの利用方法パターン集。
+task-qa Skillの利用方法パターン集。
 
 ---
 
@@ -33,7 +33,7 @@ task-qa-tester Skillの利用方法パターン集。
 ## パターン3: CLI明示的呼び出し（将来機能）
 
 ```bash
-claude skill task-qa-tester --spec-dir docs/specs/tasks/user-auth/
+claude skill task-qa --spec-dir docs/specs/tasks/user-auth/
 ```
 
 ---

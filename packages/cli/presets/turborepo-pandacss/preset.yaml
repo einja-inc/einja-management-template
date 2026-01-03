@@ -99,7 +99,7 @@ additionalPermissions:
   - "Bash(./verify.sh:*)"
   - "Bash(gh issue create:*)"
   - "Skill(task-exec)"
-  - "Skill(task-qa-tester)"
+  - "Skill(task-qa)"
 
 # 追加エージェント
 additionalAgents:

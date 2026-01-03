@@ -41,67 +41,39 @@ einja-management-template/
 - **Linter/Formatter**: Biome
 - **Git Hooks**: Husky + lint-staged
 
-## 前提条件
-
-- Node.js 22.16.0 (Voltaまたはfnm推奨)
-- pnpm 10.14.0
-- Docker & Docker Compose
-- PostgreSQL 15 (ローカル開発の場合)
-
 ## 開発環境セットアップ
 
-### 1. リポジトリをクローン
+### 初回セットアップ（初めての方）
 
 ```bash
+# 1. リポジトリをクローン
 git clone <repository-url>
 cd einja-management-template
-```
 
-### 2. 依存関係のインストール
+# 2. Volta/Node/pnpmをインストール（初回のみ）
+./scripts/init.sh
 
-```bash
-pnpm install
-```
+# 3. ターミナルを再起動
+exec $SHELL
 
-### 3. データベース起動（PostgreSQL）
+# 4. 環境セットアップ（.env、DB起動・初期化）
+pnpm setup
 
-```bash
-# PostgreSQLコンテナを起動（ポート5433）
-docker-compose up -d postgres
-
-# データベースの状態確認
-docker-compose ps
-
-# データベース停止
-docker-compose down
-```
-
-**注意**: DockerのPostgreSQLは**ポート5433**を使用します。
-
-### 4. Prismaセットアップ
-
-```bash
-# Prismaクライアント生成
-pnpm db:generate
-
-# データベースマイグレーション
-pnpm db:push
-```
-
-### 5. Panda CSSのコード生成
-
-```bash
-pnpm --filter @einja/web panda codegen
-```
-
-### 6. 開発サーバー起動
-
-```bash
-# 全アプリの開発サーバーを起動（Turborepo並列実行）
+# 5. 開発サーバー起動
 pnpm dev
 ```
 
-アプリケーション: http://localhost:3000
+ブラウザで http://localhost:3000 を開く
+
+---
+
+### コマンドの役割
+
+| コマンド | タイミング | 内容 |
+|---------|-----------|------|
+| `./scripts/init.sh` | 初回のみ | Volta/Node/pnpmのインストール |
+| `pnpm setup` | 初回 + 環境変更時 | .env作成、DB起動・初期化 |
+| `pnpm dev` | 毎回 | 開発サーバー起動 |
 
 ## 主要コマンド
 
@@ -209,6 +181,29 @@ pnpm db:studio
 7. プルリクエストを作成
 
 ## トラブルシューティング
+
+### Volta関連エラー
+
+**`zsh: command not found: volta`**
+
+ターミナルを開き直してください。それでも解決しない場合：
+```bash
+source ~/.zshrc
+```
+
+**`Volta error: Node is not available`**
+
+Node.jsがインストールされていません：
+```bash
+volta install node@22.16.0 pnpm@10.14.0
+```
+
+**`pnpm: command not found`**
+
+pnpmがインストールされていません：
+```bash
+volta install pnpm@10.14.0
+```
 
 ### Panda CSS関連エラー
 

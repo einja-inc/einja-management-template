@@ -31,7 +31,7 @@ einja-management-template/
 
 ### データベース起動（PostgreSQL）:
 ```bash
-# PostgreSQLコンテナを起動（ポート5432）
+# PostgreSQLコンテナを起動（ポート25432）
 docker-compose up -d postgres
 
 # データベースの状態確認
@@ -41,7 +41,7 @@ docker-compose ps
 docker-compose down
 ```
 
-**注意**: DockerのPostgreSQLは標準ポート**5432**を使用します。
+**注意**: DockerのPostgreSQLはポート**25432**を使用します（全ワークツリーで共有）。
 
 ### アプリケーション開発:
 ```bash
@@ -57,6 +57,30 @@ pnpm db:push
 # 開発サーバー起動（Turbopack + Turborepo）
 pnpm dev
 ```
+
+### Worktree開発（複数ブランチ並行開発）:
+
+Git worktreeを使用して複数のブランチを並行して開発する場合、以下のコマンドを使用します。
+
+```bash
+# Worktree環境をセットアップして開発サーバーを起動（推奨）
+pnpm dev:worktree
+
+# セットアップのみ（開発サーバーは手動で起動）
+pnpm setup:worktree
+```
+
+**仕組み:**
+- ブランチ名からSHA-256ハッシュを計算し、一意なポート番号を自動割り当て（3000-3999）
+- PostgreSQLは全ワークツリーで共有（ポート25432固定）
+- データベース名はブランチ名から自動生成（例: `main`, `feature_auth`）
+- `.env.local`に環境変数が自動設定される
+
+**ポート番号の例:**
+| ブランチ名 | Webポート | データベース |
+|-----------|----------|-------------|
+| main | 3195 | main |
+| feature/auth | 3122 | feature_auth |
 
 ### 主要な開発コマンド:
 - `pnpm dev` - 全アプリの開発サーバーを起動（Turborepo並列実行）

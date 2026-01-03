@@ -77,6 +77,7 @@ pnpm dev:bg
 | `pnpm dev:bg` | 毎回 | 開発サーバー起動（バックグラウンド・推奨） |
 | `pnpm dev:status` | 随時 | 開発サーバーの状態確認 |
 | `pnpm dev:stop` | 随時 | 開発サーバーを停止 |
+| `pnpm env:update` | 随時 | 環境変数の設定・変更（対話式ウィザード） |
 
 ## 主要コマンド
 
@@ -134,8 +135,8 @@ pnpm --filter @einja/web panda codegen
 ### Docker Compose サービス
 
 - **postgres**: PostgreSQL 15
-  - ポート: **5433** (ホスト) → 5432 (コンテナ)
-  - データベース: `einja_management`
+  - ポート: `${POSTGRES_PORT:-25432}` (ホスト) → 5432 (コンテナ)
+  - データベース: ブランチ名から自動生成（例: `main`, `feature_auth`）
   - ユーザー: `postgres`
   - パスワード: `postgres`
 

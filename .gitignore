@@ -38,6 +38,8 @@ log/*.pid
 .env
 .env.personal
 .env.keys
+.env.local.tmp
+.env.local.bak
 
 # dotenvx - 以下は追跡する（暗号化済み）
 # .env.example（テンプレート）

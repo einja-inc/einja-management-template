@@ -10,6 +10,10 @@
 	"scripts": {
 		"prepare": "husky",
 		"dev": "tsx scripts/worktree/dev.ts",
+		"dev:bg": "tsx scripts/worktree/dev.ts --background",
+		"dev:stop": "tsx scripts/worktree/dev.ts --stop",
+		"dev:status": "tsx scripts/worktree/dev.ts --status",
+		"dev:logs": "tail -f log/dev.log",
 		"dev:skip-setup": "turbo run dev",
 		"build": "dotenvx run -f .env.production -- turbo run build",
 		"build:staging": "dotenvx run -f .env.staging -- turbo run build",
@@ -30,7 +34,7 @@
 		"db:migrate": "turbo run db:migrate",
 		"db:studio": "turbo run db:studio",
 		"task:loop": "tsx scripts/task-vibe-kanban-loop/index.ts",
-		"setup": "tsx scripts/setup-dev.ts",
+		"dev:setup": "tsx scripts/setup-dev.ts",
 		"env:prepare": "tsx scripts/worktree/dev.ts --setup-only",
 		"dotenvx": "dotenvx",
 		"env:encrypt": "dotenvx encrypt"

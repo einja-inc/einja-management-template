@@ -6,10 +6,11 @@
  * 設定はworktree.config.jsonから読み込む。
  */
 
-import { execSync, spawn } from "node:child_process";
+import { execSync, spawn, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import readline from "node:readline";
 import {
 	type AppConfig,
 	type WorktreeConfig,
@@ -91,6 +92,96 @@ export function isPortInUse(port: number): boolean {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * ポートを使用しているプロセスのPIDを取得
+ *
+ * @param port - チェックするポート番号
+ * @returns PIDの配列（見つからない場合は空配列）
+ */
+export function getProcessesOnPort(port: number): number[] {
+	try {
+		// lsofコマンドでポートを使用しているプロセスのPIDを取得
+		const result = execSync(`lsof -ti :${port}`, { encoding: "utf-8" }).trim();
+		if (!result) return [];
+		return result.split("\n").map((pid) => Number.parseInt(pid, 10)).filter((pid) => !Number.isNaN(pid));
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * 指定したポートを使用しているプロセスを終了
+ *
+ * @param port - 終了するプロセスのポート番号
+ * @param signal - 送信するシグナル（デフォルト: SIGTERM）
+ * @returns 終了したプロセス数
+ */
+export function killProcessesOnPort(port: number, signal: NodeJS.Signals = "SIGTERM"): number {
+	const pids = getProcessesOnPort(port);
+	if (pids.length === 0) {
+		return 0;
+	}
+
+	console.log(`🔪 ポート ${port} を使用しているプロセス (PID: ${pids.join(", ")}) を終了します...`);
+
+	let killedCount = 0;
+	for (const pid of pids) {
+		try {
+			process.kill(pid, signal);
+			killedCount++;
+			console.log(`   ✓ PID ${pid} にシグナル ${signal} を送信`);
+		} catch (error) {
+			console.warn(`   ⚠ PID ${pid} の終了に失敗: ${error}`);
+		}
+	}
+
+	// プロセス終了を待機（最大5秒）
+	const startTime = Date.now();
+	while (Date.now() - startTime < 5000) {
+		if (!isPortInUse(port)) {
+			console.log(`✅ ポート ${port} が解放されました`);
+			return killedCount;
+		}
+		spawnSync("sleep", ["0.2"]);
+	}
+
+	// まだ使用中ならSIGKILLを送信
+	const remainingPids = getProcessesOnPort(port);
+	if (remainingPids.length > 0) {
+		console.log(`⚠ ポート ${port} がまだ使用中です。SIGKILLを送信します...`);
+		for (const pid of remainingPids) {
+			try {
+				process.kill(pid, "SIGKILL");
+			} catch {
+				// 無視
+			}
+		}
+		spawnSync("sleep", ["0.5"]);
+	}
+
+	return killedCount;
+}
+
+/**
+ * ログファイルのパスを取得
+ *
+ * 各worktreeは独立したディレクトリなので、シンプルに log/dev.log を使用。
+ * 同じブランチ名のworktreeは実用上存在しないため、ブランチ名での分離は不要。
+ *
+ * @returns ログファイルのパス
+ */
+export function getLogFilePath(): string {
+	const projectRoot = process.cwd();
+	const logDir = path.join(projectRoot, "log");
+
+	// ログディレクトリを作成
+	if (!fs.existsSync(logDir)) {
+		fs.mkdirSync(logDir, { recursive: true });
+	}
+
+	return path.join(logDir, "dev.log");
 }
 
 /**
@@ -376,8 +467,60 @@ export function runMigration(databaseName: string): void {
  * 開発サーバーを起動（turbo経由）
  *
  * @param envVars - 追加の環境変数
+ * @param options - 起動オプション
  */
-function startDevServer(envVars: Record<string, string> = {}): void {
+function startDevServer(
+	envVars: Record<string, string> = {},
+	options: { background?: boolean; logFile?: string; killExisting?: boolean; ports?: number[] } = {},
+): void {
+	const { background = false, logFile, killExisting = true, ports = [] } = options;
+
+	// 既存プロセスの終了処理
+	if (killExisting && ports.length > 0) {
+		for (const port of ports) {
+			if (isPortInUse(port)) {
+				killProcessesOnPort(port);
+			}
+		}
+	}
+
+	if (background && logFile) {
+		console.log("🚀 開発サーバーをバックグラウンドで起動します...");
+		console.log(`📄 ログファイル: ${logFile}`);
+
+		// ログファイルを開く（追記モード）
+		const logStream = fs.openSync(logFile, "a");
+
+		// タイムスタンプ付きヘッダーをログに追加
+		const header = `\n${"=".repeat(60)}\n[${new Date().toISOString()}] 開発サーバー起動\n${"=".repeat(60)}\n`;
+		fs.writeSync(logStream, header);
+
+		// バックグラウンドプロセスとして起動
+		const child = spawn("pnpm", ["turbo", "run", "dev"], {
+			stdio: ["ignore", logStream, logStream],
+			shell: true,
+			detached: true,
+			env: {
+				...process.env,
+				...envVars,
+			},
+		});
+
+		// 親プロセスから切り離す
+		child.unref();
+
+		// PIDをファイルに保存（後でstop/statusで使用）
+		const pidFile = logFile.replace(".log", ".pid");
+		fs.writeFileSync(pidFile, child.pid?.toString() ?? "");
+
+		console.log(`✅ 開発サーバーが起動しました (PID: ${child.pid})`);
+		console.log(`\n📋 ログを確認: tail -f ${logFile}`);
+		console.log(`🛑 停止: pnpm dev:stop`);
+
+		// 親プロセスは終了
+		process.exit(0);
+	}
+
 	console.log("🚀 開発サーバーを起動します...");
 
 	// spawn を使用してプロセスを実行（環境変数を渡す）
@@ -405,8 +548,13 @@ function startDevServer(envVars: Record<string, string> = {}): void {
  *
  * @param options - 実行オプション
  */
-export function main(options: { setupOnly?: boolean; skipSetup?: boolean } = {}): void {
-	const { setupOnly = false, skipSetup = false } = options;
+export function main(options: {
+	setupOnly?: boolean;
+	skipSetup?: boolean;
+	background?: boolean;
+	killExisting?: boolean;
+} = {}): void {
+	const { setupOnly = false, skipSetup = false, background = false, killExisting = true } = options;
 	const cfg = getConfig();
 
 	// --skip-setup: 環境準備をスキップして直接turbo run dev
@@ -476,13 +624,102 @@ ${Object.entries(availablePorts)
 		envVars[`PORT_${id.toUpperCase()}`] = port.toString();
 	}
 
+	// ログファイルパスを取得
+	const logFile = getLogFilePath();
+
+	// 使用するポートの配列を作成
+	const portsToUse = Object.values(availablePorts);
+
 	// 開発サーバーを起動
-	startDevServer(envVars);
+	startDevServer(envVars, {
+		background,
+		logFile,
+		killExisting,
+		ports: portsToUse,
+	});
+}
+
+/**
+ * 開発サーバーを停止
+ */
+export function stopDevServer(): void {
+	const branch = getCurrentBranch();
+	const logFile = getLogFilePath();
+	const pidFile = logFile.replace(".log", ".pid");
+
+	if (!fs.existsSync(pidFile)) {
+		console.log("⚠ 実行中の開発サーバーが見つかりません");
+		return;
+	}
+
+	const pid = Number.parseInt(fs.readFileSync(pidFile, "utf-8").trim(), 10);
+	if (Number.isNaN(pid)) {
+		console.log("⚠ PIDファイルが無効です");
+		fs.unlinkSync(pidFile);
+		return;
+	}
+
+	try {
+		process.kill(pid, "SIGTERM");
+		console.log(`✅ 開発サーバー (PID: ${pid}) を停止しました`);
+	} catch (error) {
+		console.log(`⚠ プロセス ${pid} は既に終了しています`);
+	}
+
+	// PIDファイルを削除
+	fs.unlinkSync(pidFile);
+}
+
+/**
+ * 開発サーバーのステータスを表示
+ */
+export function showDevStatus(): void {
+	const branch = getCurrentBranch();
+	const logFile = getLogFilePath();
+	const pidFile = logFile.replace(".log", ".pid");
+	const cfg = getConfig();
+
+	console.log(`\n📊 開発サーバーステータス`);
+	console.log(`${"=".repeat(50)}`);
+	console.log(`ブランチ: ${branch}`);
+
+	if (fs.existsSync(pidFile)) {
+		const pid = Number.parseInt(fs.readFileSync(pidFile, "utf-8").trim(), 10);
+		try {
+			process.kill(pid, 0); // シグナル0でプロセス存在確認
+			console.log(`状態: 🟢 実行中 (PID: ${pid})`);
+		} catch {
+			console.log(`状態: 🔴 停止 (古いPIDファイルあり)`);
+		}
+	} else {
+		console.log(`状態: ⚪ 未起動`);
+	}
+
+	// ポート使用状況
+	const calculatedPorts = calculatePorts(branch, cfg.apps);
+	console.log(`\nポート使用状況:`);
+	for (const [appId, port] of Object.entries(calculatedPorts)) {
+		const status = isPortInUse(port) ? "🟢 使用中" : "⚪ 空き";
+		console.log(`  ${appId}: ${port} ${status}`);
+	}
+
+	console.log(`\nログファイル: ${logFile}`);
+	console.log(`${"=".repeat(50)}\n`);
 }
 
 // スクリプトとして直接実行された場合
 const args = process.argv.slice(2);
 const setupOnly = args.includes("--setup-only");
 const skipSetup = args.includes("--skip-setup");
+const background = args.includes("--background") || args.includes("-b");
+const noKill = args.includes("--no-kill");
+const stop = args.includes("--stop");
+const status = args.includes("--status");
 
-main({ setupOnly, skipSetup });
+if (stop) {
+	stopDevServer();
+} else if (status) {
+	showDevStatus();
+} else {
+	main({ setupOnly, skipSetup, background, killExisting: !noKill });
+}

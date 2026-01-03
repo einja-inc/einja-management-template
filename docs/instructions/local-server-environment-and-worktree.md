@@ -1,4 +1,4 @@
-# Einja Management Template - ローカル開発サーバー環境構築ガイド（Worktree対応）
+# eenchow - ローカル開発サーバー環境構築ガイド（Worktree対応）
 
 ## クイックスタート（推奨）
 
@@ -25,17 +25,14 @@ pnpm dev:worktree  # 全自動
 
 ## 概要
 
-Einja Management Templateは、Turborepo + Next.jsを使用したモノレポ構成のアプリケーションです。本ドキュメントでは、ローカル開発サーバーの起動、環境変数管理、Worktree環境での並行開発まで、開発メンバーが迷わず環境構築できるように手順を説明します。
+eenchowは、Turborepo + Next.jsを使用したモノレポ構成のアプリケーションです。本ドキュメントでは、ローカル開発サーバーの起動、環境変数管理、Worktree環境での並行開発まで、開発メンバーが迷わず環境構築できるように手順を説明します。
 
 ### プロジェクト構成
 
-- **apps/web**: メイン管理画面アプリケーション (Next.js 15 App Router)
-- **packages/config**: 共通設定（Biome, TypeScript, Panda CSS）
-- **packages/types**: 共通型定義
-- **packages/database**: Prismaスキーマとクライアント
-- **packages/auth**: NextAuth設定と認証ロジック
-- **packages/ui**: 共通UIコンポーネント（shadcn/ui）
-- **packages/cli**: Claude Code用CLIツール（@einja/claude-cli）
+- **apps/web**: エンドユーザー向けWebアプリケーション (Next.js 14 App Router)
+- **apps/admin**: 管理画面アプリケーション (Next.js 14 App Router)
+- **apps/cron-worker**: バックグラウンドジョブ実行アプリ (Next.js API Routes)
+- **packages/server-core**: 共有サーバーロジック (Domain層 + Infrastructure層)
 
 ## 必要な環境
 
@@ -43,8 +40,8 @@ Einja Management Templateは、Turborepo + Next.jsを使用したモノレポ構
 
 | ソフトウェア | バージョン | インストール確認コマンド |
 |------------|----------|---------------------|
-| Node.js | 22.x以上 | `node --version` |
-| pnpm | 10.x以上 | `pnpm --version` |
+| Node.js | 20.x以上 | `node --version` |
+| pnpm | 8.x以上 | `pnpm --version` |
 | Docker | 24.x以上 | `docker --version` |
 | Docker Compose | 2.x以上 | `docker compose version` |
 | Git | 2.x以上 | `git --version` |
@@ -53,15 +50,13 @@ Einja Management Templateは、Turborepo + Next.jsを使用したモノレポ構
 
 #### Node.js & pnpm
 ```bash
-# Node.jsのインストール（推奨: Volta使用）
-volta install node@22
+# Node.jsのインストール（推奨: nvm使用）
+nvm install 20
+nvm use 20
 
 # pnpmのインストール
-corepack enable
-corepack prepare pnpm@10 --activate
+npm install -g pnpm@8
 ```
-
-> **Note**: このプロジェクトはVoltaでNode.jsバージョンを管理しています。Voltaを使用することで、自動的に正しいNode.jsバージョンが使用されます。
 
 #### Docker
 - macOS: [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
@@ -74,7 +69,7 @@ corepack prepare pnpm@10 --activate
 
 ```bash
 git clone <repository-url>
-cd drlove_demo_app
+cd eenchow
 ```
 
 ### 2. 依存関係のインストール
@@ -101,14 +96,14 @@ cp .env.example .env
 デフォルトの設定で開発できますが、必要に応じて編集してください。
 
 ```bash
-# PostgreSQL設定
-POSTGRES_PORT=5433
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=einja_management
+# PostgreSQL接続設定
+# PostgreSQLは固定ポート35432を使用（全ワークツリーで共有）
+# database名はワークツリーごとに自動設定（einja_main, einja_feature_xxx など）
+DATABASE_URL="postgresql://postgres:postgres@localhost:35432/einja_main?schema=public"
 
-# ブランチ名（Worktree環境用）
-BRANCH_NAME=main
+# NextAuth設定
+AUTH_SECRET=your-nextauth-secret-key-here
+AUTH_URL=http://localhost:3000
 ```
 
 #### 環境変数の階層構造
@@ -117,7 +112,7 @@ BRANCH_NAME=main
 
 1. **ルート/.env** - 全アプリ共通の基本設定（Git管理対象）
 2. **ルート/.env.local** - 開発者個人のカスタム設定（gitignore対象）
-3. **apps/*//.env.local** - 特定アプリのみのカスタム設定（gitignore対象）
+3. **apps/*/.env.local** - 特定アプリのみのカスタム設定（gitignore対象）
 
 **開発者が作成するのはルート/.envのみ**で、ほとんどのケースで十分です。個人の開発環境に応じてポート番号を変更したい場合などは、.env.localを作成してください。
 
@@ -131,7 +126,7 @@ docker compose up -d
 docker compose ps
 ```
 
-正常に起動すると、PostgreSQLが`localhost:5433`（デフォルト）で利用可能になります。
+正常に起動すると、PostgreSQLが`localhost:35432`で利用可能になります。
 
 ### 5. Prismaのセットアップ
 
@@ -153,9 +148,11 @@ pnpm db:migrate:dev
 pnpm dev
 ```
 
-アプリケーションが以下のURLで起動します：
+各アプリケーションが以下のポートで起動します：
 
 - Web: http://localhost:3000
+- Admin: http://localhost:4000
+- Cron Worker: http://localhost:5000
 
 ## セットアップフロー図
 
@@ -192,9 +189,17 @@ pnpm dev
 ```
 
 #### 特徴:
-- 固定ポート番号（web:3000）
+- 固定ポート番号（web:3000, admin:4000, worker:5000）
 - dotenv-cliがルート.envを自動読み込み
+- 全アプリケーションを同時起動
 - HMR（Hot Module Replacement）対応
+
+#### 個別アプリの起動:
+```bash
+pnpm dev:web      # Webアプリのみ起動
+pnpm dev:admin    # 管理画面のみ起動
+pnpm dev:worker   # Cron Workerのみ起動
+```
 
 ### Worktree開発（`pnpm dev:worktree`）
 
@@ -205,45 +210,49 @@ pnpm dev:worktree
 ```
 
 #### 特徴:
-- **ポート番号の自動計算**: ブランチ名からMD5ハッシュで一意のポート番号を生成
+- **ポート番号の自動計算**: ブランチ名からSHA-256ハッシュで一意のポート番号を生成
 - 複数ブランチを同時に起動可能（ポート競合なし）
-- 各Worktreeで独立したPostgreSQLポートも自動設定
-- DATABASE_URLも自動的にWorktree固有のPostgreSQLポートを使用するように生成
+- **PostgreSQLは共有インスタンス**: 全ワークツリーで同一のPostgreSQLコンテナ（port 35432）を使用
+- **database名で分離**: ブランチごとに異なるデータベース名を自動生成（例: `einja_main`, `einja_feature_auth`）
 
 #### ポート番号の採番ルール:
 
 Worktreeモードでは、ブランチ名から決定論的にポート番号を計算します。同じブランチ名なら常に同じポート番号が割り当てられます。
 
 ```typescript
-// scripts/worktree/lib/calculate-ports.tsの実装
-1. ブランチ名のMD5ハッシュを生成（例: "feature/auth" → "7a3d...")
-2. ハッシュの最初の4文字を使用（"7a3d"）
+// scripts/worktree/dev.tsの実装
+1. ブランチ名のSHA-256ハッシュを生成（例: "feature/auth" → "7a3d...")
+2. ハッシュの最初の8文字を16進数として数値化
 3. 各ポート番号を計算:
-   - Web:        hash[0:2]を16進数変換 % 1000 + 3000  → 3000-3999
-   - PostgreSQL: hash[2:4]を16進数変換 % 1000 + 15432 → 15432-16431
+   - Web:        hashNum % 1000 + 3000  → 3000-3999
+   - Admin:      hashNum % 1000 + 4000  → 4000-4999
+4. PostgreSQL設定（全ワークツリーで共有）:
+   - ポート:      35432（固定）
+   - Database:   einja_<ブランチ名の正規化>（例: einja_feature_auth）
 ```
 
 **採番の特徴:**
 - ブランチ名が同じなら常に同じポート番号（再現性）
-- PostgreSQLは異なるハッシュ部分を使うため独立した番号
-- 1000通りの組み合わせが可能（実用上十分）
+- Web/Adminは同じハッシュ部分を使うため連番になる
+- PostgreSQLは全ワークツリーで共有（リソース節約）
+- database名で完全に分離（データの独立性を保証）
 
-#### ポート番号の例:
+#### ポート番号とデータベースの例:
 
-| ブランチ名 | Web | PostgreSQL |
-|----------|-----|-----------|
-| main | 3195 | 15651 |
-| feature/auth | 3122 | 15871 |
-| feature/payment | 3087 | 15643 |
+| ブランチ名 | Web | Admin | PostgreSQL | Database |
+|----------|-----|-------|------------|----------|
+| main | 3195 | 4195 | 35432 | einja_main |
+| feature/auth | 3122 | 4122 | 35432 | einja_feature_auth |
+| feature/payment | 3087 | 4087 | 35432 | einja_feature_payment |
 
 #### Worktree環境のセットアップ:
 
 ```bash
 # 新しいWorktreeを作成
-git worktree add ../drlove-feature-auth feature/auth
+git worktree add ../eenchow-feature-auth feature/auth
 
 # Worktreeディレクトリに移動
-cd ../drlove-feature-auth
+cd ../eenchow-feature-auth
 
 # 依存関係インストール（必要に応じて）
 pnpm install
@@ -262,61 +271,75 @@ pnpm dev:worktree
 起動時の出力例：
 
 ```
-🌿 ブランチ: feature/auth
-📊 計算されたポート番号:
-  - Web:        3122
-  - PostgreSQL:  15871
+現在のブランチ: feature/auth
+データベース名: einja_feature_auth
+計算されたポート: { web: 3122, admin: 4122 }
+使用するポート: { web: 3122, admin: 4122 }
+.env.localに書き込みました: /path/to/.env.local
+✅ PostgreSQLは既に起動しています
+🗄️  データベース「einja_feature_auth」を確認中...
+📦 データベース「einja_feature_auth」を作成します...
+✅ データベース「einja_feature_auth」を作成しました
 
-🐘 PostgreSQLを起動します...
-✅ PostgreSQL起動完了
+===========================================
+Worktree環境設定完了
+===========================================
+  Web:        http://localhost:3122
+  Admin:      http://localhost:4122
+  PostgreSQL: localhost:35432
+  Database:   einja_feature_auth
 
-⏳ PostgreSQLの起動を待機中...
-✅ PostgreSQL起動確認完了
+  開発サーバー: pnpm dev
+===========================================
 
-🔄 Prismaマイグレーションを実行します...
-✅ マイグレーション完了
-
-🚀 開発サーバーを起動します...
+開発サーバーを起動します...
 ```
 
 #### PostgreSQL設定との連携:
 
-`pnpm dev:worktree`は、PostgreSQLを完全自動で管理します。
+`pnpm dev:worktree`は、PostgreSQLを自動管理します（共有インスタンス方式）。
+
+**アーキテクチャ:**
+- **PostgreSQLコンテナ**: 全ワークツリーで共有（1インスタンス）
+- **ポート**: 固定 `35432`
+- **データ分離**: database名で分離（`einja_main`, `einja_feature_auth`など）
 
 **自動実行される処理:**
 
-1. **環境変数の自動設定**
-   - `POSTGRES_PORT`: 計算されたポート番号（例: 15871）
-   - `BRANCH_NAME`: ブランチ名（コンテナ名の重複回避）
-   - `DATABASE_URL`: 動的に生成された接続URL
+1. **環境変数の自動設定**（.env.localに書き込み）
+   - `PORT_WEB`: 計算されたWebポート番号
+   - `PORT_ADMIN`: 計算されたAdminポート番号
+   - `DATABASE_URL`: `postgresql://postgres:postgres@localhost:35432/einja_<ブランチ名>`
 
-2. **PostgreSQLコンテナの起動**
-   - `docker compose up -d`を環境変数付きで実行
-   - コンテナ名: `einja-postgres-${BRANCH_NAME}`（ブランチごとに独立）
-   - ポート: 計算された動的ポート
+2. **PostgreSQLコンテナの起動確認**
+   - コンテナが起動していなければ `docker compose up -d postgres` を実行
+   - コンテナ名: `einja-postgres`（共有）
+   - ポート: `35432`（固定）
 
 3. **ヘルスチェック**
    - 最大30秒間、PostgreSQLの起動を待機
    - `pg_isready`コマンドで接続確認
 
-4. **Prismaマイグレーション**
-   - `pnpm db:migrate:dev`を自動実行
-   - データベーススキーマを最新状態に更新
+4. **データベースの自動作成**
+   - ブランチ名からdatabase名を生成（例: `einja_feature_auth`）
+   - 存在しなければ `CREATE DATABASE` で自動作成
 
-**docker-compose.ymlの対応:**
+**docker-compose.ymlの設定:**
 
 ```yaml
 services:
   postgres:
-    container_name: einja-postgres-${BRANCH_NAME:-main}
+    container_name: einja-postgres
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "35432:5432"
+volumes:
+  einja_postgres_data:  # 全ワークツリーで共有
 ```
 
-**注意事項:**
-- 各Worktreeで独立したPostgreSQLコンテナが起動します
-- データベースはWorktreeごとに独立（並行開発が可能）
-- 手動でPostgreSQLを起動する必要はありません
+**メリット:**
+- リソース効率が良い（1つのPostgreSQLインスタンスを共有）
+- 起動が速い（既に起動中の場合はdatabase作成のみ）
+- database名で完全にデータ分離（並行開発が可能）
 
 ### Worktree完全セットアップフロー
 
@@ -330,25 +353,28 @@ flowchart TD
     InstallDeps --> DevWorktree[pnpm dev:worktree実行]
 
     DevWorktree --> GetBranch[ブランチ名取得]
-    GetBranch --> CalcPorts[calculatePorts実行]
-    CalcPorts --> HashBranch[MD5ハッシュ生成]
-    HashBranch --> ExtractHash[ハッシュ4文字抽出]
-    ExtractHash --> CalcWeb[Web: hash0-1 % 1000 + 3000]
-    ExtractHash --> CalcPG[PostgreSQL: hash2-3 % 1000 + 15432]
+    GetBranch --> GenDbName[database名生成<br/>einja_ブランチ名]
+    GenDbName --> CalcPorts[calculatePorts実行]
+    CalcPorts --> HashBranch[SHA-256ハッシュ生成]
+    HashBranch --> ExtractHash[ハッシュ8文字抽出]
+    ExtractHash --> CalcWeb[Web: hashNum % 1000 + 3000]
+    ExtractHash --> CalcAdmin[Admin: hashNum % 1000 + 4000]
 
-    CalcWeb --> SetEnv[環境変数設定<br/>PORT_WEB, POSTGRES_PORT]
-    CalcPG --> SetEnv
+    CalcWeb --> SetEnv[.env.local書き込み<br/>PORT_WEB, PORT_ADMIN, DATABASE_URL]
+    CalcAdmin --> SetEnv
 
     SetEnv --> DisplayPorts[計算されたポート表示]
-    DisplayPorts --> StartPG[docker compose up -d<br/>環境変数で動的ポート設定]
+    DisplayPorts --> CheckPG{PostgreSQL<br/>起動中?}
+    CheckPG -->|いいえ| StartPG[docker compose up -d postgres<br/>共有インスタンス起動]
+    CheckPG -->|はい| CreateDB
     StartPG --> HealthCheck[PostgreSQLヘルスチェック<br/>pg_isready 最大30秒]
-    HealthCheck --> CheckPG{接続確認<br/>成功?}
-    CheckPG -->|いいえ| Retry{リトライ<br/>残あり?}
+    HealthCheck --> CheckHealth{接続確認<br/>成功?}
+    CheckHealth -->|いいえ| Retry{リトライ<br/>残あり?}
     Retry -->|はい| HealthCheck
     Retry -->|いいえ| Error([エラー終了])
-    CheckPG -->|はい| Migrate[pnpm db:migrate:dev<br/>自動実行]
+    CheckHealth -->|はい| CreateDB[database作成確認<br/>CREATE DATABASE if not exists]
 
-    Migrate --> StartApps[各アプリ起動<br/>pnpm turbo run dev]
+    CreateDB --> StartApps[各アプリ起動<br/>pnpm dev]
     StartApps --> Complete([Worktree環境起動完了])
 
     style Start fill:#e1f5ff
@@ -358,7 +384,7 @@ flowchart TD
     style SetEnv fill:#fff3e0
     style StartPG fill:#e3f2fd
     style HealthCheck fill:#e3f2fd
-    style Migrate fill:#e3f2fd
+    style CreateDB fill:#e3f2fd
     style Error fill:#ffcdd2
 ```
 
@@ -371,7 +397,7 @@ sequenceDiagram
     participant Dotenv as dotenv-cli
     participant Script as worktree/dev.ts
     participant Git as Git
-    participant Calc as calculatePorts
+    participant Docker as Docker
     participant App as アプリケーション
 
     alt 通常開発（pnpm dev）
@@ -386,18 +412,19 @@ sequenceDiagram
     else Worktree開発（pnpm dev:worktree）
         Dev->>Root: pnpm dev:worktree
         Root->>Script: tsx scripts/worktree/dev.ts
-        Script->>Git: git branch --show-current
+        Script->>Git: git rev-parse --abbrev-ref HEAD
         Git-->>Script: ブランチ名（例: feature/auth）
-        Script->>Calc: calculatePorts(branch)
-        Calc->>Calc: MD5ハッシュ生成
-        Note over Calc: MD5("feature/auth")<br/>→ "7a3d..."<br/>→ hash[0:2]="7a" hash[2:4]="3d"
-        Calc->>Calc: ポート計算
-        Note over Calc: Web: 0x7a % 1000 + 3000 = 3122<br/>PostgreSQL: 0x3d % 1000 + 15432 = 15871
-        Calc-->>Script: Portsオブジェクト
-        Script->>Script: process.env設定
-        Note over Script: PORT_WEB=3122<br/>POSTGRES_PORT=15871<br/>DATABASE_URL=postgresql://...@localhost:15871/...
-        Script->>Script: コンソール出力
-        Script->>App: pnpm turbo run dev<br/>（環境変数継承）
+        Script->>Script: database名生成
+        Note over Script: einja_feature_auth
+        Script->>Script: ポート計算（SHA-256）
+        Note over Script: Web: 3122<br/>Admin: 4122
+        Script->>Script: .env.local書き込み
+        Note over Script: PORT_WEB=3122<br/>PORT_ADMIN=4122<br/>DATABASE_URL=postgresql://...@localhost:35432/einja_feature_auth
+        Script->>Docker: PostgreSQL起動確認
+        Docker-->>Script: 起動中 or 起動
+        Script->>Docker: CREATE DATABASE einja_feature_auth
+        Docker-->>Script: OK
+        Script->>App: pnpm dev
         App->>App: 環境変数読み込み
         App-->>Dev: 開発サーバー起動（動的ポート）
     end
@@ -408,11 +435,16 @@ sequenceDiagram
 ### 開発サーバー
 
 ```bash
-# 開発サーバー起動
+# 全アプリケーション起動
 pnpm dev
 
 # Worktree環境での起動
 pnpm dev:worktree
+
+# 個別アプリ起動
+pnpm dev:web
+pnpm dev:admin
+pnpm dev:worker
 ```
 
 ### ビルド
@@ -534,7 +566,7 @@ pnpm clean:all
 
 ### PostgreSQLに接続できない
 
-**症状**: `Error: Can't reach database server at localhost:5432`
+**症状**: `Error: Can't reach database server at localhost:35432`
 
 **原因**: PostgreSQLが起動していない、またはポート設定が間違っています。
 
@@ -611,8 +643,8 @@ pnpm clean:all
 
 2. **共有パッケージの変更の場合**:
    ```bash
-   # packages/ui等で変更した場合
-   cd packages/ui
+   # packages/server-coreで変更した場合
+   cd packages/server-core
    pnpm build
 
    # ルートに戻って開発サーバー再起動
@@ -643,22 +675,21 @@ pnpm build
 
 | 変数名 | デフォルト値 | 説明 |
 |-------|------------|------|
-| `POSTGRES_PORT` | 5433 | PostgreSQLポート |
-| `POSTGRES_USER` | postgres | PostgreSQLユーザー名 |
-| `POSTGRES_PASSWORD` | postgres | PostgreSQLパスワード |
-| `POSTGRES_DB` | einja_management | データベース名 |
-| `BRANCH_NAME` | main | ブランチ名（Worktree用） |
+| `DATABASE_URL` | postgresql://postgres:postgres@localhost:35432/einja_main | データベース接続URL（ポート35432固定） |
+| `AUTH_SECRET` | - | NextAuth.jsのシークレットキー |
+| `AUTH_URL` | http://localhost:3000 | NextAuth.jsのベースURL |
 
 ### ルート/.env.local（オプション）
 
-個人の開発環境に応じて作成。Gitには含まれません。
+個人の開発環境に応じて作成。Gitには含まれません。Worktree環境では自動生成されます。
 
 | 変数名 | 例 | 説明 |
 |-------|-----|------|
-| `PORT_WEB` | 3001 | Webアプリのポート（カスタム） |
-| `DATABASE_URL` | postgresql://... | データベース接続文字列（完全カスタム） |
+| `PORT_WEB` | 3122 | Webアプリのポート（Worktreeで自動計算） |
+| `PORT_ADMIN` | 4122 | 管理画面のポート（Worktreeで自動計算） |
+| `DATABASE_URL` | postgresql://...einja_feature_auth | データベース接続URL（Worktreeでdatabase名が自動設定） |
 
-### apps/*//.env.local（オプション）
+### apps/*/.env.local（オプション）
 
 特定のアプリケーションのみに適用する設定。通常は不要です。
 
@@ -672,9 +703,8 @@ NEXT_PUBLIC_API_URL=http://localhost:8080
 環境構築が完了したら、以下のドキュメントも参照してください：
 
 - **[タスク実行ガイド](./task-execute.md)**: /task-execコマンドの使用方法
-- **[コーディング規約](../coding-standards.mdc)**: TypeScript/Reactのコーディング規約
-- **[コンポーネント設計](../component-design.mdc)**: Reactコンポーネントの設計ガイドライン
-- **[テストガイドライン](../testing.mdc)**: Vitestを使用したテスト戦略
+- **[アーキテクチャ設計書](../specs/tasks/monorepo/20251104-monorepo-turborepo-nextjs-setup/design/architecture.md)**: システム構成の詳細
+- **[技術仕様書](../specs/tasks/monorepo/20251104-monorepo-turborepo-nextjs-setup/requirements/technical.md)**: 技術要件の詳細
 
 ## 質問・サポート
 

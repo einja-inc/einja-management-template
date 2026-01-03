@@ -242,7 +242,7 @@ railway up
 **ロード順序**（後勝ち）:
 1. `root/.env` - モノレポ全体の共通設定
 2. `root/.env.local` - ローカル環境でのオーバーライド
-3. `apps/*/​.env.local` - アプリケーション固有のオーバーライド
+3. `apps/*/.env.local` - アプリケーション固有のオーバーライド
 
 ```mermaid
 sequenceDiagram
@@ -270,7 +270,7 @@ sequenceDiagram
 
 ```bash
 # Database
-DATABASE_URL="postgresql://user:pass@localhost:5432/drlove"
+DATABASE_URL="postgresql://user:pass@localhost:35432/eenchow"
 
 # App Ports (デフォルト値)
 PORT_WEB=3000
@@ -278,21 +278,21 @@ PORT_ADMIN=3001
 PORT_WORKER=3002
 
 # Postgres Port
-POSTGRES_PORT=5432
+POSTGRES_PORT=35432
 ```
 
 **`root/.env.local`** (ローカル開発のみ):
 
 ```bash
 # ローカル開発用のオーバーライド
-DATABASE_URL="postgresql://user:pass@localhost:5432/drlove_dev"
+DATABASE_URL="postgresql://user:pass@localhost:35432/eenchow_dev"
 ```
 
 **`apps/web/.env.local`** (webアプリ固有):
 
 ```bash
 # Web固有の設定
-NEXT_PUBLIC_APP_NAME="Dr.Love Web App"
+NEXT_PUBLIC_APP_NAME="eenchow Web App"
 ```
 
 ### dotenv-cli設定
@@ -326,11 +326,11 @@ NEXT_PUBLIC_APP_NAME="Dr.Love Web App"
 
 **課題**: 複数のブランチを並行開発する際、ポート番号が衝突する
 
-**解決策**: MD5ハッシュベースの動的ポート割り当て
+**解決策**: SHA-256ハッシュベースの動的ポート割り当て
 
 ### ポート計算ロジック
 
-**実装ファイル**: `scripts/worktree/lib/calculate-ports.ts`
+**実装ファイル**: `scripts/worktree/dev.ts`
 
 ```typescript
 import crypto from 'crypto'
@@ -338,28 +338,22 @@ import crypto from 'crypto'
 export interface WorktreePorts {
   PORT_WEB: number
   PORT_ADMIN: number
-  PORT_WORKER: number
-  POSTGRES_PORT: number
 }
 
 export function calculatePorts(branchName: string): WorktreePorts {
-  // ブランチ名からMD5ハッシュを生成
-  const hash = crypto.createHash('md5').update(branchName).digest('hex')
+  // ブランチ名からSHA-256ハッシュを生成
+  const hash = crypto.createHash('sha256').update(branchName).digest('hex')
 
-  // ハッシュの最初の4文字を16進数として解釈
-  const seed = parseInt(hash.substring(0, 4), 16)
+  // ハッシュの最初の8文字を16進数として解釈
+  const seed = parseInt(hash.substring(0, 8), 16)
 
-  // 各ポート番号を計算（3000-9999の範囲）
-  const PORT_WEB = 3000 + (seed % 7000)
-  const PORT_ADMIN = PORT_WEB + 1
-  const PORT_WORKER = PORT_WEB + 2
-  const POSTGRES_PORT = 5432 + (seed % 1000)
+  // 各ポート番号を計算（1000ポート範囲）
+  const range = 1000
+  const offset = seed % range
 
   return {
-    PORT_WEB,
-    PORT_ADMIN,
-    PORT_WORKER,
-    POSTGRES_PORT,
+    PORT_WEB: 3000 + offset,  // 3000-3999
+    PORT_ADMIN: 4000 + offset,  // 4000-4999
   }
 }
 ```
@@ -383,21 +377,16 @@ const ports = calculatePorts(branchName)
 console.log(`📡 Ports assigned:`)
 console.log(`  - Web:      ${ports.PORT_WEB}`)
 console.log(`  - Admin:    ${ports.PORT_ADMIN}`)
-console.log(`  - Worker:   ${ports.PORT_WORKER}`)
-console.log(`  - Postgres: ${ports.POSTGRES_PORT}`)
 
 // 環境変数を設定
 process.env.PORT_WEB = String(ports.PORT_WEB)
 process.env.PORT_ADMIN = String(ports.PORT_ADMIN)
-process.env.PORT_WORKER = String(ports.PORT_WORKER)
-process.env.POSTGRES_PORT = String(ports.POSTGRES_PORT)
 
-// DATABASE_URLを組み立て
-const dbUrl = process.env.DATABASE_URL || 'postgresql://user:pass@localhost:5432/drlove'
-const updatedDbUrl = dbUrl.replace(/:\d+\//, `:${ports.POSTGRES_PORT}/`)
-process.env.DATABASE_URL = updatedDbUrl
+// DATABASE_URLを組み立て（PostgreSQLは固定ポート35432を使用）
+const databaseName = generateDatabaseName(branchName)
+process.env.DATABASE_URL = `postgresql://postgres:postgres@localhost:35432/${databaseName}?schema=public`
 
-console.log(`🗄️  Database: ${updatedDbUrl}`)
+console.log(`🗄️  Database: ${databaseName}`)
 console.log(``)
 
 // Turborepoを起動
@@ -421,9 +410,9 @@ sequenceDiagram
     Script->>Git: git branch --show-current
     Git-->>Script: ブランチ名(例: feature/auth)
     Script->>Calc: calculatePorts(branch)
-    Calc->>Calc: MD5ハッシュ計算
+    Calc->>Calc: SHA-256ハッシュ計算
     Calc-->>Script: ポート番号セット
-    Note over Script: PORT_WEB=3120<br/>PORT_ADMIN=3121<br/>PORT_WORKER=3122<br/>POSTGRES_PORT=5452
+    Note over Script: PORT_WEB=3120<br/>PORT_ADMIN=4120<br/>POSTGRES_PORT=35432
     Script->>Script: process.env設定
     Script->>Script: DATABASE_URL組み立て
     Script->>Turbo: pnpm turbo run dev
@@ -438,10 +427,10 @@ sequenceDiagram
 
 ```bash
 # Worktree作成
-git worktree add ../drlove_feature_auth feature/auth
+git worktree add ../eenchow_feature_auth feature/auth
 
 # Worktree移動
-cd ../drlove_feature_auth
+cd ../eenchow_feature_auth
 
 # 依存関係インストール
 pnpm install
@@ -453,10 +442,8 @@ pnpm dev:worktree
 # 🌿 Worktree branch: feature/auth
 # 📡 Ports assigned:
 #   - Web:      3120
-#   - Admin:    3121
-#   - Worker:   3122
-#   - Postgres: 5452
-# 🗄️  Database: postgresql://user:pass@localhost:5452/drlove
+#   - Admin:    4120
+# 🗄️  Database: einja_feature_auth
 ```
 
 ### package.json設定
@@ -467,7 +454,8 @@ pnpm dev:worktree
 {
   "scripts": {
     "dev": "dotenv -e .env -e .env.local -- turbo run dev",
-    "dev:worktree": "tsx scripts/worktree/dev.ts"
+    "dev:worktree": "tsx scripts/worktree/dev.ts",
+    "setup:worktree": "tsx scripts/worktree/dev.ts --setup-only"
   }
 }
 ```
@@ -538,11 +526,11 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-35432}:5432"
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: pass
-      POSTGRES_DB: drlove
+      POSTGRES_DB: eenchow
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -553,7 +541,7 @@ services:
     ports:
       - "${PORT_WEB:-3000}:3000"
     environment:
-      - DATABASE_URL=postgresql://user:pass@postgres:5432/drlove
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/eenchow
     depends_on:
       - postgres
 
@@ -669,7 +657,7 @@ pnpm db:studio
 
 1. **マルチプラットフォーム**: Vercel + Railway のハイブリッドデプロイ
 2. **環境変数管理**: dotenv-cliによる階層的ロード
-3. **Worktree対応**: MD5ハッシュベースの動的ポート割り当て
+3. **Worktree対応**: SHA-256ハッシュベースの動的ポート割り当て
 4. **Docker化**: Next.js Standaloneビルドによる効率的なコンテナ化
 5. **ロールバック**: Vercel/Railway Dashboardから簡単にロールバック
 

@@ -33,6 +33,12 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 
 2. **不明点の解消プロセス**
    - **優先順位1: 既存コード・ドキュメントの調査**
+     - **【必須】開発ガイドラインの読み込み**（設計前に必ず確認）
+       - `docs/steering/development/backend-architecture.md` - 4層レイヤードアーキテクチャ、Repositoryパターン
+       - `docs/steering/development/frontend-development.md` - Server/Client Component、状態管理
+       - `docs/steering/development/api-development.md` - API設計標準、エンドポイント命名規則
+       - `docs/steering/development/testing-strategy.md` - テスト戦略、カバレッジ基準
+       - `docs/steering/acceptance-criteria-and-qa-guide.md` - ATDD、受け入れ基準の書き方
      - Serena MCPを使用して既存コードベースの調査
        - 類似機能のアーキテクチャパターンを検索
        - 既存のデータモデルやAPI設計を確認
@@ -282,6 +288,13 @@ CLAUDE.mdに記載された以下の要素を必ず考慮：
 - 既存の命名規則とディレクトリ構造
 - エラーハンドリングパターン（Result型、ApplicationError）
 
+**開発ガイドライン（設計時に必ず準拠）**：
+- `docs/steering/development/backend-architecture.md` - バックエンド4層アーキテクチャ
+- `docs/steering/development/frontend-development.md` - フロントエンド設計パターン
+- `docs/steering/development/api-development.md` - API設計標準
+- `docs/steering/development/testing-strategy.md` - テスト戦略
+- `docs/steering/acceptance-criteria-and-qa-guide.md` - ATDD・受け入れ基準
+
 ## 設計書作成プロセス
 
 1. **ディレクトリ完全探索（最重要）**: 
@@ -299,11 +312,17 @@ CLAUDE.mdに記載された以下の要素を必ず考慮：
 5. **インターフェース定義**: API、データベース、UIの仕様を明確化
 6. **非機能要件**: セキュリティ、パフォーマンス、エラー処理を設計
 
-7. **codexレビューと改善ループ**:
+7. **設計レビューと改善ループ**:
 
    **初回レビュー：**
-   - 作成したdesign.mdをcodex MCPでレビュー
+   - 作成したdesign.mdをレビュー
+   - **レビュー方法**: Codex MCP → 利用不可の場合はTaskツール（subagent_type: "general-purpose"）でフォールバック
    - レビュー観点：
+     - **【最重要】ソースコード混入チェック**：
+       - TypeScript/JavaScriptコードが含まれていないか（インターフェース定義含む）
+       - 関数、クラス、型定義がコードブロックで書かれていないか
+       - 代わりにmermaid図（classDiagram等）または表形式が使われているか
+       - Prismaスキーマ以外のコードブロックがある場合は即座に修正を要求
      - アーキテクチャの妥当性と拡張性
      - requirements.mdとの整合性
      - データモデル設計の正規化と効率性
@@ -319,6 +338,7 @@ CLAUDE.mdに記載された以下の要素を必ず考慮：
 
    **再レビューの判断：**
    - 以下の場合は再レビューを実施：
+     - **【必須】ソースコードの混入が指摘された場合**（修正後に必ず再レビュー）
      - アーキテクチャの大幅な変更を行った場合
      - データモデルの構造を大きく変更した場合
      - API設計の根本的な見直しを行った場合
@@ -327,6 +347,9 @@ CLAUDE.mdに記載された以下の要素を必ず考慮：
    - 軽微な修正（文言調整、図の微修正など）の場合は再レビュー不要
 
    **最終確認：**
+   - **【必須】設計書にソースコードが含まれていないことを最終確認**
+     - TypeScript/JavaScriptコードブロックがないか（Prismaスキーマ除く）
+     - インターフェース定義は図または表形式になっているか
    - 全ての指摘事項が適切に対応されたことを確認
    - requirements.mdの全要件がdesign.mdでカバーされているか確認
    - mermaid図が正しく描画されるか確認
@@ -334,10 +357,86 @@ CLAUDE.mdに記載された以下の要素を必ず考慮：
 
 ## 重要な原則
 
-### コードブロックの使用制限
-- **テスト設計セクション以外では、実装コードの記載を避ける**
-- API仕様、データモデル、型定義などの必要最小限のコードのみ記載
-- エラーハンドリング、セキュリティ、実装上の注意点は日本語での説明を優先
+### 【最重要】設計書と実装の分離原則
+
+**設計書には実装コードを絶対に書かないこと。これは最重要ルールです。**
+
+#### 禁止事項（NG）
+- **TypeScript/JavaScriptのコードブロック全般**（Prismaスキーマ以外）
+- インターフェース定義（`interface`、`type`）のコードブロック
+- 関数シグネチャのコードブロック
+- 具体的なビジネスロジックを含む実装コード例
+- 関数の中身（if文、ループ、処理ロジック）
+- コントローラー、サービス、リポジトリの具体的な処理内容
+- 「以下のように実装する」という形でのコード提示
+
+#### 許可事項（OK）
+- **mermaid図**：アーキテクチャ図、ERD、シーケンス図、フローチャート、クラス図
+- **表形式**：API仕様、メソッド一覧、型定義、エラーコード一覧
+- **設計判断の説明**：パターン選択理由、アーキテクチャ決定の根拠（日本語）
+- **Prismaスキーマ**：データベース設計のみ例外的に許可（ERDと併用）
+
+#### 理由
+設計書にソースコードを書くと：
+1. 設計書と実装コードの二重メンテナンスが発生する
+2. 実装時に設計書のコードをコピペしがちになり、適切なリファクタリングが行われない
+3. 設計書の本来の目的（何を作るかの定義）から逸脱する
+4. 図や表の方が俯瞰しやすく、レビューしやすい
+
+#### 例
+
+**❌ NG - TypeScriptコード（インターフェース定義含む）**
+```typescript
+// インターフェース定義もNG
+interface UserService {
+  createUser(data: CreateUserInput): Promise<Result<User, ApplicationError>>;
+  findByEmail(email: string): Promise<User | null>;
+}
+
+type CreateUserInput = {
+  email: string;
+  name: string;
+};
+```
+
+**✅ OK - mermaidクラス図**
+```mermaid
+classDiagram
+    class UserService {
+        +createUser(data: CreateUserInput) Result~User, ApplicationError~
+        +findByEmail(email: string) User | null
+    }
+    class CreateUserInput {
+        +string email
+        +string name
+    }
+```
+
+**✅ OK - 表形式**
+
+| メソッド | 引数 | 戻り値 | 説明 |
+|---------|------|--------|------|
+| createUser | CreateUserInput | Result<User, ApplicationError> | ユーザーを新規作成 |
+| findByEmail | email: string | User \| null | メールアドレスでユーザー検索 |
+
+| 型名 | プロパティ | 型 | 説明 |
+|------|-----------|-----|------|
+| CreateUserInput | email | string | メールアドレス |
+| CreateUserInput | name | string | ユーザー名 |
+
+### コードブロックの使用ガイドライン
+
+**原則：ソースコードは書かない。図と表で代替する。**
+
+| セクション | 推奨形式 | 備考 |
+|-----------|---------|------|
+| アーキテクチャ | mermaid図（flowchart, C4） | システム構成を視覚化 |
+| データモデル | mermaid ERD + Prismaスキーマ | Prismaスキーマは例外的に許可 |
+| API仕様 | 表形式 | メソッド、パス、リクエスト/レスポンス |
+| クラス・インターフェース設計 | mermaid classDiagram または表 | シグネチャのみ |
+| 処理フロー | mermaid sequenceDiagram | 時系列の処理を可視化 |
+| エラーコード | 表形式 | コード、メッセージ、対処法 |
+| テスト設計 | Given-When-Then形式（日本語） | コードではなく自然言語で記述 |
 
 ### Prismaスキーマの記述
 - インデックス戦略は`@@index`ディレクティブとしてPrismaスキーマ内に直接記載

@@ -6,6 +6,18 @@
 
 Tanstack Query、React Hook Form、Hono Clientを活用した型安全で保守性の高いフロントエンド開発を実現します。
 
+### 関連ドキュメント
+
+- **[API開発ガイド](api-development.md)** - Hono API実装、Server Actionsとの使い分け
+- **[バックエンドアーキテクチャ](backend-architecture.md)** - 4層アーキテクチャ、Repository/Result型
+
+> **📌 Server Actions vs Hono Client + Tanstack Query の使い分け**
+>
+> フロントエンドからAPIを呼び出す方法は2パターンあります。使い分けの基準は **[API開発ガイド セクション7](api-development.md#7-フロントエンド統合パターン)** を参照してください。
+>
+> - **Server Actions**: シンプルなフォーム送信、単発のミューテーション
+> - **Hono Client + Tanstack Query**: 複雑なデータフェッチ、キャッシュ管理、リアルタイム更新（本ドキュメントで解説）
+
 ---
 
 ## 目次
@@ -1053,8 +1065,8 @@ import { queryClient } from '@/lib/query-client'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Dr.Love Demo App',
-  description: 'モノレポデモアプリケーション',
+  title: 'プロジェクト名',
+  description: 'プロジェクトの説明',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

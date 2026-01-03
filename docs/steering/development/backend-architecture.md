@@ -38,7 +38,7 @@ Vercel TurborepoとNext.jsをベースとしたエンタープライズグレー
 ### モノレポ全体構造
 
 ```
-drlove_demo_app/
+project-root/
 ├── apps/
 │   ├── web/              # メインWebアプリ（Next.js 14 App Router）
 │   ├── admin/            # 管理画面（Next.js 14 App Router）
@@ -583,9 +583,13 @@ const user = userResult.value
 
 ## 4. パッケージエクスポート戦略
 
-### index.ts不使用方針
+### ⛔ index.ts 完全禁止（絶対厳守）
 
-従来のindex.tsパターンは、ファイル追加のたびにindex.tsとpackage.jsonの両方を更新する必要があり、メンテナンス負担が大きいため、**完全に使用しません**。
+> **警告**: このプロジェクトでは `index.ts` ファイルの作成を**一切禁止**しています。
+> いかなる理由があっても `index.ts` を作成してはいけません。
+> 詳細は [CLAUDE.md の index.ts 完全禁止ルール](../../../CLAUDE.md) を参照してください。
+
+従来のindex.tsパターンは、ファイル追加のたびにindex.tsとpackage.jsonの両方を更新する必要があり、メンテナンス負担が大きいため、**完全に禁止**しています。
 
 **package.json設定**:
 ```json
@@ -699,8 +703,8 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 ## 8. 参照ドキュメント
 
 ### 開発ガイド
-- **[API開発ガイド](api-development.md)** - Hono API実装ルール、エンドポイント設計
-- **[フロントエンド開発ガイド](frontend-development.md)** - Tanstack Query、React Hook Form
+- **[API開発ガイド](api-development.md)** - Hono API実装ルール、エンドポイント設計、**Server Actions vs Hono Clientの使い分け**
+- **[フロントエンド開発ガイド](frontend-development.md)** - Server/Client Component、Tanstack Query、React Hook Form、Hono Client
 
 ### データベース
 - **[スキーマ設計](../schema-design.md)** - Prismaスキーマ、テーブル定義、ERD

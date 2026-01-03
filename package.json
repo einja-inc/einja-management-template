@@ -7,9 +7,6 @@
 		"apps/*",
 		"packages/*"
 	],
-	"volta": {
-		"node": "22.16.0"
-	},
 	"scripts": {
 		"prepare": "husky",
 		"dev": "turbo run dev",
@@ -27,11 +24,20 @@
 		"db:generate": "turbo run db:generate",
 		"db:push": "turbo run db:push",
 		"db:migrate": "turbo run db:migrate",
-		"db:studio": "turbo run db:studio"
+		"db:studio": "turbo run db:studio",
+		"task:loop": "tsx scripts/task-vibe-kanban-loop/index.ts"
 	},
 	"devDependencies": {
+		"@modelcontextprotocol/sdk": "^1.0.0",
+		"@types/minimist": "^1.2.5",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.1.0",
+		"minimist": "^1.2.8",
+		"tsx": "^4.7.0",
 		"turbo": "^2.5.8"
+	},
+	"volta": {
+		"node": "22.16.0",
+		"pnpm": "10.14.0"
 	}
 }

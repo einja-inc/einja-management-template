@@ -1,6 +1,4 @@
-# Dr.Love Demo App - 開発ワークフロー
-
-> **クイックスタート**: [スキル・コマンド利用ガイド](../guides/README.md) | [クイックリファレンス](../guides/quick-reference.md)
+# 開発ワークフロー
 
 このドキュメントでは、`/spec-create`と`/task-exec`コマンドを使用したATDD（受け入れテスト駆動開発）に基づく開発ワークフローについて説明します。
 
@@ -54,49 +52,38 @@ graph TD
 
 ```mermaid
 graph TD
-    A["入力: Issue番号 + タスクグループ指定オプション"] --> B["ステップ1: タスクグループ選定 (task-starter)"]
-    B --> C["GitHub Issueを読み込み"]
-    C --> D["依存関係チェック"]
-    D --> E{自然言語指定あり?}
-    E -->|Yes| F["該当タスクを選定<br/>（1個または複数可）"]
-    E -->|No| G["最優先タスクを選定<br/>（1個）"]
-    F --> H["タスクを 🔄 着手中に変更"]
-    G --> H
+    A["入力: Issue番号 + タスクグループ番号"] --> B["GitHub Issueを読み込み"]
+    B --> C["タスクを 🔄 着手中に変更"]
 
-    H --> LoopStart["⟲ 品質保証ループ開始"]
+    C --> LoopStart["⟲ 品質保証ループ開始"]
 
-    LoopStart --> I["ステップ2: 実装フェーズ<br/>(task-exec内で直接実装)"]
-    I --> J["requirements.md と design.md を参照"]
-    J --> K["SerenaMAP で既存コード分析"]
-    K --> L["コード実装・修正<br/>ファイル作成/編集<br/>テストコード追加"]
+    LoopStart --> D["ステップ1: 実装フェーズ<br/>(task-executer)"]
+    D --> E["requirements.md と design.md を参照"]
+    E --> F["SerenaMAP で既存コード分析"]
+    F --> G["コード実装・修正<br/>ファイル作成/編集<br/>テストコード追加"]
 
-    L --> M["ステップ3: レビューフェーズ<br/>(task-reviewer)"]
-    M --> N["要件定義・設計との整合性確認"]
-    N --> O["コード品質チェック<br/>(TODO/FIXME/仮実装検出)"]
-    O --> P{問題あり?}
-    P -->|Yes<br/>ループバック| I
-    P -->|No| Q["ステップ4: 品質保証フェーズ<br/>(task-qa)"]
+    G --> H["ステップ2: レビューフェーズ<br/>(task-reviewer)"]
+    H --> I["要件定義・設計との整合性確認"]
+    I --> J["コード品質チェック<br/>(TODO/FIXME/仮実装検出)"]
+    J --> K{問題あり?}
+    K -->|Yes<br/>ループバック| D
+    K -->|No| L["ステップ3: 品質保証フェーズ<br/>(task-qa)"]
 
-    Q --> R["受け入れ条件に基づく動作確認"]
-    R --> S["テスト実行<br/>画面: Playwright MCP<br/>API: curl"]
-    S --> T{テスト失敗?}
-    T -->|Yes<br/>ループバック| I
-    T -->|No| LoopEnd["✓ 品質保証ループ終了"]
+    L --> M["受け入れ条件に基づく動作確認"]
+    M --> N["テスト実行<br/>画面: Playwright MCP<br/>API: curl"]
+    N --> O{テスト失敗?}
+    O -->|Yes<br/>ループバック| D
+    O -->|No| LoopEnd["✓ 品質保証ループ終了"]
 
-    LoopEnd --> U["ステップ5: 完了処理<br/>(task-finisher)"]
+    LoopEnd --> P["タスクグループを x 完了状態に変更"]
+    P --> Q["出力: 実装コード +<br/>更新されたGitHub Issue"]
 
-    U --> V["タスクグループを x 完了状態に変更"]
-    V --> W["修正ファイル一覧を更新"]
-    W --> X["出力: 実装コード +<br/>更新されたGitHub Issue"]
-
-    style B fill:#fff9c4
     style LoopStart fill:#ffecb3
-    style I fill:#e1f5ff
-    style M fill:#f3e5f5
-    style Q fill:#e8f5e9
+    style D fill:#e1f5ff
+    style H fill:#f3e5f5
+    style L fill:#e8f5e9
     style LoopEnd fill:#c8e6c9
-    style U fill:#c8e6c9
-    style X fill:#4caf50,color:#fff
+    style Q fill:#4caf50,color:#fff
 ```
 
 ### 全体の関係図
@@ -226,7 +213,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 **重要な特徴**:
 - **品質保証ループ**: QAが合格するまで自動的に実装→レビュー→QAのサイクルを繰り返す
 - **即座の次フェーズ開始**: 各フェーズ完了後、ユーザーの応答を待たずに次のフェーズを自動開始
-- **サブエージェント連携**: 各フェーズで専門のサブエージェントを使用（task-starter, task-executer, task-reviewer, task-qa, task-finisher）
+- **サブエージェント連携**: 各フェーズで専門のサブエージェントを使用（task-executer, task-reviewer, task-qa, task-modification-analyzer）
 
 #### 実行方法
 
@@ -245,22 +232,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ ステップ1: タスクグループ選定 [task-starter]          │
-│ 🎯 目的: 着手可能なタスクグループを1つ選定           │
-└─────────────────────────────────────────────────────┘
-  ↓
-  ├─ GitHub Issueを読み込み・解析
-  ├─ 依存関係チェック
-  │  └─ 先行タスクグループが [x] 完了状態か確認
-  ├─ タスクグループ指定がある場合
-  │  └─ 該当タスクグループのみ選定
-  ├─ 指定がない場合
-  │  └─ 最も優先順位が高いタスクグループを選定
-  ├─ 選定タスクグループを [🔄] 着手中に変更
-  └─ 完了報告: "## 📋 タスクグループ選定完了"
-
-┌─────────────────────────────────────────────────────┐
-│ ステップ2: 実装フェーズ [task-executer]               │
+│ ステップ1: 実装フェーズ [task-executer]               │
 │ 🎯 目的: 選定されたタスクの実装                       │
 │ ⚠️ 注意: ユーザーの応答を待たずに自動開始            │
 └─────────────────────────────────────────────────────┘
@@ -276,10 +248,10 @@ Step 4: GitHub Issueにタスク一覧を記述
   │  ├─ テストコード追加
   │  └─ ドキュメント更新
   ├─ 完了報告: "## 🔨 実装フェーズ完了"
-  └─ 即座にステップ3へ（レビューフェーズ）
+  └─ 即座にステップ2へ（レビューフェーズ）
 
 ┌─────────────────────────────────────────────────────┐
-│ ステップ3: レビューフェーズ [task-reviewer]           │
+│ ステップ2: レビューフェーズ [task-reviewer]           │
 │ 🎯 目的: 実装内容の品質確認                          │
 │ ⚠️ 注意: ユーザーの応答を待たずに自動開始            │
 └─────────────────────────────────────────────────────┘
@@ -294,12 +266,12 @@ Step 4: GitHub Issueにタスク一覧を記述
   │  ├─ 仮実装の検出
   │  └─ エラーハンドリングの確認
   ├─ 問題発見時
-  │  └─ 実装フェーズに戻る（ステップ2へ自動ループバック）
+  │  └─ 実装フェーズに戻る（ステップ1へ自動ループバック）
   ├─ 完了報告: "## 🔍 レビューフェーズ完了"
-  └─ 問題なし → 即座にステップ4へ（QAフェーズ）
+  └─ 問題なし → 即座にステップ3へ（QAフェーズ）
 
 ┌─────────────────────────────────────────────────────┐
-│ ステップ4: 品質保証フェーズ [task-qa]                  │
+│ ステップ3: 品質保証フェーズ [task-qa]                  │
 │ 🎯 目的: 受け入れ条件に基づく動作確認                 │
 │ ⚠️ 注意: ユーザーの応答を待たずに自動開始            │
 └─────────────────────────────────────────────────────┘
@@ -319,24 +291,12 @@ Step 4: GitHub Issueにタスク一覧を記述
   │  ├─ スクリーンショット
   │  └─ ログファイル
   ├─ テスト失敗時
-  │  └─ 実装フェーズに戻る（ステップ2へ自動ループバック）
+  │  └─ 実装フェーズに戻る（ステップ1へ自動ループバック）
   ├─ 完了報告: "## ✅ QAフェーズ完了"
-  └─ 全テスト合格 → 即座にステップ5へ（完了処理フェーズ）
+  └─ 全テスト合格 → タスクグループ完了
 
 ┌─────────────────────────────────────────────────────┐
-│ ステップ5: 完了処理フェーズ [task-finisher]           │
-│ 🎯 目的: タスクグループの完了処理                    │
-└─────────────────────────────────────────────────────┘
-  ↓
-  ├─ GitHub Issue 更新
-  │  └─ タスクグループを [x] 完了状態に変更
-  ├─ 修正ファイル一覧更新
-  │  └─ 変更されたファイルを記録
-  ├─ 次タスクグループの依存関係更新
-  └─ 完了報告: "## 🎉 タスクグループ完了"
-
-┌─────────────────────────────────────────────────────┐
-│ ステップ6: 追加修正対応フェーズ [task-modification-  │
+│ ステップ4: 追加修正対応フェーズ [task-modification-  │
 │           analyzer] (オプション)                     │
 │ 🎯 目的: ユーザーからの追加修正指示への対応          │
 └─────────────────────────────────────────────────────┘
@@ -348,7 +308,7 @@ Step 4: GitHub Issueにタスク一覧を記述
   │  └─ 品質保証プロセスの必要性判定
   ├─ 推奨パイプラインの提案
   │  ├─ 小規模修正 → 直接修正＋軽微な確認
-  │  ├─ 中規模修正 → ステップ2から再実行
+  │  ├─ 中規模修正 → ステップ1から再実行
   │  └─ 大規模修正 → 仕様書更新から再開
   └─ 完了報告: "## 📊 追加修正分析完了"
 ```
@@ -367,7 +327,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 | コマンド | 用途 | 品質保証 | 推奨シーン |
 |---------|------|---------|----------|
 | **`/task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
-| **`/task-vibe-kanban-loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、自動連続実行 |
+| **`/task-vibe-kanban-loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、並行開発 |
 
 **詳細な使い分け基準**: [task-vibe-kanban-loop.md](./task-vibe-kanban-loop.md#task-execとの使い分け)
 
@@ -408,11 +368,10 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 /task-exec #123
 
 # 実行内容:
-# 1. task-starter: "Phase 1-1: トークン生成API実装" を選定
-# 2. task-exec内で直接実装: API実装、バリデーション追加
-# 3. task-reviewer: 設計との整合性確認
-# 4. task-qa: curlでAPIテスト
-# 5. task-finisher: タスクグループを完了状態に変更
+# 1. task-executer: API実装、バリデーション追加
+# 2. task-reviewer: 設計との整合性確認
+# 3. task-qa: curlでAPIテスト
+# → タスクグループを完了状態に変更
 ```
 
 #### Step 3: タスク実行（Phase 1-2）
@@ -422,11 +381,10 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 /task-exec #123
 
 # 実行内容:
-# 1. task-starter: "Phase 1-2: メール送信機能実装" を選定（Phase 1-1 が完了しているため着手可能）
-# 2. task-exec内で直接実装: メールサービス実装
-# 3. task-reviewer: テンプレート確認
-# 4. task-qa: メール送信テスト
-# 5. task-finisher: タスクグループを完了状態に変更
+# 1. task-executer: メールサービス実装
+# 2. task-reviewer: テンプレート確認
+# 3. task-qa: メール送信テスト
+# → タスクグループを完了状態に変更
 ```
 
 #### Step 4: 全フェーズ完了まで繰り返し
@@ -601,10 +559,9 @@ sequenceDiagram
     participant User as ユーザー
     participant SpecCreate as /spec-create
     participant TaskExec as /task-exec
-    participant Starter as task-starter
+    participant Executer as task-executer
     participant Reviewer as task-reviewer
     participant QA as task-qa
-    participant Finisher as task-finisher
 
     User->>SpecCreate: 機能説明/AsanaURL
     SpecCreate->>SpecCreate: requirements.md 作成
@@ -616,12 +573,10 @@ sequenceDiagram
     SpecCreate->>SpecCreate: GitHub Issueにタスク一覧を記述
     SpecCreate->>User: 仕様書完成
 
-    User->>TaskExec: Issue番号
-    TaskExec->>Starter: タスクグループ選定依頼
-    Starter->>TaskExec: 選定完了
+    User->>TaskExec: Issue番号 + タスクグループ番号
 
-    TaskExec->>TaskExec: 実装フェーズ実行
-    Note over TaskExec: SerenaMAP使用 / コード実装・修正
+    TaskExec->>Executer: 実装依頼
+    Executer->>TaskExec: 実装完了
 
     TaskExec->>Reviewer: レビュー依頼
     alt 問題なし
@@ -629,16 +584,14 @@ sequenceDiagram
         TaskExec->>QA: QA依頼
         alt テスト成功
             QA->>TaskExec: QA合格
-            TaskExec->>Finisher: 完了処理依頼
-            Finisher->>TaskExec: 完了
             TaskExec->>User: タスクグループ完了
         else テスト失敗
             QA->>TaskExec: QA不合格
-            TaskExec->>TaskExec: 再実装
+            TaskExec->>Executer: 再実装依頼
         end
     else 問題あり
         Reviewer->>TaskExec: レビュー不合格
-        TaskExec->>TaskExec: 再実装
+        TaskExec->>Executer: 再実装依頼
     end
 ```
 
@@ -659,11 +612,10 @@ sequenceDiagram
 
 1. **仕様書作成**: `/spec-create`で要件・設計を作成し、GitHub Issueにタスク一覧を記述
 2. **タスク実行**: `/task-exec`でタスクグループを1つずつ実行
-   - task-starterでタスクグループ選定
-   - **task-exec内で直接実装**（task-executerエージェントは不要）
+   - task-executerで実装
    - task-reviewerでレビュー
    - task-qaでQA
-   - task-finisherで完了処理
+   - 完了時にタスクグループを完了状態に更新
 3. **繰り返し**: 全タスクグループが完了するまで`/task-exec`を繰り返す
 
 開発を始める際は、まず`/spec-create`で仕様書を作成し、その後`/task-exec`でタスクグループを順次実行していきます。

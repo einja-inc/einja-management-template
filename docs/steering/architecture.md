@@ -86,7 +86,7 @@ graph TB
 ### ディレクトリ構造
 
 ```
-drlove_demo_app/
+accs-ai-tools/
 ├── apps/                         # アプリケーション層
 │   ├── web/                     # ユーザー向けWebアプリ
 │   │   ├── src/

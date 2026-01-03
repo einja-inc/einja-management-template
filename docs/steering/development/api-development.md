@@ -11,12 +11,15 @@
 ## 目次
 
 1. [Hono API実装ルール](#1-hono-api実装ルール)
+   - [メソッドチェーンパターン](#メソッドチェーンパターン)
+   - [ミドルウェアと型推論の注意点](#ミドルウェアと型推論の注意点) ⚠️
+   - [basePathとHono Clientの関係](#basepathとhono-clientの関係) ⚠️
 2. [Web APIエンドポイント一覧](#2-web-apiエンドポイント一覧)
 3. [Admin APIエンドポイント一覧](#3-admin-apiエンドポイント一覧)
 4. [Cron Worker CLIコマンド](#4-cron-worker-cliコマンド)
 5. [バリデーション戦略](#5-バリデーション戦略)
 6. [エラーハンドリング](#6-エラーハンドリング)
-7. [Hono Client統合（フロントエンド）](#7-hono-client統合フロントエンド)
+7. [フロントエンド統合パターン](#7-フロントエンド統合パターン)
 8. [認証とミドルウェア](#8-認証とミドルウェア)
 9. [レスポンス設計](#9-レスポンス設計)
 10. [環境変数管理](#10-環境変数管理)
@@ -44,7 +47,59 @@ apps/admin/server/routes/        # 管理画面用ルート定義
 
 ### メソッドチェーンパターン
 
-Honoでは、メソッドチェーンでルートを定義します：
+Honoでは、**必ずメソッドチェーン形式**でルートを定義します。
+
+**重要: メソッドチェーンを使用する理由**
+
+Hono Clientの型推論は `typeof app` から型情報を抽出します。メソッドチェーンを使用しない場合、TypeScriptが各ルート定義の返り値型を追跡できず、`AppType`に完全なルート情報が含まれません。
+
+```typescript
+// ❌ NG: 個別呼び出し - 型推論が損なわれる
+const app = new Hono()
+app.get('/posts', handler1)  // 返り値が破棄される
+app.post('/posts', handler2) // 返り値が破棄される
+export type AppType = typeof app // ルート情報が不完全
+
+// ✅ OK: メソッドチェーン - 完全な型推論
+const app = new Hono()
+  .get('/posts', handler1)
+  .post('/posts', handler2)
+export type AppType = typeof app // 全ルート情報を含む
+```
+
+メソッドチェーンにより、Hono Client (`hc<AppType>`) でエンドツーエンドの型安全なAPI呼び出しが実現できます。
+
+### ミドルウェアと型推論の注意点
+
+**サブルート内で`.use()`を使うと型推論が壊れる。メインアプリ側で適用すること。**
+
+```typescript
+// ❌ NG: サブルート内で.use() → 型が ClientRequest<{}> になる
+export const adminUserRoutes = new Hono()
+  .use("*", adminAuthMiddleware)
+  .delete("/:id", handler)
+
+// ✅ OK: メインアプリ側で.use()を適用
+const app = new Hono()
+  .basePath("/api")
+  .use("/admin/*", adminAuthMiddleware)  // ← ここで適用
+  .route("/admin", adminApp)
+```
+
+### basePathとHono Clientの関係
+
+`basePath("/api")` を使用する場合、クライアント側も `api` を含めてアクセスする。
+
+```typescript
+// サーバー: basePath("/api") を設定
+const app = new Hono().basePath("/api").route("/posts", postRoutes)
+
+// クライアント: api を含める
+apiClient.api.posts.$get()  // ✅ OK
+apiClient.posts.$get()      // ❌ NG（型エラー）
+```
+
+**使用例**:
 
 ```typescript
 // apps/web/server/routes/postRoutes.ts
@@ -385,118 +440,121 @@ app.post('/posts', zValidator('json', createPostSchema), async (c) => {
 
 ---
 
-## 7. Hono Client統合（フロントエンド）
+## 7. フロントエンド統合パターン
 
-### Hono RPC Client（hc）の使用
+フロントエンドからAPIを呼び出す方法には、**Server Actions**と**Hono Client + Tanstack Query**の2つのパターンがあります。
 
-Hono Clientは、エンドツーエンドの型推論を提供します。
+### パターン比較
 
-**セットアップ**:
+| 観点 | Server Actions | Hono Client + Tanstack Query |
+|------|---------------|------------------------------|
+| **複雑さ** | シンプル | やや複雑 |
+| **キャッシュ** | Next.jsのrevalidate | Tanstack Queryの高度なキャッシュ |
+| **楽観的更新** | 手動実装 | 組み込みサポート |
+| **ローディング状態** | useFormStatus/useTransition | isPending/isLoading |
+| **エラーハンドリング** | try-catch | onError コールバック |
+| **リアルタイム更新** | 不向き | refetchInterval等で対応可 |
+| **型安全性** | 高い | 高い（RPC型推論） |
 
-```typescript
-// apps/web/lib/api-client.ts
-import { hc } from 'hono/client'
-import type { AppType } from '@/server/routes' // Hono appの型をインポート
+### 使い分け基準
 
-export const apiClient = hc<AppType>('/api')
-```
+#### ✅ Server Actionsを使う場合
 
-**API呼び出し例**:
-
-```typescript
-// GET /api/posts
-const response = await apiClient.posts.$get({
-  query: { page: '1', limit: '10' }
-})
-const data = await response.json() // 型推論: { posts: Post[], total: number }
-
-// POST /api/posts
-const response = await apiClient.posts.$post({
-  json: { title: 'New Post', content: 'Content' }
-})
-const data = await response.json() // 型推論: { post: Post }
-
-// GET /api/posts/:id
-const response = await apiClient.posts[':id'].$get({
-  param: { id: '123' }
-})
-const data = await response.json() // 型推論: { post: Post }
-```
-
-### Tanstack Queryとの統合
-
-**投稿一覧の取得**:
+- **シンプルなフォーム送信**（お問い合わせ、ログイン等）
+- **単発のミューテーション**（いいね、フォロー等）
+- **SEOが重要なページ**でのデータ更新
+- **Progressive Enhancement**が必要な場合（JS無効でも動作）
+- **キャッシュ管理が単純**な場合
 
 ```typescript
-import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api-client'
+// app/actions/post.ts
+'use server'
 
-export function usePostList(page: number, limit: number) {
-  return useQuery({
-    queryKey: ['posts', page, limit],
-    queryFn: async () => {
-      const response = await apiClient.posts.$get({
-        query: { page: String(page), limit: String(limit) }
-      })
-      return response.json()
-    },
-  })
-}
-```
+import { revalidatePath } from 'next/cache'
+import { postUseCases } from '@/application/use-cases/PostUseCases'
+import { createPostSchema } from '@repo/server-core/domain/validators/post'
 
-**投稿作成**:
-
-```typescript
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api-client'
-
-export function useCreatePost() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (data: CreatePostInput) => {
-      const response = await apiClient.posts.$post({ json: data })
-      return response.json()
-    },
-    onSuccess: () => {
-      // 投稿一覧のキャッシュを無効化
-      queryClient.invalidateQueries({ queryKey: ['posts'] })
-    },
-  })
-}
-```
-
-### React Hook Formとの統合
-
-```typescript
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { createPostSchema, type CreatePostInput } from '@repo/server-core/domain/validators/post'
-
-export function PostCreateForm() {
-  const { register, handleSubmit, formState: { errors } } = useForm<CreatePostInput>({
-    resolver: zodResolver(createPostSchema),
-  })
-
-  const createPost = useCreatePost()
-
-  const onSubmit = (data: CreatePostInput) => {
-    createPost.mutate(data)
+export async function createPost(formData: FormData) {
+  const rawData = {
+    title: formData.get('title'),
+    content: formData.get('content'),
+    status: formData.get('status') || 'draft',
   }
 
+  // バリデーション
+  const parsed = createPostSchema.safeParse(rawData)
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors }
+  }
+
+  // UseCase呼び出し
+  const result = await postUseCases.create(parsed.data)
+
+  if (!result.isSuccess) {
+    return { error: { _form: [result.error.message] } }
+  }
+
+  // キャッシュ無効化
+  revalidatePath('/posts')
+
+  return { success: true, post: result.value }
+}
+```
+
+```typescript
+// components/features/posts/PostCreateForm.tsx
+'use client'
+
+import { useActionState } from 'react'
+import { createPost } from '@/app/actions/post'
+
+export function PostCreateForm() {
+  const [state, formAction, isPending] = useActionState(createPost, null)
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <input {...register('title')} />
-      {errors.title && <p>{errors.title.message}</p>}
+    <form action={formAction}>
+      <input name="title" required />
+      {state?.error?.title && <p className="error">{state.error.title}</p>}
 
-      <textarea {...register('content')} />
-      {errors.content && <p>{errors.content.message}</p>}
+      <textarea name="content" required />
+      {state?.error?.content && <p className="error">{state.error.content}</p>}
 
-      <button type="submit">作成</button>
+      <button type="submit" disabled={isPending}>
+        {isPending ? '作成中...' : '投稿を作成'}
+      </button>
+
+      {state?.error?._form && <p className="error">{state.error._form}</p>}
     </form>
   )
 }
 ```
+
+#### ✅ Hono Client + Tanstack Queryを使う場合
+
+- **複数コンポーネントでデータ共有**が必要
+- **高度なキャッシュ管理**（staleTime、cacheTime、条件付きrefetch）
+- **楽観的更新**が必要（即座にUIに反映）
+- **ポーリング・リアルタイム更新**が必要
+- **複雑なデータフェッチ**（依存クエリ、並列クエリ）
+- **ページネーション・無限スクロール**
+
+詳細な実装方法は **[フロントエンド開発ガイド](frontend-development.md)** を参照してください：
+- セクション3: Hono Client統合
+- セクション5: Tanstack Query
+- セクション6: React Hook Form
+
+### 推奨パターン早見表
+
+| ユースケース | 推奨パターン |
+|------------|-------------|
+| ログインフォーム | Server Actions |
+| お問い合わせフォーム | Server Actions |
+| いいねボタン | Server Actions |
+| 投稿一覧（ページネーション付き） | Hono Client + Tanstack Query |
+| コメント機能（リアルタイム更新） | Hono Client + Tanstack Query |
+| 管理画面のCRUD | Hono Client + Tanstack Query |
+| 検索機能（デバウンス付き） | Hono Client + Tanstack Query |
+| ファイルアップロード | Server Actions |
 
 ---
 
@@ -564,6 +622,9 @@ app.post('/posts', async (c) => {
   // ...
 })
 ```
+
+**⚠️ 重要**: サブルート内で`.use()`を使用するとHono RPC型推論が壊れます。
+詳細は[ミドルウェアと型推論の注意点](#ミドルウェアと型推論の注意点)を参照してください。
 
 ---
 
@@ -703,74 +764,10 @@ export type AppType = typeof app
 
 **フロントエンドでの使用**:
 
-```typescript
-// apps/web/components/PostCreateForm.tsx
-'use client'
+フロントエンドからこのAPIを呼び出す実装例は **[フロントエンド開発ガイド](frontend-development.md)** を参照してください：
 
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api-client'
-import { createPostSchema, type CreatePostInput } from '@repo/server-core/domain/validators/post'
-
-export function PostCreateForm() {
-  const queryClient = useQueryClient()
-
-  const { register, handleSubmit, formState: { errors } } = useForm<CreatePostInput>({
-    resolver: zodResolver(createPostSchema),
-    defaultValues: {
-      status: 'draft',
-    },
-  })
-
-  const createPost = useMutation({
-    mutationFn: async (data: CreatePostInput) => {
-      const response = await apiClient.posts.$post({ json: data })
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['posts'] })
-      alert('投稿を作成しました')
-    },
-    onError: (error) => {
-      console.error('投稿作成エラー:', error)
-      alert('投稿の作成に失敗しました')
-    },
-  })
-
-  const onSubmit = (data: CreatePostInput) => {
-    createPost.mutate(data)
-  }
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <div>
-        <label>タイトル</label>
-        <input {...register('title')} />
-        {errors.title && <p className="error">{errors.title.message}</p>}
-      </div>
-
-      <div>
-        <label>本文</label>
-        <textarea {...register('content')} />
-        {errors.content && <p className="error">{errors.content.message}</p>}
-      </div>
-
-      <div>
-        <label>ステータス</label>
-        <select {...register('status')}>
-          <option value="draft">下書き</option>
-          <option value="published">公開</option>
-        </select>
-      </div>
-
-      <button type="submit" disabled={createPost.isPending}>
-        {createPost.isPending ? '作成中...' : '投稿を作成'}
-      </button>
-    </form>
-  )
-}
-```
+- **Server Actionsパターン**: セクション7「フロントエンド統合パターン」（本ドキュメント）
+- **Hono Client + Tanstack Queryパターン**: [フロントエンド開発ガイド](frontend-development.md) セクション11
 
 ---
 
@@ -778,9 +775,9 @@ export function PostCreateForm() {
 
 このAPI開発ガイドに従うことで、以下を実現できます：
 
-1. **型安全性**: Hono Client + Zod + TypeScriptによるエンドツーエンドの型推論
+1. **型安全性**: Hono + Zod + TypeScriptによるエンドツーエンドの型推論
 2. **統一性**: モノレポ全体で統一されたAPI設計パターン
 3. **保守性**: Result型パターンとエラーハンドリングによる明確な制御フロー
-4. **生産性**: zValidatorとReact Hook Formの統合による高速開発
+4. **柔軟性**: Server ActionsとHono Client + Tanstack Queryの使い分け
 
 すべてのAPI実装は、このガイドラインに従って実装してください。

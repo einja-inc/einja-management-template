@@ -1,0 +1,488 @@
+/**
+ * Worktree対応の開発サーバー起動スクリプト
+ *
+ * ブランチ名から一意なポート番号を計算し、複数のWorktreeを並行して起動可能にする。
+ * PostgreSQLは共有インスタンスを使用し、database名で分離する。
+ * 設定はworktree.config.jsonから読み込む。
+ */
+
+import { execSync, spawn } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import {
+	type AppConfig,
+	type WorktreeConfig,
+	loadWorktreeConfig,
+} from "@einja/config";
+
+/** 設定を保持するグローバル変数 */
+let config: WorktreeConfig;
+
+/**
+ * 設定を取得（遅延読み込み）
+ */
+function getConfig(): WorktreeConfig {
+	if (!config) {
+		config = loadWorktreeConfig();
+	}
+	return config;
+}
+
+/**
+ * ブランチ名からハッシュベースで一意なポート番号を計算
+ *
+ * 各アプリは設定されたポート範囲を使用し、競合を回避。
+ * PostgreSQLは共有インスタンスを使用（設定されたポート）。
+ *
+ * @param branchName - Gitブランチ名
+ * @param apps - アプリケーション設定の配列
+ * @returns アプリIDをキーとするポート番号のRecord
+ */
+export function calculatePorts(
+	branchName: string,
+	apps: AppConfig[],
+): Record<string, number> {
+	// ブランチ名をSHA-256でハッシュ化
+	const hash = crypto.createHash("sha256").update(branchName).digest("hex");
+
+	// ハッシュの最初の8文字を16進数として数値化
+	const hashNum = Number.parseInt(hash.slice(0, 8), 16);
+
+	const ports: Record<string, number> = {};
+	for (const app of apps) {
+		const offset = hashNum % app.rangeSize;
+		ports[app.id] = app.portRangeStart + offset;
+	}
+
+	return ports;
+}
+
+/**
+ * ブランチ名からデータベース名を生成
+ * PostgreSQLのデータベース名として有効な形式に変換
+ *
+ * @param branchName - Gitブランチ名
+ * @returns データベース名（例: main, feature_auth）
+ */
+export function generateDatabaseName(branchName: string): string {
+	// ブランチ名を正規化（英数字とアンダースコアのみ）
+	const normalized = branchName
+		.toLowerCase()
+		.replace(/[^a-z0-9]/g, "_")
+		.replace(/_+/g, "_")
+		.replace(/^_|_$/g, "")
+		.slice(0, 32);
+
+	return normalized || "main";
+}
+
+/**
+ * ポートが使用中かチェック
+ *
+ * @param port - チェックするポート番号
+ * @returns ポートが使用中の場合true
+ */
+export function isPortInUse(port: number): boolean {
+	try {
+		// lsofコマンドでポートを使用しているプロセスを確認
+		execSync(`lsof -i :${port}`, { stdio: "ignore" });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * 使用可能なポート番号を見つける
+ *
+ * @param ports - チェックするポート番号セット
+ * @param maxRetries - 最大リトライ回数（デフォルト: 10）
+ * @returns 使用可能なポート番号セット
+ */
+export function findAvailablePorts(
+	ports: Record<string, number>,
+	maxRetries = 10,
+): Record<string, number> {
+	const currentPorts = { ...ports };
+	let retries = 0;
+
+	while (retries < maxRetries) {
+		// 使用中のポートを検出
+		const portsInUse = Object.entries(currentPorts).filter(([, port]) =>
+			isPortInUse(port),
+		);
+
+		if (portsInUse.length === 0) {
+			return currentPorts;
+		}
+
+		// 衝突があるポートを報告
+		for (const [appId, port] of portsInUse) {
+			console.warn(`ポート衝突検出: ${appId}:${port}`);
+			currentPorts[appId] = port + 10;
+		}
+		retries++;
+	}
+
+	throw new Error(
+		`使用可能なポートが見つかりませんでした（${maxRetries}回試行）`,
+	);
+}
+
+/**
+ * 現在のGitブランチ名を取得
+ *
+ * @returns ブランチ名
+ */
+export function getCurrentBranch(): string {
+	try {
+		return execSync("git rev-parse --abbrev-ref HEAD", {
+			encoding: "utf-8",
+		}).trim();
+	} catch (error) {
+		console.error("Gitブランチの取得に失敗しました:", error);
+		return "main";
+	}
+}
+
+/**
+ * AUTH_SECRETを生成
+ *
+ * @returns 生成されたAUTH_SECRET（32文字以上のランダム文字列）
+ */
+export function generateAuthSecret(): string {
+	return crypto.randomBytes(32).toString("hex");
+}
+
+/**
+ * .envファイルを生成
+ *
+ * .env.exampleをベースに、ワークツリー固有の値を設定した.envを生成。
+ *
+ * @param ports - アプリIDをキーとするポート番号のRecord
+ * @param databaseName - データベース名
+ */
+export function writeEnvFile(
+	ports: Record<string, number>,
+	databaseName: string,
+): void {
+	const cfg = getConfig();
+	const projectRoot = process.cwd();
+	const envExamplePath = path.join(projectRoot, ".env.example");
+	const envPath = path.join(projectRoot, ".env");
+
+	// .env.exampleをベースに読み込む
+	let envContent = "";
+	if (fs.existsSync(envExamplePath)) {
+		envContent = fs.readFileSync(envExamplePath, "utf-8");
+	}
+
+	// ヘッダーを追加
+	const branch = getCurrentBranch();
+	const header = `# ============================================
+# Auto-generated by pnpm dev - DO NOT EDIT
+# ============================================
+# Branch: ${branch}
+# Generated: ${new Date().toISOString()}
+#
+# このファイルは pnpm dev 実行時に上書きされます
+# 手動で編集しても次回実行時にリセットされます
+# 秘密情報は .env.local に設定してください
+# ============================================
+
+`;
+
+	// DATABASE_URLを生成
+	const databaseUrl = `postgresql://postgres:postgres@localhost:${cfg.postgres.port}/${databaseName}?schema=public`;
+
+	// 環境変数設定
+	const envSettings: Record<string, string> = {
+		DATABASE_URL: `"${databaseUrl}"`,
+		AUTH_SECRET: generateAuthSecret(),
+	};
+
+	// 各アプリのポートを動的に追加（PORT_WEB, PORT_ADMIN等）
+	for (const [appId, port] of Object.entries(ports)) {
+		envSettings[`PORT_${appId.toUpperCase()}`] = port.toString();
+	}
+
+	// webアプリがあればNEXTAUTH_URLを設定
+	if (ports.web) {
+		envSettings.NEXTAUTH_URL = `http://localhost:${ports.web}`;
+		// 後方互換性のためPORTも設定
+		envSettings.PORT = ports.web.toString();
+	}
+
+	// 環境変数の更新または追加
+	for (const [key, value] of Object.entries(envSettings)) {
+		const regex = new RegExp(`^${key}=.*$`, "m");
+		if (regex.test(envContent)) {
+			envContent = envContent.replace(regex, `${key}=${value}`);
+		} else {
+			envContent += `\n${key}=${value}`;
+		}
+	}
+
+	fs.writeFileSync(envPath, header + envContent.trim() + "\n", "utf-8");
+}
+
+/**
+ * 設定されたポートでPostgreSQLが起動しているか確認
+ *
+ * @returns 起動していればコンテナ名、なければnull
+ */
+export function getRunningPostgresContainer(): string | null {
+	const cfg = getConfig();
+	try {
+		// 設定されたポートを使用しているコンテナを検索
+		const result = execSync(
+			`docker ps --filter "publish=${cfg.postgres.port}" --format "{{.Names}}"`,
+			{
+				encoding: "utf-8",
+			},
+		).trim();
+		return result.length > 0 ? result.split("\n")[0] : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * PostgreSQLコンテナが起動しているか確認（後方互換性）
+ *
+ * @returns 起動していればtrue
+ */
+export function isPostgresRunning(): boolean {
+	return getRunningPostgresContainer() !== null;
+}
+
+/**
+ * PostgreSQLコンテナを起動（または既存を再利用）
+ *
+ * @returns 使用するコンテナ名
+ */
+export function startPostgres(): string {
+	const cfg = getConfig();
+
+	// 既存のPostgreSQLコンテナを確認
+	const existingContainer = getRunningPostgresContainer();
+	if (existingContainer) {
+		console.log(`✅ PostgreSQL（${existingContainer}）は既に起動しています`);
+		return existingContainer;
+	}
+
+	console.log("🐘 PostgreSQLコンテナを起動します...");
+
+	// 環境変数を設定してdocker compose up
+	execSync("docker compose up -d postgres", {
+		stdio: "inherit",
+		env: {
+			...process.env,
+			POSTGRES_PORT: cfg.postgres.port.toString(),
+			POSTGRES_CONTAINER_NAME: cfg.postgres.containerName,
+		},
+	});
+
+	// 起動待機
+	console.log("⏳ PostgreSQL起動を待機中...");
+	let retries = 0;
+	const maxRetries = 30;
+
+	while (retries < maxRetries) {
+		const container = getRunningPostgresContainer();
+		if (container) {
+			try {
+				execSync(`docker exec ${container} pg_isready -U postgres`, {
+					stdio: "ignore",
+				});
+				console.log("✅ PostgreSQL起動完了");
+				return container;
+			} catch {
+				// まだ準備中
+			}
+		}
+		retries++;
+		execSync("sleep 1");
+	}
+
+	throw new Error("PostgreSQLの起動に失敗しました");
+}
+
+/**
+ * データベースが存在するか確認し、なければ作成
+ *
+ * @param containerName - PostgreSQLコンテナ名
+ * @param databaseName - 作成するデータベース名
+ */
+export function ensureDatabaseExists(
+	containerName: string,
+	databaseName: string,
+): void {
+	console.log(`🗄️  データベース「${databaseName}」を確認中...`);
+
+	try {
+		// データベースの存在確認
+		const result = execSync(
+			`docker exec ${containerName} psql -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${databaseName}'"`,
+			{ encoding: "utf-8" },
+		).trim();
+
+		if (result === "1") {
+			console.log(`✅ データベース「${databaseName}」は既に存在します`);
+			return;
+		}
+	} catch {
+		// コマンド失敗時は作成を試みる
+	}
+
+	// データベース作成
+	console.log(`📦 データベース「${databaseName}」を作成します...`);
+	execSync(
+		`docker exec ${containerName} psql -U postgres -c "CREATE DATABASE ${databaseName}"`,
+		{
+			stdio: "inherit",
+		},
+	);
+	console.log(`✅ データベース「${databaseName}」を作成しました`);
+}
+
+/**
+ * マイグレーションを実行
+ *
+ * @param databaseName - データベース名
+ */
+export function runMigration(databaseName: string): void {
+	const cfg = getConfig();
+	console.log("🔄 マイグレーションを実行します...");
+	const databaseUrl = `postgresql://postgres:postgres@localhost:${cfg.postgres.port}/${databaseName}?schema=public`;
+
+	try {
+		execSync("pnpm db:push", {
+			stdio: "inherit",
+			env: {
+				...process.env,
+				DATABASE_URL: databaseUrl,
+			},
+		});
+		console.log("✅ マイグレーション完了");
+	} catch (error) {
+		console.error("❌ マイグレーションに失敗しました");
+		throw error;
+	}
+}
+
+/**
+ * 開発サーバーを起動（turbo経由）
+ *
+ * @param envVars - 追加の環境変数
+ */
+function startDevServer(envVars: Record<string, string> = {}): void {
+	console.log("🚀 開発サーバーを起動します...");
+
+	// spawn を使用してプロセスを実行（環境変数を渡す）
+	const child = spawn("pnpm", ["turbo", "run", "dev"], {
+		stdio: "inherit",
+		shell: true,
+		env: {
+			...process.env,
+			...envVars,
+		},
+	});
+
+	child.on("error", (error) => {
+		console.error("開発サーバーの起動に失敗しました:", error);
+		process.exit(1);
+	});
+
+	child.on("exit", (code) => {
+		process.exit(code ?? 0);
+	});
+}
+
+/**
+ * メイン実行関数
+ *
+ * @param options - 実行オプション
+ */
+export function main(options: { setupOnly?: boolean; skipSetup?: boolean } = {}): void {
+	const { setupOnly = false, skipSetup = false } = options;
+	const cfg = getConfig();
+
+	// --skip-setup: 環境準備をスキップして直接turbo run dev
+	if (skipSetup) {
+		startDevServer();
+		return;
+	}
+
+	const branch = getCurrentBranch();
+	console.log(`現在のブランチ: ${branch}`);
+
+	// ブランチ名からデータベース名を生成
+	const databaseName = generateDatabaseName(branch);
+	console.log(`データベース名: ${databaseName}`);
+
+	// ブランチ名からポート番号を計算
+	const calculatedPorts = calculatePorts(branch, cfg.apps);
+	console.log("計算されたポート:", calculatedPorts);
+
+	// 使用可能なポートを検索
+	const availablePorts = findAvailablePorts(calculatedPorts);
+	console.log("使用するポート:", availablePorts);
+
+	// .envに書き込み
+	writeEnvFile(availablePorts, databaseName);
+	console.log(".envに書き込みました");
+
+	// PostgreSQLの起動確認・起動（コンテナ名を取得）
+	const containerName = startPostgres();
+
+	// データベースの存在確認・作成
+	ensureDatabaseExists(containerName, databaseName);
+
+	// マイグレーション実行
+	runMigration(databaseName);
+
+	// webアプリのポートを取得（表示用）
+	const webPort = availablePorts.web ?? Object.values(availablePorts)[0];
+
+	console.log(`
+===========================================
+Worktree環境設定完了
+===========================================
+  Web:        http://localhost:${webPort}
+  PostgreSQL: localhost:${cfg.postgres.port}
+  Database:   ${databaseName}
+${Object.entries(availablePorts)
+	.map(([id, port]) => `  PORT_${id.toUpperCase()}: ${port}`)
+	.join("\n")}
+===========================================
+`);
+
+	if (setupOnly) {
+		return;
+	}
+
+	// 環境変数を準備
+	const envVars: Record<string, string> = {
+		DATABASE_URL: `postgresql://postgres:postgres@localhost:${cfg.postgres.port}/${databaseName}?schema=public`,
+		NEXTAUTH_URL: `http://localhost:${webPort}`,
+		AUTH_SECRET: generateAuthSecret(),
+		PORT: webPort.toString(),
+	};
+
+	// 各アプリのポートを追加
+	for (const [id, port] of Object.entries(availablePorts)) {
+		envVars[`PORT_${id.toUpperCase()}`] = port.toString();
+	}
+
+	// 開発サーバーを起動
+	startDevServer(envVars);
+}
+
+// スクリプトとして直接実行された場合
+const args = process.argv.slice(2);
+const setupOnly = args.includes("--setup-only");
+const skipSetup = args.includes("--skip-setup");
+
+main({ setupOnly, skipSetup });

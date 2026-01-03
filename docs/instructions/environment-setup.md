@@ -11,7 +11,7 @@
 
 ```
 .env.local（暗号化・Git共有）
-       ↓ pnpm setup で復号
+       ↓ pnpm dev:setup で復号
 .env（作業用・毎回再生成）+ .env.personal（個人トークン）
        ↓ direnv で自動読み込み
     開発サーバー
@@ -45,7 +45,7 @@
 
 ```bash
 # 開発環境の一括セットアップ
-pnpm setup
+pnpm dev:setup
 
 # セットアップ内容:
 # - Volta（Node.jsバージョン管理）
@@ -150,7 +150,7 @@ dotenvx decrypt -f .env.production
 └── .env.personal           # 個人用トークン（Git除外）
 ```
 
-**★ポイント**: `.env.local` は暗号化されてGitで共有。`pnpm setup` で復号して `.env` が生成される。
+**★ポイント**: `.env.local` は暗号化されてGitで共有。`pnpm dev:setup` で復号して `.env` が生成される。
 
 ### .env.personal.example（個人用トークンテンプレート）
 
@@ -283,7 +283,7 @@ git commit -m "chore: ローカル開発設定を更新"
 git push
 
 # 6. チームメンバーへの通知
-# → メンバーは git pull 後に pnpm setup で反映
+# → メンバーは git pull 後に pnpm dev:setup で反映
 ```
 
 **注意**: `.env.keys` に対応する秘密鍵（`DOTENV_PRIVATE_KEY_LOCAL`）が必要です。

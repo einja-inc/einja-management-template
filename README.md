@@ -57,13 +57,14 @@ cd einja-management-template
 exec $SHELL
 
 # 4. 環境セットアップ（.env、DB起動・初期化）
-pnpm setup
+pnpm dev:setup
 
-# 5. 開発サーバー起動
-pnpm dev
+# 5. 開発サーバー起動（バックグラウンド）
+pnpm dev:bg
 ```
 
-ブラウザで http://localhost:3000 を開く
+ログは `log/dev.log` に出力されます。
+ブラウザで http://localhost:3000（またはWorktreeで自動割り当てされたポート）を開く
 
 ---
 
@@ -72,15 +73,21 @@ pnpm dev
 | コマンド | タイミング | 内容 |
 |---------|-----------|------|
 | `./scripts/init.sh` | 初回のみ | Volta/Node/pnpmのインストール |
-| `pnpm setup` | 初回 + 環境変更時 | .env作成、DB起動・初期化 |
-| `pnpm dev` | 毎回 | 開発サーバー起動 |
+| `pnpm dev:setup` | 初回 + 環境変更時 | .env作成、DB起動・初期化 |
+| `pnpm dev:bg` | 毎回 | 開発サーバー起動（バックグラウンド・推奨） |
+| `pnpm dev:status` | 随時 | 開発サーバーの状態確認 |
+| `pnpm dev:stop` | 随時 | 開発サーバーを停止 |
 
 ## 主要コマンド
 
 ### 開発
 
 ```bash
-pnpm dev              # 全アプリの開発サーバーを起動
+pnpm dev:bg           # 開発サーバーをバックグラウンドで起動（推奨）
+pnpm dev:status       # 開発サーバーの状態確認
+pnpm dev:logs         # ログをリアルタイム表示
+pnpm dev:stop         # 開発サーバーを停止
+pnpm dev              # フォアグラウンドで起動（ターミナル直接操作時のみ）
 pnpm build            # 全アプリのプロダクションビルド
 pnpm start            # プロダクションサーバーを起動
 ```

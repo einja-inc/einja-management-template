@@ -39,7 +39,7 @@
 | 本番 | `.env.production` | ✅ | ✅ |
 | CI/CD | `.env.ci` | ✅ | ✅ |
 
-**ポイント**: ローカル開発も暗号化ファイル(`.env.local`)を使用。`pnpm setup`で復号して`.env`を生成。
+**ポイント**: ローカル開発も暗号化ファイル(`.env.local`)を使用。`pnpm dev:setup`で復号して`.env`を生成。
 
 ---
 
@@ -55,7 +55,7 @@
 │  └─ チーム全員が使う共通設定                                      │
 └─────────────────────────────────────────────────────────────────┘
                               │
-                              │ pnpm setup で自動復号
+                              │ pnpm dev:setup で自動復号
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  .env（平文・Gitで共有しない）                                    │
@@ -85,7 +85,7 @@
 **Q: なぜ `.env.local` を direnv で直接読まないの？**
 
 A: `.env.local` は暗号化されているため、direnv では読めません。
-   `pnpm setup` が復号して `.env` を作成し、それを direnv が読みます。
+   `pnpm dev:setup` が復号して `.env` を作成し、それを direnv が読みます。
 
 **Q: チームで共有する設定を変えたいときは？**
 
@@ -190,7 +190,7 @@ A: `.env` は毎回再生成されますが、秘密情報は `.env.local`（暗
 └── .env.personal           # 個人用トークン（Git除外）
 ```
 
-**★ポイント**: `.env.local`は暗号化されてGitで共有。`pnpm setup`で復号して`.env`が生成される。
+**★ポイント**: `.env.local`は暗号化されてGitで共有。`pnpm dev:setup`で復号して`.env`が生成される。
 
 ---
 
@@ -201,11 +201,11 @@ A: `.env` は毎回再生成されますが、秘密情報は `.env.local`（暗
 ```mermaid
 sequenceDiagram
     participant Dev as 開発者
-    participant Setup as pnpm setup
+    participant Setup as pnpm dev:setup
     participant Direnv as direnv
     participant App as アプリケーション
 
-    Dev->>Setup: pnpm setup（初回のみ）
+    Dev->>Setup: pnpm dev:setup（初回のみ）
     Setup->>Setup: .env.local（暗号化）を復号
     Setup->>Setup: .env を生成
     Setup->>Setup: .env.personal をテンプレートから作成

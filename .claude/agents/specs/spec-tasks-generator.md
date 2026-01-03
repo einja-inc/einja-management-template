@@ -305,8 +305,8 @@ ATDDの本質は「受け入れ基準（AC）を中心にタスクを分解す�
 **パターン3: クラスごとの分割**
 ```
 ❌ NG例（これらはタスクグループではなくタスクレベル（X.Y.Z）であるべき）:
-- 2.1 AccsAdminUser Entityの実装
-- 2.2 AccsAdminInvitation Entityの実装
+- 2.1 User Entityの実装
+- 2.2 Invitation Entityの実装
 - 2.3 HashedPassword VOの実装
 ```
 

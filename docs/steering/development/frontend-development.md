@@ -1065,8 +1065,8 @@ import { queryClient } from '@/lib/query-client'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Dr.Love Demo App',
-  description: 'モノレポデモアプリケーション',
+  title: 'プロジェクト名',
+  description: 'プロジェクトの説明',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

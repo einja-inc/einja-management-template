@@ -38,7 +38,7 @@ Vercel TurborepoとNext.jsをベースとしたエンタープライズグレー
 ### モノレポ全体構造
 
 ```
-accs-ai-tools/
+project-root/
 ├── apps/
 │   ├── web/              # メインWebアプリ（Next.js 14 App Router）
 │   ├── admin/            # 管理画面（Next.js 14 App Router）

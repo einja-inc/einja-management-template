@@ -104,7 +104,7 @@ Vibe-Kanban にこのプロジェクトが登録されていない場合：
 2. 「Create project」ボタンをクリック
 3. Git Repository Path にプロジェクトのパスを入力
    ```
-   /Users/yourname/path/to/accs-ai-tools
+   /Users/yourname/path/to/your-project
    ```
 4. 保存
 

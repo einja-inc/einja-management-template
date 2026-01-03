@@ -21,7 +21,7 @@ TodoWriteツールを使用して全体の進捗を可視化し、ユーザー�
 
 | 対象 | 規則 | 例 |
 |------|------|-----|
-| ディレクトリ | `issue{issue番号}-{機能名}` | `issue42-accs-admin-user-management` |
+| ディレクトリ | `issue{issue番号}-{機能名}` | `issue42-user-management` |
 | Issueブランチ | `issue/{issue番号}` | `issue/42` |
 | Phaseブランチ | `issue/{issue番号}-phase{N}` | `issue/42-phase1` |
 

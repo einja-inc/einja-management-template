@@ -86,7 +86,7 @@ graph TB
 ### ディレクトリ構造
 
 ```
-accs-ai-tools/
+project-root/
 ├── apps/                         # アプリケーション層
 │   ├── web/                     # ユーザー向けWebアプリ
 │   │   ├── src/

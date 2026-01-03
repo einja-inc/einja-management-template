@@ -30,6 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# dev server logs
+log/*.log
+log/*.pid
+
 # env files
 .env
 .env.personal

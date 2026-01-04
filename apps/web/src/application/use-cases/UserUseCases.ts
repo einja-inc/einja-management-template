@@ -5,6 +5,7 @@
  * Domain層とInfrastructure層を組み合わせてビジネスロジックを実行。
  */
 
+import { type Result, failure, success } from "@repo/server-core/core/result";
 import type { User } from "@repo/server-core/domain/entities/User";
 import type {
   PaginatedResult,
@@ -12,8 +13,6 @@ import type {
   UserSearchCriteria,
 } from "@repo/server-core/domain/repository-interfaces/IUserRepository";
 import { userRepository } from "@repo/server-core/infrastructure/database/repositories/UserRepository";
-import type { Result } from "@repo/server-core/utils/result";
-import { isSuccess, map } from "@repo/server-core/utils/result";
 
 /**
  * ユーザー一覧表示用のDTO
@@ -79,7 +78,10 @@ export const userUseCases = {
     pagination?: PaginationOptions
   ): Promise<Result<PaginatedUserList, Error>> {
     const result = await userRepository.search(criteria ?? {}, pagination);
-    return map(result, toPaginatedUserList);
+    if (!result.isSuccess) {
+      return failure(result.error);
+    }
+    return success(toPaginatedUserList(result.value));
   },
 
   /**
@@ -87,7 +89,10 @@ export const userUseCases = {
    */
   async getById(id: string): Promise<Result<UserListItem | null, Error>> {
     const result = await userRepository.findById(id);
-    return map(result, (user) => (user ? toUserListItem(user) : null));
+    if (!result.isSuccess) {
+      return failure(result.error);
+    }
+    return success(result.value ? toUserListItem(result.value) : null);
   },
 
   /**
@@ -95,7 +100,10 @@ export const userUseCases = {
    */
   async getByEmail(email: string): Promise<Result<UserListItem | null, Error>> {
     const result = await userRepository.findByEmail(email);
-    return map(result, (user) => (user ? toUserListItem(user) : null));
+    if (!result.isSuccess) {
+      return failure(result.error);
+    }
+    return success(result.value ? toUserListItem(result.value) : null);
   },
 
   /**

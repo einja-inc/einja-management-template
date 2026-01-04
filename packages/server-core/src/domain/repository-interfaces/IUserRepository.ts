@@ -5,7 +5,7 @@
  * Domain層で定義し、Infrastructure層で実装する。
  */
 
-import type { Result } from "../../utils/result";
+import type { Result } from "../../core/result";
 import type { User, UserRole, UserStatus } from "../entities/User";
 
 /**

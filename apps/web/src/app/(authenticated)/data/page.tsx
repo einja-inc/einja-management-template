@@ -1,12 +1,11 @@
 import { userUseCases } from "@/application/use-cases/UserUseCases";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { isFailure } from "@repo/server-core/utils/result";
 import { UserTable } from "./_components/UserTable";
 
 export default async function DataPage() {
   const result = await userUseCases.list({}, { page: 1, limit: 100 });
 
-  if (isFailure(result)) {
+  if (!result.isSuccess) {
     return (
       <div className="container mx-auto p-6">
         <div className="space-y-6">

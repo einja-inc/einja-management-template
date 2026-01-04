@@ -1,6 +1,6 @@
+import { failure, isFailure, isSuccess, success } from "@repo/server-core/core/result";
 import { User } from "@repo/server-core/domain/entities/User";
 import type { PaginatedResult } from "@repo/server-core/domain/repository-interfaces/IUserRepository";
-import { failure, isFailure, isSuccess, success } from "@repo/server-core/utils/result";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userUseCases } from "./UserUseCases";
 

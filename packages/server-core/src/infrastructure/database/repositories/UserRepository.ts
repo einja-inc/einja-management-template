@@ -12,7 +12,7 @@ import type {
 	PaginationOptions,
 	UserSearchCriteria,
 } from "../../../domain/repository-interfaces/IUserRepository";
-import { type Result, failure, success } from "../../../utils/result";
+import { type Result, failure, success } from "../../../core/result";
 import { prisma } from "../client";
 import { UserMapper } from "../mappers/UserMapper";
 

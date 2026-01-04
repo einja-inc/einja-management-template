@@ -1,6 +1,6 @@
 import type { User as PrismaUser, UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { isFailure, isSuccess } from "../../../utils/result";
+import { isFailure, isSuccess } from "../../../core/result";
 
 // Prismaクライアントをモック
 vi.mock("../client", () => ({

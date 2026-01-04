@@ -418,13 +418,13 @@ function mergeRemoteIntoLocal(branchName: string): void {
     // プッシュだけでは不十分、マージが必要
   }
 
-  // 両方が進んでいる場合: worktree でマージ
+  // 両方が進んでいる場合: worktree でマージ（常に --detach モードで、ローカル作業に依存しない）
   console.log(`   🔀 リモートの変更をマージ: ${branchName}`);
   const tempDir = path.join(os.tmpdir(), `merge-sync-${Date.now()}`);
 
   try {
-    // ローカルブランチを一時的に worktree にチェックアウト
-    execSync(`git worktree add "${tempDir}" ${branchName}`, { stdio: "pipe" });
+    // detachモードでworktreeを作成（現在のチェックアウト状態に依存しない）
+    execSync(`git worktree add --detach "${tempDir}" ${branchName}`, { stdio: "pipe" });
 
     // リモートの変更をマージ
     try {
@@ -436,8 +436,10 @@ function mergeRemoteIntoLocal(branchName: string): void {
       );
     }
 
-    // マージ結果をプッシュ
-    execSync(`git -C "${tempDir}" push origin ${branchName}`, { stdio: "pipe" });
+    // マージ結果を直接リモートにプッシュ（ローカルブランチは更新しない）
+    // 注: 現在チェックアウト中のブランチはgit branch -fで更新できないため、
+    //     worktree内から直接プッシュし、ローカルブランチの更新はスキップする
+    execSync(`git -C "${tempDir}" push origin HEAD:refs/heads/${branchName}`, { stdio: "pipe" });
     console.log(`   ✅ リモートの変更をマージ: ${branchName}`);
   } finally {
     // クリーンアップ

@@ -23,7 +23,7 @@
 # 1. ユニットテスト
 pnpm test
 
-# 2. E2Eテスト（該当する場合）
+# 2. E2Eテスト（Playwrightコードによる自動テスト）
 pnpm test:e2e
 
 # 3. Lintチェック
@@ -35,6 +35,10 @@ pnpm build
 # 5. 型チェック（TypeScript）
 pnpm typecheck
 ```
+
+> **Note**: E2Eテストは `pnpm test:e2e` で実行されるPlaywrightコードテストを指します。
+> Playwright MCPを使用したブラウザテスト（Browser検証レベル）は、下記「タスク X.Y.N」セクションのテストシナリオで実施します。
+> 詳細は `docs/steering/terminology.md` を参照してください。
 
 ### 結果
 | テスト項目 | ステータス | 備考 |

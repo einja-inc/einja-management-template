@@ -130,12 +130,14 @@ $ARGUMENTSから以下を解析：
 
 **検証責務**:
 - **Unit テスト**: 必須実装、実装と同時に作成
-- **Integration/E2E テスト**: 実装不要（task-qa が担当）
+- **Integration/Browser テスト**: 実装不要（task-qa が担当）
 
 **完了条件**:
 - 実装したコードの単体テストが全て合格
 - 検証レベルが「Unit」の AC を全て満たす
-- Integration/E2E レベルの AC は未検証でも実装フェーズ完了とする
+- Integration/Browser レベルの AC は未検証でも実装フェーズ完了とする
+
+> **Note**: 検証レベルの詳細は `docs/steering/terminology.md` を参照してください。
 
 ### task-reviewerの受け入れ条件参照方法
 
@@ -150,18 +152,20 @@ $ARGUMENTSから以下を解析：
 1. **受け入れ基準の抽出**
    - タスクグループの `requirements.md` を読み込む
    - 各ユーザーストーリー配下の「受け入れ基準」セクションを特定
-   - **検証レベルが「Integration」「E2E」の AC のみ**を抽出
+   - **検証レベルが「Integration」「Browser」の AC のみ**を抽出
    - 検証レベルが「Unit」の AC はスキップ（task-executer が既に検証済み）
 
 2. **テストシナリオの作成**
    - 各 AC に対して、Given/When/Then に基づくテストシナリオを作成
    - Integration: API + DB + ミドルウェアの連携テスト
-   - E2E: Playwright MCP を使用したユーザーシナリオテスト
+   - Browser: Playwright MCP を使用したユーザーシナリオテスト
    - QA 仕様書（`qa-tests/phaseN/X-Y.md`）に記録
 
 3. **SUCCESS 判定基準**
-   - **検証レベルが「Integration」「E2E」の全ての AC が満たされた場合のみ**、SUCCESS 判定
+   - **検証レベルが「Integration」「Browser」の全ての AC が満たされた場合のみ**、SUCCESS 判定
    - 1つでも AC を満たさない場合、FAILURE 判定して適切な戻し先を決定
+
+> **用語の明確化**: 「E2E」はPlaywrightコードによる自動テスト（`pnpm test:e2e`）を指します。task-qaが実行するPlaywright MCPテストは「Browser」検証レベルです。詳細は `docs/steering/terminology.md` を参照してください。
 
 4. **参照ドキュメント**
    - QA テスト項目作成方針: `docs/steering/acceptance-criteria-and-qa-guide.md`
@@ -233,7 +237,7 @@ task-qa は以下の基準で失敗原因を分類し、適切な戻し先を決
 ## 機能名: [タスク名]
 - 背景/価値: [requirements.mdから抽出]
 - 関連 AC: AC1.1, AC1.2, AC2.1
-- テスト範囲: Integration / E2E
+- テスト範囲: Integration / Browser
 
 - シナリオ:
   1. [AC1.1に対応するシナリオ]

@@ -251,7 +251,10 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 - 非同期処理の活用
 
 ### 8. テスト設計
-- 単体テスト、統合テスト、E2Eテストそれぞれについて、正常系・異常系のテストケースをGiven-When-Then形式で記載
+- 単体テスト、統合テスト、E2Eテスト、Browserテストそれぞれについて、正常系・異常系のテストケースをGiven-When-Then形式で記載
+  - E2E: Playwrightコードによる自動テスト（`pnpm test:e2e`で実行）
+  - Browser: Playwright MCPによるブラウザテスト（task-qaが実行）
+  - 詳細は `docs/steering/terminology.md` を参照
 - テストカバレッジ目標
 - テストデータ管理
 - モックとスタブの方針

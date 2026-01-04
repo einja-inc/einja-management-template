@@ -187,6 +187,11 @@ export class FileCopier {
         const stat = statSync(absolutePath);
 
         if (stat.isDirectory()) {
+          // einjaサブディレクトリはスキップ（既にeinja/に配置されているファイルを除外）
+          if (entry === "einja") {
+            continue;
+          }
+
           // ディレクトリの場合は再帰的にスキャン
           files.push(...this.scanDirectory(absolutePath, projectRoot));
         } else if (stat.isFile()) {

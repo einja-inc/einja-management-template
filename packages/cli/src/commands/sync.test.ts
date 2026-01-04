@@ -224,6 +224,209 @@ Section 3 - New section`;
 		});
 	});
 
+	describe("AC5.1: ドライラン機能の基本動作", () => {
+		it("--dry-runオプションでファイル変更が発生せず、差分サマリーが表示される", async () => {
+			// Given: 変更があるファイルが存在
+			const projectFile = path.join(
+				tempProjectDir,
+				".claude",
+				"commands",
+				"einja",
+				"test.md",
+			);
+			await fs.ensureDir(path.dirname(projectFile));
+			const originalContent = "Old content";
+			await fs.writeFile(projectFile, originalContent, "utf-8");
+
+			const templateFile = path.join(
+				tempTemplateDir,
+				".claude",
+				"commands",
+				"einja",
+				"test.md",
+			);
+			await fs.ensureDir(path.dirname(templateFile));
+			await fs.writeFile(templateFile, "New content", "utf-8");
+
+			// メタデータ作成
+			const { createHash } = await import("node:crypto");
+			const oldHash = createHash("sha256")
+				.update(originalContent, "utf8")
+				.digest("hex");
+
+			const metadata: SyncMetadata = {
+				version: "1.0.0",
+				lastSync: new Date().toISOString(),
+				templateVersion: "0.1.0",
+				files: {
+					".claude/commands/einja/test.md": {
+						hash: oldHash,
+						syncedAt: new Date().toISOString(),
+					},
+				},
+			};
+			await fs.writeFile(
+				path.join(tempProjectDir, ".einja-sync.json"),
+				JSON.stringify(metadata),
+				"utf-8",
+			);
+
+			// コンソール出力をキャプチャ
+			const consoleSpy = vi.spyOn(console, "log");
+
+			// When: --dry-runオプションでsyncを実行
+			await syncCommand({ dryRun: true });
+
+			// Then: ファイルが変更されていないことを確認
+			const afterContent = await fs.readFile(projectFile, "utf-8");
+			expect(afterContent).toBe(originalContent);
+
+			// Then: 差分サマリーが表示されることを確認
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("📊 差分サマリー:"),
+			);
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("- 新規ファイル:"),
+			);
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("- 更新ファイル:"),
+			);
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("- コンフリクト:"),
+			);
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("- 合計:"),
+			);
+
+			consoleSpy.mockRestore();
+		});
+
+		it("--dry-runで新規ファイル作成が発生しない", async () => {
+			// Given: 新規ファイルがテンプレートに存在
+			const templateFile = path.join(
+				tempTemplateDir,
+				".claude",
+				"commands",
+				"einja",
+				"new-file.md",
+			);
+			await fs.ensureDir(path.dirname(templateFile));
+			await fs.writeFile(templateFile, "New file content", "utf-8");
+
+			// メタデータ作成（空）
+			const metadata: SyncMetadata = {
+				version: "1.0.0",
+				lastSync: new Date().toISOString(),
+				templateVersion: "0.1.0",
+				files: {},
+			};
+			await fs.writeFile(
+				path.join(tempProjectDir, ".einja-sync.json"),
+				JSON.stringify(metadata),
+				"utf-8",
+			);
+
+			// When: --dry-runオプションでsyncを実行
+			await syncCommand({ dryRun: true });
+
+			// Then: 新規ファイルが作成されていないことを確認
+			const projectFile = path.join(
+				tempProjectDir,
+				".claude",
+				"commands",
+				"einja",
+				"new-file.md",
+			);
+			const exists = await fs.pathExists(projectFile);
+			expect(exists).toBe(false);
+		});
+	});
+
+	describe("AC5.3: ドライラン時のコンフリクト表示", () => {
+		it("--dry-run実行時にコンフリクト箇所がハイライト表示される", async () => {
+			// Note: このテストは統合テストとして実装する必要がある
+			// 現在の実装では、テンプレートルートが実際のパッケージから取得されるため、
+			// ユニットテストレベルでのコンフリクトシミュレーションが困難
+			// 代わりに、DiffEngineとConflictReporterのユニットテストでカバー
+		});
+
+		it("--dry-run実行時にコンフリクトがない場合は成功メッセージ表示", async () => {
+			// Given: コンフリクトが発生しない状況
+			const projectFile = path.join(
+				tempProjectDir,
+				".claude",
+				"commands",
+				"einja",
+				"test.md",
+			);
+			await fs.ensureDir(path.dirname(projectFile));
+
+			// ベース版
+			const baseContent = `# Title
+Section 1
+Section 2`;
+
+			// ローカル版（Section 1を編集）
+			const localContent = `# Title
+Section 1 - Local change
+Section 2`;
+
+			// テンプレート版（Section 2を編集）
+			const templateContent = `# Title
+Section 1
+Section 2 - Template change`;
+
+			await fs.writeFile(projectFile, localContent, "utf-8");
+
+			// テンプレートファイル作成
+			const templateFile = path.join(
+				tempTemplateDir,
+				".claude",
+				"commands",
+				"einja",
+				"test.md",
+			);
+			await fs.ensureDir(path.dirname(templateFile));
+			await fs.writeFile(templateFile, templateContent, "utf-8");
+
+			// メタデータ作成
+			const { createHash } = await import("node:crypto");
+			const baseHash = createHash("sha256")
+				.update(baseContent, "utf8")
+				.digest("hex");
+
+			const metadata: SyncMetadata = {
+				version: "1.0.0",
+				lastSync: new Date().toISOString(),
+				templateVersion: "0.1.0",
+				files: {
+					".claude/commands/einja/test.md": {
+						hash: baseHash,
+						syncedAt: new Date().toISOString(),
+					},
+				},
+			};
+			await fs.writeFile(
+				path.join(tempProjectDir, ".einja-sync.json"),
+				JSON.stringify(metadata),
+				"utf-8",
+			);
+
+			// コンソール出力をキャプチャ
+			const consoleSpy = vi.spyOn(console, "log");
+
+			// When: --dry-runオプションでsyncを実行
+			await syncCommand({ dryRun: true });
+
+			// Then: コンフリクトなしのメッセージが表示される
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("✅ コンフリクトは検出されませんでした。"),
+			);
+
+			consoleSpy.mockRestore();
+		});
+	});
+
 	describe("オプション処理", () => {
 		it("--dry-runオプションで実際の変更を行わない", async () => {
 			// Given: 変更があるファイルが存在

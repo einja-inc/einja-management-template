@@ -293,4 +293,92 @@ Line 3`;
 			expect(formatted).toContain("- 行15");
 		});
 	});
+
+	describe("AC5.3: ドライラン時のコンフリクト表示（統合）", () => {
+		it("DiffEngine + ConflictReporterでコンフリクト検出とレポート生成が連携する", () => {
+			// Given: コンフリクトが発生する状況
+			const base = "Line 1\nLine 2\nLine 3";
+			const local = "Line 1\nLocal Line 2\nLine 3";
+			const template = "Line 1\nTemplate Line 2\nLine 3";
+
+			// When: DiffEngineでマージを試行
+			const mergeResult = diffEngine.merge3Way(base, local, template);
+
+			// Then: マージが失敗し、コンフリクト情報が含まれる
+			expect(mergeResult.success).toBe(false);
+			expect(mergeResult.conflicts).toHaveLength(1);
+
+			// When: ConflictReporterでレポート作成
+			const conflicts = new Map<string, Conflict[]>();
+			conflicts.set("test.md", mergeResult.conflicts);
+			const report = conflictReporter.createReport(conflicts);
+
+			// Then: レポートにコンフリクト情報が含まれる
+			expect(report.hasConflicts).toBe(true);
+			expect(report.totalConflicts).toBe(1);
+			expect(report.files[0].path).toBe("test.md");
+
+			// Then: フォーマット済みレポートに行番号とファイルパスが含まれる
+			const formattedReport = conflictReporter.formatReport(report);
+			expect(formattedReport).toContain("test.md");
+			expect(formattedReport).toContain("行");
+		});
+
+		it("複数ファイルのコンフリクトをまとめてレポート生成できる", () => {
+			// Given: 複数ファイルでコンフリクトが発生
+			const base = "Content";
+			const local1 = "Local Content 1";
+			const template1 = "Template Content 1";
+			const local2 = "Local Content 2";
+			const template2 = "Template Content 2";
+
+			// When: 各ファイルでマージを試行
+			const result1 = diffEngine.merge3Way(base, local1, template1);
+			const result2 = diffEngine.merge3Way(base, local2, template2);
+
+			// When: ConflictReporterでレポート作成
+			const conflicts = new Map<string, Conflict[]>();
+			conflicts.set("file1.md", result1.conflicts);
+			conflicts.set("file2.md", result2.conflicts);
+			const report = conflictReporter.createReport(conflicts);
+
+			// Then: 両ファイルのコンフリクトが含まれる
+			expect(report.totalConflicts).toBe(2);
+			expect(report.files).toHaveLength(2);
+
+			// Then: フォーマット済みレポートに両ファイルの情報が含まれる
+			const formattedReport = conflictReporter.formatReport(report);
+			expect(formattedReport).toContain("file1.md");
+			expect(formattedReport).toContain("file2.md");
+			expect(formattedReport).toContain("2件のコンフリクトが検出されました");
+		});
+
+		it("コンフリクトがない場合、成功メッセージが返る", () => {
+			// Given: コンフリクトが発生しない状況（異なる行を変更）
+			const base = "Line 1\nLine 2\nLine 3\nLine 4";
+			const local = "Line 1 - Local\nLine 2\nLine 3\nLine 4"; // Line 1を変更
+			const template = "Line 1\nLine 2\nLine 3\nLine 4 - Template"; // Line 4を変更
+
+			// When: マージを試行
+			const mergeResult = diffEngine.merge3Way(base, local, template);
+
+			// Then: マージが成功（異なる行を変更しているのでコンフリクトなし）
+			expect(mergeResult.success).toBe(true);
+			expect(mergeResult.conflicts).toHaveLength(0);
+			expect(mergeResult.content).toContain("Line 1 - Local");
+			expect(mergeResult.content).toContain("Line 4 - Template");
+
+			// When: ConflictReporterでレポート作成
+			const conflicts = new Map<string, Conflict[]>();
+			const report = conflictReporter.createReport(conflicts);
+
+			// Then: コンフリクトなしのレポート
+			expect(report.hasConflicts).toBe(false);
+			expect(report.totalConflicts).toBe(0);
+
+			// Then: フォーマット済みレポートでコンフリクトなしメッセージ
+			const formattedReport = conflictReporter.formatReport(report);
+			expect(formattedReport).toBe("コンフリクトは検出されませんでした。");
+		});
+	});
 });

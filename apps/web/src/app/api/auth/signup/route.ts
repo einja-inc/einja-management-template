@@ -1,4 +1,4 @@
-import { prisma } from "@repo/server-core";
+import { prisma } from "@repo/server-core/infrastructure/database/client";
 import bcrypt from "bcryptjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

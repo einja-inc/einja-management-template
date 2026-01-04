@@ -609,20 +609,20 @@ npx @einja/cli sync --only commands
 npx @einja/cli sync --only commands,agents
 ```
 
-## preset:update スクリプト設計（内部開発用）
+## cli-template:update スクリプト設計（内部開発用）
 
-### スクリプト: preset:update
+### スクリプト: cli-template:update
 
 **概要**: プロジェクトの最新コンテンツをCLIプリセットに反映（内部開発用npm script）
 
 **実装方針**:
 - **公開CLIコマンドではなく内部npmスクリプト**として実装
-- 配置場所: `scripts/preset-update.ts`
+- 配置場所: `scripts/cli-template-update.ts`
 - 理由: 開発者専用の内部ツールを公開パッケージに含めることは一般的ではなく、パッケージの肥大化・ユーザー混乱を避けるため
 
 **基本構文**:
 ```bash
-pnpm preset:update [options]
+pnpm cli-template:update [options]
 ```
 
 **オプション一覧**:
@@ -638,19 +638,19 @@ pnpm preset:update [options]
 
 ```bash
 # 全プリセットを更新
-pnpm preset:update
+pnpm cli-template:update
 
 # 差分確認のみ
-pnpm preset:update --dry-run
+pnpm cli-template:update --dry-run
 
 # 特定プリセットのみ更新
-pnpm preset:update --preset turborepo-pandacss
+pnpm cli-template:update --preset turborepo-pandacss
 
 # 強制上書き
-pnpm preset:update --force
+pnpm cli-template:update --force
 
 # JSON形式で結果出力（CI/CD用）
-pnpm preset:update --json
+pnpm cli-template:update --json
 ```
 
 **出力形式**:
@@ -707,12 +707,12 @@ JSON形式（--jsonオプション）:
 }
 ```
 
-### preset:updateスクリプトのモジュール構成
+### cli-template:updateスクリプトのモジュール構成
 
 ```
 einja-management-template/          # プロジェクトルート
 ├── scripts/
-│   └── preset-update.ts            # スクリプトエントリーポイント ← 新規追加
+│   └── cli-template-update.ts      # スクリプトエントリーポイント ← 新規追加
 │
 packages/cli/
 ├── src/
@@ -740,7 +740,7 @@ packages/cli/
 ```json
 {
   "scripts": {
-    "preset:update": "tsx scripts/preset-update.ts"
+    "cli-template:update": "tsx scripts/cli-template-update.ts"
   }
 }
 ```
@@ -813,19 +813,19 @@ packages/cli/
 | CopiedFile | destination | string | コピー先パス |
 | CopiedFile | action | 'copied' \| 'skipped' | 実行アクション |
 
-### シーケンス図: preset:update処理フロー
+### シーケンス図: cli-template:update処理フロー
 
 ```mermaid
 sequenceDiagram
     participant U as ユーザー
-    participant Script as preset-update.ts
+    participant Script as cli-template-update.ts
     participant UP as PresetUpdateScript
     participant Detector as CLIRepoDetector
     participant Finder as PresetFinder
     participant Copier as FileCopier
     participant FS as FileSystem
 
-    U->>Script: pnpm preset:update
+    U->>Script: pnpm cli-template:update
     Script->>UP: execute()
 
     Note over UP: オプション解析
@@ -902,13 +902,13 @@ sequenceDiagram
 
 #### einja/サブディレクトリへの配置理由
 
-`preset:update`スクリプトでコピーされたファイルは、プリセット内の`einja/`サブディレクトリに配置されます。これは`sync`コマンドが`einja/`ディレクトリのみを同期対象とするため、一貫性を保つためです。
+`cli-template:update`スクリプトでコピーされたファイルは、プリセット内の`einja/`サブディレクトリに配置されます。これは`sync`コマンドが`einja/`ディレクトリのみを同期対象とするため、一貫性を保つためです。
 
 ```
 # syncコマンド（CLIパッケージ → ユーザープロジェクト）
 packages/cli/presets/<preset>/.claude/commands/einja/ → .claude/commands/einja/
 
-# preset:updateスクリプト（プロジェクト → CLIパッケージ）
+# cli-template:updateスクリプト（プロジェクト → CLIパッケージ）
 .claude/commands/ → packages/cli/presets/<preset>/.claude/commands/einja/
 ```
 

@@ -1,5 +1,5 @@
 /**
- * preset:update スクリプト関連の型定義
+ * cli-template:update スクリプト関連の型定義
  */
 
 /**

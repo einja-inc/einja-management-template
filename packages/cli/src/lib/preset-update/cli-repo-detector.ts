@@ -5,7 +5,7 @@ import type { ValidationResult } from "../../types/preset-update.js";
 /**
  * CLIリポジトリ検出モジュール
  *
- * preset:updateスクリプトがCLIリポジトリ内で実行されているかを検証します。
+ * cli-template:updateスクリプトがCLIリポジトリ内で実行されているかを検証します。
  */
 export class CLIRepoDetector {
   /**

@@ -15,7 +15,7 @@ import {
 	type AppConfig,
 	type WorktreeConfig,
 	loadWorktreeConfig,
-} from "@einja/config";
+} from "@repo/config";
 
 /** 設定を保持するグローバル変数 */
 let config: WorktreeConfig;

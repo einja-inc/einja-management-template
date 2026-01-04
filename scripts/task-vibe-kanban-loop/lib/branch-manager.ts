@@ -3,6 +3,123 @@
  */
 
 import { execSync } from "node:child_process";
+import * as os from "node:os";
+import * as path from "node:path";
+
+/**
+ * マージ結果の型
+ */
+interface MergeResult {
+  success: boolean;
+  alreadyUpToDate?: boolean;
+  conflicted?: boolean;
+  error?: string;
+}
+
+/**
+ * gh CLI が認証済みか確認
+ */
+function isGhCliAuthenticated(): boolean {
+  try {
+    execSync("gh auth status", { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * GitHub API を使用してリモートでブランチをマージ
+ * ローカルの状態に依存しない
+ */
+function mergeWithGitHubApi(
+  baseBranch: string,
+  headBranch: string,
+  commitMessage: string
+): MergeResult {
+  try {
+    execSync(
+      `gh api repos/:owner/:repo/merges -f base="${baseBranch}" -f head="${headBranch}" -f commit_message="${commitMessage}"`,
+      { encoding: "utf-8", stdio: "pipe" }
+    );
+    return { success: true };
+  } catch (error) {
+    const errorStr = String(error);
+    // 409 Conflict = マージコンフリクト
+    if (errorStr.includes("409") || errorStr.includes("Merge conflict")) {
+      return { success: false, conflicted: true, error: "マージコンフリクトが発生しました" };
+    }
+    // 204 No Content または "already" = Already up to date
+    if (errorStr.includes("204") || errorStr.includes("already")) {
+      return { success: true, alreadyUpToDate: true };
+    }
+    return { success: false, error: errorStr };
+  }
+}
+
+/**
+ * git worktree を使用してマージ（フォールバック）
+ * --detach で既存 worktree と競合しない
+ */
+function mergeWithWorktree(
+  baseBranch: string,
+  headBranch: string,
+  commitMessage: string
+): MergeResult {
+  const tempDir = path.join(os.tmpdir(), `merge-work-${Date.now()}`);
+
+  try {
+    // detached HEAD で worktree 作成（既存 worktree と競合しない）
+    execSync(`git worktree add --detach "${tempDir}" origin/${baseBranch}`, {
+      stdio: "pipe",
+    });
+
+    // マージ実行
+    try {
+      execSync(`git -C "${tempDir}" merge origin/${headBranch} -m "${commitMessage}"`, {
+        stdio: "pipe",
+      });
+    } catch (mergeError) {
+      // マージコンフリクト
+      execSync(`git -C "${tempDir}" merge --abort`, { stdio: "ignore" });
+      return { success: false, conflicted: true, error: "マージコンフリクトが発生しました" };
+    }
+
+    // プッシュ（ブランチ名を明示）
+    execSync(`git -C "${tempDir}" push origin HEAD:${baseBranch}`, { stdio: "pipe" });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  } finally {
+    // クリーンアップ
+    try {
+      execSync(`git worktree remove "${tempDir}" --force`, { stdio: "ignore" });
+    } catch {
+      // クリーンアップ失敗は無視
+    }
+  }
+}
+
+/**
+ * 統合マージ関数（gh CLI → worktree のフォールバック）
+ * ローカルの状態に依存せずにリモートブランチをマージ
+ */
+function mergeRemoteBranches(
+  baseBranch: string,
+  headBranch: string,
+  commitMessage: string
+): MergeResult {
+  // gh CLI が認証済みなら GitHub API を使用
+  if (isGhCliAuthenticated()) {
+    console.log("   🔧 GitHub API でマージを実行");
+    return mergeWithGitHubApi(baseBranch, headBranch, commitMessage);
+  }
+
+  // フォールバック: git worktree を使用
+  console.log("   🔧 git worktree でマージを実行");
+  return mergeWithWorktree(baseBranch, headBranch, commitMessage);
+}
 
 /**
  * リモートの最新情報を取得
@@ -263,6 +380,7 @@ export function syncPhaseBranch(
 /**
  * リモートブランチの変更をローカルブランチにマージ（pull相当）
  * ローカルとリモートが異なる場合のみマージを実行
+ * checkout を使用せず、worktree または fast-forward で処理
  */
 function mergeRemoteIntoLocal(branchName: string): void {
   // ローカルとリモートが同じか確認
@@ -278,36 +396,55 @@ function mergeRemoteIntoLocal(branchName: string): void {
     return;
   }
 
-  // 現在のブランチを保存
-  const currentBranch = getCurrentBranch();
+  // ローカルがリモートの祖先か確認 (fast-forward 可能)
+  try {
+    execSync(`git merge-base --is-ancestor ${localCommit} ${remoteCommit}`, { stdio: "ignore" });
+    // fast-forward 可能: ローカルをリモートに更新
+    execSync(`git branch -f ${branchName} origin/${branchName}`, { stdio: "inherit" });
+    console.log(`   ✅ リモートの変更を取り込み (fast-forward): ${branchName}`);
+    return;
+  } catch {
+    // fast-forward 不可
+  }
+
+  // リモートがローカルの祖先か確認 (プッシュが必要)
+  try {
+    execSync(`git merge-base --is-ancestor ${remoteCommit} ${localCommit}`, { stdio: "ignore" });
+    // プッシュが必要
+    execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+    console.log(`   ✅ ローカルの変更をプッシュ: ${branchName}`);
+    return;
+  } catch {
+    // プッシュだけでは不十分、マージが必要
+  }
+
+  // 両方が進んでいる場合: worktree でマージ
+  console.log(`   🔀 リモートの変更をマージ: ${branchName}`);
+  const tempDir = path.join(os.tmpdir(), `merge-sync-${Date.now()}`);
 
   try {
-    // 対象ブランチをチェックアウト
-    if (currentBranch !== branchName) {
-      execSync(`git checkout ${branchName}`, { stdio: "inherit" });
-    }
+    // ローカルブランチを一時的に worktree にチェックアウト
+    execSync(`git worktree add "${tempDir}" ${branchName}`, { stdio: "pipe" });
 
-    // リモートをマージ
+    // リモートの変更をマージ
     try {
-      execSync(`git merge origin/${branchName} --no-edit`, { stdio: "inherit" });
-      console.log(`   ✅ リモートの変更をマージ: ${branchName}`);
-
-      // マージ結果をプッシュ
-      execSync(`git push origin ${branchName}`, { stdio: "inherit" });
+      execSync(`git -C "${tempDir}" merge origin/${branchName} --no-edit`, { stdio: "pipe" });
     } catch {
-      execSync(`git merge --abort`, { stdio: "ignore" });
+      execSync(`git -C "${tempDir}" merge --abort`, { stdio: "ignore" });
       throw new Error(
         `ブランチ ${branchName} のリモート同期でコンフリクトが発生しました。手動で解決してください。`
       );
     }
+
+    // マージ結果をプッシュ
+    execSync(`git -C "${tempDir}" push origin ${branchName}`, { stdio: "pipe" });
+    console.log(`   ✅ リモートの変更をマージ: ${branchName}`);
   } finally {
-    // 元のブランチに戻る
-    if (currentBranch && currentBranch !== branchName) {
-      try {
-        execSync(`git checkout ${currentBranch}`, { stdio: "ignore" });
-      } catch {
-        // 元のブランチに戻れない場合は無視
-      }
+    // クリーンアップ
+    try {
+      execSync(`git worktree remove "${tempDir}" --force`, { stdio: "ignore" });
+    } catch {
+      // クリーンアップ失敗は無視
     }
   }
 }
@@ -361,12 +498,16 @@ function syncIssueBranch(issueBranch: string, issueBranchBase: string): void {
 
 /**
  * ベースブランチの変更を Issue ブランチに取り込む（マージ）
+ * checkout を使用せず、GitHub API または worktree でリモートマージを実行
  * コンフリクトが発生した場合はエラーをスロー
  */
 function mergeBaseBranchIntoIssue(issueBranch: string, issueBranchBase: string): void {
   // Issue ブランチがベースブランチの変更を既に含んでいるか確認
   const remoteBaseBranch = `origin/${issueBranchBase}`;
-  const mergeBase = execSync(`git merge-base ${issueBranch} ${remoteBaseBranch}`, {
+  const remoteIssueBranch = `origin/${issueBranch}`;
+
+  // リモートブランチ同士で比較（ローカルの状態に依存しない）
+  const mergeBase = execSync(`git merge-base ${remoteIssueBranch} ${remoteBaseBranch}`, {
     encoding: "utf-8",
   }).trim();
   const baseHead = execSync(`git rev-parse ${remoteBaseBranch}`, {
@@ -379,44 +520,39 @@ function mergeBaseBranchIntoIssue(issueBranch: string, issueBranchBase: string):
     return;
   }
 
-  // Issue ブランチにベースブランチの変更をマージ
+  // Issue ブランチにベースブランチの変更をマージ（リモートで実行）
   console.log(`   🔀 ベースブランチの変更を取り込み: ${issueBranchBase} → ${issueBranch}`);
 
-  // 現在のブランチを保存
-  const currentBranch = getCurrentBranch();
+  const result = mergeRemoteBranches(
+    issueBranch,
+    issueBranchBase,
+    `Merge ${issueBranchBase} into ${issueBranch}`
+  );
 
-  try {
-    // Issue ブランチをチェックアウト
-    execSync(`git checkout ${issueBranch}`, { stdio: "inherit" });
-
-    // ベースブランチをマージ（fast-forward 優先、コンフリクト時はエラー）
-    try {
-      execSync(`git merge ${remoteBaseBranch} --no-edit`, { stdio: "inherit" });
-      console.log("   ✅ ベースブランチのマージ完了");
-
-      // マージ結果をリモートにプッシュ
-      execSync(`git push origin ${issueBranch}`, { stdio: "inherit" });
-    } catch (_mergeError) {
-      // マージコンフリクト発生時は中止
-      execSync("git merge --abort", { stdio: "ignore" });
+  if (!result.success) {
+    if (result.conflicted) {
       throw new Error(
         `Issue ブランチ ${issueBranch} へのベースブランチ ${issueBranchBase} のマージでコンフリクトが発生しました。手動で解決してください。`
       );
     }
-  } finally {
-    // 元のブランチに戻る
-    if (currentBranch && currentBranch !== issueBranch) {
-      try {
-        execSync(`git checkout ${currentBranch}`, { stdio: "ignore" });
-      } catch {
-        // 元のブランチに戻れない場合は無視
-      }
-    }
+    throw new Error(`マージに失敗しました: ${result.error}`);
+  }
+
+  console.log("   ✅ ベースブランチのマージ完了");
+
+  // ローカルブランチをリモートに合わせて更新
+  try {
+    execSync(`git fetch origin ${issueBranch}`, { stdio: "pipe" });
+    execSync(`git branch -f ${issueBranch} origin/${issueBranch}`, { stdio: "pipe" });
+  } catch {
+    // ローカルブランチの更新失敗は警告のみ（リモートは更新済み）
+    console.log(`   ⚠️ ローカルブランチの更新をスキップ: ${issueBranch}`);
   }
 }
 
 /**
  * Phase ブランチを Issue ブランチにマージ（フェーズ完了時）
+ * checkout を使用せず、GitHub API または worktree でリモートマージを実行
  * コンフリクトが発生した場合はエラーをスロー
  */
 export function mergePhaseBranchIntoIssue(
@@ -459,67 +595,51 @@ export function mergePhaseBranchIntoIssue(
     return;
   }
 
-  // Issue ブランチに Phase ブランチの変更をマージ
+  // Issue ブランチに Phase ブランチの変更をマージ（リモートで実行）
   console.log(`   🔀 Phase ブランチを Issue ブランチにマージ: ${phaseBranch} → ${issueBranch}`);
 
-  // 現在のブランチを保存
-  const currentBranch = getCurrentBranch();
+  const result = mergeRemoteBranches(
+    issueBranch,
+    phaseBranch,
+    `Merge phase${phaseNumber} into ${issueBranch}`
+  );
 
-  try {
-    // ローカル Issue ブランチをリモートの最新に同期
-    try {
-      execSync(`git branch -D ${issueBranch}`, { stdio: "ignore" });
-    } catch {
-      // ローカルブランチが存在しない場合は無視
-    }
-    execSync(`git branch ${issueBranch} origin/${issueBranch}`, {
-      stdio: "inherit",
-    });
-
-    // Issue ブランチをチェックアウト
-    execSync(`git checkout ${issueBranch}`, { stdio: "inherit" });
-
-    // Phase ブランチをマージ（--no-ff でマージコミットを作成）
-    try {
-      execSync(
-        `git merge --no-ff origin/${phaseBranch} -m "Merge phase${phaseNumber} into ${issueBranch}"`,
-        {
-          stdio: "inherit",
-        }
-      );
-      console.log(`   ✅ Phase ${phaseNumber} マージ完了`);
-
-      // マージ結果をリモートにプッシュ
-      execSync(`git push origin ${issueBranch}`, { stdio: "inherit" });
-    } catch (_mergeError) {
-      // マージコンフリクト発生時は中止
-      execSync("git merge --abort", { stdio: "ignore" });
+  if (!result.success) {
+    if (result.conflicted) {
       throw new Error(
         `Issue ブランチ ${issueBranch} への Phase ブランチ ${phaseBranch} のマージでコンフリクトが発生しました。手動で解決してください。`
       );
     }
-  } finally {
-    // 元のブランチに戻る
-    if (currentBranch && currentBranch !== issueBranch) {
-      try {
-        execSync(`git checkout ${currentBranch}`, { stdio: "ignore" });
-      } catch {
-        // 元のブランチに戻れない場合は無視
-      }
-    }
+    throw new Error(`マージに失敗しました: ${result.error}`);
+  }
+
+  console.log(`   ✅ Phase ${phaseNumber} マージ完了`);
+
+  // ローカルブランチをリモートに合わせて更新
+  try {
+    execSync(`git fetch origin ${issueBranch}`, { stdio: "pipe" });
+    execSync(`git branch -f ${issueBranch} origin/${issueBranch}`, { stdio: "pipe" });
+  } catch {
+    // ローカルブランチの更新失敗は警告のみ（リモートは更新済み）
+    console.log(`   ⚠️ ローカルブランチの更新をスキップ: ${issueBranch}`);
   }
 }
 
 /**
  * Issue ブランチの変更を Phase ブランチに取り込む（マージ）
+ * checkout を使用せず、GitHub API または worktree でリモートマージを実行
  * コンフリクトが発生した場合はエラーをスロー
  */
 function mergeIssueBranchIntoPhase(phaseBranch: string, issueBranch: string): void {
   // Phase ブランチが Issue ブランチの変更を既に含んでいるか確認
-  const mergeBase = execSync(`git merge-base ${phaseBranch} ${issueBranch}`, {
+  // リモートブランチ同士で比較（ローカルの状態に依存しない）
+  const remotePhaseBranch = `origin/${phaseBranch}`;
+  const remoteIssueBranch = `origin/${issueBranch}`;
+
+  const mergeBase = execSync(`git merge-base ${remotePhaseBranch} ${remoteIssueBranch}`, {
     encoding: "utf-8",
   }).trim();
-  const issueHead = execSync(`git rev-parse ${issueBranch}`, {
+  const issueHead = execSync(`git rev-parse ${remoteIssueBranch}`, {
     encoding: "utf-8",
   }).trim();
 
@@ -529,38 +649,32 @@ function mergeIssueBranchIntoPhase(phaseBranch: string, issueBranch: string): vo
     return;
   }
 
-  // Phase ブランチに Issue ブランチの変更をマージ
+  // Phase ブランチに Issue ブランチの変更をマージ（リモートで実行）
   console.log(`   🔀 Issue ブランチの変更を取り込み: ${issueBranch} → ${phaseBranch}`);
 
-  // 現在のブランチを保存
-  const currentBranch = getCurrentBranch();
+  const result = mergeRemoteBranches(
+    phaseBranch,
+    issueBranch,
+    `Merge ${issueBranch} into ${phaseBranch}`
+  );
 
-  try {
-    // Phase ブランチをチェックアウト
-    execSync(`git checkout ${phaseBranch}`, { stdio: "inherit" });
-
-    // Issue ブランチをマージ（fast-forward 優先、コンフリクト時はエラー）
-    try {
-      execSync(`git merge ${issueBranch} --no-edit`, { stdio: "inherit" });
-      console.log("   ✅ マージ完了");
-
-      // マージ結果をリモートにプッシュ
-      execSync(`git push origin ${phaseBranch}`, { stdio: "inherit" });
-    } catch (_mergeError) {
-      // マージコンフリクト発生時は中止
-      execSync("git merge --abort", { stdio: "ignore" });
+  if (!result.success) {
+    if (result.conflicted) {
       throw new Error(
         `Phase ブランチ ${phaseBranch} への Issue ブランチ ${issueBranch} のマージでコンフリクトが発生しました。手動で解決してください。`
       );
     }
-  } finally {
-    // 元のブランチに戻る
-    if (currentBranch && currentBranch !== phaseBranch) {
-      try {
-        execSync(`git checkout ${currentBranch}`, { stdio: "ignore" });
-      } catch {
-        // 元のブランチに戻れない場合は無視
-      }
-    }
+    throw new Error(`マージに失敗しました: ${result.error}`);
+  }
+
+  console.log("   ✅ マージ完了");
+
+  // ローカルブランチをリモートに合わせて更新
+  try {
+    execSync(`git fetch origin ${phaseBranch}`, { stdio: "pipe" });
+    execSync(`git branch -f ${phaseBranch} origin/${phaseBranch}`, { stdio: "pipe" });
+  } catch {
+    // ローカルブランチの更新失敗は警告のみ（リモートは更新済み）
+    console.log(`   ⚠️ ローカルブランチの更新をスキップ: ${phaseBranch}`);
   }
 }

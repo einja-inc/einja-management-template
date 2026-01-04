@@ -1,6 +1,6 @@
 module.exports = {
-	plugins: {
-		"@pandacss/dev/postcss": {},
-		"@tailwindcss/postcss": {},
-	},
+  plugins: {
+    "@pandacss/dev/postcss": {},
+    "@tailwindcss/postcss": {},
+  },
 };

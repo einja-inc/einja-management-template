@@ -113,9 +113,9 @@ project-root/
 ├── packages/                     # 共有パッケージ層
 │   └── server-core/             # サーバーサイド共通ロジック
 │       ├── src/
+│       │   ├── core/           # アーキテクチャのコア（Result型等）
 │       │   ├── domain/         # ドメイン層
-│       │   ├── infrastructure/ # インフラ層
-│       │   └── utils/          # ユーティリティ
+│       │   └── infrastructure/ # インフラ層
 │       └── package.json
 │
 ├── scripts/                      # スクリプト

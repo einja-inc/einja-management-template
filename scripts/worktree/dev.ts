@@ -20,6 +20,82 @@ import {
 /** 設定を保持するグローバル変数 */
 let config: WorktreeConfig;
 
+/** ログファイルのファイルディスクリプタ（バックグラウンドモード時のみ使用） */
+let logFd: number | null = null;
+
+/**
+ * ログファイルを初期化（バックグラウンドモード時）
+ * @param logFile - ログファイルパス
+ */
+function initLogFile(logFile: string): void {
+	// ログディレクトリを作成
+	const logDir = path.dirname(logFile);
+	if (!fs.existsSync(logDir)) {
+		fs.mkdirSync(logDir, { recursive: true });
+	}
+	// ログファイルをクリアして新規作成
+	logFd = fs.openSync(logFile, "w");
+	// タイムスタンプ付きヘッダーを書き込み
+	const header = `${"=".repeat(60)}\n[${new Date().toISOString()}] 開発サーバー起動\n${"=".repeat(60)}\n`;
+	fs.writeSync(logFd, header);
+}
+
+/**
+ * ログを出力（標準出力 + ログファイル）
+ * @param message - ログメッセージ
+ */
+function log(message: string): void {
+	console.log(message);
+	if (logFd !== null) {
+		fs.writeSync(logFd, message + "\n");
+	}
+}
+
+/**
+ * エラーログを出力（標準エラー + ログファイル）
+ * @param message - エラーメッセージ
+ */
+function logError(message: string): void {
+	console.error(message);
+	if (logFd !== null) {
+		fs.writeSync(logFd, message + "\n");
+	}
+}
+
+/**
+ * コマンドを実行し、出力をログに記録
+ * @param command - 実行するコマンド
+ * @param options - execSync のオプション（envなど）
+ * @returns コマンドの出力
+ */
+function execWithLog(
+	command: string,
+	options: Parameters<typeof execSync>[1] = {},
+): string {
+	try {
+		const result = execSync(command, {
+			...options,
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		});
+		if (result) {
+			log(result.trim());
+		}
+		return result;
+	} catch (error) {
+		if (error instanceof Error && "stdout" in error) {
+			const execError = error as { stdout: string; stderr: string };
+			if (execError.stdout) {
+				log(execError.stdout.trim());
+			}
+			if (execError.stderr) {
+				logError(execError.stderr.trim());
+			}
+		}
+		throw error;
+	}
+}
+
 /**
  * 設定を取得（遅延読み込み）
  */
@@ -79,31 +155,34 @@ export function generateDatabaseName(branchName: string): string {
 }
 
 /**
- * ポートが使用中かチェック
+ * ポートが使用中かチェック（LISTENまたはESTABLISHED状態のみ）
  *
  * @param port - チェックするポート番号
  * @returns ポートが使用中の場合true
  */
 export function isPortInUse(port: number): boolean {
 	try {
-		// lsofコマンドでポートを使用しているプロセスを確認
-		execSync(`lsof -i :${port}`, { stdio: "ignore" });
-		return true;
+		// lsofコマンドでポートをLISTENしているプロセスを確認
+		const result = execSync(`lsof -i :${port} -s TCP:LISTEN`, {
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		});
+		return result.trim().length > 0;
 	} catch {
 		return false;
 	}
 }
 
 /**
- * ポートを使用しているプロセスのPIDを取得
+ * ポートを使用しているプロセスのPIDを取得（LISTEN状態のみ）
  *
  * @param port - チェックするポート番号
  * @returns PIDの配列（見つからない場合は空配列）
  */
 export function getProcessesOnPort(port: number): number[] {
 	try {
-		// lsofコマンドでポートを使用しているプロセスのPIDを取得
-		const result = execSync(`lsof -ti :${port}`, { encoding: "utf-8" }).trim();
+		// lsofコマンドでポートをLISTENしているプロセスのPIDを取得
+		const result = execSync(`lsof -ti :${port} -s TCP:LISTEN`, { encoding: "utf-8" }).trim();
 		if (!result) return [];
 		return result.split("\n").map((pid) => Number.parseInt(pid, 10)).filter((pid) => !Number.isNaN(pid));
 	} catch {
@@ -185,14 +264,14 @@ export function getLogFilePath(): string {
 }
 
 /**
- * ポートを使用しているプロセスのコマンドパスを取得
+ * ポートを使用しているプロセスのコマンドパスを取得（LISTEN状態のみ）
  *
  * @param port - チェックするポート番号
  * @returns コマンドパスの配列
  */
 export function getProcessCommandsOnPort(port: number): { pid: number; command: string }[] {
 	try {
-		const result = execSync(`lsof -i :${port} -Fp -Fc`, { encoding: "utf-8" }).trim();
+		const result = execSync(`lsof -i :${port} -s TCP:LISTEN -Fp -Fc`, { encoding: "utf-8" }).trim();
 		if (!result) return [];
 
 		const processes: { pid: number; command: string }[] = [];
@@ -419,15 +498,14 @@ export function startPostgres(): string {
 	// 既存のPostgreSQLコンテナを確認
 	const existingContainer = getRunningPostgresContainer();
 	if (existingContainer) {
-		console.log(`✅ PostgreSQL（${existingContainer}）は既に起動しています`);
+		log(`✅ PostgreSQL（${existingContainer}）は既に起動しています`);
 		return existingContainer;
 	}
 
-	console.log("🐘 PostgreSQLコンテナを起動します...");
+	log("🐘 PostgreSQLコンテナを起動します...");
 
 	// 環境変数を設定してdocker compose up
-	execSync("docker compose up -d postgres", {
-		stdio: "inherit",
+	execWithLog("docker compose up -d postgres", {
 		env: {
 			...process.env,
 			POSTGRES_PORT: cfg.postgres.port.toString(),
@@ -436,7 +514,7 @@ export function startPostgres(): string {
 	});
 
 	// 起動待機
-	console.log("⏳ PostgreSQL起動を待機中...");
+	log("⏳ PostgreSQL起動を待機中...");
 	let retries = 0;
 	const maxRetries = 30;
 
@@ -447,7 +525,7 @@ export function startPostgres(): string {
 				execSync(`docker exec ${container} pg_isready -U postgres`, {
 					stdio: "ignore",
 				});
-				console.log("✅ PostgreSQL起動完了");
+				log("✅ PostgreSQL起動完了");
 				return container;
 			} catch {
 				// まだ準備中
@@ -470,7 +548,7 @@ export function ensureDatabaseExists(
 	containerName: string,
 	databaseName: string,
 ): void {
-	console.log(`🗄️  データベース「${databaseName}」を確認中...`);
+	log(`🗄️  データベース「${databaseName}」を確認中...`);
 
 	try {
 		// データベースの存在確認
@@ -480,7 +558,7 @@ export function ensureDatabaseExists(
 		).trim();
 
 		if (result === "1") {
-			console.log(`✅ データベース「${databaseName}」は既に存在します`);
+			log(`✅ データベース「${databaseName}」は既に存在します`);
 			return;
 		}
 	} catch {
@@ -488,14 +566,11 @@ export function ensureDatabaseExists(
 	}
 
 	// データベース作成
-	console.log(`📦 データベース「${databaseName}」を作成します...`);
-	execSync(
+	log(`📦 データベース「${databaseName}」を作成します...`);
+	execWithLog(
 		`docker exec ${containerName} psql -U postgres -c "CREATE DATABASE ${databaseName}"`,
-		{
-			stdio: "inherit",
-		},
 	);
-	console.log(`✅ データベース「${databaseName}」を作成しました`);
+	log(`✅ データベース「${databaseName}」を作成しました`);
 }
 
 /**
@@ -505,20 +580,19 @@ export function ensureDatabaseExists(
  */
 export function runMigration(databaseName: string): void {
 	const cfg = getConfig();
-	console.log("🔄 マイグレーションを実行します...");
+	log("🔄 マイグレーションを実行します...");
 	const databaseUrl = `postgresql://postgres:postgres@localhost:${cfg.postgres.port}/${databaseName}?schema=public`;
 
 	try {
-		execSync("pnpm db:push", {
-			stdio: "inherit",
+		execWithLog("pnpm db:push", {
 			env: {
 				...process.env,
 				DATABASE_URL: databaseUrl,
 			},
 		});
-		console.log("✅ マイグレーション完了");
+		log("✅ マイグレーション完了");
 	} catch (error) {
-		console.error("❌ マイグレーションに失敗しました");
+		logError("❌ マイグレーションに失敗しました");
 		throw error;
 	}
 }
@@ -538,15 +612,23 @@ function startDevServer(
 	// ポートの確保は ensurePorts() で実施済み
 
 	if (background && logFile) {
-		console.log("🚀 開発サーバーをバックグラウンドで起動します...");
-		console.log(`📄 ログファイル: ${logFile}`);
+		log("🚀 開発サーバーをバックグラウンドで起動します...");
+		log(`📄 ログファイル: ${logFile}`);
 
-		// ログファイルをクリアして新規作成
-		const logStream = fs.openSync(logFile, "w");
-
-		// タイムスタンプ付きヘッダーをログに追加
-		const header = `${"=".repeat(60)}\n[${new Date().toISOString()}] 開発サーバー起動\n${"=".repeat(60)}\n`;
-		fs.writeSync(logStream, header);
+		// 既存のlogFdを使用するか、新規作成
+		let logStream: number;
+		if (logFd !== null) {
+			// 既存のログファイルディスクリプタを使用（前処理ログと連続）
+			logStream = logFd;
+			// turbo開始のセパレータを追加
+			const separator = `\n${"=".repeat(60)}\n[${new Date().toISOString()}] turbo run dev 開始\n${"=".repeat(60)}\n`;
+			fs.writeSync(logStream, separator);
+		} else {
+			// ログファイルをクリアして新規作成（setupなしの場合）
+			logStream = fs.openSync(logFile, "w");
+			const header = `${"=".repeat(60)}\n[${new Date().toISOString()}] 開発サーバー起動\n${"=".repeat(60)}\n`;
+			fs.writeSync(logStream, header);
+		}
 
 		// バックグラウンドプロセスとして起動
 		const child = spawn("pnpm", ["turbo", "run", "dev"], {
@@ -566,15 +648,15 @@ function startDevServer(
 		const pidFile = logFile.replace(".log", ".pid");
 		fs.writeFileSync(pidFile, child.pid?.toString() ?? "");
 
-		console.log(`✅ 開発サーバーが起動しました (PID: ${child.pid})`);
-		console.log(`\n📋 ログを確認: tail -f ${logFile}`);
-		console.log(`🛑 停止: pnpm dev:stop`);
+		log(`✅ 開発サーバーが起動しました (PID: ${child.pid})`);
+		log(`\n📋 ログを確認: tail -f ${logFile}`);
+		log(`🛑 停止: pnpm dev:stop`);
 
 		// 親プロセスは終了
 		process.exit(0);
 	}
 
-	console.log("🚀 開発サーバーを起動します...");
+	log("🚀 開発サーバーを起動します...");
 
 	// spawn を使用してプロセスを実行（環境変数を渡す）
 	const child = spawn("pnpm", ["turbo", "run", "dev"], {
@@ -587,7 +669,7 @@ function startDevServer(
 	});
 
 	child.on("error", (error) => {
-		console.error("開発サーバーの起動に失敗しました:", error);
+		logError(`開発サーバーの起動に失敗しました: ${error}`);
 		process.exit(1);
 	});
 
@@ -609,9 +691,14 @@ export function main(options: {
 	const { setupOnly = false, skipSetup = false, background = false } = options;
 	const cfg = getConfig();
 
+	// バックグラウンドモードの場合、ログファイルを初期化
+	const logFile = getLogFilePath();
+	if (background) {
+		initLogFile(logFile);
+	}
+
 	// バックグラウンドモードの場合、既存のサーバーを停止
 	if (background) {
-		const logFile = getLogFilePath();
 		const pidFile = logFile.replace(".log", ".pid");
 
 		if (fs.existsSync(pidFile)) {
@@ -619,8 +706,8 @@ export function main(options: {
 			if (!Number.isNaN(pid)) {
 				try {
 					process.kill(pid, 0); // プロセス存在確認
-					console.log(`⚠️  既存の開発サーバー (PID: ${pid}) が起動中です`);
-					console.log("🔄 既存サーバーを停止して再起動します...");
+					log(`⚠️  既存の開発サーバー (PID: ${pid}) が起動中です`);
+					log("🔄 既存サーバーを停止して再起動します...");
 					stopDevServer();
 				} catch {
 					// プロセスが存在しない場合はPIDファイルを削除
@@ -637,22 +724,22 @@ export function main(options: {
 	}
 
 	const branch = getCurrentBranch();
-	console.log(`現在のブランチ: ${branch}`);
+	log(`現在のブランチ: ${branch}`);
 
 	// ブランチ名からデータベース名を生成
 	const databaseName = generateDatabaseName(branch);
-	console.log(`データベース名: ${databaseName}`);
+	log(`データベース名: ${databaseName}`);
 
 	// ブランチ名からポート番号を計算（固定）
 	const calculatedPorts = calculatePorts(branch, cfg.apps);
-	console.log("ポート:", calculatedPorts);
+	log(`ポート: ${JSON.stringify(calculatedPorts)}`);
 
 	// ポートを確保（自リポジトリのプロセスのみkill対象）
 	const availablePorts = ensurePorts(calculatedPorts);
 
 	// .envに書き込み
 	writeEnvFile(availablePorts, databaseName);
-	console.log(".envに書き込みました");
+	log(".envに書き込みました");
 
 	// PostgreSQLの起動確認・起動（コンテナ名を取得）
 	const containerName = startPostgres();
@@ -666,7 +753,7 @@ export function main(options: {
 	// webアプリのポートを取得（表示用）
 	const webPort = availablePorts.web ?? Object.values(availablePorts)[0];
 
-	console.log(`
+	log(`
 ===========================================
 Worktree環境設定完了
 ===========================================
@@ -695,10 +782,7 @@ ${Object.entries(availablePorts)
 		envVars[`PORT_${id.toUpperCase()}`] = port.toString();
 	}
 
-	// ログファイルパスを取得
-	const logFile = getLogFilePath();
-
-	// 開発サーバーを起動
+	// 開発サーバーを起動（logFileは関数冒頭で取得済み）
 	startDevServer(envVars, { background, logFile });
 }
 

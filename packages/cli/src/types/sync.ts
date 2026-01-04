@@ -60,3 +60,27 @@ export interface SyncTarget {
 	/** ローカルに存在するか */
 	exists: boolean;
 }
+
+/**
+ * コンフリクト情報の型定義
+ */
+export interface Conflict {
+	/** コンフリクトが発生した行番号 */
+	line: number;
+	/** ローカル版の内容 */
+	localContent: string;
+	/** テンプレート版の内容 */
+	templateContent: string;
+}
+
+/**
+ * マージ結果の型定義
+ */
+export interface MergeResult {
+	/** マージが成功したか（コンフリクトなし） */
+	success: boolean;
+	/** マージ後の内容 */
+	content: string;
+	/** コンフリクト一覧 */
+	conflicts: Conflict[];
+}

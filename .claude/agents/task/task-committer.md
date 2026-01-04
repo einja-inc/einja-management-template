@@ -21,14 +21,6 @@ QA合格後の変更をコミット・プッシュします。
 
 task-commit Skillを実行し、結果を返却します。
 
-## 入力パラメータ
-
-呼び出し時のpromptから以下を解析:
-
-- `skip_quality_check`: boolean
-  - task-qaから呼び出された場合は `true`（品質チェックをスキップ）
-  - 単独実行の場合は `false`（品質チェックを実行）
-
 ## 出力形式
 
 task-commit Skillの出力形式に従い、以下の形式で結果を報告します:

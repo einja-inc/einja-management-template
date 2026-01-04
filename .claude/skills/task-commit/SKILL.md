@@ -17,16 +17,6 @@ allowed-tools:
 
 変更をコミット・プッシュします。`docs/github-workflow.mdc` のコミットルールに厳格に従い、適切な粒度でコミットを分割します。
 
-## 入力パラメータ
-
-- `skip_quality_check`: boolean（省略可能）
-  - `true`: 品質チェック（lint/typecheck/test/build）をスキップ
-  - `false`または省略: 品質チェックを実行
-
-task-qaから呼び出された場合は `skip_quality_check=true` が渡されます。
-
----
-
 ## 実行手順（6ステップ）
 
 ### ステップ1: 変更確認
@@ -107,37 +97,11 @@ task-qaから呼び出された場合は `skip_quality_check=true` が渡され�
 
 ---
 
-### ステップ4: 品質チェック（条件付き）
+### ステップ4: 品質チェック（スキップ）
 
-#### `skip_quality_check=true` の場合
-- スキップして次のステップへ
+task-exec経由でQA合格後に呼び出されるため、品質チェック（lint/typecheck/test/build）は**スキップ**します。
 
-#### `skip_quality_check=false` または省略の場合
-
-以下のコマンドを順次実行:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
-
-**失敗時**: 以下を出力して終了（コミットしない）
-
-```markdown
-## 🚀 コミット・プッシュ
-
-### ステータス: ❌ FAILURE
-
-**エラー**: 品質チェックに失敗しました。
-
-\`\`\`
-[エラー詳細]
-\`\`\`
-
-問題を修正してから再度実行してください。
-```
+QAフェーズで既に実行済みのため、重複実行は不要です。
 
 ---
 

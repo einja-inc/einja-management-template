@@ -1,5 +1,6 @@
-import { PrismaClient, UserRole, UserStatus } from "@prisma/client";
+import { PrismaClient, UserStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { sampleSeedUsers } from "../src/testing/factories/UserFactory";
 
 const prisma = new PrismaClient();
 
@@ -20,60 +21,6 @@ function randomDate(start: Date, end: Date): Date {
 	);
 }
 
-/**
- * サンプルユーザーデータ
- */
-const sampleUsers = [
-	{
-		name: "田中太郎",
-		email: "tanaka@example.com",
-		status: UserStatus.active,
-		role: UserRole.admin,
-	},
-	{
-		name: "佐藤花子",
-		email: "sato@example.com",
-		status: UserStatus.active,
-		role: UserRole.user,
-	},
-	{
-		name: "鈴木一郎",
-		email: "suzuki@example.com",
-		status: UserStatus.inactive,
-		role: UserRole.user,
-	},
-	{
-		name: "高橋美咲",
-		email: "takahashi@example.com",
-		status: UserStatus.pending,
-		role: UserRole.moderator,
-	},
-	{
-		name: "伊藤健太",
-		email: "ito@example.com",
-		status: UserStatus.active,
-		role: UserRole.user,
-	},
-	{
-		name: "山田恵子",
-		email: "yamada@example.com",
-		status: UserStatus.active,
-		role: UserRole.admin,
-	},
-	{
-		name: "中村誠",
-		email: "nakamura@example.com",
-		status: UserStatus.inactive,
-		role: UserRole.user,
-	},
-	{
-		name: "小林優子",
-		email: "kobayashi@example.com",
-		status: UserStatus.pending,
-		role: UserRole.user,
-	},
-];
-
 async function main() {
 	console.log("シードデータの投入を開始します...");
 
@@ -85,7 +32,7 @@ async function main() {
 	const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 	const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-	for (const userData of sampleUsers) {
+	for (const userData of sampleSeedUsers) {
 		const createdAt = randomDate(oneMonthAgo, oneWeekAgo);
 		const lastLogin =
 			userData.status === UserStatus.active

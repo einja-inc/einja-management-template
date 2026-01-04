@@ -23,13 +23,19 @@ export class TaskStateManager {
    */
   registerTaskMapping(vibeTaskId: string, taskGroupId: string): void {
     this.vibeTaskToGroupMap.set(vibeTaskId, taskGroupId);
+    console.log(`   🔗 マッピング登録: ${vibeTaskId} → ${taskGroupId}`);
   }
 
   /**
    * 現在の Done タスク ID 一覧を設定（初期化用）
    */
   initializeDoneTaskIds(tasks: VibeKanbanTask[]): void {
-    this.previousDoneTaskIds = new Set(tasks.filter((t) => t.status === "done").map((t) => t.id));
+    const doneTasks = tasks.filter((t) => t.status === "done");
+    this.previousDoneTaskIds = new Set(doneTasks.map((t) => t.id));
+    console.log(`🔧 初期化: previousDoneTaskIds に ${doneTasks.length} 件を登録`);
+    for (const task of doneTasks) {
+      console.log(`   - ${task.id} (${task.title})`);
+    }
   }
 
   /**
@@ -41,11 +47,19 @@ export class TaskStateManager {
       currentTasks.filter((t) => t.status === "done").map((t) => t.id)
     );
 
+    // デバッグ: 比較情報を出力
+    console.log(`   🔍 Done検出: 現在Done=${currentDoneIds.size}件, 前回Done=${this.previousDoneTaskIds.size}件`);
+
     const newlyCompletedIds: string[] = [];
     for (const id of Array.from(currentDoneIds)) {
       if (!this.previousDoneTaskIds.has(id)) {
         newlyCompletedIds.push(id);
+        console.log(`      🆕 新規完了検出: ${id}`);
       }
+    }
+
+    if (newlyCompletedIds.length === 0 && currentDoneIds.size > 0) {
+      console.log(`      ℹ️  全てのDoneタスクは既に検出済み`);
     }
 
     // 状態を更新
@@ -63,6 +77,9 @@ export class TaskStateManager {
       const taskGroupId = this.vibeTaskToGroupMap.get(vibeTaskId);
       if (taskGroupId) {
         taskGroupIds.push(taskGroupId);
+        console.log(`   📎 マッピング成功: ${vibeTaskId} → ${taskGroupId}`);
+      } else {
+        console.log(`   ⚠️ マッピング失敗: ${vibeTaskId} (登録されていません)`);
       }
     }
     return taskGroupIds;

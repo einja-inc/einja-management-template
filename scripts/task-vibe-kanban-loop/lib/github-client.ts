@@ -96,17 +96,36 @@ export function getRepoInfo(): RepoInfo {
 /**
  * Issue 本文のタスクグループを完了マークに更新
  * - [ ] **X.Y タスク名** → - [x] **X.Y タスク名**
+ * - [ ] X.Y タスク名 → - [x] X.Y タスク名
  */
 export function markTaskGroupAsCompleted(issueBody: string, taskGroupId: string): string {
-  // パターン: - [ ] **X.Y で始まる行のチェックボックスを更新
-  // 着手中コメントも削除
-  const pattern = new RegExp(`^(\\s*)- \\[ \\] (\\*\\*${escapeRegex(taskGroupId)}\\s)(.*)$`, "gm");
+  // パターン1: ボールドあり - [ ] **X.Y タスク名**
+  const boldPattern = new RegExp(
+    `^(\\s*)- \\[ \\] (\\*\\*${escapeRegex(taskGroupId)}\\s)(.*)$`,
+    "gm"
+  );
 
-  return issueBody.replace(pattern, (_match, indent, prefix, rest) => {
-    // 着手中コメントを削除
+  // パターン2: ボールドなし - [ ] X.Y タスク名
+  const plainPattern = new RegExp(
+    `^(\\s*)- \\[ \\] (${escapeRegex(taskGroupId)}\\s)(.*)$`,
+    "gm"
+  );
+
+  let result = issueBody;
+
+  // ボールドありパターンを置換
+  result = result.replace(boldPattern, (_match, indent, prefix, rest) => {
     const cleanedRest = rest.replace(/\s*<!--\s*🔄\s*着手中\s*-->\s*$/, "");
     return `${indent}- [x] ${prefix}${cleanedRest}`;
   });
+
+  // ボールドなしパターンを置換
+  result = result.replace(plainPattern, (_match, indent, prefix, rest) => {
+    const cleanedRest = rest.replace(/\s*<!--\s*🔄\s*着手中\s*-->\s*$/, "");
+    return `${indent}- [x] ${prefix}${cleanedRest}`;
+  });
+
+  return result;
 }
 
 /**

@@ -1,17 +1,23 @@
 {
-	"extends": "@einja/config/typescript",
-	"compilerOptions": {
-		"plugins": [
-			{
-				"name": "next"
-			}
-		],
-		"paths": {
-			"@/*": ["./src/*"],
-			"@/styled-system/*": ["./styled-system/*"],
-			"styled-system/*": ["./styled-system/*"]
-		}
-	},
-	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-	"exclude": ["node_modules"]
+  "extends": "@repo/config/typescript",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/styled-system/*": ["./styled-system/*"],
+      "styled-system/*": ["./styled-system/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../../packages/front-core/src/auth/types/**/*.d.ts"
+  ],
+  "exclude": ["node_modules"]
 }

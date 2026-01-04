@@ -7,24 +7,54 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": ["styled-system", ".next", ".claude"]
+		"ignore": [
+			"**/node_modules",
+			"**/.next",
+			"**/.turbo",
+			"**/dist",
+			"**/build",
+			"**/.cache",
+			"**/coverage",
+			"**/.vercel",
+			"**/.pnpm-store",
+			"styled-system",
+			"**/test-results",
+			"**/playwright-report",
+			".claude"
+		]
 	},
 	"formatter": {
-		"enabled": true,
-		"indentStyle": "tab"
-	},
-	"organizeImports": {
-		"enabled": true
+		"indentStyle": "space",
+		"lineWidth": 100
 	},
 	"linter": {
-		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"suspicious": {
+				"noExplicitAny": "error"
+			},
+			"complexity": {
+				"noForEach": "off"
+			},
+			"style": {
+				"useImportType": "error",
+				"useConst": "error",
+				"noParameterAssign": "error",
+				"useAsConstAssertion": "error",
+				"useDefaultParameterLast": "error",
+				"useEnumInitializers": "error",
+				"useSelfClosingElements": "error",
+				"useSingleVarDeclarator": "error",
+				"noUnusedTemplateLiteral": "error",
+				"useNumberNamespace": "error",
+				"noInferrableTypes": "error",
+				"noUselessElse": "error"
+			}
 		}
 	},
 	"javascript": {
 		"formatter": {
-			"quoteStyle": "double"
+			"trailingCommas": "es5"
 		}
 	}
 }

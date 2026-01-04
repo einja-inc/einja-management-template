@@ -245,8 +245,6 @@ export function isProcessFromThisRepo(pid: number): boolean {
  * @returns 確保したポート番号セット
  */
 export function ensurePorts(ports: Record<string, number>): Record<string, number> {
-	const projectRoot = process.cwd();
-
 	for (const [appId, port] of Object.entries(ports)) {
 		if (!isPortInUse(port)) {
 			continue;
@@ -543,11 +541,11 @@ function startDevServer(
 		console.log("🚀 開発サーバーをバックグラウンドで起動します...");
 		console.log(`📄 ログファイル: ${logFile}`);
 
-		// ログファイルを開く（追記モード）
-		const logStream = fs.openSync(logFile, "a");
+		// ログファイルをクリアして新規作成
+		const logStream = fs.openSync(logFile, "w");
 
 		// タイムスタンプ付きヘッダーをログに追加
-		const header = `\n${"=".repeat(60)}\n[${new Date().toISOString()}] 開発サーバー起動\n${"=".repeat(60)}\n`;
+		const header = `${"=".repeat(60)}\n[${new Date().toISOString()}] 開発サーバー起動\n${"=".repeat(60)}\n`;
 		fs.writeSync(logStream, header);
 
 		// バックグラウンドプロセスとして起動

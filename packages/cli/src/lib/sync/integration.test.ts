@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ConflictReporter } from "../conflict-reporter.js";
-import { DiffEngine } from "../diff-engine.js";
-import type { Conflict } from "../../../types/sync.js";
+import { ConflictReporter } from "./conflict-reporter.js";
+import { DiffEngine } from "./diff-engine.js";
+import type { Conflict } from "../../types/sync.js";
 
 /**
  * タスクグループ1.3: 3方向マージエンジンとコンフリクト検出の統合テスト

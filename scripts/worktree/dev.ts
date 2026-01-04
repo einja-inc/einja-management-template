@@ -365,8 +365,6 @@ export function writeEnvFile(
 	// webアプリがあればNEXTAUTH_URLを設定
 	if (ports.web) {
 		envSettings.NEXTAUTH_URL = `http://localhost:${ports.web}`;
-		// 後方互換性のためPORTも設定
-		envSettings.PORT = ports.web.toString();
 	}
 
 	// 環境変数の更新または追加
@@ -692,7 +690,6 @@ ${Object.entries(availablePorts)
 		DATABASE_URL: `postgresql://postgres:postgres@localhost:${cfg.postgres.port}/${databaseName}?schema=public`,
 		NEXTAUTH_URL: `http://localhost:${webPort}`,
 		AUTH_SECRET: generateAuthSecret(),
-		PORT: webPort.toString(),
 	};
 
 	// 各アプリのポートを追加

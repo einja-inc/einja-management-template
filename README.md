@@ -12,15 +12,26 @@ einja-management-template/
 │   └── web/                      # メイン管理画面アプリ
 │       ├── src/
 │       │   ├── app/              # Next.js App Router
-│       │   ├── components/        # アプリ固有のコンポーネント
-│       │   └── lib/              # アプリ固有のユーティリティ
+│       │   ├── components/       # アプリ固有のコンポーネント
+│       │   └── lib/
+│       │       ├── auth/         # アプリ固有の認証設定
+│       │       └── ...           # アプリ固有のユーティリティ
 │       ├── package.json
 │       └── tsconfig.json
 ├── packages/
 │   ├── config/                   # 共通設定（Biome, TypeScript, Panda CSS）
-│   ├── types/                    # 共通型定義
-│   ├── database/                 # Prismaスキーマとクライアント
-│   ├── auth/                     # NextAuth設定と認証ロジック
+│   ├── front-core/               # フロントエンド共通層
+│   │   └── src/
+│   │       ├── auth/             # NextAuth共通設定・型定義
+│   │       ├── hooks/            # 共通hooks
+│   │       ├── utils/            # 共通ユーティリティ
+│   │       └── context/          # 共通context
+│   ├── server-core/              # バックエンド共通層
+│   │   ├── prisma/               # Prismaスキーマ
+│   │   └── src/
+│   │       ├── domain/           # ドメイン層
+│   │       ├── infrastructure/   # Prismaクライアント等
+│   │       └── utils/            # 共通ユーティリティ
 │   └── ui/                       # 共通UIコンポーネント（shadcn/ui）
 ├── turbo.json                    # Turborepoの設定
 ├── pnpm-workspace.yaml          # pnpmワークスペース設定
@@ -93,6 +104,32 @@ pnpm build            # 全アプリのプロダクションビルド
 pnpm start            # プロダクションサーバーを起動
 ```
 
+### 環境変数の管理
+
+対話式ウィザードで環境変数を設定・変更できます：
+
+```bash
+pnpm env:update
+```
+
+#### メニュー
+
+1. **個人トークンを設定** - `GITHUB_TOKEN` 等の個人用トークンを `.env.personal` に設定
+2. **環境設定を変更** - 各環境の暗号化された設定ファイルを編集
+3. **現在の状態を確認** - 環境変数の設定状況を表示
+
+#### 対応環境
+
+| 環境 | ファイル | 用途 |
+|------|----------|------|
+| ローカル開発 | `.env.local` | ローカル開発環境 |
+| 開発 | `.env.development` | 開発環境 |
+| ステージング | `.env.staging` | ステージング環境 |
+| 本番 | `.env.production` | 本番環境 |
+| CI | `.env.ci` | CI環境 |
+
+> **Note**: 環境設定の変更には `.env.keys` の秘密鍵が必要です。本番環境の変更時は追加の確認が表示されます。
+
 ### コード品質
 
 ```bash
@@ -125,9 +162,9 @@ pnpm db:studio        # Prisma Studio起動
 
 ```bash
 # 特定のワークスペースでコマンド実行
-pnpm --filter @einja/web dev
-pnpm --filter @einja/web build
-pnpm --filter @einja/web panda codegen
+pnpm --filter @repo/web dev
+pnpm --filter @repo/web build
+pnpm --filter @repo/web panda codegen
 ```
 
 ## データベース設定
@@ -172,11 +209,10 @@ pnpm db:studio
 
 ### packages
 
-- **@einja/config**: Biome, TypeScript, Panda CSSの共通設定
-- **@einja/types**: 型定義（NextAuth型拡張など）
-- **@einja/database**: Prismaクライアントとスキーマ
-- **@einja/auth**: NextAuth設定と認証ガード
-- **@einja/ui**: 共通UIコンポーネント（shadcn/ui）
+- **@repo/config**: Biome, TypeScript, Panda CSSの共通設定
+- **@repo/front-core**: フロントエンド共通層（認証共通設定、hooks、utils、context）
+- **@repo/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
+- **@repo/ui**: 共通UIコンポーネント（shadcn/ui）
 
 ## 開発ワークフロー
 
@@ -217,7 +253,7 @@ volta install pnpm@10.14.0
 
 ```bash
 # styled-systemを再生成
-pnpm --filter @einja/web panda codegen
+pnpm --filter @repo/web panda codegen
 ```
 
 ### Prisma関連エラー

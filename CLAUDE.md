@@ -2,6 +2,12 @@
 - 回答は日本語で行ってください。
 - 必ずこのドキュメントの通りに作業を行ってください。
 
+## 新規セッション時の動作方針
+
+**重要**: 新規セッションでコード変更の指示があった場合、**即座に実装を開始せず、必ずPlanモードで計画を立て、ユーザー承認を得てから実装する**。例外は読み取り専用操作（質問への回答、情報調査）のみ。
+
+提案文言: 「この変更について、まずPlanモードで計画を立てて提示しましょうか？」
+
 ## プロジェクト構成
 
 このプロジェクトは**Turborepo**を使用したモノレポ構成になっています。
@@ -12,15 +18,26 @@ einja-management-template/
 │   └── web/                      # メイン管理画面アプリ
 │       ├── src/
 │       │   ├── app/              # Next.js App Router
-│       │   ├── components/        # アプリ固有のコンポーネント
-│       │   └── lib/              # アプリ固有のユーティリティ
+│       │   ├── components/       # アプリ固有のコンポーネント
+│       │   └── lib/
+│       │       ├── auth/         # アプリ固有の認証設定
+│       │       └── ...           # アプリ固有のユーティリティ
 │       ├── package.json
 │       └── tsconfig.json
 ├── packages/
 │   ├── config/                   # 共通設定（Biome, TypeScript, Panda CSS）
-│   ├── types/                    # 共通型定義
-│   ├── database/                 # Prismaスキーマとクライアント
-│   ├── auth/                     # NextAuth設定と認証ロジック
+│   ├── front-core/               # フロントエンド共通層
+│   │   └── src/
+│   │       ├── auth/             # NextAuth共通設定・型定義
+│   │       ├── hooks/            # 共通hooks（将来拡張用）
+│   │       ├── utils/            # 共通ユーティリティ（将来拡張用）
+│   │       └── context/          # 共通context（将来拡張用）
+│   ├── server-core/              # バックエンド共通層
+│   │   ├── prisma/               # Prismaスキーマ
+│   │   └── src/
+│   │       ├── domain/           # ドメイン層（将来拡張用）
+│   │       ├── infrastructure/   # Prismaクライアント等
+│   │       └── utils/            # 共通ユーティリティ
 │   └── ui/                       # 共通UIコンポーネント（shadcn/ui）
 ├── turbo.json                    # Turborepoの設定
 ├── pnpm-workspace.yaml          # pnpmワークスペース設定
@@ -126,12 +143,11 @@ pnpm env:prepare
 - ワークスペース間の依存関係管理
 
 ### パッケージ構成:
-- `@einja/config` - 共通設定（Biome, TypeScript, Panda CSS）
-- `@einja/types` - 型定義（NextAuth型拡張など）
-- `@einja/database` - Prismaクライアントとスキーマ
-- `@einja/auth` - NextAuth設定と認証ガード
-- `@einja/ui` - 共通UIコンポーネント（shadcn/ui）
-- `@einja/web` - メイン管理画面アプリケーション
+- `@repo/config` - 共通設定（Biome, TypeScript, Panda CSS）
+- `@repo/front-core` - フロントエンド共通層（認証共通設定、hooks、utils、context）
+- `@repo/server-core` - バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
+- `@repo/ui` - 共通UIコンポーネント（shadcn/ui）
+- `@repo/web` - メイン管理画面アプリケーション
 
 ### スタイリングシステム:
 - **Panda CSS** でデザイントークンとレシピを使用したスタイリング
@@ -140,7 +156,7 @@ pnpm env:prepare
 - カスタムブレークポイント: sm(640px), md(768px), lg(1024px), xl(1280px), 2xl(1440px)
 
 ### コード品質:
-- **Biome** でlintingとフォーマット（タブインデント、ダブルクォート）
+- **Biome** でlintingとフォーマット（スペース2つインデント、ダブルクォート）
 - Huskyのpre-commitフックとlint-staged
 - `styled-system/` ディレクトリをフォーマット/lintingから除外
 
@@ -153,7 +169,7 @@ pnpm env:prepare
 
 ### 特記事項:
 - プロダクションビルド前に必ず`panda codegen`を実行
-- Biomeはタブインデントとダブルクォートを使用
+- Biomeはスペース2つインデントとダブルクォートを使用
 - ビルド時はESLintを無効化（代わりにBiomeを使用）
 - Turborepoのキャッシュ機能で高速ビルド
 
@@ -161,20 +177,23 @@ pnpm env:prepare
 
 ### パッケージ間のインポート
 ```typescript
-// 認証機能
-import { auth, signIn, signOut } from "@einja/auth";
-import { requireAuth, withAuth } from "@einja/auth/guard";
+// 認証機能（共通設定）
+import { baseAuthOptions, mergeAuthOptions } from "@repo/front-core/auth";
+
+// 認証機能（アプリローカル）
+import { auth, signIn, signOut } from "@/lib/auth";
+import { requireAuth, withAuth } from "@/lib/auth/guard";
 
 // データベース
-import { prisma, User, Post } from "@einja/database";
+import { prisma } from "@repo/server-core";
 
 // UIコンポーネント
-import { Button } from "@einja/ui/button";
-import { Card } from "@einja/ui/card";
-import { cn } from "@einja/ui/utils";
+import { Button } from "@repo/ui/button";
+import { Card } from "@repo/ui/card";
+import { cn } from "@repo/ui/utils";
 
 // 型定義
-import type { Session } from "@einja/types/next-auth";
+import type { Session } from "next-auth"; // 型拡張はfront-coreで定義済み
 ```
 
 ### アプリ内のインポート
@@ -182,6 +201,24 @@ import type { Session } from "@einja/types/next-auth";
 // apps/web内では従来通り@/を使用
 import { Component } from "@/components/...";
 import { helper } from "@/lib/...";
+```
+
+### 認証設定のパターン
+アプリ固有の認証設定は `@/lib/auth/index.ts` で `baseAuthOptions` を拡張します：
+```typescript
+import { baseAuthOptions, mergeAuthOptions } from "@repo/front-core/auth";
+import NextAuth from "next-auth";
+
+const authOptions = mergeAuthOptions(baseAuthOptions, {
+  pages: { signIn: "/signin" },  // アプリ固有
+  callbacks: {
+    async redirect({ url, baseUrl }) {
+      // アプリ固有のリダイレクトロジック
+    },
+  },
+});
+
+export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 ```
 
 ## 追加指示

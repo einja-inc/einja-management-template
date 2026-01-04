@@ -37,6 +37,7 @@
 		"dev:setup": "tsx scripts/setup-dev.ts",
 		"env:update": "tsx scripts/env.ts",
 		"env:prepare": "tsx scripts/worktree/dev.ts --setup-only",
+		"cli-template:update": "tsx scripts/cli-template-update.ts",
 		"dotenvx": "dotenvx",
 		"env:encrypt": "dotenvx encrypt"
 	},

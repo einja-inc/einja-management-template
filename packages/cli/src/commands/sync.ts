@@ -7,6 +7,10 @@ import { fileURLToPath } from "node:url";
 import type { SyncOptions } from "../types/index.js";
 import type { SyncTarget } from "../types/sync.js";
 import { BackupManager } from "../lib/sync/backup-manager.js";
+import {
+	createValidationErrorMessage,
+	validateCategories,
+} from "../lib/sync/category-validator.js";
 import { ConflictReporter } from "../lib/sync/conflict-reporter.js";
 import { DiffEngine } from "../lib/sync/diff-engine.js";
 import { FileFilter } from "../lib/sync/file-filter.js";
@@ -29,7 +33,20 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 	console.log(chalk.blue("\n🔄 テンプレート同期を開始...\n"));
 
 	// 1. カテゴリのパース（--onlyオプション）
-	const categories = options.only ? options.only.split(",") : undefined;
+	let categories: string[] | undefined = undefined;
+
+	if (options.only) {
+		const validationResult = validateCategories(options.only);
+
+		if (!validationResult.valid) {
+			// 無効なカテゴリが含まれている場合、エラーメッセージを表示して終了
+			console.error(chalk.red("\n❌ エラー:"));
+			console.error(createValidationErrorMessage(validationResult.invalidCategories));
+			process.exit(1);
+		}
+
+		categories = validationResult.validCategories;
+	}
 
 	// 2. 各マネージャーの初期化
 	const metadataManager = new MetadataManager(cwd);

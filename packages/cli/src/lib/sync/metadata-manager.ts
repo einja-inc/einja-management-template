@@ -116,7 +116,7 @@ export class MetadataManager {
 	/**
 	 * SHA-256ハッシュを計算する
 	 */
-	private calculateHash(content: string): string {
+	calculateHash(content: string): string {
 		return createHash("sha256").update(content, "utf8").digest("hex");
 	}
 

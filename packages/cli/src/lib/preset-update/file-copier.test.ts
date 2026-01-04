@@ -387,5 +387,35 @@ describe("FileCopier", () => {
         process.chdir(originalCwd);
       }
     });
+
+    it("ファイル書き込みエラーが発生した場合は詳細なエラーメッセージを返す", async () => {
+      // テストファイルを作成
+      const commandsDir = join(testDir, ".claude", "commands");
+      mkdirSync(commandsDir, { recursive: true });
+      writeFileSync(join(commandsDir, "spec-create.md"), "# spec-create");
+
+      // 書き込み不可能なプリセットディレクトリを使用（存在しないディレクトリの子パス）
+      const invalidPreset: Preset = {
+        name: "invalid",
+        path: "/nonexistent/path/to/preset",
+      };
+
+      const originalCwd = process.cwd();
+
+      try {
+        process.chdir(testDir);
+
+        // コピー実行（エラーが発生するはず）
+        await expect(
+          copier.copyToPreset({
+            preset: invalidPreset,
+            dryRun: false,
+            force: false,
+          })
+        ).rejects.toThrow(/ファイルの書き込みに失敗しました/);
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
   });
 });

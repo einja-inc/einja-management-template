@@ -287,6 +287,32 @@ async function updateTeamSettings(): Promise<void> {
 
 		// 2. エディタで開く
 		const editor = process.env.EDITOR || "vi";
+
+		// vi/vimの場合は使い方ヘルプを表示
+		if (editor === "vi" || editor === "vim") {
+			p.log.message("");
+			p.log.message("┌─────────────────────────────────────────────────┐");
+			p.log.message("│  vi/vim の基本操作                              │");
+			p.log.message("├─────────────────────────────────────────────────┤");
+			p.log.message("│  【編集モードに入る】                           │");
+			p.log.message("│    i  ... カーソル位置から入力開始              │");
+			p.log.message("│    a  ... カーソルの次の位置から入力開始        │");
+			p.log.message("│    o  ... 次の行に新しい行を挿入して入力開始    │");
+			p.log.message("│                                                 │");
+			p.log.message("│  【編集モードから出る】                         │");
+			p.log.message("│    Esc ... ノーマルモードに戻る                 │");
+			p.log.message("│                                                 │");
+			p.log.message("│  【保存・終了】(Escを押してから)                │");
+			p.log.message("│    :wq  ... 保存して終了                        │");
+			p.log.message("│    :w   ... 保存のみ                            │");
+			p.log.message("│    :q!  ... 保存せず強制終了                    │");
+			p.log.message("│                                                 │");
+			p.log.message("│  【カーソル移動】                               │");
+			p.log.message("│    h j k l  または 矢印キー                     │");
+			p.log.message("└─────────────────────────────────────────────────┘");
+			p.log.message("");
+		}
+
 		p.log.info(`${editor} で .env.local.tmp を開きます...`);
 
 		execSync(`${editor} .env.local.tmp`, {

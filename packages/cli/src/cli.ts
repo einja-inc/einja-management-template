@@ -1,12 +1,24 @@
 import { Command } from "commander";
+import chalk from "chalk";
 import { initCommand } from "./commands/init.js";
 import { listCommand } from "./commands/list.js";
 
 const program = new Command();
 
+// 旧パッケージ名での実行時に非推奨警告を表示
+const isLegacyPackageName = process.argv[1]?.includes("@einja/claude-cli");
+if (isLegacyPackageName) {
+	console.warn(
+		chalk.yellow(
+			"⚠️  警告: @einja/claude-cli は非推奨です。今後は @einja/cli をご使用ください。",
+		),
+	);
+	console.warn(chalk.yellow("   新しいパッケージ名: npx @einja/cli\n"));
+}
+
 program
-	.name("einja-claude")
-	.description("Einja Claude Code セットアップCLI - .claude設定をnpxでインストール")
+	.name("einja-cli")
+	.description("Einja CLI - .claude設定とテンプレート同期をnpxでインストール")
 	.version("0.1.0");
 
 program

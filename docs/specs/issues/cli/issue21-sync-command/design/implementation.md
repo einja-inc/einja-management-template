@@ -609,15 +609,20 @@ npx @einja/cli sync --only commands
 npx @einja/cli sync --only commands,agents
 ```
 
-## update-preset コマンド設計
+## preset:update スクリプト設計（内部開発用）
 
-### コマンド: update-preset
+### スクリプト: preset:update
 
-**概要**: プロジェクトの最新コンテンツをCLIプリセットに反映
+**概要**: プロジェクトの最新コンテンツをCLIプリセットに反映（内部開発用npm script）
+
+**実装方針**:
+- **公開CLIコマンドではなく内部npmスクリプト**として実装
+- 配置場所: `scripts/preset-update.ts`
+- 理由: 開発者専用の内部ツールを公開パッケージに含めることは一般的ではなく、パッケージの肥大化・ユーザー混乱を避けるため
 
 **基本構文**:
 ```bash
-npx @einja/cli update-preset [options]
+pnpm preset:update [options]
 ```
 
 **オプション一覧**:
@@ -633,19 +638,19 @@ npx @einja/cli update-preset [options]
 
 ```bash
 # 全プリセットを更新
-npx @einja/cli update-preset
+pnpm preset:update
 
 # 差分確認のみ
-npx @einja/cli update-preset --dry-run
+pnpm preset:update --dry-run
 
 # 特定プリセットのみ更新
-npx @einja/cli update-preset --preset turborepo-pandacss
+pnpm preset:update --preset turborepo-pandacss
 
 # 強制上書き
-npx @einja/cli update-preset --force
+pnpm preset:update --force
 
 # JSON形式で結果出力（CI/CD用）
-npx @einja/cli update-preset --json
+pnpm preset:update --json
 ```
 
 **出力形式**:
@@ -702,21 +707,24 @@ JSON形式（--jsonオプション）:
 }
 ```
 
-### update-presetモジュール構成
+### preset:updateスクリプトのモジュール構成
 
 ```
+einja-management-template/          # プロジェクトルート
+├── scripts/
+│   └── preset-update.ts            # スクリプトエントリーポイント ← 新規追加
+│
 packages/cli/
 ├── src/
 │   ├── commands/
 │   │   ├── sync.ts                    # Syncコマンド
-│   │   ├── init.ts                    # Initコマンド
-│   │   └── update-preset.ts           # Update-presetコマンド ← 新規追加
+│   │   └── init.ts                    # Initコマンド
 │   │
 │   ├── lib/
 │   │   ├── sync/
 │   │   │   └── ...                    # 既存のsync関連モジュール
 │   │   │
-│   │   ├── update-preset/             # ← 新規追加
+│   │   ├── preset-update/             # ← 新規追加（スクリプトから利用）
 │   │   │   ├── preset-finder.ts       # プリセットディレクトリ検出
 │   │   │   ├── file-copier.ts         # ファイルコピー処理
 │   │   │   └── cli-repo-detector.ts   # CLIリポジトリ判定
@@ -725,7 +733,16 @@ packages/cli/
 │   │
 │   └── types/
 │       ├── sync.ts
-│       └── update-preset.ts           # ← 新規追加
+│       └── preset-update.ts           # ← 新規追加
+```
+
+**package.jsonへの追加**:
+```json
+{
+  "scripts": {
+    "preset:update": "tsx scripts/preset-update.ts"
+  }
+}
 ```
 
 ### 主要モジュールのインターフェース
@@ -796,20 +813,20 @@ packages/cli/
 | CopiedFile | destination | string | コピー先パス |
 | CopiedFile | action | 'copied' \| 'skipped' | 実行アクション |
 
-### シーケンス図: update-preset処理フロー
+### シーケンス図: preset:update処理フロー
 
 ```mermaid
 sequenceDiagram
     participant U as ユーザー
-    participant CLI as CLI
-    participant UP as UpdatePresetCommand
+    participant Script as preset-update.ts
+    participant UP as PresetUpdateScript
     participant Detector as CLIRepoDetector
     participant Finder as PresetFinder
     participant Copier as FileCopier
     participant FS as FileSystem
 
-    U->>CLI: npx @einja/cli update-preset
-    CLI->>UP: execute()
+    U->>Script: pnpm preset:update
+    Script->>UP: execute()
 
     Note over UP: オプション解析
 
@@ -885,13 +902,13 @@ sequenceDiagram
 
 #### einja/サブディレクトリへの配置理由
 
-`update-preset`コマンドでコピーされたファイルは、プリセット内の`einja/`サブディレクトリに配置されます。これは`sync`コマンドが`einja/`ディレクトリのみを同期対象とするため、一貫性を保つためです。
+`preset:update`スクリプトでコピーされたファイルは、プリセット内の`einja/`サブディレクトリに配置されます。これは`sync`コマンドが`einja/`ディレクトリのみを同期対象とするため、一貫性を保つためです。
 
 ```
 # syncコマンド（CLIパッケージ → ユーザープロジェクト）
 packages/cli/presets/<preset>/.claude/commands/einja/ → .claude/commands/einja/
 
-# update-presetコマンド（プロジェクト → CLIパッケージ）
+# preset:updateスクリプト（プロジェクト → CLIパッケージ）
 .claude/commands/ → packages/cli/presets/<preset>/.claude/commands/einja/
 ```
 
@@ -899,7 +916,7 @@ packages/cli/presets/<preset>/.claude/commands/einja/ → .claude/commands/einja
 
 | エラー種別 | 条件 | メッセージ | 終了コード |
 |-----------|------|----------|-----------|
-| CLIリポジトリ外実行 | `packages/cli/`が存在しない | "このコマンドはCLIパッケージリポジトリ内でのみ実行できます" | 1 |
+| CLIリポジトリ外実行 | `packages/cli/`が存在しない | "このスクリプトはCLIパッケージリポジトリ内でのみ実行できます" | 1 |
 | 無効なプリセット名 | 指定プリセットが存在しない | "無効なプリセット: {name}。有効な値: minimal, turborepo-pandacss, all" | 1 |
 | コピー元ディレクトリなし | `.claude/`が存在しない | "コピー元ディレクトリが見つかりません: .claude/" | 1 |
 | 書き込み権限エラー | プリセットディレクトリへの書き込み不可 | "プリセットディレクトリへの書き込み権限がありません: {path}" | 1 |

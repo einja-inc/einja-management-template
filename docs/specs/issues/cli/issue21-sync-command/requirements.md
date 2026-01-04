@@ -74,7 +74,7 @@ graph TB
         UC5[JSON出力<br/>--json]
     end
 
-    subgraph "update-preset コマンド"
+    subgraph "preset:update スクリプト<br/>（内部開発用）"
         UC10[プリセット更新を実行]
         UC11[差分を事前確認<br/>--dry-run]
         UC12[対象プリセット指定<br/>--preset]
@@ -138,7 +138,7 @@ graph TB
 | UC5 | JSON出力 | CI/CD | `--json`で機械可読な出力を取得 |
 | UC6 | /einja:sync実行 | Claude Code | スラッシュコマンドで同期を実行 |
 | UC7 | コンフリクト自動解消 | Claude Code | AIがコンフリクトを分析・解消 |
-| UC10 | プリセット更新を実行 | CLI開発者 | プロジェクトのコンテンツをCLIプリセットに反映 |
+| UC10 | プリセット更新を実行 | CLI開発者 | `pnpm preset:update`でプロジェクトのコンテンツをCLIプリセットに反映（内部スクリプト） |
 | UC11 | プリセット更新の差分確認 | CLI開発者 | `--dry-run`で変更内容を確認（ファイル変更なし） |
 | UC12 | 対象プリセット指定 | CLI開発者 | `--preset`で特定プリセットのみ更新 |
 | UC13 | プリセット強制上書き | CLI開発者 | `--force`で既存プリセット内容を無視して上書き |
@@ -369,9 +369,9 @@ P0 (必須)
 
 ---
 
-### Story 10: プリセット更新コマンド
+### Story 10: プリセット更新スクリプト（内部開発用）
 **As a** CLIパッケージ開発者
-**I want to** `npx @einja/cli update-preset`でプロジェクトの最新コンテンツをCLIプリセットに反映したい
+**I want to** `pnpm preset:update`でプロジェクトの最新コンテンツをCLIプリセットに反映したい
 **So that** CLIパッケージリリース前にテンプレートを最新化できる
 
 #### 背景
@@ -379,7 +379,7 @@ P0 (必須)
 
 ```
 プロジェクトの .claude/
-    ↓ (update-preset コマンド) ← 本ストーリーで実装
+    ↓ (pnpm preset:update) ← 本ストーリーで実装
 packages/cli/presets/<preset-name>/.claude/
     ↓ (npm publish)
 CLIパッケージ
@@ -387,31 +387,37 @@ CLIパッケージ
 ユーザーのプロジェクト
 ```
 
+#### 実装方針
+- **公開CLIコマンドではなく内部npmスクリプト**として実装
+- 配置場所: `scripts/preset-update.ts`
+- 実行方法: `pnpm preset:update [options]`
+- 理由: 開発者専用の内部ツールを公開パッケージに含めることは一般的ではなく、パッケージの肥大化・ユーザー混乱を避けるため
+
 #### 受け入れ基準
 - [ ] **AC10.1**: Given: CLIパッケージのリポジトリ内で実行
-             When: `npx @einja/cli update-preset`を実行
+             When: `pnpm preset:update`を実行
              Then: プロジェクトの`.claude/commands/`, `.claude/agents/`, `.claude/skills/`の内容が`packages/cli/presets/turborepo-pandacss/.claude/*/einja/`にコピーされる
 - [ ] **AC10.2**: Given: `--preset minimal`オプション指定
-             When: update-presetコマンドを実行
+             When: `pnpm preset:update --preset minimal`を実行
              Then: `packages/cli/presets/minimal/`のみが更新され、他のプリセットは変更されない
 - [ ] **AC10.3**: Given: `--dry-run`オプション指定
-             When: update-presetコマンドを実行
+             When: `pnpm preset:update --dry-run`を実行
              Then: ファイル変更は発生せず、コピー予定のファイル一覧が表示される
 - [ ] **AC10.4**: Given: プリセットディレクトリに既存ファイルが存在
-             When: update-presetコマンドを実行（--forceなし）
+             When: `pnpm preset:update`を実行（--forceなし）
              Then: 確認プロンプト"既存ファイルを上書きします。続けますか？"が表示される
 - [ ] **AC10.5**: Given: `--force`オプション指定
-             When: update-presetコマンドを実行
+             When: `pnpm preset:update --force`を実行
              Then: 確認プロンプトなしで上書きが実行される
 - [ ] **AC10.6**: Given: プロジェクトの`docs/steering/`, `docs/templates/`が存在
-             When: update-presetコマンドを実行
+             When: `pnpm preset:update`を実行
              Then: これらのディレクトリは`docs/einja/steering/`, `docs/einja/templates/`にコピーされる
 - [ ] **AC10.7**: Given: `_`プレフィックスのファイルが存在
-             When: update-presetコマンドを実行
+             When: `pnpm preset:update`を実行
              Then: `_`プレフィックスファイルはスキップされ、コピーされない
 - [ ] **AC10.8**: Given: CLIパッケージリポジトリ外で実行
-             When: update-presetコマンドを実行
-             Then: エラーメッセージ"このコマンドはCLIパッケージリポジトリ内でのみ実行できます"が表示される
+             When: `pnpm preset:update`を実行
+             Then: エラーメッセージ"このスクリプトはCLIパッケージリポジトリ内でのみ実行できます"が表示される
 
 #### 実装の優先順位
 P1 (重要)
@@ -425,10 +431,10 @@ P1 (重要)
 
 #### 受け入れ基準
 - [ ] **AC11.1**: Given: `--json`オプション指定
-             When: update-presetコマンドを実行
+             When: `pnpm preset:update --json`を実行
              Then: 標準出力にJSON形式で結果が出力される
 - [ ] **AC11.2**: Given: `--json`オプション指定
-             When: update-presetコマンドを実行
+             When: `pnpm preset:update --json`を実行
              Then: ログメッセージは標準エラー出力に出力され、JSONのみが標準出力に出力される
 
 #### 実装の優先順位
@@ -473,9 +479,9 @@ P2 (あれば良い)
 - `docs/specs/`
 
 ### プリセット更新のディレクトリ構造要件
-#### update-presetコマンドのディレクトリマッピング
+#### preset:updateスクリプトのディレクトリマッピング
 **要件内容**:
-- プロジェクトからCLIプリセットへの逆方向コピー
+- プロジェクトからCLIプリセットへの逆方向コピー（内部開発用スクリプト `pnpm preset:update`）
 - ディレクトリマッピング:
 
 | コピー元（プロジェクト） | コピー先（CLIプリセット） |

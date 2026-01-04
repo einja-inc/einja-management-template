@@ -248,7 +248,7 @@
 ## シナリオ8: プリセット更新の基本フロー
 
 ### 目的
-CLIリポジトリ内でupdate-presetコマンドを実行し、プロジェクトの.claude/やdocs/の内容がプリセットに正しく反映されることを確認する。
+CLIリポジトリ内でpreset:updateスクリプトを実行し、プロジェクトの.claude/やdocs/の内容がプリセットに正しく反映されることを確認する。
 
 ### 関連
 - **受け入れ条件**: AC10.1, AC10.2, AC10.3, AC10.4, AC10.5
@@ -267,8 +267,8 @@ CLIリポジトリ内でupdate-presetコマンドを実行し、プロジェク�
 |------|------|---------|--------|------|
 | 1 | CLIリポジトリのルートに移動 | - | - | - |
 | 2 | .claude/commands/einja/test-file.md を新規作成 | - | - | テストデータ準備 |
-| 3 | npx @einja/cli update-preset --dry-run 実行 | ドライラン確認 | 変更予定ファイル一覧表示、実際のファイル変更なし | - |
-| 4 | npx @einja/cli update-preset 実行 | プリセット更新成功 | ✅ 更新完了メッセージ | - |
+| 3 | pnpm preset:update --dry-run 実行 | ドライラン確認 | 変更予定ファイル一覧表示、実際のファイル変更なし | - |
+| 4 | pnpm preset:update 実行 | プリセット更新成功 | ✅ 更新完了メッセージ | - |
 | 5 | ls packages/cli/presets/turborepo-pandacss/.claude/commands/einja/ 実行 | ファイルコピー確認 | test-file.md が存在 | - |
 | 6 | ls packages/cli/presets/minimal/.claude/commands/einja/ 実行 | 全プリセット更新確認 | test-file.md が存在 | - |
 | 7 | diff .claude/commands/einja/test-file.md packages/cli/presets/turborepo-pandacss/.claude/commands/einja/test-file.md 実行 | 内容一致確認 | 差分なし | - |
@@ -305,7 +305,7 @@ CLIリポジトリ内でupdate-presetコマンドを実行し、プロジェク�
 | - | .claude/skills/einja/skill-test.md 作成 | - | - | - |
 | - | docs/steering/steer-test.md 作成 | - | - | - |
 | - | docs/templates/tmpl-test.md 作成 | - | - | - |
-| 3 | npx @einja/cli update-preset 実行 | 全ディレクトリ更新成功 | ✅ 更新完了メッセージ | - |
+| 3 | pnpm preset:update 実行 | 全ディレクトリ更新成功 | ✅ 更新完了メッセージ | - |
 | 4 | 各プリセットディレクトリを確認 | マッピング確認 | 下記期待値を満たす | - |
 | - | ls packages/cli/presets/*/\`.claude/commands/einja/\` | cmd-test.md 存在 | - |
 | - | ls packages/cli/presets/*/\`.claude/agents/einja/\` | agent-test.md 存在 | - |
@@ -313,7 +313,7 @@ CLIリポジトリ内でupdate-presetコマンドを実行し、プロジェク�
 | - | ls packages/cli/presets/*/\`docs/einja/steering/\` | steer-test.md 存在 | - |
 | - | ls packages/cli/presets/*/\`docs/einja/templates/\` | tmpl-test.md 存在 | - |
 | 5 | _プレフィックスファイルを作成 (.claude/commands/einja/_private.md) | - | - | - |
-| 6 | npx @einja/cli update-preset 実行 | _ ファイルスキップ | _private.md がプリセットに存在しない | - |
+| 6 | pnpm preset:update 実行 | _ ファイルスキップ | _private.md がプリセットに存在しない | - |
 | 7 | ls packages/cli/presets/turborepo-pandacss/.claude/commands/einja/_private.md 実行 | ファイル不在確認 | "No such file or directory" | - |
 
 ### 実行ログ
@@ -343,10 +343,10 @@ CLIリポジトリ内でupdate-presetコマンドを実行し、プロジェク�
 |------|------|---------|--------|------|
 | 1 | CLIリポジトリのルートに移動 | - | - | - |
 | 2 | .claude/commands/einja/selective-test.md を新規作成 | - | - | テストデータ準備 |
-| 3 | npx @einja/cli update-preset --preset turborepo-pandacss 実行 | 選択的更新成功 | ✅ 更新完了メッセージ | - |
+| 3 | pnpm preset:update --preset turborepo-pandacss 実行 | 選択的更新成功 | ✅ 更新完了メッセージ | - |
 | 4 | ls packages/cli/presets/turborepo-pandacss/.claude/commands/einja/ 実行 | turborepo-pandacss更新確認 | selective-test.md が存在 | - |
 | 5 | ls packages/cli/presets/minimal/.claude/commands/einja/ 実行 | minimal未更新確認 | selective-test.md が存在しない | - |
-| 6 | npx @einja/cli update-preset --preset invalid-preset 実行 | 無効プリセットエラー | エラーメッセージ、有効なプリセット一覧表示 | - |
+| 6 | pnpm preset:update --preset invalid-preset 実行 | 無効プリセットエラー | エラーメッセージ、有効なプリセット一覧表示 | - |
 
 ### 実行ログ
 （実施後に記載）
@@ -356,10 +356,10 @@ CLIリポジトリ内でupdate-presetコマンドを実行し、プロジェク�
 ## シナリオ11: CLIリポジトリ外での実行エラー
 
 ### 目的
-update-presetコマンドをCLIリポジトリ外で実行した場合、適切なエラーメッセージが表示されることを確認する。
+preset:updateスクリプトをCLIリポジトリ外で実行した場合、適切なエラーメッセージが表示されることを確認する。
 
 ### 関連
-- **受け入れ条件**: AC10.7
+- **受け入れ条件**: AC10.8
 - **関連タスク**: Story 10
 
 ### 実施タイミング
@@ -370,8 +370,8 @@ update-presetコマンドをCLIリポジトリ外で実行した場合、適切�
 | Step | 操作 | 確認項目 | 期待値 | 結果 |
 |------|------|---------|--------|------|
 | 1 | 任意の非CLIリポジトリプロジェクトに移動 | - | - | - |
-| 2 | npx @einja/cli update-preset 実行 | CLIリポジトリ外エラー | 終了コード1、"CLIリポジトリ内で実行してください"エラーメッセージ | - |
-| 3 | npx @einja/cli update-preset --json 実行 | エラーJSON出力 | {"status": "error", "error": {...}} 形式 | - |
+| 2 | pnpm preset:update 実行 | CLIリポジトリ外エラー | 終了コード1、"CLIリポジトリ内で実行してください"エラーメッセージ | - |
+| 3 | pnpm preset:update --json 実行 | エラーJSON出力 | {"status": "error", "error": {...}} 形式 | - |
 
 ### 実行ログ
 （実施後に記載）
@@ -400,7 +400,7 @@ update-presetコマンドをCLIリポジトリ外で実行した場合、適切�
 |------|------|---------|--------|------|
 | 1 | CLIリポジトリのルートに移動 | - | - | - |
 | 2 | .claude/commands/einja/json-test.md を新規作成 | - | - | テストデータ準備 |
-| 3 | npx @einja/cli update-preset --json > update-result.json 実行 | JSON出力 | 標準出力にJSON形式で結果出力 | - |
+| 3 | pnpm preset:update --json > update-result.json 実行 | JSON出力 | 標準出力にJSON形式で結果出力 | - |
 | 4 | cat update-result.json \| jq '.' 実行 | JSON妥当性確認 | 有効なJSON形式 | - |
 | 5 | cat update-result.json \| jq '.status' 実行 | ステータス確認 | "success" | - |
 | 6 | cat update-result.json \| jq '.summary' 実行 | サマリー確認 | total, copied, skipped等のキーが存在 | - |
@@ -412,17 +412,17 @@ update-presetコマンドをCLIリポジトリ外で実行した場合、適切�
 
 ---
 
-## シナリオ13: sync→update-preset→sync の双方向ワークフロー
+## シナリオ13: sync→preset:update→sync の双方向ワークフロー
 
 ### 目的
-CLIの変更をプリセットに反映（update-preset）し、その後別のプロジェクトでsyncコマンドを実行して変更が正しく伝播することを確認する。
+CLIの変更をプリセットに反映（preset:update）し、その後別のプロジェクトでsyncコマンドを実行して変更が正しく伝播することを確認する。
 
 ### 関連
 - **受け入れ条件**: AC10.1, AC10.2, AC1.1, AC1.3
 - **関連タスク**: Story 1, 10
 
 ### 実施タイミング
-- **Phase 4完了後**: 全Step実施（sync + update-preset両方が実装される）
+- **Phase 4完了後**: 全Step実施（sync + preset:update両方が実装される）
 
 ### 前提条件
 - einja/cliリポジトリをクローンしていること
@@ -434,13 +434,13 @@ CLIの変更をプリセットに反映（update-preset）し、その後別の�
 |------|------|---------|--------|------|
 | 1 | CLIリポジトリのルートに移動 | - | - | - |
 | 2 | .claude/commands/einja/new-feature.md を新規作成（内容: "Version 1.0"） | - | - | 新機能追加を想定 |
-| 3 | npx @einja/cli update-preset 実行 | プリセット更新成功 | ✅ 更新完了メッセージ | - |
+| 3 | pnpm preset:update 実行 | プリセット更新成功 | ✅ 更新完了メッセージ | - |
 | 4 | cat packages/cli/presets/turborepo-pandacss/.claude/commands/einja/new-feature.md 実行 | プリセット内容確認 | "Version 1.0" が含まれる | - |
 | 5 | テスト用ユーザープロジェクトに移動 | - | - | - |
 | 6 | npx @einja/cli sync 実行（ローカルCLIパッケージから） | sync実行 | ✅ 同期完了メッセージ | - |
 | 7 | cat .claude/commands/einja/new-feature.md 実行 | ユーザープロジェクト内容確認 | "Version 1.0" が含まれる | - |
 | 8 | CLIリポジトリに戻り、new-feature.md を更新（内容: "Version 2.0"） | - | - | バージョンアップを想定 |
-| 9 | npx @einja/cli update-preset 実行 | プリセット再更新成功 | ✅ 更新完了メッセージ | - |
+| 9 | pnpm preset:update 実行 | プリセット再更新成功 | ✅ 更新完了メッセージ | - |
 | 10 | テスト用ユーザープロジェクトに移動 | - | - | - |
 | 11 | npx @einja/cli sync 実行 | 更新取り込み | ✅ 同期完了メッセージ | - |
 | 12 | cat .claude/commands/einja/new-feature.md 実行 | 更新内容確認 | "Version 2.0" が含まれる | - |
@@ -468,6 +468,6 @@ CLIの変更をプリセットに反映（update-preset）し、その後別の�
 | シナリオ10: 選択的プリセット更新 | - | - | - | 🔄 | Phase 4のみ |
 | シナリオ11: CLIリポジトリ外での実行エラー | - | - | - | 🔄 | Phase 4のみ |
 | シナリオ12: プリセット更新のJSON出力 | - | - | - | 🔄 | Phase 4のみ |
-| シナリオ13: sync→update-preset→sync の双方向ワークフロー | - | - | - | 🔄 | Phase 4のみ |
+| シナリオ13: sync→preset:update→sync の双方向ワークフロー | - | - | - | 🔄 | Phase 4のみ |
 
 **凡例**: ✅ PASS / ❌ FAIL / ⚠️ PARTIAL / 🔄 未実施

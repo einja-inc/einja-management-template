@@ -185,40 +185,104 @@ export function getLogFilePath(): string {
 }
 
 /**
- * 使用可能なポート番号を見つける
+ * ポートを使用しているプロセスのコマンドパスを取得
  *
- * @param ports - チェックするポート番号セット
- * @param maxRetries - 最大リトライ回数（デフォルト: 10）
- * @returns 使用可能なポート番号セット
+ * @param port - チェックするポート番号
+ * @returns コマンドパスの配列
  */
-export function findAvailablePorts(
-	ports: Record<string, number>,
-	maxRetries = 10,
-): Record<string, number> {
-	const currentPorts = { ...ports };
-	let retries = 0;
+export function getProcessCommandsOnPort(port: number): { pid: number; command: string }[] {
+	try {
+		const result = execSync(`lsof -i :${port} -Fp -Fc`, { encoding: "utf-8" }).trim();
+		if (!result) return [];
 
-	while (retries < maxRetries) {
-		// 使用中のポートを検出
-		const portsInUse = Object.entries(currentPorts).filter(([, port]) =>
-			isPortInUse(port),
-		);
+		const processes: { pid: number; command: string }[] = [];
+		let currentPid = 0;
 
-		if (portsInUse.length === 0) {
-			return currentPorts;
+		for (const line of result.split("\n")) {
+			if (line.startsWith("p")) {
+				currentPid = Number.parseInt(line.slice(1), 10);
+			} else if (line.startsWith("c") && currentPid) {
+				processes.push({ pid: currentPid, command: line.slice(1) });
+			}
+		}
+		return processes;
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * プロセスがこのリポジトリに属するか判定
+ *
+ * @param pid - プロセスID
+ * @returns このリポジトリのプロセスならtrue
+ */
+export function isProcessFromThisRepo(pid: number): boolean {
+	try {
+		const cwd = execSync(`lsof -p ${pid} -Fn | grep "^n" | grep "cwd" || true`, {
+			encoding: "utf-8",
+		}).trim();
+
+		// cwdが取得できない場合はコマンドラインで判定
+		if (!cwd) {
+			const cmdline = execSync(`ps -p ${pid} -o command=`, { encoding: "utf-8" }).trim();
+			return cmdline.includes(process.cwd()) || cmdline.includes("turbo") || cmdline.includes("next");
 		}
 
-		// 衝突があるポートを報告
-		for (const [appId, port] of portsInUse) {
-			console.warn(`ポート衝突検出: ${appId}:${port}`);
-			currentPorts[appId] = port + 10;
+		return cwd.includes(process.cwd());
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * ポートを確保する（必要に応じて自リポジトリのプロセスをkill）
+ *
+ * 他のワークツリーや外部アプリは誤killしないよう、
+ * 自リポジトリのプロセスのみを対象とする。
+ *
+ * @param ports - 確保するポート番号セット
+ * @returns 確保したポート番号セット
+ */
+export function ensurePorts(ports: Record<string, number>): Record<string, number> {
+	const projectRoot = process.cwd();
+
+	for (const [appId, port] of Object.entries(ports)) {
+		if (!isPortInUse(port)) {
+			continue;
 		}
-		retries++;
+
+		const processes = getProcessCommandsOnPort(port);
+		const ownProcesses = processes.filter((p) => isProcessFromThisRepo(p.pid));
+
+		if (ownProcesses.length > 0) {
+			// 自リポジトリのプロセスならkill
+			console.log(`🔄 ポート ${port} を使用中の自プロセスを停止します...`);
+			for (const p of ownProcesses) {
+				try {
+					process.kill(p.pid, "SIGTERM");
+					console.log(`   ✓ PID ${p.pid} (${p.command}) を停止`);
+				} catch {
+					// 既に終了している
+				}
+			}
+			// 終了待機
+			spawnSync("sleep", ["0.5"]);
+		}
+
+		// まだ使用中なら外部プロセス
+		if (isPortInUse(port)) {
+			const remaining = getProcessCommandsOnPort(port);
+			console.error(`❌ ポート ${port} は外部プロセスが使用中です:`);
+			for (const p of remaining) {
+				console.error(`   - PID ${p.pid}: ${p.command}`);
+			}
+			console.error(`   手動で停止するか、別のブランチ名を使用してください`);
+			throw new Error(`ポート ${port} を確保できません（外部プロセスが使用中）`);
+		}
 	}
 
-	throw new Error(
-		`使用可能なポートが見つかりませんでした（${maxRetries}回試行）`,
-	);
+	return ports;
 }
 
 /**
@@ -471,18 +535,11 @@ export function runMigration(databaseName: string): void {
  */
 function startDevServer(
 	envVars: Record<string, string> = {},
-	options: { background?: boolean; logFile?: string; killExisting?: boolean; ports?: number[] } = {},
+	options: { background?: boolean; logFile?: string } = {},
 ): void {
-	const { background = false, logFile, killExisting = true, ports = [] } = options;
+	const { background = false, logFile } = options;
 
-	// 既存プロセスの終了処理
-	if (killExisting && ports.length > 0) {
-		for (const port of ports) {
-			if (isPortInUse(port)) {
-				killProcessesOnPort(port);
-			}
-		}
-	}
+	// ポートの確保は ensurePorts() で実施済み
 
 	if (background && logFile) {
 		console.log("🚀 開発サーバーをバックグラウンドで起動します...");
@@ -552,9 +609,8 @@ export function main(options: {
 	setupOnly?: boolean;
 	skipSetup?: boolean;
 	background?: boolean;
-	killExisting?: boolean;
 } = {}): void {
-	const { setupOnly = false, skipSetup = false, background = false, killExisting = true } = options;
+	const { setupOnly = false, skipSetup = false, background = false } = options;
 	const cfg = getConfig();
 
 	// バックグラウンドモードの場合、既存のサーバーを停止
@@ -591,13 +647,12 @@ export function main(options: {
 	const databaseName = generateDatabaseName(branch);
 	console.log(`データベース名: ${databaseName}`);
 
-	// ブランチ名からポート番号を計算
+	// ブランチ名からポート番号を計算（固定）
 	const calculatedPorts = calculatePorts(branch, cfg.apps);
-	console.log("計算されたポート:", calculatedPorts);
+	console.log("ポート:", calculatedPorts);
 
-	// 使用可能なポートを検索
-	const availablePorts = findAvailablePorts(calculatedPorts);
-	console.log("使用するポート:", availablePorts);
+	// ポートを確保（自リポジトリのプロセスのみkill対象）
+	const availablePorts = ensurePorts(calculatedPorts);
 
 	// .envに書き込み
 	writeEnvFile(availablePorts, databaseName);
@@ -648,16 +703,8 @@ ${Object.entries(availablePorts)
 	// ログファイルパスを取得
 	const logFile = getLogFilePath();
 
-	// 使用するポートの配列を作成
-	const portsToUse = Object.values(availablePorts);
-
 	// 開発サーバーを起動
-	startDevServer(envVars, {
-		background,
-		logFile,
-		killExisting,
-		ports: portsToUse,
-	});
+	startDevServer(envVars, { background, logFile });
 }
 
 /**

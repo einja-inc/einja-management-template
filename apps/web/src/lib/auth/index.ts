@@ -1,4 +1,4 @@
-import { baseAuthOptions, mergeAuthOptions } from "@einja/front-core/auth";
+import { baseAuthOptions, mergeAuthOptions } from "@repo/front-core/auth";
 import NextAuth from "next-auth";
 
 /**

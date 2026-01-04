@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@einja/ui/utils";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -12,6 +11,7 @@ import {
   PersonIcon,
   TableIcon,
 } from "@radix-ui/react-icons";
+import { cn } from "@repo/ui/utils";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";

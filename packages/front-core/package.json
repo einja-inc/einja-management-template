@@ -1,5 +1,5 @@
 {
-	"name": "@einja/front-core",
+	"name": "@repo/front-core",
 	"version": "0.1.0",
 	"private": true,
 	"exports": {
@@ -10,13 +10,13 @@
 		"./context": "./src/context/index.ts"
 	},
 	"dependencies": {
-		"@einja/server-core": "workspace:*",
+		"@repo/server-core": "workspace:*",
 		"bcryptjs": "^3.0.2",
 		"next-auth": "^5.0.0-beta.28",
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {
-		"@einja/config": "workspace:*",
+		"@repo/config": "workspace:*",
 		"@types/bcryptjs": "^2.4.6",
 		"@types/node": "^22.18.13",
 		"typescript": "^5"

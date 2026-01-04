@@ -1,5 +1,5 @@
 {
-	"name": "@einja/server-core",
+	"name": "@repo/server-core",
 	"version": "0.1.0",
 	"private": true,
 	"exports": {
@@ -17,7 +17,7 @@
 		"@prisma/client": "^6.10.1"
 	},
 	"devDependencies": {
-		"@einja/config": "workspace:*",
+		"@repo/config": "workspace:*",
 		"prisma": "^6.10.1",
 		"tsx": "^4.19.4",
 		"typescript": "^5"

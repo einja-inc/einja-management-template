@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
-import { prisma } from "@einja/server-core";
+import { prisma } from "@repo/server-core";
 
 const credentialsSchema = z.object({
   email: z.string().email(),

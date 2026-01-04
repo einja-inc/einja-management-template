@@ -1,5 +1,5 @@
 {
-  "name": "@einja/web",
+  "name": "@repo/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -18,9 +18,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@einja/front-core": "workspace:*",
-    "@einja/server-core": "workspace:*",
-    "@einja/ui": "workspace:*",
+    "@repo/front-core": "workspace:*",
+    "@repo/server-core": "workspace:*",
+    "@repo/ui": "workspace:*",
     "@hookform/resolvers": "^5.1.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -61,7 +61,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "@einja/config": "workspace:*",
+    "@repo/config": "workspace:*",
     "@pandacss/dev": "^0.53.7",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",

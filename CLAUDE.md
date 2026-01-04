@@ -143,11 +143,11 @@ pnpm env:prepare
 - ワークスペース間の依存関係管理
 
 ### パッケージ構成:
-- `@einja/config` - 共通設定（Biome, TypeScript, Panda CSS）
-- `@einja/front-core` - フロントエンド共通層（認証共通設定、hooks、utils、context）
-- `@einja/server-core` - バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
-- `@einja/ui` - 共通UIコンポーネント（shadcn/ui）
-- `@einja/web` - メイン管理画面アプリケーション
+- `@repo/config` - 共通設定（Biome, TypeScript, Panda CSS）
+- `@repo/front-core` - フロントエンド共通層（認証共通設定、hooks、utils、context）
+- `@repo/server-core` - バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
+- `@repo/ui` - 共通UIコンポーネント（shadcn/ui）
+- `@repo/web` - メイン管理画面アプリケーション
 
 ### スタイリングシステム:
 - **Panda CSS** でデザイントークンとレシピを使用したスタイリング
@@ -178,19 +178,19 @@ pnpm env:prepare
 ### パッケージ間のインポート
 ```typescript
 // 認証機能（共通設定）
-import { baseAuthOptions, mergeAuthOptions } from "@einja/front-core/auth";
+import { baseAuthOptions, mergeAuthOptions } from "@repo/front-core/auth";
 
 // 認証機能（アプリローカル）
 import { auth, signIn, signOut } from "@/lib/auth";
 import { requireAuth, withAuth } from "@/lib/auth/guard";
 
 // データベース
-import { prisma } from "@einja/server-core";
+import { prisma } from "@repo/server-core";
 
 // UIコンポーネント
-import { Button } from "@einja/ui/button";
-import { Card } from "@einja/ui/card";
-import { cn } from "@einja/ui/utils";
+import { Button } from "@repo/ui/button";
+import { Card } from "@repo/ui/card";
+import { cn } from "@repo/ui/utils";
 
 // 型定義
 import type { Session } from "next-auth"; // 型拡張はfront-coreで定義済み
@@ -206,7 +206,7 @@ import { helper } from "@/lib/...";
 ### 認証設定のパターン
 アプリ固有の認証設定は `@/lib/auth/index.ts` で `baseAuthOptions` を拡張します：
 ```typescript
-import { baseAuthOptions, mergeAuthOptions } from "@einja/front-core/auth";
+import { baseAuthOptions, mergeAuthOptions } from "@repo/front-core/auth";
 import NextAuth from "next-auth";
 
 const authOptions = mergeAuthOptions(baseAuthOptions, {

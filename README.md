@@ -136,9 +136,9 @@ pnpm db:studio        # Prisma Studio起動
 
 ```bash
 # 特定のワークスペースでコマンド実行
-pnpm --filter @einja/web dev
-pnpm --filter @einja/web build
-pnpm --filter @einja/web panda codegen
+pnpm --filter @repo/web dev
+pnpm --filter @repo/web build
+pnpm --filter @repo/web panda codegen
 ```
 
 ## データベース設定
@@ -183,10 +183,10 @@ pnpm db:studio
 
 ### packages
 
-- **@einja/config**: Biome, TypeScript, Panda CSSの共通設定
-- **@einja/front-core**: フロントエンド共通層（認証共通設定、hooks、utils、context）
-- **@einja/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
-- **@einja/ui**: 共通UIコンポーネント（shadcn/ui）
+- **@repo/config**: Biome, TypeScript, Panda CSSの共通設定
+- **@repo/front-core**: フロントエンド共通層（認証共通設定、hooks、utils、context）
+- **@repo/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
+- **@repo/ui**: 共通UIコンポーネント（shadcn/ui）
 
 ## 開発ワークフロー
 
@@ -227,7 +227,7 @@ volta install pnpm@10.14.0
 
 ```bash
 # styled-systemを再生成
-pnpm --filter @einja/web panda codegen
+pnpm --filter @repo/web panda codegen
 ```
 
 ### Prisma関連エラー

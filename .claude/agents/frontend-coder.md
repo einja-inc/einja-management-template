@@ -345,16 +345,16 @@ const mutation = useMutation({
 ## プロジェクト固有の考慮事項
 
 ### モノレポ構造
-- `@einja/ui`: 共通UIコンポーネント
-- `@einja/front-core`: フロントエンド共通層（認証共通設定、hooks、utils、context）
-- `@einja/server-core`: バックエンド共通層（Prismaクライアント、ドメインロジック）
+- `@repo/ui`: 共通UIコンポーネント
+- `@repo/front-core`: フロントエンド共通層（認証共通設定、hooks、utils、context）
+- `@repo/server-core`: バックエンド共通層（Prismaクライアント、ドメインロジック）
 
 ### インポートパス
 ```typescript
 // パッケージ間
-import { Button } from "@einja/ui/button";
-import { prisma } from "@einja/server-core";
-import { baseAuthOptions, mergeAuthOptions } from "@einja/front-core/auth";
+import { Button } from "@repo/ui/button";
+import { prisma } from "@repo/server-core";
+import { baseAuthOptions, mergeAuthOptions } from "@repo/front-core/auth";
 
 // アプリ内（認証はアプリローカル）
 import { auth, signIn, signOut } from "@/lib/auth";

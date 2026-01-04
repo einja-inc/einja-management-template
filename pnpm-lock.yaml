@@ -38,15 +38,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@einja/front-core':
-        specifier: workspace:*
-        version: link:../../packages/front-core
-      '@einja/server-core':
-        specifier: workspace:*
-        version: link:../../packages/server-core
-      '@einja/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@hookform/resolvers':
         specifier: ^5.1.1
         version: 5.2.2(react-hook-form@7.65.0(react@19.2.0))
@@ -101,6 +92,15 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.7
         version: 1.2.8(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@repo/front-core':
+        specifier: workspace:*
+        version: link:../../packages/front-core
+      '@repo/server-core':
+        specifier: workspace:*
+        version: link:../../packages/server-core
+      '@repo/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@tailwindcss/postcss':
         specifier: ^4.1.10
         version: 4.1.16
@@ -162,12 +162,12 @@ importers:
       '@biomejs/biome':
         specifier: 1.9.4
         version: 1.9.4
-      '@einja/config':
-        specifier: workspace:*
-        version: link:../../packages/config
       '@pandacss/dev':
         specifier: ^0.53.7
         version: 0.53.7(jsdom@26.1.0)(typescript@5.9.3)
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.9.1
@@ -232,7 +232,7 @@ importers:
       '@biomejs/biome':
         specifier: 1.9.4
         version: 1.9.4
-      '@einja/config':
+      '@repo/config':
         specifier: workspace:*
         version: link:../config
       '@types/fs-extra':
@@ -272,7 +272,7 @@ importers:
 
   packages/front-core:
     dependencies:
-      '@einja/server-core':
+      '@repo/server-core':
         specifier: workspace:*
         version: link:../server-core
       bcryptjs:
@@ -285,7 +285,7 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
-      '@einja/config':
+      '@repo/config':
         specifier: workspace:*
         version: link:../config
       '@types/bcryptjs':
@@ -304,7 +304,7 @@ importers:
         specifier: ^6.10.1
         version: 6.18.0(prisma@6.18.0(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
     devDependencies:
-      '@einja/config':
+      '@repo/config':
         specifier: workspace:*
         version: link:../config
       prisma:
@@ -353,7 +353,7 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
     devDependencies:
-      '@einja/config':
+      '@repo/config':
         specifier: workspace:*
         version: link:../config
       '@types/react':

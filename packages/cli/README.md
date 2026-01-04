@@ -1,21 +1,21 @@
-# @einja/claude-cli
+# @repo/claude-cli
 
 Claude Code用の`.claude`設定ディレクトリをnpxでインストールできるCLI。
 
 ## クイックスタート
 
 ```bash
-npx @einja/claude-cli init
+npx @repo/claude-cli init
 ```
 
 ## インストール
 
 ```bash
 # npx（推奨）
-npx @einja/claude-cli init
+npx @repo/claude-cli init
 
 # グローバルインストール
-npm install -g @einja/claude-cli
+npm install -g @repo/claude-cli
 einja-claude init
 ```
 
@@ -27,11 +27,11 @@ einja-claude init
 
 ```bash
 # 対話型（プリセット選択）
-npx @einja/claude-cli init
+npx @repo/claude-cli init
 
 # プリセット指定
-npx @einja/claude-cli init --preset minimal
-npx @einja/claude-cli init --preset turborepo-pandacss
+npx @repo/claude-cli init --preset minimal
+npx @repo/claude-cli init --preset turborepo-pandacss
 ```
 
 **オプション:**
@@ -48,7 +48,7 @@ npx @einja/claude-cli init --preset turborepo-pandacss
 利用可能なプリセット一覧を表示します。
 
 ```bash
-npx @einja/claude-cli list
+npx @repo/claude-cli list
 ```
 
 ## プリセット

@@ -1,5 +1,5 @@
 {
-  "extends": "@einja/config/typescript",
+  "extends": "@repo/config/typescript",
   "compilerOptions": {
     "plugins": [
       {

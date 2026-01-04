@@ -1,5 +1,5 @@
 /**
- * @einja/config - 共通設定パッケージ
+ * @repo/config - 共通設定パッケージ
  *
  * Worktree設定スキーマとローダーを提供。
  */

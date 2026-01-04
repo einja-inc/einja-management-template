@@ -85,16 +85,17 @@ function extractTaskGroups(content: string, phaseNumber: number): TaskGroup[] {
 
   for (const line of lines) {
     // タスクグループ行のマッチ
-    // ボールドあり/なし両対応: - [ ] **1.1 名前** or - [ ] 1.1 名前
-    const taskGroupMatch = line.match(
-      /^(\s*)-\s*\[([ xX])\]\s*(?:\*\*)?(\d+\.\d+)\s+(.+?)(?:\*\*)?(.*)$/
-    );
+    // ボールドあり: - [ ] **1.1 名前**
+    // ボールドなし: - [ ] 1.1 名前
+    const taskGroupMatch =
+      line.match(/^(\s*)-\s*\[([ xX])\]\s*\*\*(\d+\.\d+)\s+(.+?)\*\*\s*$/) ||
+      line.match(/^(\s*)-\s*\[([ xX])\]\s*(\d+\.\d+)\s+(.+)$/);
 
     if (taskGroupMatch) {
       // 前のタスクグループを保存
       if (currentTaskGroup?.id) {
         const fullContent = currentTaskGroupContent.join("\n");
-        const metadata = parseMetadata(fullContent);
+        const metadata = parseMetadata(fullContent, currentTaskGroup.id);
         const tasks = extractTasks(fullContent, currentTaskGroup.id);
 
         taskGroups.push({
@@ -131,7 +132,7 @@ function extractTaskGroups(content: string, phaseNumber: number): TaskGroup[] {
   // 最後のタスクグループを保存
   if (currentTaskGroup?.id) {
     const fullContent = currentTaskGroupContent.join("\n");
-    const metadata = parseMetadata(fullContent);
+    const metadata = parseMetadata(fullContent, currentTaskGroup.id);
     const tasks = extractTasks(fullContent, currentTaskGroup.id);
 
     taskGroups.push({
@@ -174,8 +175,22 @@ function extractTasks(content: string, taskGroupId: string): Task[] {
 
 /**
  * メタデータを抽出（依存関係、完了条件）
+ *
+ * 依存関係のパターン:
+ * - タスクグループ間: X.Y（例: 1.1, 2.3）
+ * - Phase間: Phase X完了
+ * - Issue間: #123
+ *
+ * サブタスク間の依存関係（X.Y.Z形式）はタスクグループID（X.Y）に変換する
+ * 自己参照（自分自身への依存）は除外する
+ *
+ * @param content タスクグループのコンテンツ
+ * @param taskGroupId 処理中のタスクグループID（自己参照除外用）
  */
-function parseMetadata(content: string): {
+function parseMetadata(
+  content: string,
+  taskGroupId: string
+): {
   dependencies: string[];
   completionCriteria: string;
 } {
@@ -194,7 +209,19 @@ function parseMetadata(content: string): {
       } else {
         // カンマ区切りまたは単一の依存関係
         const deps = depText.split(/[,、]/).map((d) => d.trim());
-        dependencies.push(...deps);
+        // サブタスクID（X.Y.Z形式）をタスクグループID（X.Y）に変換
+        for (const dep of deps) {
+          let resolvedDep = dep;
+          const subtaskMatch = dep.match(/^(\d+\.\d+)\.\d+$/);
+          if (subtaskMatch) {
+            // サブタスクID（X.Y.Z）をタスクグループID（X.Y）に変換
+            resolvedDep = subtaskMatch[1];
+          }
+          // 自己参照を除外
+          if (resolvedDep !== taskGroupId) {
+            dependencies.push(resolvedDep);
+          }
+        }
       }
     }
 
@@ -205,7 +232,9 @@ function parseMetadata(content: string): {
     }
   }
 
-  return { dependencies, completionCriteria };
+  // 重複を除去
+  const uniqueDeps = [...new Set(dependencies)];
+  return { dependencies: uniqueDeps, completionCriteria };
 }
 
 /**

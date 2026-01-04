@@ -52,6 +52,7 @@ export class VibeKanbanClient {
         ...process.env,
         RUST_LOG: "error", // DEBUGログを抑制
       },
+      stderr: "ignore", // stderrからのデバッグログを抑制
     });
 
     await this.client.connect(this.transport);

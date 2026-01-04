@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "lastSync": "2026-01-04T16:21:21.138Z",
+  "templateVersion": "0.1.0",
+  "files": {
+    ".claude/commands/einja/update-docs-by-task-specs.md": {
+      "hash": "6c09bb6748134849e8de535d6cdb382bfe0aeb0a3fb19730e1c7708ceaa283bc",
+      "syncedAt": "2026-01-04T16:21:21.151Z"
+    },
+    ".claude/commands/einja/task-vibe-kanban-loop.md": {
+      "hash": "d5c695aa828487cfefa0933dbfc5cbdd4664d3c199462c0413a657d4ec41553e",
+      "syncedAt": "2026-01-04T16:21:21.151Z"
+    },
+    ".claude/commands/einja/start-dev.md": {
+      "hash": "944d0009a156ca81a965aa7c2e5555420ea7a9562248ab14e981a6aebe82807c",
+      "syncedAt": "2026-01-04T16:21:21.151Z"
+    },
+    ".claude/commands/einja/frontend-implement.md": {
+      "hash": "900a2fa79b0cd53f3475965e81287085aecdecd8a2e9761a638ff368345aaaee",
+      "syncedAt": "2026-01-04T16:21:21.152Z"
+    },
+    ".claude/agents/einja/task/task-modification-analyzer.md": {
+      "hash": "b0df7e02599d46078ef6712552e0035f1bf577fc48324f6356ec454b6b0eafed",
+      "syncedAt": "2026-01-04T16:21:21.152Z"
+    },
+    ".claude/agents/einja/frontend/frontend-coder.md": {
+      "hash": "1d6db52607fa6ca10f36ba354f98da2155a0214bb417014ef3440ddf1496d2f3",
+      "syncedAt": "2026-01-04T16:21:21.152Z"
+    },
+    ".claude/agents/einja/frontend/frontend-architect.md": {
+      "hash": "1fbc2937cd3d330cc1b852427a2fd6fb4c1070acc3d6de8596acdbac94d73da1",
+      "syncedAt": "2026-01-04T16:21:21.153Z"
+    },
+    ".claude/agents/einja/frontend/design-engineer.md": {
+      "hash": "dcad5e62ac13087ffa2ec870f14bea41e6c4cde333aca5f6878c51a631055c65",
+      "syncedAt": "2026-01-04T16:21:21.153Z"
+    }
+  }
+}

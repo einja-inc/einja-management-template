@@ -2,5 +2,4 @@
 export { baseAuthOptions } from "./config";
 export { mergeAuthOptions } from "./utils";
 
-// 型定義を再エクスポート
-import "./types/next-auth";
+// 型定義は.d.tsファイルとして自動認識される

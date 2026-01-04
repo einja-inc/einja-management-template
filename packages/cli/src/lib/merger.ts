@@ -59,21 +59,30 @@ export async function generateClaudeDirectory(
 		});
 	}
 
-	// 3. プリセット固有のファイルをコピー
-	const presetAgentsPath = path.join(presetPath, "agents");
+	// 3. プリセット固有のファイルをコピー（einja/サブディレクトリから）
+	const presetAgentsPath = path.join(presetPath, ".claude", "agents", "einja");
 	if (await fs.pathExists(presetAgentsPath)) {
 		await copyAndProcessDirectory(
 			presetAgentsPath,
-			path.join(targetPath, "agents"),
+			path.join(targetPath, "agents", "einja"),
 			presetConfig.variables,
 		);
 	}
 
-	const presetCommandsPath = path.join(presetPath, "commands");
+	const presetCommandsPath = path.join(presetPath, ".claude", "commands", "einja");
 	if (await fs.pathExists(presetCommandsPath)) {
 		await copyAndProcessDirectory(
 			presetCommandsPath,
-			path.join(targetPath, "commands"),
+			path.join(targetPath, "commands", "einja"),
+			presetConfig.variables,
+		);
+	}
+
+	const presetSkillsPath = path.join(presetPath, ".claude", "skills", "einja");
+	if (await fs.pathExists(presetSkillsPath)) {
+		await copyAndProcessDirectory(
+			presetSkillsPath,
+			path.join(targetPath, "skills", "einja"),
 			presetConfig.variables,
 		);
 	}

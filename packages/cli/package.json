@@ -1,7 +1,7 @@
 {
-	"name": "@einja/claude-cli",
+	"name": "@einja/cli",
 	"version": "0.1.0",
-	"description": "Einja Claude Code セットアップCLI - .claude設定をnpxでインストール",
+	"description": "Einja CLI - .claude設定とテンプレート同期をnpxでインストール",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -33,9 +33,13 @@
 		"chalk": "^5.4.1",
 		"commander": "^13.1.0",
 		"fs-extra": "^11.3.0",
+		"glob": "^11.0.0",
+		"ignore": "^7.0.3",
 		"inquirer": "^12.6.0",
 		"js-yaml": "^4.1.0",
-		"ora": "^8.2.0"
+		"node-diff3": "^3.2.0",
+		"ora": "^8.2.0",
+		"zod": "^4.3.5"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",

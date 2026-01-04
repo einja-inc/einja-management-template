@@ -15,8 +15,11 @@ qa-tests/
 ├── phase2/             # Phase 2: 高度な機能
 │   ├── 2-1.md         # Story 3, 4のテスト結果
 │   └── evidence/
-└── phase3/             # Phase 3: 最適化とオプション機能
-    ├── 3-1.md         # Story 6, 8のテスト結果
+├── phase3/             # Phase 3: 最適化とオプション機能
+│   ├── 3-1.md         # Story 6, 8のテスト結果
+│   └── evidence/
+└── phase4/             # Phase 4: プリセット更新機能
+    ├── 4-1.md         # Story 10, 11のテスト結果
     └── evidence/
 ```
 
@@ -98,6 +101,8 @@ diff .claude/commands/my-custom.md.backup .claude/commands/my-custom.md
 ### Bashコマンド（CLI実行）
 
 ```bash
+# === sync コマンド ===
+
 # 基本的な同期
 npx @einja/cli sync
 
@@ -125,6 +130,30 @@ grep -n "<<<<<<< LOCAL" .claude/commands/einja/task-exec.md
 
 # メタデータ確認
 cat .einja-sync.json | jq '.'
+
+# === preset:update スクリプト（CLIリポジトリ内で実行、内部開発用） ===
+
+# 基本的なプリセット更新
+pnpm preset:update
+
+# ドライラン（差分確認のみ）
+pnpm preset:update --dry-run
+
+# 特定プリセットのみ更新
+pnpm preset:update --preset turborepo-pandacss
+
+# 強制上書き（確認スキップ）
+pnpm preset:update --force
+
+# JSON出力
+pnpm preset:update --json > update-result.json
+
+# プリセットディレクトリ確認
+ls -la packages/cli/presets/turborepo-pandacss/.claude/commands/einja/
+ls -la packages/cli/presets/minimal/.claude/commands/einja/
+
+# プリセットファイル内容確認
+cat packages/cli/presets/turborepo-pandacss/.claude/commands/einja/spec-create.md
 ```
 
 ### 自動テスト実行
@@ -233,12 +262,26 @@ pnpm build
   - AC8.2: コンフリクト情報のJSON出力
   - AC8.3: ログとJSONの分離出力
 
+### Phase 4: プリセット更新機能（P1）
+- **Story 10**: プリセット更新スクリプト（内部開発用）
+  - AC10.1: `pnpm preset:update`でCLIリポジトリ検出と実行
+  - AC10.2: 全プリセットへの一括更新
+  - AC10.3: .claude/ディレクトリの同期
+  - AC10.4: docs/steering, docs/templatesの同期
+  - AC10.5: _プレフィックスファイルのスキップ
+  - AC10.6: --presetオプションでの選択的更新
+  - AC10.7: CLIリポジトリ外での実行エラー
+  - AC10.8: --dry-runでの差分確認
+- **Story 11**: プリセット更新スクリプトのJSON出力
+  - AC11.1: --jsonでのJSON形式出力
+  - AC11.2: 更新されたファイル一覧の出力
+
 ## テスト優先度
 
 各テストケースには優先度を設定します：
 
 - **P0（最優先）**: 基本機能・クリティカルパス（Phase 1）
-- **P1（高優先）**: 重要な機能・主要なエッジケース（Phase 2）
+- **P1（高優先）**: 重要な機能・主要なエッジケース（Phase 2, Phase 4）
 - **P2（通常）**: オプション機能・拡張機能（Phase 3）
 
 ## 失敗原因分類（A/B/C/D）

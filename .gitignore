@@ -30,9 +30,25 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# dev server logs
+log/*.log
+log/*.pid
+
+# env files
 .env
-.env.local
+.env.personal
+.env.keys
+.env.local.tmp
+.env.local.bak
+
+# dotenvx - 以下は追跡する（暗号化済み）
+# .env.example（テンプレート）
+# .env.personal.example（個人用テンプレート）
+# .env.local（ローカル開発用・暗号化済み）
+# .env.development（dev検証環境・暗号化済み）
+# .env.staging（ステージング・暗号化済み）
+# .env.production（本番・暗号化済み）
+# .env.ci（CI/CD・暗号化済み）
 
 # vercel
 .vercel
@@ -43,6 +59,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# package build outputs
+packages/config/dist
+packages/cli/dist
 
 ## Panda
 styled-system

@@ -2,14 +2,40 @@
 	"name": "@einja/config",
 	"version": "0.1.0",
 	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
 		"./biome": "./biome.json",
 		"./typescript": "./tsconfig.json",
-		"./panda": "./panda.config.ts"
+		"./panda": "./panda.config.ts",
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./worktree": {
+			"types": "./dist/worktree-config.d.ts",
+			"import": "./dist/worktree-config.js",
+			"default": "./dist/worktree-config.js"
+		},
+		"./worktree-loader": {
+			"types": "./dist/worktree-config-loader.d.ts",
+			"import": "./dist/worktree-config-loader.js",
+			"default": "./dist/worktree-config-loader.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc -p tsconfig.build.json --noEmit"
+	},
+	"dependencies": {
+		"zod": "^3.24.2"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
 		"@pandacss/dev": "^0.53.7",
+		"@types/node": "^22",
 		"typescript": "^5"
 	}
 }

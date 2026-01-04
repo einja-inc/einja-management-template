@@ -41,74 +41,54 @@ einja-management-template/
 - **Linter/Formatter**: Biome
 - **Git Hooks**: Husky + lint-staged
 
-## 前提条件
-
-- Node.js 22.16.0 (Voltaまたはfnm推奨)
-- pnpm 10.14.0
-- Docker & Docker Compose
-- PostgreSQL 15 (ローカル開発の場合)
-
 ## 開発環境セットアップ
 
-### 1. リポジトリをクローン
+### 初回セットアップ（初めての方）
 
 ```bash
+# 1. リポジトリをクローン
 git clone <repository-url>
 cd einja-management-template
+
+# 2. Volta/Node/pnpmをインストール（初回のみ）
+./scripts/init.sh
+
+# 3. ターミナルを再起動
+exec $SHELL
+
+# 4. 環境セットアップ（.env、DB起動・初期化）
+pnpm dev:setup
+
+# 5. 開発サーバー起動（バックグラウンド）
+pnpm dev:bg
 ```
 
-### 2. 依存関係のインストール
+ログは `log/dev.log` に出力されます。
+ブラウザで http://localhost:3000（またはWorktreeで自動割り当てされたポート）を開く
 
-```bash
-pnpm install
-```
+---
 
-### 3. データベース起動（PostgreSQL）
+### コマンドの役割
 
-```bash
-# PostgreSQLコンテナを起動（ポート5433）
-docker-compose up -d postgres
-
-# データベースの状態確認
-docker-compose ps
-
-# データベース停止
-docker-compose down
-```
-
-**注意**: DockerのPostgreSQLは**ポート5433**を使用します。
-
-### 4. Prismaセットアップ
-
-```bash
-# Prismaクライアント生成
-pnpm db:generate
-
-# データベースマイグレーション
-pnpm db:push
-```
-
-### 5. Panda CSSのコード生成
-
-```bash
-pnpm --filter @einja/web panda codegen
-```
-
-### 6. 開発サーバー起動
-
-```bash
-# 全アプリの開発サーバーを起動（Turborepo並列実行）
-pnpm dev
-```
-
-アプリケーション: http://localhost:3000
+| コマンド | タイミング | 内容 |
+|---------|-----------|------|
+| `./scripts/init.sh` | 初回のみ | Volta/Node/pnpmのインストール |
+| `pnpm dev:setup` | 初回 + 環境変更時 | .env作成、DB起動・初期化 |
+| `pnpm dev:bg` | 毎回 | 開発サーバー起動（バックグラウンド・推奨） |
+| `pnpm dev:status` | 随時 | 開発サーバーの状態確認 |
+| `pnpm dev:stop` | 随時 | 開発サーバーを停止 |
+| `pnpm env:update` | 随時 | 環境変数の設定・変更（対話式ウィザード） |
 
 ## 主要コマンド
 
 ### 開発
 
 ```bash
-pnpm dev              # 全アプリの開発サーバーを起動
+pnpm dev:bg           # 開発サーバーをバックグラウンドで起動（推奨）
+pnpm dev:status       # 開発サーバーの状態確認
+pnpm dev:logs         # ログをリアルタイム表示
+pnpm dev:stop         # 開発サーバーを停止
+pnpm dev              # フォアグラウンドで起動（ターミナル直接操作時のみ）
 pnpm build            # 全アプリのプロダクションビルド
 pnpm start            # プロダクションサーバーを起動
 ```
@@ -155,8 +135,8 @@ pnpm --filter @einja/web panda codegen
 ### Docker Compose サービス
 
 - **postgres**: PostgreSQL 15
-  - ポート: **5433** (ホスト) → 5432 (コンテナ)
-  - データベース: `einja_management`
+  - ポート: `${POSTGRES_PORT:-25432}` (ホスト) → 5432 (コンテナ)
+  - データベース: ブランチ名から自動生成（例: `main`, `feature_auth`）
   - ユーザー: `postgres`
   - パスワード: `postgres`
 
@@ -209,6 +189,29 @@ pnpm db:studio
 7. プルリクエストを作成
 
 ## トラブルシューティング
+
+### Volta関連エラー
+
+**`zsh: command not found: volta`**
+
+ターミナルを開き直してください。それでも解決しない場合：
+```bash
+source ~/.zshrc
+```
+
+**`Volta error: Node is not available`**
+
+Node.jsがインストールされていません：
+```bash
+volta install node@22.16.0 pnpm@10.14.0
+```
+
+**`pnpm: command not found`**
+
+pnpmがインストールされていません：
+```bash
+volta install pnpm@10.14.0
+```
 
 ### Panda CSS関連エラー
 

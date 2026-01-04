@@ -31,7 +31,7 @@ einja-management-template/
 
 ### データベース起動（PostgreSQL）:
 ```bash
-# PostgreSQLコンテナを起動（ポート5432）
+# PostgreSQLコンテナを起動（ポート25432）
 docker-compose up -d postgres
 
 # データベースの状態確認
@@ -41,25 +41,66 @@ docker-compose ps
 docker-compose down
 ```
 
-**注意**: DockerのPostgreSQLは標準ポート**5432**を使用します。
+**注意**: DockerのPostgreSQLはポート**25432**を使用します（全ワークツリーで共有）。
 
 ### アプリケーション開発:
 ```bash
 # 依存関係のインストール（pnpm使用）
 pnpm install
 
-# Prismaクライアント生成
-pnpm db:generate
+# 初回セットアップ（.env作成、DB起動・初期化）
+pnpm dev:setup
 
-# データベースマイグレーション
-pnpm db:push
-
-# 開発サーバー起動（Turbopack + Turborepo）
-pnpm dev
+# 開発サーバー起動（バックグラウンド実行・ログはlog/dev.logに出力）
+pnpm dev:bg
 ```
 
+> **注意**: `pnpm dev:setup` は初回のみ必要です。2回目以降は `pnpm dev:bg` のみで起動できます。
+
+### 開発サーバー管理:
+```bash
+pnpm dev:bg      # バックグラウンドで起動（推奨）
+pnpm dev:status  # サーバーの状態確認
+pnpm dev:logs    # ログをリアルタイム表示
+pnpm dev:stop    # サーバーを停止
+pnpm dev         # フォアグラウンドで起動（ターミナル直接操作時のみ）
+```
+
+### 環境変数の設定・変更:
+```bash
+pnpm env:update  # 対話式ウィザードで環境変数を設定
+```
+
+ウィザードで個人トークン設定、チーム共有設定の変更、状態確認ができます。
+
+### Worktree開発（複数ブランチ並行開発）:
+
+Git worktreeを使用して複数のブランチを並行して開発する場合、以下のコマンドを使用します。
+
+```bash
+# Worktree環境をセットアップして開発サーバーを起動（推奨）
+pnpm dev:bg
+
+# セットアップのみ（開発サーバーは手動で起動）
+pnpm env:prepare
+```
+
+**仕組み:**
+- ブランチ名からSHA-256ハッシュを計算し、一意なポート番号を自動割り当て（3000-3999）
+- PostgreSQLは全ワークツリーで共有（ポート25432固定）
+- データベース名はブランチ名から自動生成（例: `main`, `feature_auth`）
+- `.env.local`に環境変数が自動設定される
+
+**ポート番号の例:**
+| ブランチ名 | Webポート | データベース |
+|-----------|----------|-------------|
+| main | 3195 | main |
+| feature/auth | 3122 | feature_auth |
+
 ### 主要な開発コマンド:
-- `pnpm dev` - 全アプリの開発サーバーを起動（Turborepo並列実行）
+- `pnpm dev:bg` - 開発サーバーをバックグラウンドで起動（推奨・ログはlog/dev.log）
+- `pnpm dev:status` - 開発サーバーの状態確認
+- `pnpm dev:stop` - 開発サーバーを停止
 - `pnpm build` - 全アプリのプロダクションビルド
 - `pnpm start` - プロダクションサーバーを起動
 

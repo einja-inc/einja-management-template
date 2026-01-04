@@ -354,8 +354,7 @@ graph LR
 ```mermaid
 graph TB
     subgraph "Development"
-        DevLocal[ローカル開発<br/>pnpm dev]
-        DevWorktree[Worktree開発<br/>pnpm dev:worktree]
+        DevLocal[ローカル開発<br/>pnpm dev:bg]
     end
 
     subgraph "CI/CD"
@@ -375,7 +374,6 @@ graph TB
     end
 
     DevLocal -->|git push| GitHubActions
-    DevWorktree -->|git push| GitHubActions
     GitHubActions -->|cache| VercelCache
     GitHubActions -->|deploy| VercelProd
     GitHubActions -->|deploy| RailwayProd

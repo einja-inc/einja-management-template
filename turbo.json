@@ -8,7 +8,8 @@
 		},
 		"dev": {
 			"cache": false,
-			"persistent": true
+			"persistent": true,
+			"passThroughEnv": ["PORT", "PORT_WEB", "DATABASE_URL", "NEXTAUTH_URL", "AUTH_SECRET"]
 		},
 		"lint": {
 			"dependsOn": ["^lint"]
@@ -41,10 +42,12 @@
 			"cache": false
 		},
 		"db:push": {
-			"cache": false
+			"cache": false,
+			"passThroughEnv": ["DATABASE_URL"]
 		},
 		"db:migrate": {
-			"cache": false
+			"cache": false,
+			"passThroughEnv": ["DATABASE_URL"]
 		},
 		"db:studio": {
 			"cache": false,

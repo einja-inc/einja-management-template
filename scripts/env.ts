@@ -277,11 +277,12 @@ async function updateTeamSettings(): Promise<void> {
 	try {
 		// 1. 復号
 		spinner.start(".env.local を復号中...");
-		execSync("dotenvx decrypt -f .env.local -o .env.local.tmp", {
+		const decrypted = execSync("dotenvx decrypt -f .env.local --stdout", {
 			cwd,
-			stdio: "pipe",
+			encoding: "utf-8",
 			env: dotenvxEnv,
 		});
+		fs.writeFileSync(tmpPath, decrypted);
 		spinner.stop(".env.local を復号しました");
 
 		// 2. エディタで開く

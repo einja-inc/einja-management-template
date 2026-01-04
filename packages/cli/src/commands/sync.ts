@@ -142,14 +142,23 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 		return;
 	}
 
-	// 7. 確認プロンプト
-	if (!options.yes && !options.force) {
+	// 7. 確認プロンプト（--yes指定時はスキップ）
+	if (!options.yes) {
+		const promptConfig = options.force
+			? {
+					message: chalk.red("⚠️  すべてのローカル変更が失われます。続けますか？"),
+					default: false,
+				}
+			: {
+					message: `${changedFiles.length}ファイルを同期します。続行しますか？`,
+					default: true,
+				};
+
 		const { proceed } = await inquirer.prompt([
 			{
 				type: "confirm",
 				name: "proceed",
-				message: `${changedFiles.length}ファイルを同期します。続行しますか？`,
-				default: true,
+				...promptConfig,
 			},
 		]);
 

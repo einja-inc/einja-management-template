@@ -80,11 +80,65 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
 	// 6. dry-runモード
 	if (options.dryRun) {
-		console.log(chalk.blue("\n[Dry Run] 以下のファイルが変更されます:"));
-		for (const file of changedFiles) {
-			const status = file.exists ? "更新" : "新規";
-			console.log(`  ${status}: ${file.path}`);
+		console.log(chalk.blue("\n🔍 [Dry Run] 差分を確認中...\n"));
+
+		// dry-run時も差分計算とコンフリクト検出を実行
+		const dryRunStats = {
+			new: 0,
+			updated: 0,
+			conflicts: 0,
+		};
+		const dryRunConflicts = new Map<string, Array<{ line: number; localContent: string; templateContent: string }>>();
+
+		for (const target of changedFiles) {
+			const templateContent = await fs.readFile(target.templatePath, "utf-8");
+
+			if (!target.exists) {
+				// 新規ファイル
+				dryRunStats.new++;
+				console.log(chalk.green(`  ✨ 新規: ${target.path}`));
+			} else {
+				// 既存ファイル：マージシミュレーション
+				const projectPath = path.join(cwd, target.path);
+				const localContent = await fs.readFile(projectPath, "utf-8");
+				const fileMetadata = metadata.files[target.path];
+				const baseContent = fileMetadata
+					? (await metadataManager.getBaseContent(target.templatePath)).content
+					: "";
+
+				const mergeResult = diffEngine.merge3Way(
+					baseContent,
+					localContent,
+					templateContent,
+				);
+
+				if (mergeResult.success) {
+					dryRunStats.updated++;
+					console.log(chalk.cyan(`  📝 更新: ${target.path}`));
+				} else {
+					dryRunStats.conflicts++;
+					dryRunConflicts.set(target.path, mergeResult.conflicts);
+					console.log(chalk.yellow(`  ⚠️  コンフリクト: ${target.path}`));
+				}
+			}
 		}
+
+		// 差分サマリー表示
+		console.log(chalk.blue("\n📊 差分サマリー:"));
+		console.log(`  - 新規ファイル: ${dryRunStats.new}件`);
+		console.log(`  - 更新ファイル: ${dryRunStats.updated}件`);
+		console.log(`  - コンフリクト: ${dryRunStats.conflicts}件`);
+		console.log(`  - 合計: ${changedFiles.length}件\n`);
+
+		// コンフリクト詳細表示
+		if (dryRunConflicts.size > 0) {
+			const conflictReport = conflictReporter.createReport(dryRunConflicts);
+			console.log(chalk.yellow(conflictReporter.formatReport(conflictReport)));
+			console.log(conflictReporter.formatHelpMessage());
+		} else {
+			console.log(chalk.green("✅ コンフリクトは検出されませんでした。\n"));
+		}
+
 		return;
 	}
 

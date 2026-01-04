@@ -7,5 +7,11 @@
 	"editor.formatOnSave": true,
 	"eslint.enable": false,
 	"prettier.enable": false,
-	"prettier.useEditorConfig": false
+	"prettier.useEditorConfig": false,
+	"[json]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "vscode.json-language-features"
+	}
 }

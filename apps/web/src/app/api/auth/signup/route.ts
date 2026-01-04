@@ -1,4 +1,4 @@
-import { prisma } from "@einja/database";
+import { prisma } from "@repo/server-core";
 import bcrypt from "bcryptjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";

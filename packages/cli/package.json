@@ -1,5 +1,5 @@
 {
-	"name": "@einja/claude-cli",
+	"name": "@repo/claude-cli",
 	"version": "0.1.0",
 	"description": "Einja Claude Code セットアップCLI - .claude設定をnpxでインストール",
 	"type": "module",
@@ -39,7 +39,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"@einja/config": "workspace:*",
+		"@repo/config": "workspace:*",
 		"@types/fs-extra": "^11.0.4",
 		"@types/js-yaml": "^4.0.9",
 		"@types/node": "^22.18.13",

@@ -1,4 +1,4 @@
-# @einja/claude-cli リリース手順
+# @repo/claude-cli リリース手順
 
 ## 前提条件
 
@@ -47,10 +47,10 @@ git push origin cli-v0.2.0
 
 ```bash
 # npm で公開を確認
-npm view @einja/claude-cli
+npm view @repo/claude-cli
 
 # 実際に使用してみる
-npx @einja/claude-cli --version
+npx @repo/claude-cli --version
 ```
 
 ## 手動リリース（緊急時）

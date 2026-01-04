@@ -1,7 +1,7 @@
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { H1, P } from "@/components/ui/typography";
-import { auth } from "@einja/auth";
+import { auth } from "@/lib/auth";
 import { css } from "../../../../styled-system/css";
 
 export default async function DashboardPage() {

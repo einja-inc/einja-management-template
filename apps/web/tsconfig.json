@@ -1,5 +1,5 @@
 {
-  "extends": "@einja/config/typescript",
+  "extends": "@repo/config/typescript",
   "compilerOptions": {
     "plugins": [
       {
@@ -12,6 +12,12 @@
       "styled-system/*": ["./styled-system/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../../packages/front-core/src/auth/types/**/*.d.ts"
+  ],
   "exclude": ["node_modules"]
 }

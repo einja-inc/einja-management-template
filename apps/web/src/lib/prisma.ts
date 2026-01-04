@@ -1,3 +1,3 @@
-import { prisma } from "@einja/database";
+import { prisma } from "@repo/server-core";
 
 export { prisma };

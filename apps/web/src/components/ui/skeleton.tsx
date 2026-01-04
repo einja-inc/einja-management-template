@@ -1,4 +1,4 @@
-import { cn } from "@einja/ui/utils";
+import { cn } from "@repo/ui/utils";
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (

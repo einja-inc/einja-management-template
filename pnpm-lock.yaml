@@ -38,18 +38,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@einja/auth':
-        specifier: workspace:*
-        version: link:../../packages/auth
-      '@einja/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-      '@einja/types':
-        specifier: workspace:*
-        version: link:../../packages/types
-      '@einja/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@hookform/resolvers':
         specifier: ^5.1.1
         version: 5.2.2(react-hook-form@7.65.0(react@19.2.0))
@@ -104,6 +92,15 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.7
         version: 1.2.8(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@repo/front-core':
+        specifier: workspace:*
+        version: link:../../packages/front-core
+      '@repo/server-core':
+        specifier: workspace:*
+        version: link:../../packages/server-core
+      '@repo/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@tailwindcss/postcss':
         specifier: ^4.1.10
         version: 4.1.16
@@ -165,12 +162,12 @@ importers:
       '@biomejs/biome':
         specifier: 1.9.4
         version: 1.9.4
-      '@einja/config':
-        specifier: workspace:*
-        version: link:../../packages/config
       '@pandacss/dev':
         specifier: ^0.53.7
         version: 0.53.7(jsdom@26.1.0)(typescript@5.9.3)
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.9.1
@@ -211,49 +208,6 @@ importers:
         specifier: ^3.2.2
         version: 3.2.4(@types/node@22.18.13)(@vitest/browser@3.2.4)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.1)
 
-  packages/auth:
-    dependencies:
-      '@auth/prisma-adapter':
-        specifier: ^2.9.1
-        version: 2.11.1(@prisma/client@6.18.0(prisma@6.18.0(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3))
-      '@einja/database':
-        specifier: workspace:*
-        version: link:../database
-      '@einja/types':
-        specifier: workspace:*
-        version: link:../types
-      bcryptjs:
-        specifier: ^3.0.2
-        version: 3.0.2
-      next:
-        specifier: 15.3.3
-        version: 15.3.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      next-auth:
-        specifier: ^5.0.0-beta.28
-        version: 5.0.0-beta.30(next@15.3.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
-      react:
-        specifier: ^19.2.0
-        version: 19.2.0
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@einja/config':
-        specifier: workspace:*
-        version: link:../config
-      '@types/bcryptjs':
-        specifier: ^2.4.6
-        version: 2.4.6
-      '@types/node':
-        specifier: ^22.18.13
-        version: 22.18.13
-      '@types/react':
-        specifier: ^19.2.2
-        version: 19.2.2
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-
   packages/cli:
     dependencies:
       chalk:
@@ -278,7 +232,7 @@ importers:
       '@biomejs/biome':
         specifier: 1.9.4
         version: 1.9.4
-      '@einja/config':
+      '@repo/config':
         specifier: workspace:*
         version: link:../config
       '@types/fs-extra':
@@ -316,30 +270,49 @@ importers:
         specifier: ^5
         version: 5.9.3
 
-  packages/database:
+  packages/front-core:
+    dependencies:
+      '@repo/server-core':
+        specifier: workspace:*
+        version: link:../server-core
+      bcryptjs:
+        specifier: ^3.0.2
+        version: 3.0.2
+      next-auth:
+        specifier: ^5.0.0-beta.28
+        version: 5.0.0-beta.30(next@15.3.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@repo/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/bcryptjs':
+        specifier: ^2.4.6
+        version: 2.4.6
+      '@types/node':
+        specifier: ^22.18.13
+        version: 22.18.13
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  packages/server-core:
     dependencies:
       '@prisma/client':
         specifier: ^6.10.1
         version: 6.18.0(prisma@6.18.0(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
     devDependencies:
-      '@einja/config':
+      '@repo/config':
         specifier: workspace:*
         version: link:../config
       prisma:
         specifier: ^6.10.1
         version: 6.18.0(magicast@0.3.5)(typescript@5.9.3)
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-
-  packages/types:
-    devDependencies:
-      '@einja/config':
-        specifier: workspace:*
-        version: link:../config
-      next-auth:
-        specifier: ^5.0.0-beta.28
-        version: 5.0.0-beta.30(next@15.3.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
+      tsx:
+        specifier: ^4.19.4
+        version: 4.21.0
       typescript:
         specifier: ^5
         version: 5.9.3
@@ -380,7 +353,7 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
     devDependencies:
-      '@einja/config':
+      '@repo/config':
         specifier: workspace:*
         version: link:../config
       '@types/react':
@@ -422,25 +395,6 @@ packages:
         optional: true
       nodemailer:
         optional: true
-
-  '@auth/core@0.41.1':
-    resolution: {integrity: sha512-t9cJ2zNYAdWMacGRMT6+r4xr1uybIdmYa49calBPeTqwgAFPV/88ac9TEvCR85pvATiSPt8VaNf+Gt24JIT/uw==}
-    peerDependencies:
-      '@simplewebauthn/browser': ^9.0.1
-      '@simplewebauthn/server': ^9.0.2
-      nodemailer: ^7.0.7
-    peerDependenciesMeta:
-      '@simplewebauthn/browser':
-        optional: true
-      '@simplewebauthn/server':
-        optional: true
-      nodemailer:
-        optional: true
-
-  '@auth/prisma-adapter@2.11.1':
-    resolution: {integrity: sha512-Ke7DXP0Fy0Mlmjz/ZJLXwQash2UkA4621xCM0rMtEczr1kppLc/njCbUkHkIQ/PnmILjqSPEKeTjDPsYruvkug==}
-    peerDependencies:
-      '@prisma/client': '>=2.26.0 || >=3 || >=4 || >=5 || >=6'
 
   '@babel/code-frame@7.27.1':
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
@@ -4495,23 +4449,6 @@ snapshots:
       oauth4webapi: 3.8.2
       preact: 10.24.3
       preact-render-to-string: 6.5.11(preact@10.24.3)
-
-  '@auth/core@0.41.1':
-    dependencies:
-      '@panva/hkdf': 1.2.1
-      jose: 6.1.0
-      oauth4webapi: 3.8.2
-      preact: 10.24.3
-      preact-render-to-string: 6.5.11(preact@10.24.3)
-
-  '@auth/prisma-adapter@2.11.1(@prisma/client@6.18.0(prisma@6.18.0(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3))':
-    dependencies:
-      '@auth/core': 0.41.1
-      '@prisma/client': 6.18.0(prisma@6.18.0(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
-    transitivePeerDependencies:
-      - '@simplewebauthn/browser'
-      - '@simplewebauthn/server'
-      - nodemailer
 
   '@babel/code-frame@7.27.1':
     dependencies:

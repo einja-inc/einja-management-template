@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { auth } from "@einja/auth";
+import { auth } from "@/lib/auth";
 
 export default async function ProfilePage() {
   const session = await auth();

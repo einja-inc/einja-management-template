@@ -12,15 +12,26 @@ einja-management-template/
 │   └── web/                      # メイン管理画面アプリ
 │       ├── src/
 │       │   ├── app/              # Next.js App Router
-│       │   ├── components/        # アプリ固有のコンポーネント
-│       │   └── lib/              # アプリ固有のユーティリティ
+│       │   ├── components/       # アプリ固有のコンポーネント
+│       │   └── lib/
+│       │       ├── auth/         # アプリ固有の認証設定
+│       │       └── ...           # アプリ固有のユーティリティ
 │       ├── package.json
 │       └── tsconfig.json
 ├── packages/
 │   ├── config/                   # 共通設定（Biome, TypeScript, Panda CSS）
-│   ├── types/                    # 共通型定義
-│   ├── database/                 # Prismaスキーマとクライアント
-│   ├── auth/                     # NextAuth設定と認証ロジック
+│   ├── front-core/               # フロントエンド共通層
+│   │   └── src/
+│   │       ├── auth/             # NextAuth共通設定・型定義
+│   │       ├── hooks/            # 共通hooks
+│   │       ├── utils/            # 共通ユーティリティ
+│   │       └── context/          # 共通context
+│   ├── server-core/              # バックエンド共通層
+│   │   ├── prisma/               # Prismaスキーマ
+│   │   └── src/
+│   │       ├── domain/           # ドメイン層
+│   │       ├── infrastructure/   # Prismaクライアント等
+│   │       └── utils/            # 共通ユーティリティ
 │   └── ui/                       # 共通UIコンポーネント（shadcn/ui）
 ├── turbo.json                    # Turborepoの設定
 ├── pnpm-workspace.yaml          # pnpmワークスペース設定
@@ -151,9 +162,9 @@ pnpm db:studio        # Prisma Studio起動
 
 ```bash
 # 特定のワークスペースでコマンド実行
-pnpm --filter @einja/web dev
-pnpm --filter @einja/web build
-pnpm --filter @einja/web panda codegen
+pnpm --filter @repo/web dev
+pnpm --filter @repo/web build
+pnpm --filter @repo/web panda codegen
 ```
 
 ## データベース設定
@@ -198,11 +209,10 @@ pnpm db:studio
 
 ### packages
 
-- **@einja/config**: Biome, TypeScript, Panda CSSの共通設定
-- **@einja/types**: 型定義（NextAuth型拡張など）
-- **@einja/database**: Prismaクライアントとスキーマ
-- **@einja/auth**: NextAuth設定と認証ガード
-- **@einja/ui**: 共通UIコンポーネント（shadcn/ui）
+- **@repo/config**: Biome, TypeScript, Panda CSSの共通設定
+- **@repo/front-core**: フロントエンド共通層（認証共通設定、hooks、utils、context）
+- **@repo/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
+- **@repo/ui**: 共通UIコンポーネント（shadcn/ui）
 
 ## 開発ワークフロー
 
@@ -243,7 +253,7 @@ volta install pnpm@10.14.0
 
 ```bash
 # styled-systemを再生成
-pnpm --filter @einja/web panda codegen
+pnpm --filter @repo/web panda codegen
 ```
 
 ### Prisma関連エラー

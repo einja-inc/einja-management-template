@@ -557,6 +557,27 @@ export function main(options: {
 	const { setupOnly = false, skipSetup = false, background = false, killExisting = true } = options;
 	const cfg = getConfig();
 
+	// バックグラウンドモードの場合、既存のサーバーを停止
+	if (background) {
+		const logFile = getLogFilePath();
+		const pidFile = logFile.replace(".log", ".pid");
+
+		if (fs.existsSync(pidFile)) {
+			const pid = Number.parseInt(fs.readFileSync(pidFile, "utf-8").trim(), 10);
+			if (!Number.isNaN(pid)) {
+				try {
+					process.kill(pid, 0); // プロセス存在確認
+					console.log(`⚠️  既存の開発サーバー (PID: ${pid}) が起動中です`);
+					console.log("🔄 既存サーバーを停止して再起動します...");
+					stopDevServer();
+				} catch {
+					// プロセスが存在しない場合はPIDファイルを削除
+					fs.unlinkSync(pidFile);
+				}
+			}
+		}
+	}
+
 	// --skip-setup: 環境準備をスキップして直接turbo run dev
 	if (skipSetup) {
 		startDevServer();

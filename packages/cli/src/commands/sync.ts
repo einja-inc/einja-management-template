@@ -143,19 +143,37 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 	}
 
 	// 7. 確認プロンプト
-	if (!options.yes && !options.force) {
-		const { proceed } = await inquirer.prompt([
-			{
-				type: "confirm",
-				name: "proceed",
-				message: `${changedFiles.length}ファイルを同期します。続行しますか？`,
-				default: true,
-			},
-		]);
+	if (!options.yes) {
+		if (options.force) {
+			// --forceオプション使用時の警告プロンプト
+			const { proceed } = await inquirer.prompt([
+				{
+					type: "confirm",
+					name: "proceed",
+					message: chalk.red("⚠️  すべてのローカル変更が失われます。続けますか？"),
+					default: false,
+				},
+			]);
 
-		if (!proceed) {
-			console.log(chalk.yellow("\n⚠️ キャンセルしました"));
-			return;
+			if (!proceed) {
+				console.log(chalk.yellow("\n⚠️ キャンセルしました"));
+				return;
+			}
+		} else {
+			// 通常の確認プロンプト
+			const { proceed } = await inquirer.prompt([
+				{
+					type: "confirm",
+					name: "proceed",
+					message: `${changedFiles.length}ファイルを同期します。続行しますか？`,
+					default: true,
+				},
+			]);
+
+			if (!proceed) {
+				console.log(chalk.yellow("\n⚠️ キャンセルしました"));
+				return;
+			}
 		}
 	}
 

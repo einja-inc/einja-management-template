@@ -41,3 +41,83 @@ export interface Preset {
    */
   description?: string;
 }
+
+/**
+ * ファイルコピーオプション
+ */
+export interface CopyOptions {
+  /**
+   * 対象プリセット
+   */
+  preset: Preset;
+
+  /**
+   * ドライランモード（ファイル変更なし）
+   */
+  dryRun: boolean;
+
+  /**
+   * 強制上書きモード（確認プロンプトなし）
+   */
+  force: boolean;
+}
+
+/**
+ * コピーされたファイル情報
+ */
+export interface CopiedFile {
+  /**
+   * コピー元パス（プロジェクトルートからの相対パス）
+   */
+  source: string;
+
+  /**
+   * コピー先パス（絶対パス）
+   */
+  destination: string;
+
+  /**
+   * 実行アクション
+   */
+  action: "copied" | "skipped";
+}
+
+/**
+ * ファイルコピー結果
+ */
+export interface CopyResult {
+  /**
+   * コピー成功
+   */
+  success: boolean;
+
+  /**
+   * コピーしたファイル一覧
+   */
+  files: CopiedFile[];
+
+  /**
+   * スキップしたファイル一覧（ファイル名のみ）
+   */
+  skipped: string[];
+}
+
+/**
+ * スキャンしたソースファイル情報
+ */
+export interface SourceFile {
+  /**
+   * ソースファイルの相対パス（プロジェクトルートから）
+   */
+  relativePath: string;
+
+  /**
+   * ソースファイルの絶対パス
+   */
+  absolutePath: string;
+
+  /**
+   * カテゴリ（commands/agents/skills/docs）
+   */
+  category: string;
+}

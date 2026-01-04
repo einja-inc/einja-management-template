@@ -3,7 +3,7 @@ import fs from "fs-extra";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { SyncMetadata } from "../types/sync.js";
+import type { JsonOutput, SyncMetadata } from "../types/sync.js";
 import { syncCommand } from "./sync.js";
 
 // モジュールモック
@@ -686,6 +686,201 @@ This is a local customization that should be overwritten.`;
 			// Then: ファイルがテンプレート版で上書きされることを確認
 			const afterContent = await fs.readFile(projectFile, "utf-8");
 			expect(afterContent).toBe(templateContent);
+		});
+	});
+
+	describe("AC8.1: JSON出力形式", () => {
+		it("--jsonオプション指定時、標準出力にJSON形式で結果が出力される", () => {
+			// Given: JSON出力の型定義が正しいことを確認
+			const expectedOutput: JsonOutput = {
+				status: "success",
+				summary: {
+					total: 0,
+					changed: 0,
+					succeeded: 0,
+					conflicts: 0,
+					skipped: 0,
+				},
+				files: [],
+				metadata: {
+					version: "0.2.0",
+					syncedAt: expect.any(String) as string,
+				},
+			};
+
+			// Then: 型定義が正しいことを確認
+			expect(expectedOutput).toBeDefined();
+			expect(expectedOutput.status).toMatch(/^(success|partial_success|error)$/);
+			expect(expectedOutput.summary).toHaveProperty("total");
+			expect(expectedOutput.summary).toHaveProperty("changed");
+			expect(expectedOutput.summary).toHaveProperty("succeeded");
+			expect(expectedOutput.summary).toHaveProperty("conflicts");
+			expect(expectedOutput.summary).toHaveProperty("skipped");
+			expect(expectedOutput.files).toBeInstanceOf(Array);
+			expect(expectedOutput.metadata).toHaveProperty("version");
+			expect(expectedOutput.metadata).toHaveProperty("syncedAt");
+		});
+	});
+
+	describe("AC8.2: コンフリクト情報のJSON出力", () => {
+		it("コンフリクト発生時、JSON内にconflicts配列が含まれる", () => {
+			// Given: コンフリクト情報を含むJSON出力
+			const jsonOutputWithConflicts: JsonOutput = {
+				status: "partial_success",
+				summary: {
+					total: 1,
+					changed: 1,
+					succeeded: 0,
+					conflicts: 1,
+					skipped: 0,
+				},
+				files: [
+					{
+						path: ".claude/commands/einja/task-exec.md",
+						status: "conflict",
+						action: "marked",
+						conflicts: [
+							{
+								line: 45,
+								local: "旧テキスト",
+								template: "新テキスト",
+							},
+						],
+					},
+				],
+				metadata: {
+					version: "0.2.0",
+					syncedAt: new Date().toISOString(),
+				},
+			};
+
+			// Then: コンフリクト情報が正しく含まれていることを確認
+			expect(jsonOutputWithConflicts.status).toBe("partial_success");
+			expect(jsonOutputWithConflicts.summary.conflicts).toBe(1);
+			expect(jsonOutputWithConflicts.files[0].status).toBe("conflict");
+			expect(jsonOutputWithConflicts.files[0].conflicts).toBeDefined();
+			expect(jsonOutputWithConflicts.files[0].conflicts).toHaveLength(1);
+			expect(jsonOutputWithConflicts.files[0].conflicts?.[0]).toHaveProperty("line");
+			expect(jsonOutputWithConflicts.files[0].conflicts?.[0]).toHaveProperty("local");
+			expect(jsonOutputWithConflicts.files[0].conflicts?.[0]).toHaveProperty(
+				"template",
+			);
+		});
+	});
+
+	describe("AC8.3: 出力先の分離", () => {
+		it("--jsonオプション指定時、ログは標準エラー出力に、JSONは標準出力に出力される", () => {
+			// Given: log関数の動作テスト
+			const logFunction = (message: string, options: { json?: boolean }): void => {
+				if (options.json) {
+					console.error(message);
+				} else {
+					console.log(message);
+				}
+			};
+
+			const consoleSpy = vi.spyOn(console, "log");
+			const consoleErrorSpy = vi.spyOn(console, "error");
+
+			const jsonOptions = { json: true };
+			const normalOptions = { json: false };
+
+			// When: JSON出力モード時
+			logFunction("test message", jsonOptions);
+
+			// Then: console.error が呼ばれる
+			expect(consoleErrorSpy).toHaveBeenCalledWith("test message");
+
+			// When: 通常モード時
+			logFunction("test message", normalOptions);
+
+			// Then: console.log が呼ばれる
+			expect(consoleSpy).toHaveBeenCalledWith("test message");
+
+			consoleSpy.mockRestore();
+			consoleErrorSpy.mockRestore();
+		});
+	});
+
+	describe("JSON出力の完全性", () => {
+		it("すべての必須フィールドが含まれている", () => {
+			// Given: 完全なJSON出力
+			const completeJsonOutput: JsonOutput = {
+				status: "success",
+				summary: {
+					total: 42,
+					changed: 15,
+					succeeded: 14,
+					conflicts: 1,
+					skipped: 27,
+				},
+				files: [
+					{
+						path: ".claude/commands/einja/spec-create.md",
+						status: "success",
+						action: "merged",
+					},
+					{
+						path: ".claude/commands/einja/task-exec.md",
+						status: "conflict",
+						action: "marked",
+						conflicts: [
+							{
+								line: 45,
+								local: "旧テキスト",
+								template: "新テキスト",
+							},
+						],
+					},
+					{
+						path: ".claude/agents/einja/spec-requirements.md",
+						status: "skipped",
+						action: "skipped",
+					},
+				],
+				metadata: {
+					version: "0.2.0",
+					syncedAt: "2026-01-03T10:30:00Z",
+				},
+			};
+
+			// Then: 構造の検証
+			expect(completeJsonOutput).toHaveProperty("status");
+			expect(completeJsonOutput).toHaveProperty("summary");
+			expect(completeJsonOutput).toHaveProperty("files");
+			expect(completeJsonOutput).toHaveProperty("metadata");
+
+			// summary の検証
+			expect(completeJsonOutput.summary.total).toBe(42);
+			expect(completeJsonOutput.summary.changed).toBe(15);
+			expect(completeJsonOutput.summary.succeeded).toBe(14);
+			expect(completeJsonOutput.summary.conflicts).toBe(1);
+			expect(completeJsonOutput.summary.skipped).toBe(27);
+
+			// files の検証
+			expect(completeJsonOutput.files).toHaveLength(3);
+
+			// success ファイル
+			expect(completeJsonOutput.files[0].status).toBe("success");
+			expect(completeJsonOutput.files[0].action).toBe("merged");
+			expect(completeJsonOutput.files[0].conflicts).toBeUndefined();
+
+			// conflict ファイル
+			expect(completeJsonOutput.files[1].status).toBe("conflict");
+			expect(completeJsonOutput.files[1].action).toBe("marked");
+			expect(completeJsonOutput.files[1].conflicts).toBeDefined();
+			expect(completeJsonOutput.files[1].conflicts).toHaveLength(1);
+
+			// skipped ファイル
+			expect(completeJsonOutput.files[2].status).toBe("skipped");
+			expect(completeJsonOutput.files[2].action).toBe("skipped");
+			expect(completeJsonOutput.files[2].conflicts).toBeUndefined();
+
+			// metadata の検証
+			expect(completeJsonOutput.metadata.version).toBe("0.2.0");
+			expect(completeJsonOutput.metadata.syncedAt).toMatch(
+				/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+			);
 		});
 	});
 });

@@ -146,7 +146,7 @@ pnpm env:prepare
 - カスタムブレークポイント: sm(640px), md(768px), lg(1024px), xl(1280px), 2xl(1440px)
 
 ### コード品質:
-- **Biome** でlintingとフォーマット（タブインデント、ダブルクォート）
+- **Biome** でlintingとフォーマット（スペース2つインデント、ダブルクォート）
 - Huskyのpre-commitフックとlint-staged
 - `styled-system/` ディレクトリをフォーマット/lintingから除外
 
@@ -159,7 +159,7 @@ pnpm env:prepare
 
 ### 特記事項:
 - プロダクションビルド前に必ず`panda codegen`を実行
-- Biomeはタブインデントとダブルクォートを使用
+- Biomeはスペース2つインデントとダブルクォートを使用
 - ビルド時はESLintを無効化（代わりにBiomeを使用）
 - Turborepoのキャッシュ機能で高速ビルド
 

@@ -498,4 +498,194 @@ Section 2 - Template change`;
 			// Then: commandsカテゴリのみ同期されることを確認
 		});
 	});
+
+	describe("AC6.1: --forceオプションによる強制上書き", () => {
+		it("--forceオプション指定時、すべてのファイルがテンプレート版で上書きされ、3方向マージはスキップされる", async () => {
+			// Given: ローカルでカスタマイズされたファイルが存在（実際のテンプレートファイルを使用）
+			const projectFile = path.join(
+				tempProjectDir,
+				".claude",
+				"commands",
+				"einja",
+				"start-dev.md",
+			);
+			await fs.ensureDir(path.dirname(projectFile));
+
+			const localContent = `# Custom Local Content
+This is a local customization that should be overwritten.`;
+
+			await fs.writeFile(projectFile, localContent, "utf-8");
+
+			// 実際のテンプレートファイルを読み込み
+			const __filename = fileURLToPath(import.meta.url);
+			const __dirname = path.dirname(__filename);
+			const packageRoot = path.resolve(__dirname, "../..");
+			const templateFile = path.join(
+				packageRoot,
+				"presets",
+				"turborepo-pandacss",
+				".claude",
+				"commands",
+				"einja",
+				"start-dev.md",
+			);
+			const templateContent = await fs.readFile(templateFile, "utf-8");
+
+			// メタデータ作成（異なるハッシュでテンプレート変更を示す）
+			const { createHash } = await import("node:crypto");
+			const oldHash = createHash("sha256")
+				.update("old content", "utf8")
+				.digest("hex");
+
+			const metadata: SyncMetadata = {
+				version: "1.0.0",
+				lastSync: new Date().toISOString(),
+				templateVersion: "0.1.0",
+				files: {
+					".claude/commands/einja/start-dev.md": {
+						hash: oldHash,
+						syncedAt: new Date().toISOString(),
+					},
+				},
+			};
+			await fs.writeFile(
+				path.join(tempProjectDir, ".einja-sync.json"),
+				JSON.stringify(metadata),
+				"utf-8",
+			);
+
+			// When: --forceオプションでsyncを実行
+			await syncCommand({ force: true, yes: true });
+
+			// Then: ローカル変更が失われ、テンプレート版で完全に上書きされることを確認
+			const afterContent = await fs.readFile(projectFile, "utf-8");
+			expect(afterContent).toBe(templateContent);
+			expect(afterContent).not.toContain("Custom Local Content");
+			expect(afterContent).not.toContain("local customization");
+		});
+	});
+
+	describe("AC6.2: --force時の確認プロンプト", () => {
+		it('--forceオプション指定時、実行前に確認プロンプト"すべてのローカル変更が失われます。続けますか？"が表示される', async () => {
+			// Given: ローカル変更があるファイル（実際のテンプレートファイルを使用）
+			const projectFile = path.join(
+				tempProjectDir,
+				".claude",
+				"commands",
+				"einja",
+				"start-dev.md",
+			);
+			await fs.ensureDir(path.dirname(projectFile));
+			await fs.writeFile(projectFile, "Local changes", "utf-8");
+
+			// メタデータ作成
+			const { createHash } = await import("node:crypto");
+			const oldHash = createHash("sha256")
+				.update("Old content", "utf8")
+				.digest("hex");
+
+			const metadata: SyncMetadata = {
+				version: "1.0.0",
+				lastSync: new Date().toISOString(),
+				templateVersion: "0.1.0",
+				files: {
+					".claude/commands/einja/start-dev.md": {
+						hash: oldHash,
+						syncedAt: new Date().toISOString(),
+					},
+				},
+			};
+			await fs.writeFile(
+				path.join(tempProjectDir, ".einja-sync.json"),
+				JSON.stringify(metadata),
+				"utf-8",
+			);
+
+			// inquirerのモックを確認
+			const inquirer = await import("inquirer");
+			const promptMock = vi.mocked(inquirer.default.prompt);
+			promptMock.mockResolvedValueOnce({ proceed: true });
+
+			// When: --forceオプション（--yesなし）でsyncを実行
+			await syncCommand({ force: true });
+
+			// Then: 確認プロンプトが表示されることを確認
+			expect(promptMock).toHaveBeenCalledWith([
+				{
+					type: "confirm",
+					name: "proceed",
+					message: expect.stringContaining("すべてのローカル変更が失われます"),
+					default: false,
+				},
+			]);
+		});
+	});
+
+	describe("AC6.3: --force --yesによる確認スキップ", () => {
+		it("--force --yesオプション指定時、確認プロンプトなしで強制上書きが実行される", async () => {
+			// Given: ローカル変更があるファイル（実際のテンプレートファイルを使用）
+			const projectFile = path.join(
+				tempProjectDir,
+				".claude",
+				"commands",
+				"einja",
+				"start-dev.md",
+			);
+			await fs.ensureDir(path.dirname(projectFile));
+			await fs.writeFile(projectFile, "Local changes", "utf-8");
+
+			// 実際のテンプレートファイルを読み込み
+			const __filename = fileURLToPath(import.meta.url);
+			const __dirname = path.dirname(__filename);
+			const packageRoot = path.resolve(__dirname, "../..");
+			const templateFile = path.join(
+				packageRoot,
+				"presets",
+				"turborepo-pandacss",
+				".claude",
+				"commands",
+				"einja",
+				"start-dev.md",
+			);
+			const templateContent = await fs.readFile(templateFile, "utf-8");
+
+			// メタデータ作成
+			const { createHash } = await import("node:crypto");
+			const oldHash = createHash("sha256")
+				.update("Old content", "utf8")
+				.digest("hex");
+
+			const metadata: SyncMetadata = {
+				version: "1.0.0",
+				lastSync: new Date().toISOString(),
+				templateVersion: "0.1.0",
+				files: {
+					".claude/commands/einja/start-dev.md": {
+						hash: oldHash,
+						syncedAt: new Date().toISOString(),
+					},
+				},
+			};
+			await fs.writeFile(
+				path.join(tempProjectDir, ".einja-sync.json"),
+				JSON.stringify(metadata),
+				"utf-8",
+			);
+
+			// inquirerのモックをリセット
+			const inquirer = await import("inquirer");
+			const promptMock = vi.mocked(inquirer.default.prompt);
+			promptMock.mockClear();
+
+			// When: --force --yesオプションでsyncを実行
+			await syncCommand({ force: true, yes: true });
+
+			// Then: 確認プロンプトが表示されないことを確認
+			expect(promptMock).not.toHaveBeenCalled();
+
+			// Then: ファイルがテンプレート版で上書きされることを確認
+			const afterContent = await fs.readFile(projectFile, "utf-8");
+			expect(afterContent).toBe(templateContent);
+		});
+	});
 });

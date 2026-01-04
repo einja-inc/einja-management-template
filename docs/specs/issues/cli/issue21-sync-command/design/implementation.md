@@ -608,3 +608,299 @@ npx @einja/cli sync --only commands
 # commandsとagentsを同期
 npx @einja/cli sync --only commands,agents
 ```
+
+## update-preset コマンド設計
+
+### コマンド: update-preset
+
+**概要**: プロジェクトの最新コンテンツをCLIプリセットに反映
+
+**基本構文**:
+```bash
+npx @einja/cli update-preset [options]
+```
+
+**オプション一覧**:
+
+| オプション | 短縮形 | 型 | デフォルト | 説明 |
+|-----------|-------|-----|-----------|------|
+| --preset | -p | string | all | 更新対象のプリセット名（minimal, turborepo-pandacss, all） |
+| --dry-run | -d | boolean | false | 実際の変更を行わず、コピー予定のファイル一覧を表示 |
+| --force | -f | boolean | false | 確認プロンプトなしで上書き実行 |
+| --json | -j | boolean | false | JSON形式で結果を出力 |
+
+**使用例**:
+
+```bash
+# 全プリセットを更新
+npx @einja/cli update-preset
+
+# 差分確認のみ
+npx @einja/cli update-preset --dry-run
+
+# 特定プリセットのみ更新
+npx @einja/cli update-preset --preset turborepo-pandacss
+
+# 強制上書き
+npx @einja/cli update-preset --force
+
+# JSON形式で結果出力（CI/CD用）
+npx @einja/cli update-preset --json
+```
+
+**出力形式**:
+
+通常モード（ターミナル出力）:
+```
+🔄 プリセット更新を開始...
+
+📦 コピー対象をスキャン中...
+✓ 25ファイルを検出
+
+⚙️  プリセットへコピー中...
+  📁 turborepo-pandacss
+    ✓ .claude/commands/einja/spec-create.md
+    ✓ .claude/commands/einja/task-exec.md
+    ✓ .claude/agents/einja/spec-requirements.md
+    ✓ docs/einja/steering/terminology.md
+    ...
+  📁 minimal
+    ✓ .claude/commands/einja/spec-create.md
+    ...
+
+✅ プリセット更新完了!
+  - turborepo-pandacss: 25ファイル更新
+  - minimal: 10ファイル更新
+  - スキップ: 5ファイル（_プレフィックス）
+```
+
+JSON形式（--jsonオプション）:
+```json
+{
+  "status": "success",
+  "summary": {
+    "totalFiles": 35,
+    "updated": 35,
+    "skipped": 5
+  },
+  "presets": {
+    "turborepo-pandacss": {
+      "files": [
+        {
+          "source": ".claude/commands/spec-create.md",
+          "destination": "packages/cli/presets/turborepo-pandacss/.claude/commands/einja/spec-create.md",
+          "action": "copied"
+        }
+      ],
+      "count": 25
+    },
+    "minimal": {
+      "files": [...],
+      "count": 10
+    }
+  }
+}
+```
+
+### update-presetモジュール構成
+
+```
+packages/cli/
+├── src/
+│   ├── commands/
+│   │   ├── sync.ts                    # Syncコマンド
+│   │   ├── init.ts                    # Initコマンド
+│   │   └── update-preset.ts           # Update-presetコマンド ← 新規追加
+│   │
+│   ├── lib/
+│   │   ├── sync/
+│   │   │   └── ...                    # 既存のsync関連モジュール
+│   │   │
+│   │   ├── update-preset/             # ← 新規追加
+│   │   │   ├── preset-finder.ts       # プリセットディレクトリ検出
+│   │   │   ├── file-copier.ts         # ファイルコピー処理
+│   │   │   └── cli-repo-detector.ts   # CLIリポジトリ判定
+│   │   │
+│   │   └── ...                        # 既存モジュール
+│   │
+│   └── types/
+│       ├── sync.ts
+│       └── update-preset.ts           # ← 新規追加
+```
+
+### 主要モジュールのインターフェース
+
+#### CLIRepoDetector
+
+**責務**: CLIパッケージリポジトリかどうかを判定
+
+**主要メソッド**:
+
+| メソッド名 | 引数 | 戻り値 | 説明 |
+|-----------|-----|--------|------|
+| isCliRepository | cwd?: string | Promise\<boolean\> | CLIリポジトリかどうかを判定 |
+| getCliPackagePath | cwd?: string | Promise\<string \| null\> | packages/cli/のパスを取得 |
+| validateRepository | cwd?: string | Promise\<ValidationResult\> | リポジトリ検証（詳細エラー情報付き） |
+
+**型定義**:
+
+| 型名 | プロパティ | 型 | 説明 |
+|------|-----------|-----|------|
+| ValidationResult | valid | boolean | 検証結果 |
+| ValidationResult | error | string \| undefined | エラーメッセージ |
+| ValidationResult | cliPackagePath | string \| undefined | packages/cli/のパス |
+
+#### PresetFinder
+
+**責務**: 利用可能なプリセットの検出
+
+**主要メソッド**:
+
+| メソッド名 | 引数 | 戻り値 | 説明 |
+|-----------|-----|--------|------|
+| findPresets | cliPackagePath: string | Promise\<Preset[]\> | 利用可能なプリセット一覧を取得 |
+| getPreset | name: string, cliPackagePath: string | Promise\<Preset \| null\> | 指定名のプリセットを取得 |
+| validatePresetName | name: string | boolean | プリセット名の有効性チェック |
+
+**型定義**:
+
+| 型名 | プロパティ | 型 | 説明 |
+|------|-----------|-----|------|
+| Preset | name | string | プリセット名 |
+| Preset | path | string | プリセットディレクトリのパス |
+| Preset | description | string \| undefined | プリセットの説明 |
+
+#### FileCopier
+
+**責務**: プロジェクトからプリセットへのファイルコピー
+
+**主要メソッド**:
+
+| メソッド名 | 引数 | 戻り値 | 説明 |
+|-----------|-----|--------|------|
+| copyToPreset | options: CopyOptions | Promise\<CopyResult\> | プリセットへファイルをコピー |
+| scanSourceFiles | sourceDir: string | Promise\<SourceFile[]\> | コピー対象ファイルをスキャン |
+| shouldSkip | filePath: string | boolean | スキップ対象かどうかを判定 |
+
+**型定義**:
+
+| 型名 | プロパティ | 型 | 説明 |
+|------|-----------|-----|------|
+| CopyOptions | preset | Preset | 対象プリセット |
+| CopyOptions | dryRun | boolean | ドライランモード |
+| CopyOptions | force | boolean | 強制上書きモード |
+| CopyResult | success | boolean | コピー成功 |
+| CopyResult | files | CopiedFile[] | コピーしたファイル一覧 |
+| CopyResult | skipped | string[] | スキップしたファイル一覧 |
+| CopiedFile | source | string | コピー元パス |
+| CopiedFile | destination | string | コピー先パス |
+| CopiedFile | action | 'copied' \| 'skipped' | 実行アクション |
+
+### シーケンス図: update-preset処理フロー
+
+```mermaid
+sequenceDiagram
+    participant U as ユーザー
+    participant CLI as CLI
+    participant UP as UpdatePresetCommand
+    participant Detector as CLIRepoDetector
+    participant Finder as PresetFinder
+    participant Copier as FileCopier
+    participant FS as FileSystem
+
+    U->>CLI: npx @einja/cli update-preset
+    CLI->>UP: execute()
+
+    Note over UP: オプション解析
+
+    UP->>Detector: isCliRepository()
+    Detector->>FS: check packages/cli/
+    Detector->>FS: read packages/cli/package.json
+    FS-->>Detector: package.json content
+
+    alt CLIリポジトリではない
+        Detector-->>UP: false
+        UP-->>U: エラー: CLIリポジトリ内でのみ実行可能
+    else CLIリポジトリ
+        Detector-->>UP: true
+
+        UP->>Finder: findPresets()
+        Finder->>FS: readdir packages/cli/presets/
+        FS-->>Finder: プリセット一覧
+        Finder-->>UP: presets[]
+
+        loop 各プリセット
+            UP->>Copier: scanSourceFiles()
+            Copier->>FS: readdir .claude/, docs/
+            FS-->>Copier: ファイルリスト
+            Copier->>Copier: applyExclusionRules()
+            Copier-->>UP: sourceFiles[]
+
+            alt --dry-run指定
+                UP->>U: コピー予定ファイル一覧表示
+            else 通常モード
+                alt 既存ファイルあり && --forceなし
+                    UP->>U: 確認プロンプト表示
+                    U-->>UP: 確認応答
+                end
+
+                UP->>Copier: copyToPreset()
+                Copier->>FS: copy files
+                FS-->>Copier: 完了
+                Copier-->>UP: copyResult
+            end
+        end
+
+        UP->>U: 結果レポート表示
+    end
+```
+
+### ディレクトリマッピング詳細
+
+#### コピー元→コピー先の対応
+
+```
+プロジェクトルート/
+├── .claude/
+│   ├── commands/
+│   │   ├── spec-create.md       → packages/cli/presets/<preset>/.claude/commands/einja/spec-create.md
+│   │   ├── task-exec.md         → packages/cli/presets/<preset>/.claude/commands/einja/task-exec.md
+│   │   └── _custom.md           → (スキップ: _プレフィックス)
+│   │
+│   ├── agents/
+│   │   ├── spec-requirements.md → packages/cli/presets/<preset>/.claude/agents/einja/spec-requirements.md
+│   │   └── spec-design.md       → packages/cli/presets/<preset>/.claude/agents/einja/spec-design.md
+│   │
+│   └── skills/
+│       └── start-dev.md         → packages/cli/presets/<preset>/.claude/skills/einja/start-dev.md
+│
+├── docs/
+│   ├── steering/
+│   │   ├── terminology.md       → packages/cli/presets/<preset>/docs/einja/steering/terminology.md
+│   │   └── branch-strategy.md   → packages/cli/presets/<preset>/docs/einja/steering/branch-strategy.md
+│   │
+│   └── templates/
+│       └── qa-test-template.md  → packages/cli/presets/<preset>/docs/einja/templates/qa-test-template.md
+```
+
+#### einja/サブディレクトリへの配置理由
+
+`update-preset`コマンドでコピーされたファイルは、プリセット内の`einja/`サブディレクトリに配置されます。これは`sync`コマンドが`einja/`ディレクトリのみを同期対象とするため、一貫性を保つためです。
+
+```
+# syncコマンド（CLIパッケージ → ユーザープロジェクト）
+packages/cli/presets/<preset>/.claude/commands/einja/ → .claude/commands/einja/
+
+# update-presetコマンド（プロジェクト → CLIパッケージ）
+.claude/commands/ → packages/cli/presets/<preset>/.claude/commands/einja/
+```
+
+### エラーハンドリング
+
+| エラー種別 | 条件 | メッセージ | 終了コード |
+|-----------|------|----------|-----------|
+| CLIリポジトリ外実行 | `packages/cli/`が存在しない | "このコマンドはCLIパッケージリポジトリ内でのみ実行できます" | 1 |
+| 無効なプリセット名 | 指定プリセットが存在しない | "無効なプリセット: {name}。有効な値: minimal, turborepo-pandacss, all" | 1 |
+| コピー元ディレクトリなし | `.claude/`が存在しない | "コピー元ディレクトリが見つかりません: .claude/" | 1 |
+| 書き込み権限エラー | プリセットディレクトリへの書き込み不可 | "プリセットディレクトリへの書き込み権限がありません: {path}" | 1 |
+| ユーザーキャンセル | 確認プロンプトで"No"選択 | "処理がキャンセルされました" | 0 |

@@ -61,6 +61,7 @@ AI駆動開発ツール（カスタムコマンド、エージェント、スキ
 graph TB
     subgraph Actors
         DEV[👤 CLI利用者]
+        CLIDEV[👤 CLI開発者<br/>einja-inc orgメンバー]
         CI[🤖 CI/CD]
         CC[🤖 Claude Code]
     end
@@ -73,11 +74,19 @@ graph TB
         UC5[JSON出力<br/>--json]
     end
 
+    subgraph "update-preset コマンド"
+        UC10[プリセット更新を実行]
+        UC11[差分を事前確認<br/>--dry-run]
+        UC12[対象プリセット指定<br/>--preset]
+        UC13[強制上書き<br/>--force]
+    end
+
     subgraph "内部処理"
         P1[3方向マージ]
         P2[コンフリクト検出]
         P3["@einja:managed<br/>セクション上書き"]
         P4[メタデータ更新<br/>.einja-sync.json]
+        P5[プリセットディレクトリ<br/>への反映]
     end
 
     subgraph "Claude Code連携"
@@ -92,10 +101,17 @@ graph TB
     CI --> UC5
     CC --> UC6
 
+    CLIDEV --> UC10
+    CLIDEV --> UC11
+    CLIDEV --> UC12
+    CLIDEV --> UC13
+
     UC1 --> P1
     UC1 --> P2
     UC1 --> P3
     UC1 --> P4
+
+    UC10 --> P5
 
     UC6 --> UC5
     UC5 --> UC7
@@ -107,6 +123,7 @@ graph TB
 | アクター | 説明 |
 |---------|------|
 | CLI利用者 | einja-inc orgメンバー。CLIを直接実行してテンプレート同期を行う |
+| CLI開発者 | einja-inc orgメンバー。CLIパッケージの開発・リリースを行う。プリセット更新コマンドを使用 |
 | CI/CD | 自動化パイプライン。`--json`出力を解析して処理を行う |
 | Claude Code | AIアシスタント。`/einja:sync`コマンドでコンフリクト自動解消を行う |
 
@@ -121,6 +138,10 @@ graph TB
 | UC5 | JSON出力 | CI/CD | `--json`で機械可読な出力を取得 |
 | UC6 | /einja:sync実行 | Claude Code | スラッシュコマンドで同期を実行 |
 | UC7 | コンフリクト自動解消 | Claude Code | AIがコンフリクトを分析・解消 |
+| UC10 | プリセット更新を実行 | CLI開発者 | プロジェクトのコンテンツをCLIプリセットに反映 |
+| UC11 | プリセット更新の差分確認 | CLI開発者 | `--dry-run`で変更内容を確認（ファイル変更なし） |
+| UC12 | 対象プリセット指定 | CLI開発者 | `--preset`で特定プリセットのみ更新 |
+| UC13 | プリセット強制上書き | CLI開発者 | `--force`で既存プリセット内容を無視して上書き |
 
 ## 権限マトリクス
 
@@ -346,6 +367,73 @@ P2 (あれば良い)
 #### 実装の優先順位
 P0 (必須)
 
+---
+
+### Story 10: プリセット更新コマンド
+**As a** CLIパッケージ開発者
+**I want to** `npx @einja/cli update-preset`でプロジェクトの最新コンテンツをCLIプリセットに反映したい
+**So that** CLIパッケージリリース前にテンプレートを最新化できる
+
+#### 背景
+現在の`sync`コマンドは「CLIパッケージ → ユーザープロジェクト」への同期を行うが、「プロジェクト → CLIパッケージのプリセット」への逆方向の反映手段が存在しない。
+
+```
+プロジェクトの .claude/
+    ↓ (update-preset コマンド) ← 本ストーリーで実装
+packages/cli/presets/<preset-name>/.claude/
+    ↓ (npm publish)
+CLIパッケージ
+    ↓ (sync コマンド)
+ユーザーのプロジェクト
+```
+
+#### 受け入れ基準
+- [ ] **AC10.1**: Given: CLIパッケージのリポジトリ内で実行
+             When: `npx @einja/cli update-preset`を実行
+             Then: プロジェクトの`.claude/commands/`, `.claude/agents/`, `.claude/skills/`の内容が`packages/cli/presets/turborepo-pandacss/.claude/*/einja/`にコピーされる
+- [ ] **AC10.2**: Given: `--preset minimal`オプション指定
+             When: update-presetコマンドを実行
+             Then: `packages/cli/presets/minimal/`のみが更新され、他のプリセットは変更されない
+- [ ] **AC10.3**: Given: `--dry-run`オプション指定
+             When: update-presetコマンドを実行
+             Then: ファイル変更は発生せず、コピー予定のファイル一覧が表示される
+- [ ] **AC10.4**: Given: プリセットディレクトリに既存ファイルが存在
+             When: update-presetコマンドを実行（--forceなし）
+             Then: 確認プロンプト"既存ファイルを上書きします。続けますか？"が表示される
+- [ ] **AC10.5**: Given: `--force`オプション指定
+             When: update-presetコマンドを実行
+             Then: 確認プロンプトなしで上書きが実行される
+- [ ] **AC10.6**: Given: プロジェクトの`docs/steering/`, `docs/templates/`が存在
+             When: update-presetコマンドを実行
+             Then: これらのディレクトリは`docs/einja/steering/`, `docs/einja/templates/`にコピーされる
+- [ ] **AC10.7**: Given: `_`プレフィックスのファイルが存在
+             When: update-presetコマンドを実行
+             Then: `_`プレフィックスファイルはスキップされ、コピーされない
+- [ ] **AC10.8**: Given: CLIパッケージリポジトリ外で実行
+             When: update-presetコマンドを実行
+             Then: エラーメッセージ"このコマンドはCLIパッケージリポジトリ内でのみ実行できます"が表示される
+
+#### 実装の優先順位
+P1 (重要)
+
+---
+
+### Story 11: プリセット更新のJSON出力
+**As a** CI/CDパイプライン管理者
+**I want to** `--json`オプションでプリセット更新結果をJSON形式で取得したい
+**So that** 自動化スクリプトでプリセット更新を管理できる
+
+#### 受け入れ基準
+- [ ] **AC11.1**: Given: `--json`オプション指定
+             When: update-presetコマンドを実行
+             Then: 標準出力にJSON形式で結果が出力される
+- [ ] **AC11.2**: Given: `--json`オプション指定
+             When: update-presetコマンドを実行
+             Then: ログメッセージは標準エラー出力に出力され、JSONのみが標準出力に出力される
+
+#### 実装の優先順位
+P2 (あれば良い)
+
 ## 詳細なビジネス要件
 
 ### ディレクトリ構造要件
@@ -383,6 +471,28 @@ P0 (必須)
 - `docs/steering/`
 - `docs/templates/`
 - `docs/specs/`
+
+### プリセット更新のディレクトリ構造要件
+#### update-presetコマンドのディレクトリマッピング
+**要件内容**:
+- プロジェクトからCLIプリセットへの逆方向コピー
+- ディレクトリマッピング:
+
+| コピー元（プロジェクト） | コピー先（CLIプリセット） |
+|------------------------|-------------------------|
+| `.claude/commands/` | `packages/cli/presets/<preset>/.claude/commands/einja/` |
+| `.claude/agents/` | `packages/cli/presets/<preset>/.claude/agents/einja/` |
+| `.claude/skills/` | `packages/cli/presets/<preset>/.claude/skills/einja/` |
+| `docs/steering/` | `packages/cli/presets/<preset>/docs/einja/steering/` |
+| `docs/templates/` | `packages/cli/presets/<preset>/docs/einja/templates/` |
+
+**プリセット一覧**:
+- `minimal`: 最小構成プリセット
+- `turborepo-pandacss`: Turborepo + Panda CSS構成プリセット
+
+**CLIパッケージリポジトリ判定**:
+- `packages/cli/`ディレクトリの存在を確認
+- `packages/cli/package.json`の`name`が`@einja/cli`であることを確認
 
 ### ファイル除外ルール
 #### スキップ対象ファイル

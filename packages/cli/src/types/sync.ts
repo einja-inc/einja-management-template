@@ -84,3 +84,49 @@ export interface MergeResult {
 	/** コンフリクト一覧 */
 	conflicts: Conflict[];
 }
+
+/**
+ * マーカーセクションの種別
+ */
+export type MarkerSectionType = "managed" | "unmanaged";
+
+/**
+ * マーカーエラーの種別
+ */
+export type MarkerErrorType = "unpaired_start" | "unpaired_end" | "nested";
+
+/**
+ * マーカーセクションの型定義
+ */
+export interface MarkerSection {
+	/** セクション種別 */
+	type: MarkerSectionType;
+	/** 開始行番号（1始まり） */
+	startLine: number;
+	/** 終了行番号（1始まり） */
+	endLine: number;
+	/** セクション内容 */
+	content: string;
+}
+
+/**
+ * マーカーエラーの型定義
+ */
+export interface MarkerError {
+	/** エラー行番号（1始まり） */
+	line: number;
+	/** エラーメッセージ */
+	message: string;
+	/** エラー種別 */
+	type: MarkerErrorType;
+}
+
+/**
+ * マーカー検証結果の型定義
+ */
+export interface MarkerValidationResult {
+	/** 検証結果 */
+	valid: boolean;
+	/** エラー一覧 */
+	errors: MarkerError[];
+}

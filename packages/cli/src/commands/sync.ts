@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import type { SyncOptions } from "../types/index.js";
 import type { JsonFileInfo, JsonOutput, SyncTarget } from "../types/sync.js";
 import { BackupManager } from "../lib/sync/backup-manager.js";
+import { BatchProcessor } from "../lib/sync/batch-processor.js";
 import {
 	createValidationErrorMessage,
 	validateCategories,
@@ -68,6 +69,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 	const diffEngine = new DiffEngine();
 	const conflictReporter = new ConflictReporter();
 	const backupManager = new BackupManager(cwd);
+	const batchProcessor = new BatchProcessor(10); // バッチサイズ: 10ファイル
 
 	// 3. メタデータ読み込み
 	spinner.start("メタデータを読み込み中...");
@@ -84,23 +86,30 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 		return;
 	}
 
-	// 5. 差分計算
+	// 5. 差分計算（並列処理）
 	spinner.start("⚙️  差分を計算中...");
-	const changedFiles: SyncTarget[] = [];
-	for (const target of targets) {
-		const templateContent = await fs.readFile(target.templatePath, "utf-8");
-		const fileMetadata = metadata.files[target.path];
+	const changedFilesFlags = await batchProcessor.processBatch(
+		targets,
+		async (target) => {
+			const templateContent = await fs.readFile(target.templatePath, "utf-8");
+			const fileMetadata = metadata.files[target.path];
 
-		// 新規ファイルまたはテンプレートが変更されたファイルを抽出
-		if (!target.exists || !fileMetadata) {
-			changedFiles.push(target);
-		} else {
-			const currentHash = metadataManager.calculateHash(templateContent);
-			if (fileMetadata.hash !== currentHash) {
-				changedFiles.push(target);
+			// 新規ファイルまたはテンプレートが変更されたファイルを判定
+			if (!target.exists || !fileMetadata) {
+				return { target, changed: true };
 			}
-		}
-	}
+
+			const currentHash = metadataManager.calculateHash(
+				templateContent,
+				target.templatePath,
+			);
+			return { target, changed: fileMetadata.hash !== currentHash };
+		},
+	);
+
+	const changedFiles = changedFilesFlags
+		.filter((result) => result.changed)
+		.map((result) => result.target);
 
 	if (changedFiles.length === 0) {
 		log(chalk.green("\n✅ すでに最新です"), options);
@@ -209,31 +218,37 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 		spinner.succeed(`バックアップ作成完了: ${backupManager.getBackupDir()}`);
 	}
 
-	// 9. ファイルマージ処理
+	// 9. ファイルマージ処理（並列処理でマージ計算、順次書き込み）
 	spinner.start("📝 ファイルをマージ中...");
-	const conflictMap = new Map<string, Array<{ line: number; localContent: string; templateContent: string }>>();
+	const conflictMap = new Map<
+		string,
+		Array<{ line: number; localContent: string; templateContent: string }>
+	>();
 	const jsonFiles: JsonFileInfo[] = [];
 	let successCount = 0;
 	let skipCount = 0;
 
-	for (const target of changedFiles) {
-		const templateContent = await fs.readFile(target.templatePath, "utf-8");
-		const projectPath = path.join(cwd, target.path);
+	// マージ計算を並列実行
+	const mergeResults = await batchProcessor.processBatch(
+		changedFiles,
+		async (target) => {
+			const templateContent = await fs.readFile(target.templatePath, "utf-8");
+			const projectPath = path.join(cwd, target.path);
 
-		if (!target.exists || options.force) {
-			// 新規ファイルまたは強制上書き
-			await fs.ensureDir(path.dirname(projectPath));
-			await fs.writeFile(projectPath, templateContent, "utf-8");
-			successCount++;
-			log(`  ✓ ${target.path}`, options);
+			if (!target.exists || options.force) {
+				// 新規ファイルまたは強制上書き
+				return {
+					target,
+					templateContent,
+					mergeContent: templateContent,
+					success: true,
+					conflicts: [],
+					action: (target.exists ? "merged" : "created") as
+						| "merged"
+						| "created",
+				};
+			}
 
-			// JSON出力用データを収集
-			jsonFiles.push({
-				path: target.path,
-				status: "success",
-				action: target.exists ? "merged" : "created",
-			});
-		} else {
 			// 既存ファイル：3方向マージ
 			const localContent = await fs.readFile(projectPath, "utf-8");
 			const fileMetadata = metadata.files[target.path];
@@ -247,43 +262,54 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 				templateContent,
 			);
 
-			if (mergeResult.success) {
-				// コンフリクトなし：マージ結果を書き込み
-				await fs.writeFile(projectPath, mergeResult.content, "utf-8");
-				successCount++;
-				log(`  ✓ ${target.path}`, options);
+			return {
+				target,
+				templateContent,
+				mergeContent: mergeResult.content,
+				success: mergeResult.success,
+				conflicts: mergeResult.conflicts,
+				action: "merged" as const,
+			};
+		},
+	);
 
-				// JSON出力用データを収集
-				jsonFiles.push({
-					path: target.path,
-					status: "success",
-					action: "merged",
-				});
-			} else {
-				// コンフリクトあり：コンフリクトマーカー付きで書き込み
-				await fs.writeFile(projectPath, mergeResult.content, "utf-8");
-				conflictMap.set(target.path, mergeResult.conflicts);
-				log(`  ⚠️ ${target.path} (コンフリクト)`, options);
+	// ファイル書き込みは順次実行（ファイルシステムの競合を避けるため）
+	for (const result of mergeResults) {
+		const projectPath = path.join(cwd, result.target.path);
 
-				// JSON出力用データを収集（コンフリクト情報を含む）
-				jsonFiles.push({
-					path: target.path,
-					status: "conflict",
-					action: "marked",
-					conflicts: mergeResult.conflicts.map(c => ({
-						line: c.line,
-						local: c.localContent,
-						template: c.templateContent,
-					})),
-				});
-			}
+		await fs.ensureDir(path.dirname(projectPath));
+		await fs.writeFile(projectPath, result.mergeContent, "utf-8");
+
+		if (result.success) {
+			successCount++;
+			log(`  ✓ ${result.target.path}`, options);
+
+			jsonFiles.push({
+				path: result.target.path,
+				status: "success",
+				action: result.action,
+			});
+		} else {
+			conflictMap.set(result.target.path, result.conflicts);
+			log(`  ⚠️ ${result.target.path} (コンフリクト)`, options);
+
+			jsonFiles.push({
+				path: result.target.path,
+				status: "conflict",
+				action: "marked",
+				conflicts: result.conflicts.map((c) => ({
+					line: c.line,
+					local: c.localContent,
+					template: c.templateContent,
+				})),
+			});
 		}
 
 		// メタデータ更新
 		const updatedMetadata = await metadataManager.updateFileHash(
 			metadata,
-			target.path,
-			templateContent,
+			result.target.path,
+			result.templateContent,
 		);
 		Object.assign(metadata, updatedMetadata);
 	}

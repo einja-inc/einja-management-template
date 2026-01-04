@@ -1,6 +1,6 @@
 ---
 name: task-commit
-description: "コミット・プッシュを実行するSkill。docs/github-workflow.mdcのルールに従い、分割コミットを実施"
+description: "コミット・プッシュを実行するSkill。docs/github-workflow.mdcのルールに従い、分割コミットを実施。直接呼び出し可能（確認あり）、task-exec経由では自動実行"
 allowed-tools:
   - Bash
   - Read

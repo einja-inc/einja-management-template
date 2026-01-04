@@ -288,29 +288,33 @@ async function updateTeamSettings(): Promise<void> {
 		// 2. エディタで開く
 		const editor = process.env.EDITOR || "vi";
 
-		// vi/vimの場合は使い方ヘルプを表示
+		// vi/vimの場合はファイル先頭に使い方ヘルプをコメントとして追加
+		const vimHelpMarker = "# === ↓↓↓ ここから下を編集（この行より上は保存時に自動削除）↓↓↓ ===";
 		if (editor === "vi" || editor === "vim") {
-			p.log.message("");
-			p.log.message("┌─────────────────────────────────────────────────┐");
-			p.log.message("│  vi/vim の基本操作                              │");
-			p.log.message("├─────────────────────────────────────────────────┤");
-			p.log.message("│  【編集モードに入る】                           │");
-			p.log.message("│    i  ... カーソル位置から入力開始              │");
-			p.log.message("│    a  ... カーソルの次の位置から入力開始        │");
-			p.log.message("│    o  ... 次の行に新しい行を挿入して入力開始    │");
-			p.log.message("│                                                 │");
-			p.log.message("│  【編集モードから出る】                         │");
-			p.log.message("│    Esc ... ノーマルモードに戻る                 │");
-			p.log.message("│                                                 │");
-			p.log.message("│  【保存・終了】(Escを押してから)                │");
-			p.log.message("│    :wq  ... 保存して終了                        │");
-			p.log.message("│    :w   ... 保存のみ                            │");
-			p.log.message("│    :q!  ... 保存せず強制終了                    │");
-			p.log.message("│                                                 │");
-			p.log.message("│  【カーソル移動】                               │");
-			p.log.message("│    h j k l  または 矢印キー                     │");
-			p.log.message("└─────────────────────────────────────────────────┘");
-			p.log.message("");
+			const vimHelp = `# ┌─────────────────────────────────────────────────┐
+# │  vi/vim の基本操作                              │
+# ├─────────────────────────────────────────────────┤
+# │  【編集モードに入る】                           │
+# │    i  ... カーソル位置から入力開始              │
+# │    a  ... カーソルの次の位置から入力開始        │
+# │    o  ... 次の行に新しい行を挿入して入力開始    │
+# │                                                 │
+# │  【編集モードから出る】                         │
+# │    Esc ... ノーマルモードに戻る                 │
+# │                                                 │
+# │  【保存・終了】(Escを押してから)                │
+# │    :wq  ... 保存して終了                        │
+# │    :w   ... 保存のみ                            │
+# │    :q!  ... 保存せず強制終了                    │
+# │                                                 │
+# │  【カーソル移動】                               │
+# │    h j k l  または 矢印キー                     │
+# └─────────────────────────────────────────────────┘
+${vimHelpMarker}
+
+`;
+			const currentContent = fs.readFileSync(tmpPath, "utf-8");
+			fs.writeFileSync(tmpPath, vimHelp + currentContent);
 		}
 
 		p.log.info(`${editor} で .env.local.tmp を開きます...`);
@@ -334,6 +338,18 @@ async function updateTeamSettings(): Promise<void> {
 
 		// 4. バックアップ作成 → リネーム → 再暗号化
 		spinner.start("再暗号化中...");
+
+		// vi/vimヘルプコメントを削除（ファイル先頭から）
+		if (editor === "vi" || editor === "vim") {
+			let content = fs.readFileSync(tmpPath, "utf-8");
+			const markerIndex = content.indexOf(vimHelpMarker);
+			if (markerIndex !== -1) {
+				// マーカー行の次の改行以降を残す
+				const afterMarker = markerIndex + vimHelpMarker.length;
+				content = content.substring(afterMarker).replace(/^\n+/, "");
+			}
+			fs.writeFileSync(tmpPath, content);
+		}
 
 		// 元のファイルをバックアップ
 		fs.copyFileSync(ENV_LOCAL_PATH, backupPath);

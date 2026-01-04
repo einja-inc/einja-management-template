@@ -36,3 +36,27 @@ export interface BaseContent {
 	content: string;
 	hash: string;
 }
+
+/**
+ * スキャンオプションの型定義
+ */
+export interface ScanOptions {
+	/** フィルタするカテゴリのリスト */
+	categories?: string[];
+	/** 追加の除外パターンのリスト */
+	excludePatterns?: string[];
+}
+
+/**
+ * 同期対象ファイルの型定義
+ */
+export interface SyncTarget {
+	/** 相対パス */
+	path: string;
+	/** カテゴリ */
+	category: string;
+	/** テンプレートファイルパス */
+	templatePath: string;
+	/** ローカルに存在するか */
+	exists: boolean;
+}

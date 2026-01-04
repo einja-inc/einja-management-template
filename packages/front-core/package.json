@@ -1,29 +1,24 @@
 {
-	"name": "@einja/auth",
+	"name": "@einja/front-core",
 	"version": "0.1.0",
 	"private": true,
-	"main": "./src/index.ts",
-	"types": "./src/index.ts",
 	"exports": {
 		".": "./src/index.ts",
-		"./config": "./src/config.ts",
-		"./guard": "./src/guard.ts"
+		"./auth": "./src/auth/index.ts",
+		"./hooks": "./src/hooks/index.ts",
+		"./utils": "./src/utils/index.ts",
+		"./context": "./src/context/index.ts"
 	},
 	"dependencies": {
-		"@auth/prisma-adapter": "^2.9.1",
-		"@einja/database": "workspace:*",
-		"@einja/types": "workspace:*",
+		"@einja/server-core": "workspace:*",
 		"bcryptjs": "^3.0.2",
-		"next": "15.3.3",
 		"next-auth": "^5.0.0-beta.28",
-		"react": "^19.2.0",
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {
 		"@einja/config": "workspace:*",
 		"@types/bcryptjs": "^2.4.6",
 		"@types/node": "^22.18.13",
-		"@types/react": "^19.2.2",
 		"typescript": "^5"
 	}
 }

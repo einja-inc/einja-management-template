@@ -157,7 +157,7 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 #### Server Component
 ```typescript
-import { auth } from "@einja/auth";
+import { auth } from "@/lib/auth";
 
 export default async function Page() {
   const session = await auth();
@@ -346,17 +346,19 @@ const mutation = useMutation({
 
 ### モノレポ構造
 - `@einja/ui`: 共通UIコンポーネント
-- `@einja/auth`: 認証ロジック
-- `@einja/database`: Prismaクライアント
-- `@einja/types`: 共通型定義
+- `@einja/front-core`: フロントエンド共通層（認証共通設定、hooks、utils、context）
+- `@einja/server-core`: バックエンド共通層（Prismaクライアント、ドメインロジック）
 
 ### インポートパス
 ```typescript
 // パッケージ間
 import { Button } from "@einja/ui/button";
-import { auth } from "@einja/auth";
+import { prisma } from "@einja/server-core";
+import { baseAuthOptions, mergeAuthOptions } from "@einja/front-core/auth";
 
-// アプリ内
+// アプリ内（認証はアプリローカル）
+import { auth, signIn, signOut } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth/guard";
 import { Component } from "@/components/...";
 import { helper } from "@/lib/...";
 ```

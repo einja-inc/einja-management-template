@@ -1,4 +1,4 @@
-import { auth } from "@einja/auth";
+import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AuthenticatedLayoutClient } from "./layout-client";
 

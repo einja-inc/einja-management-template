@@ -1,7 +1,7 @@
-import { auth } from "@einja/auth";
 import type { Session } from "next-auth";
 import { redirect } from "next/navigation";
 import React from "react";
+import { auth } from "./index";
 
 /**
  * 認証が必要なページコンポーネント用の高階関数

@@ -18,9 +18,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@einja/auth": "workspace:*",
-    "@einja/database": "workspace:*",
-    "@einja/types": "workspace:*",
+    "@einja/front-core": "workspace:*",
+    "@einja/server-core": "workspace:*",
     "@einja/ui": "workspace:*",
     "@hookform/resolvers": "^5.1.1",
     "@radix-ui/react-accordion": "^1.2.11",

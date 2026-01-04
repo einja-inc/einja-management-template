@@ -46,9 +46,9 @@ project-root/
 │
 ├── packages/
 │   └── server-core/      # 共有バックエンドロジック⭐
+│       ├── core/             # アーキテクチャのコア（Result型等）
 │       ├── domain/           # Domain層
-│       ├── infrastructure/   # Infrastructure層
-│       └── utils/
+│       └── infrastructure/   # Infrastructure層
 │
 ├── apps/
 │   ├── web/src/application/        # Application層（webアプリ固有）⭐
@@ -125,9 +125,8 @@ packages/server-core/
 │   │       ├── StorageService.ts
 │   │       └── S3StorageService.ts
 │   │
-│   └── utils/               # ユーティリティ
-│       ├── result.ts        # Result型定義⭐
-│       └── errors.ts        # ApplicationError階層⭐
+│   └── core/                # アーキテクチャのコア
+│       └── result.ts        # Result型定義⭐
 │
 └── package.json
     └── "exports": { "./*": "./src/*.ts" }  # index.ts不使用⭐
@@ -547,7 +546,7 @@ export type UserSearchCriteria = {
 
 **型定義**:
 ```typescript
-// packages/server-core/src/utils/result.ts
+// packages/server-core/src/core/result.ts
 type Success<T> = { isSuccess: true; value: T }
 type Failure<E> = { isSuccess: false; error: E }
 type Result<T, E> = Success<T> | Failure<E>

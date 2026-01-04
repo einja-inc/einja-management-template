@@ -84,3 +84,97 @@ export interface MergeResult {
 	/** コンフリクト一覧 */
 	conflicts: Conflict[];
 }
+
+/**
+ * マーカーセクションの種別
+ */
+export type MarkerSectionType = "managed" | "unmanaged";
+
+/**
+ * マーカーエラーの種別
+ */
+export type MarkerErrorType = "unpaired_start" | "unpaired_end" | "nested";
+
+/**
+ * マーカーセクションの型定義
+ */
+export interface MarkerSection {
+	/** セクション種別 */
+	type: MarkerSectionType;
+	/** 開始行番号（1始まり） */
+	startLine: number;
+	/** 終了行番号（1始まり） */
+	endLine: number;
+	/** セクション内容 */
+	content: string;
+}
+
+/**
+ * マーカーエラーの型定義
+ */
+export interface MarkerError {
+	/** エラー行番号（1始まり） */
+	line: number;
+	/** エラーメッセージ */
+	message: string;
+	/** エラー種別 */
+	type: MarkerErrorType;
+}
+
+/**
+ * マーカー検証結果の型定義
+ */
+export interface MarkerValidationResult {
+	/** 検証結果 */
+	valid: boolean;
+	/** エラー一覧 */
+	errors: MarkerError[];
+}
+
+/**
+ * JSON出力用のファイル情報
+ */
+export interface JsonFileInfo {
+	/** ファイルパス */
+	path: string;
+	/** ステータス（success, conflict, skipped） */
+	status: "success" | "conflict" | "skipped";
+	/** 実行されたアクション */
+	action: "merged" | "created" | "marked" | "skipped";
+	/** コンフリクト情報（status=conflictの場合のみ） */
+	conflicts?: Array<{
+		line: number;
+		local: string;
+		template: string;
+	}>;
+}
+
+/**
+ * JSON出力の型定義
+ */
+export interface JsonOutput {
+	/** ステータス（success, partial_success, error） */
+	status: "success" | "partial_success" | "error";
+	/** サマリー情報 */
+	summary: {
+		/** 総ファイル数 */
+		total: number;
+		/** 変更されたファイル数 */
+		changed: number;
+		/** 成功したファイル数 */
+		succeeded: number;
+		/** コンフリクトが発生したファイル数 */
+		conflicts: number;
+		/** スキップされたファイル数 */
+		skipped: number;
+	};
+	/** ファイル情報の配列 */
+	files: JsonFileInfo[];
+	/** メタデータ情報 */
+	metadata: {
+		/** メタデータバージョン */
+		version: string;
+		/** 同期実行日時 */
+		syncedAt: string;
+	};
+}

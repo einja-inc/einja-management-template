@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
-import { prisma } from "@repo/server-core";
+import { prisma } from "@repo/server-core/infrastructure/database/client";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -47,6 +47,12 @@ export const baseAuthOptions: NextAuthConfig = {
           if (!isPasswordValid) {
             return null;
           }
+
+          // lastLoginを更新
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() },
+          });
 
           return {
             id: user.id,

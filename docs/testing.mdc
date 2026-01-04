@@ -8,7 +8,9 @@ alwaysApply: false
 
 ## 概要
 
-このプロジェクトでは**Vitest**をメインテストランナーとして使用し、React Testing Libraryと組み合わせてコンポーネントテストを実装します。また、E2EテストにはPlaywrightを使用します。
+このプロジェクトでは**Vitest**をメインテストランナーとして使用し、React Testing Libraryと組み合わせてコンポーネントテストを実装します。また、E2Eテスト（コードベース）にはPlaywrightを使用します。
+
+> **テストレベルの定義**: このドキュメントは開発者が実装・実行するテストを対象とします。QAエージェントが実行するBrowserテスト（Playwright MCP）については、`docs/steering/terminology.md` を参照してください。
 
 ## テスト環境
 
@@ -74,10 +76,12 @@ test/                                   # テスト設定・ユーティリテ�
 ### 2. 統合テスト
 複数のコンポーネントの相互作用をテスト
 
-### 3. E2Eテスト（今後実装予定）
-実際のブラウザ環境でのエンドツーエンドテスト（Playwright）
+### 3. E2Eテスト（Playwrightコード、今後実装予定）
+`pnpm test:e2e`で実行されるPlaywrightコードベースの自動テスト
 
 > **Note**: E2Eテスト環境は現在構築中です。`playwright.config.ts`の設定とテストの実装は今後追加予定です。
+>
+> **用語の明確化**: このE2Eテストは、QAエージェント（task-qa）がPlaywright MCPを使用して実行する「Browserテスト」とは異なります。詳細は`docs/steering/terminology.md`を参照してください。
 
 ## コンポーネントテストの基本パターン
 

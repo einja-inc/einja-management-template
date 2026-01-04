@@ -1,5 +1,5 @@
 ---
-description: "ローカル開発環境を起動します。環境構築済みの場合に使用"
+description: "ローカル開発環境を起動します"
 allowed-tools: Bash
 ---
 
@@ -7,72 +7,92 @@ allowed-tools: Bash
 
 ## コマンドの目的
 
-既に環境構築が完了している環境でローカル開発環境を起動します。
+開発サーバーを起動します。`pnpm dev` は自動的にWorktree環境を検出し、適切なポート・DB設定を行います。
+
+**新機能**: 複数のClaude CodeやCodexセッションが並列で実行されている場合でも、ポート競合を自動解決します。
 
 ## 実行手順
 
-### 1. PostgreSQL起動
+### 通常起動（フォアグラウンド）
 ```bash
-echo "=== PostgreSQL起動 ==="
-docker-compose up -d postgres
-echo "✅ PostgreSQL起動完了"
+# 開発サーバー起動（Worktree対応・自動セットアップ）
+# 同じポートを使用しているプロセスがあれば自動終了してから起動
+pnpm dev
 ```
 
-### 2. 依存関係インストール
+### バックグラウンド起動（推奨：並列セッション時）
 ```bash
-echo "=== 依存関係インストール ==="
-npm install
-echo "✅ npm install完了"
+# バックグラウンドで起動（ログは log/dev.log に出力）
+pnpm dev:bg
 ```
 
-### 3. Prismaクライアント生成とマイグレーション
-```bash
-echo "=== Prismaクライアント生成 ==="
-npm run db:generate
-echo "✅ Prismaクライアント生成完了"
+## 管理コマンド
 
-echo "=== データベースマイグレーション ==="
-npm run db:push
-echo "✅ マイグレーション完了"
+```bash
+# 開発サーバーの状態確認
+pnpm dev:status
+
+# ログをリアルタイムで確認
+pnpm dev:logs
+
+# 開発サーバーを停止
+pnpm dev:stop
 ```
 
-### 4. 既存プロセス終了とログクリア
+## オプション
+
+| オプション | 説明 |
+|-----------|------|
+| `--background`, `-b` | バックグラウンドで起動（ログはlog/dev.logに出力） |
+| `--no-kill` | 既存プロセスを終了せずにポート競合時はエラー |
+| `--setup-only` | 環境セットアップのみ（サーバー起動なし） |
+| `--stop` | 実行中の開発サーバーを停止 |
+| `--status` | 開発サーバーのステータス表示 |
+
+## 注意事項
+
+- 初回実行時は `pnpm dev:setup` で環境セットアップが必要です
+- `pnpm dev` はWorktree環境を自動検出してポート・DB名を調整します
+- **並列実行時**: 同じポートを使用しているプロセスは自動的に終了されます
+- ログファイルは `log/dev.log` に出力されます
+
+## ターミナルから直接実行する場合
+
+### 初回セットアップ
 ```bash
-echo "=== 既存プロセス終了とログクリア ==="
-echo "" > dev.log
-echo "既存のNext.jsプロセスを終了中..."
-pkill -f "npm run dev" 2>/dev/null || true
-pkill -f "next-server" 2>/dev/null || true
-pkill -f "next dev" 2>/dev/null || true
-sleep 2
-echo "✅ プロセス終了とログクリア完了"
+pnpm dev:setup  # .env作成、DB起動・初期化
 ```
 
-### 5. Next.js アプリケーション起動（Turbopack）
+### 開発サーバー起動
 ```bash
-echo "=== Next.js サーバー起動（Turbopack） ==="
-npm run dev > dev.log 2>&1 &
-echo "✅ Next.jsサーバー起動中..."
-echo "起動ログ: tail -f dev.log で確認可能"
+pnpm dev     # フォアグラウンド（全自動・Worktree対応）
+pnpm dev:bg  # バックグラウンド（Claude Code/Codex並列実行時推奨）
 ```
 
-### 6. 起動確認
+### セットアップのみ（開発サーバーは手動起動）
 ```bash
-echo "=== 起動確認 ==="
-sleep 15
-if curl -s http://localhost:3000 > /dev/null 2>&1; then
-    echo "✅ Next.js App: 起動完了 (http://localhost:3000)"
-else
-    echo "⏳ サーバーはまだ起動中です"
-    echo "ログを確認してください: tail -f dev.log"
-fi
+pnpm env:prepare
+```
 
-echo ""
-echo "📋 利用可能なサービス:"
-echo "  • PostgreSQL: localhost:5432"
-echo "  • Next.js App: http://localhost:3000"
-echo ""
-echo "💡 開発サーバーの停止:"
-echo "  pkill -f 'npm run dev'"
-echo ""
+## トラブルシューティング
+
+### ポートが解放されない場合
+```bash
+# ステータス確認
+pnpm dev:status
+
+# 強制終了
+pnpm dev:stop
+
+# 特定ポートのプロセスを確認
+lsof -i :3000
+```
+
+### ログが見たい場合
+```bash
+# リアルタイムログ
+pnpm dev:logs
+
+# または直接
+tail -f log/dev.log
 ```

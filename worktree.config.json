@@ -1,0 +1,14 @@
+{
+	"schemaVersion": 1,
+	"postgres": {
+		"port": 25432,
+		"containerName": "einja-management-postgres"
+	},
+	"apps": [
+		{
+			"id": "web",
+			"portRangeStart": 3000,
+			"rangeSize": 1000
+		}
+	]
+}

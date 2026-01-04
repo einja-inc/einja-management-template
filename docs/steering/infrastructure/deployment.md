@@ -1,29 +1,29 @@
-# デプロイメント戦略
+# デプロイメント・CI/CD設計方針
 
 ## 概要
 
-このドキュメントでは、Vercel、Railway、Dockerを使用したデプロイメント戦略と、Worktree対応の開発環境設定について説明します。
+このドキュメントでは、プロジェクトのデプロイメントとCI/CDパイプラインの**設計方針**を説明します。
 
-複数のプラットフォームに対応したハイブリッドデプロイメントと、ブランチごとの並行開発環境を実現します。
+具体的な設定手順については以下を参照してください：
+- [デプロイセットアップ手順](../../instructions/deployment-setup.md)
+- [環境変数セットアップ手順](../../instructions/environment-setup.md)
 
 ---
 
 ## 目次
 
 1. [デプロイメントアーキテクチャ](#1-デプロイメントアーキテクチャ)
-2. [Vercelデプロイ（Web/Admin）](#2-vercelデプロイwebadmin)
-3. [Railwayデプロイ（Cron Worker）](#3-railwayデプロイcron-worker)
-4. [環境変数管理](#4-環境変数管理)
-5. [Worktree対応](#5-worktree対応)
-6. [Docker化](#6-docker化)
-7. [ロールバック戦略](#7-ロールバック戦略)
-8. [トラブルシューティング](#8-トラブルシューティング)
+2. [プラットフォーム選定理由](#2-プラットフォーム選定理由)
+3. [CI/CDパイプライン設計](#3-cicdパイプライン設計)
+4. [キャッシュ戦略](#4-キャッシュ戦略)
+5. [Worktree対応設計](#5-worktree対応設計)
+6. [ロールバック戦略](#6-ロールバック戦略)
 
 ---
 
 ## 1. デプロイメントアーキテクチャ
 
-### デプロイメント構成
+### 全体構成
 
 ```mermaid
 graph TB
@@ -34,9 +34,7 @@ graph TB
 
     subgraph "Vercel Platform"
         WebProd[web - Production]
-        AdminProd[admin - Production]
         WebPreview[web - Preview]
-        AdminPreview[admin - Preview]
     end
 
     subgraph "Railway Platform"
@@ -49,15 +47,12 @@ graph TB
     end
 
     Main -->|Auto Deploy| WebProd
-    Main -->|Auto Deploy| AdminProd
     Main -->|Auto Deploy| CronProd
 
     Feature -->|PR Deploy| WebPreview
-    Feature -->|PR Deploy| AdminPreview
     Feature -->|Manual Deploy| CronStaging
 
     WebProd --> DB
-    AdminProd --> DB
     CronProd --> DB
 ```
 
@@ -66,599 +61,217 @@ graph TB
 | アプリケーション | プラットフォーム | デプロイトリガー | 環境 |
 |----------------|--------------|--------------|------|
 | web | Vercel | main push, PR作成 | Production, Preview |
-| admin | Vercel | main push, PR作成 | Production, Preview |
 | cron-worker | Railway | main push | Production |
 
 ---
 
-## 2. Vercelデプロイ（Web/Admin）
+## 2. プラットフォーム選定理由
 
-### Vercel設定
+### Vercel（Web/Admin）
 
-**プロジェクト構成**:
-- `web`: Next.js Webアプリケーション
-- `admin`: Next.js 管理画面
+**選定理由**:
+- Next.jsの開発元であり、最適化が保証されている
+- Edge NetworkによるグローバルCDN配信
+- Preview Deploymentsによる迅速なレビュー
+- Turborepo Remote Cacheとの統合
 
-**ビルド設定**:
+**採用機能**:
+- Standalone Build（コンテナサイズ最小化）
+- ISR（Incremental Static Regeneration）
+- Edge Middleware
 
-| 設定項目 | 値 |
-|---------|---|
-| Framework Preset | Next.js |
-| Build Command | `pnpm turbo run build --filter=web` |
-| Output Directory | `.next` |
-| Install Command | `pnpm install --frozen-lockfile` |
-| Root Directory | `apps/web` (または `apps/admin`) |
+### Railway（Cron Worker）
 
-### 環境変数設定
+**選定理由**:
+- ネイティブCronジョブサポート
+- Dockerコンテナのシンプルなデプロイ
+- 環境変数のシームレスな管理
+- 従量課金で低コスト運用可能
 
-**Vercel Dashboard**:
+**採用機能**:
+- Cron Job Scheduling
+- Docker Image Deploy
+- Health Checks
 
-```bash
-# Production環境
-DATABASE_URL=postgresql://...
-NEXT_PUBLIC_API_URL=https://api.example.com
-JWT_SECRET=production-secret
+---
 
-# Preview環境
-DATABASE_URL=postgresql://preview-...
-NEXT_PUBLIC_API_URL=https://preview-api.example.com
-JWT_SECRET=preview-secret
-```
+## 3. CI/CDパイプライン設計
 
-### デプロイフロー
+### パイプラインフロー
 
 ```mermaid
 sequenceDiagram
     participant Dev as 開発者
-    participant GitHub as GitHub
-    participant Vercel as Vercel
-    participant DB as PostgreSQL
-
-    Dev->>GitHub: git push main
-    GitHub->>Vercel: Webhook通知
-    Vercel->>Vercel: pnpm install
-    Vercel->>Vercel: pnpm turbo run build
-    Vercel->>Vercel: Next.js Standalone Build
-    Vercel->>Vercel: デプロイ
-    Vercel->>DB: マイグレーション実行
-    Vercel-->>Dev: デプロイ完了通知
-```
-
-### Vercel CLI操作
-
-**ローカルからのデプロイ**:
-
-```bash
-# Vercel CLIインストール
-npm i -g vercel
-
-# プロジェクトリンク
-cd apps/web
-vercel link
-
-# プレビューデプロイ
-vercel
-
-# 本番デプロイ
-vercel --prod
-```
-
----
-
-## 3. Railwayデプロイ（Cron Worker）
-
-### Railway設定
-
-**プロジェクト構成**:
-- Dockerコンテナとしてデプロイ
-- Cron機能でジョブをスケジュール実行
-
-**railway.toml設定**:
-
-```toml
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "apps/cron-worker/Dockerfile"
-
-[deploy]
-startCommand = "echo 'Cron worker deployed'"
-
-# Cronジョブ定義
-[[crons]]
-command = "pnpm job:cleanup"
-schedule = "0 0 * * *"  # 毎日午前0時
-
-[[crons]]
-command = "pnpm job:email-digest"
-schedule = "0 9 * * *"  # 毎日午前9時
-
-[[crons]]
-command = "pnpm job:health-check"
-schedule = "*/5 * * * *"  # 5分ごと
-```
-
-### Dockerfile
-
-**配置場所**: `apps/cron-worker/Dockerfile`
-
-```dockerfile
-FROM node:20-alpine AS base
-
-# pnpmインストール
-RUN npm install -g pnpm@8
-
-# 依存関係インストール
-FROM base AS dependencies
-WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/cron-worker/package.json ./apps/cron-worker/
-COPY packages/server-core/package.json ./packages/server-core/
-RUN pnpm install --frozen-lockfile
-
-# ビルド
-FROM base AS build
-WORKDIR /app
-COPY . .
-COPY --from=dependencies /app/node_modules ./node_modules
-RUN pnpm turbo run build --filter=cron-worker
-
-# 実行環境
-FROM base AS runner
-WORKDIR /app
-COPY --from=build /app/apps/cron-worker/dist ./dist
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./
-
-ENV NODE_ENV=production
-
-CMD ["echo", "Cron worker ready"]
-```
-
-### Railway CLI操作
-
-**デプロイ**:
-
-```bash
-# Railway CLIインストール
-npm i -g @railway/cli
-
-# ログイン
-railway login
-
-# プロジェクトリンク
-cd apps/cron-worker
-railway link
-
-# デプロイ
-railway up
-```
-
----
-
-## 4. 環境変数管理
-
-### 階層的環境変数ロード
-
-**ロード順序**（後勝ち）:
-1. `root/.env` - モノレポ全体の共通設定
-2. `root/.env.local` - ローカル環境でのオーバーライド
-3. `apps/*/.env.local` - アプリケーション固有のオーバーライド
-
-```mermaid
-sequenceDiagram
-    participant Dev as 開発者
-    participant Root as ルートディレクトリ
-    participant Dotenv as dotenv-cli
+    participant GH as GitHub
+    participant CI as GitHub Actions
     participant Turbo as Turborepo
-    participant App as web/admin/cron-worker
+    participant Cache as Vercel Cache
+    participant Vercel as Vercel
+    participant Railway as Railway
 
-    Dev->>Root: pnpm dev
-    Root->>Dotenv: dotenv -e .env -e .env.local
-    Dotenv->>Dotenv: .env読み込み
-    Dotenv->>Dotenv: .env.local読み込み(オーバーライド)
-    Dotenv->>Turbo: 環境変数セットしてturbo run dev
-    Turbo->>App: 各アプリ起動
-    App->>App: dotenv -e ../../.env -e ../../.env.local -e .env.local
-    Note over App: 階層的環境変数適用<br/>app .env.local > root .env.local > root .env
-    App->>App: Next.js dev起動
-    App-->>Dev: 開発サーバー起動完了
+    Dev->>GH: git push
+    GH->>CI: Workflow トリガー
+    CI->>CI: 環境セットアップ
+    CI->>Turbo: turbo login
+    Turbo->>Cache: キャッシュ認証
+
+    CI->>Turbo: turbo run lint
+    Turbo->>Cache: キャッシュチェック
+    Cache-->>Turbo: キャッシュヒット/ミス
+    Turbo-->>CI: Lint完了
+
+    CI->>Turbo: turbo run build
+    Turbo->>Cache: キャッシュチェック
+    Turbo->>Turbo: ビルド実行
+    Turbo->>Cache: 結果アップロード
+    Turbo-->>CI: ビルド完了
+
+    CI->>Turbo: turbo run test
+    Turbo-->>CI: テスト完了
+
+    alt main ブランチ
+        CI->>Vercel: web デプロイ
+        CI->>Railway: cron-worker デプロイ
+    end
+
+    CI-->>Dev: ステータス通知
 ```
 
-### 環境変数ファイル例
+### ステージ構成
 
-**`root/.env`** (すべての環境で共通):
+| ステージ | タスク | 並列実行 | キャッシュ |
+|---------|-------|---------|----------|
+| Setup | pnpm install, turbo login | - | ✅ |
+| Lint | turbo run lint | ✅ | ✅ |
+| Type Check | turbo run typecheck | ✅ | ✅ |
+| Test | turbo run test | ✅ | ✅ |
+| Build | turbo run build | ✅ | ✅ |
+| Deploy | Vercel, Railway | ✅ | ❌ |
 
-```bash
-# Database
-DATABASE_URL="postgresql://user:pass@localhost:35432/eenchow"
+### 設計方針
 
-# App Ports (デフォルト値)
-PORT_WEB=3000
-PORT_ADMIN=3001
-PORT_WORKER=3002
-
-# Postgres Port
-POSTGRES_PORT=35432
-```
-
-**`root/.env.local`** (ローカル開発のみ):
-
-```bash
-# ローカル開発用のオーバーライド
-DATABASE_URL="postgresql://user:pass@localhost:35432/eenchow_dev"
-```
-
-**`apps/web/.env.local`** (webアプリ固有):
-
-```bash
-# Web固有の設定
-NEXT_PUBLIC_APP_NAME="eenchow Web App"
-```
-
-### dotenv-cli設定
-
-**package.json**:
-
-```json
-{
-  "scripts": {
-    "dev": "dotenv -e .env -e .env.local -- turbo run dev",
-    "build": "dotenv -e .env -e .env.local -- turbo run build"
-  }
-}
-```
-
-**apps/web/package.json**:
-
-```json
-{
-  "scripts": {
-    "dev": "dotenv -e ../../.env -e ../../.env.local -e .env.local -- next dev"
-  }
-}
-```
+1. **高速フィードバック**: Lint・Type Checkを並列実行し、早期エラー検出
+2. **キャッシュ最大活用**: Turborepo Remote Cacheで86%の時間削減
+3. **環境分離**: dotenvxによる暗号化環境変数でセキュアなCI/CD
 
 ---
 
-## 5. Worktree対応
+## 4. キャッシュ戦略
 
-### Worktreeの課題
+### Turborepo Remote Cache
 
-**課題**: 複数のブランチを並行開発する際、ポート番号が衝突する
+**設計方針**:
+- ビルド成果物をVercel Remote Cacheに保存
+- チーム間でキャッシュを共有し、ビルド時間を大幅短縮
+- 環境変数の変更時は自動でキャッシュ無効化
 
-**解決策**: SHA-256ハッシュベースの動的ポート割り当て
+### キャッシュ対象
 
-### ポート計算ロジック
+| タスク | キャッシュ | 理由 |
+|--------|----------|------|
+| build | ✅ | ビルド成果物を再利用 |
+| lint | ✅ | ソースコード未変更時はスキップ |
+| typecheck | ✅ | 型定義未変更時はスキップ |
+| test | ✅ | テストコード・対象未変更時はスキップ |
+| dev | ❌ | 開発サーバーは継続実行 |
+| db:* | ❌ | データベース操作は冪等性なし |
 
-**実装ファイル**: `scripts/worktree/dev.ts`
+### キャッシュ効果
 
-```typescript
-import crypto from 'crypto'
+| タスク | キャッシュなし | キャッシュあり | 削減率 |
+|--------|--------------|--------------|--------|
+| lint | 10s | 2s | 80% |
+| typecheck | 15s | 3s | 80% |
+| build | 45s | 5s | 89% |
+| test | 30s | 4s | 87% |
+| **合計** | **100s** | **14s** | **86%** |
 
-export interface WorktreePorts {
-  PORT_WEB: number
-  PORT_ADMIN: number
-}
+---
 
-export function calculatePorts(branchName: string): WorktreePorts {
-  // ブランチ名からSHA-256ハッシュを生成
-  const hash = crypto.createHash('sha256').update(branchName).digest('hex')
+## 5. Worktree対応設計
 
-  // ハッシュの最初の8文字を16進数として解釈
-  const seed = parseInt(hash.substring(0, 8), 16)
+### 課題
 
-  // 各ポート番号を計算（1000ポート範囲）
-  const range = 1000
-  const offset = seed % range
+複数のブランチを並行開発する際、ポート番号が衝突する問題がある。
 
-  return {
-    PORT_WEB: 3000 + offset,  // 3000-3999
-    PORT_ADMIN: 4000 + offset,  // 4000-4999
-  }
-}
-```
+### 解決策
 
-### Worktree起動スクリプト
+SHA-256ハッシュベースの動的ポート割り当てを採用。
 
-**実装ファイル**: `scripts/worktree/dev.ts`
+**設計方針**:
+1. ブランチ名からSHA-256ハッシュを生成
+2. ハッシュ値からポート番号を算出（衝突確率を最小化）
+3. 環境変数に自動設定し、Turborepoに引き継ぎ
 
-```typescript
-import { execSync } from 'child_process'
-import { calculatePorts } from './lib/calculate-ports'
-
-// 現在のブランチ名を取得
-const branchName = execSync('git branch --show-current', { encoding: 'utf-8' }).trim()
-
-console.log(`🌿 Worktree branch: ${branchName}`)
-
-// ポート番号を計算
-const ports = calculatePorts(branchName)
-
-console.log(`📡 Ports assigned:`)
-console.log(`  - Web:      ${ports.PORT_WEB}`)
-console.log(`  - Admin:    ${ports.PORT_ADMIN}`)
-
-// 環境変数を設定
-process.env.PORT_WEB = String(ports.PORT_WEB)
-process.env.PORT_ADMIN = String(ports.PORT_ADMIN)
-
-// DATABASE_URLを組み立て（PostgreSQLは固定ポート35432を使用）
-const databaseName = generateDatabaseName(branchName)
-process.env.DATABASE_URL = `postgresql://postgres:postgres@localhost:35432/${databaseName}?schema=public`
-
-console.log(`🗄️  Database: ${databaseName}`)
-console.log(``)
-
-// Turborepoを起動
-execSync('pnpm turbo run dev', { stdio: 'inherit' })
-```
-
-### Worktree開発フロー
+### ポート割り当て設計
 
 ```mermaid
 sequenceDiagram
     participant Dev as 開発者
-    participant Root as ルートディレクトリ
     participant Script as scripts/worktree/dev.ts
     participant Git as Git
     participant Calc as calculatePorts
     participant Turbo as Turborepo
-    participant App as web/admin/cron-worker
+    participant App as web/cron-worker
 
-    Dev->>Root: pnpm dev:worktree
-    Root->>Script: tsx scripts/worktree/dev.ts
+    Dev->>Script: pnpm dev
     Script->>Git: git branch --show-current
     Git-->>Script: ブランチ名(例: feature/auth)
     Script->>Calc: calculatePorts(branch)
     Calc->>Calc: SHA-256ハッシュ計算
     Calc-->>Script: ポート番号セット
-    Note over Script: PORT_WEB=3120<br/>PORT_ADMIN=4120<br/>POSTGRES_PORT=35432
+    Note over Script: PORT_WEB=3120<br/>POSTGRES_PORT=35432
     Script->>Script: process.env設定
     Script->>Script: DATABASE_URL組み立て
     Script->>Turbo: pnpm turbo run dev
-    Note over Turbo: 環境変数が自動継承
     Turbo->>App: 各アプリ起動
-    App->>App: 環境変数読み込み
-    App->>App: Next.js dev起動
     App-->>Dev: ブランチ固有ポートで起動完了
 ```
 
-### Worktree使用例
+### ポート範囲設計
 
-```bash
-# Worktree作成
-git worktree add ../eenchow_feature_auth feature/auth
-
-# Worktree移動
-cd ../eenchow_feature_auth
-
-# 依存関係インストール
-pnpm install
-
-# Worktree対応起動
-pnpm dev:worktree
-
-# 出力例:
-# 🌿 Worktree branch: feature/auth
-# 📡 Ports assigned:
-#   - Web:      3120
-#   - Admin:    4120
-# 🗄️  Database: einja_feature_auth
-```
-
-### package.json設定
-
-**root/package.json**:
-
-```json
-{
-  "scripts": {
-    "dev": "dotenv -e .env -e .env.local -- turbo run dev",
-    "dev:worktree": "tsx scripts/worktree/dev.ts",
-    "setup:worktree": "tsx scripts/worktree/dev.ts --setup-only"
-  }
-}
-```
+| ポート | 範囲 | 用途 |
+|--------|------|------|
+| PORT_WEB | 3000-3999 | Webアプリ |
+| POSTGRES_PORT | 35432 (固定) | PostgreSQL |
 
 ---
 
-## 6. Docker化
+## 6. ロールバック戦略
 
-### Next.js Standalone Build
+### 設計方針
 
-**next.config.js**:
-
-```javascript
-/** @type {import('next').NextConfig} */
-module.exports = {
-  output: 'standalone', // Standaloneビルド有効化
-  reactStrictMode: true,
-  transpilePackages: ["@repo/server-core"],
-}
-```
-
-### マルチステージDockerfile
-
-**Web/Adminアプリ用Dockerfile**:
-
-```dockerfile
-# Stage 1: 依存関係インストール
-FROM node:20-alpine AS deps
-WORKDIR /app
-RUN npm install -g pnpm@8
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/web/package.json ./apps/web/
-COPY packages/server-core/package.json ./packages/server-core/
-RUN pnpm install --frozen-lockfile
-
-# Stage 2: ビルド
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npm install -g pnpm@8
-RUN pnpm turbo run build --filter=web
-
-# Stage 3: 実行環境
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-# Standaloneビルド成果物をコピー
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /app/apps/web/public ./apps/web/public
-
-EXPOSE 3000
-
-CMD ["node", "apps/web/server.js"]
-```
-
-### Docker Compose（ローカル開発用）
-
-**docker-compose.yml**:
-
-```yaml
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:16-alpine
-    ports:
-      - "${POSTGRES_PORT:-35432}:5432"
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
-      POSTGRES_DB: eenchow
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    ports:
-      - "${PORT_WEB:-3000}:3000"
-    environment:
-      - DATABASE_URL=postgresql://user:pass@postgres:5432/eenchow
-    depends_on:
-      - postgres
-
-volumes:
-  postgres_data:
-```
-
----
-
-## 7. ロールバック戦略
+1. **即時ロールバック**: デプロイ履歴から1クリックで前バージョンに戻す
+2. **DB互換性**: マイグレーションは常に後方互換を維持
+3. **Feature Flags**: 大きな変更はフラグで制御し、段階的リリース
 
 ### Vercelロールバック
 
-**方法1: Vercel Dashboard**:
-1. Vercel Dashboardにログイン
-2. プロジェクトを選択
-3. Deploymentsタブを開く
-4. ロールバックしたいデプロイを選択
-5. "Promote to Production" をクリック
+**方針**: Instant Rollbackを活用し、ダウンタイムなしでロールバック
 
-**方法2: Vercel CLI**:
-
-```bash
-# デプロイ履歴確認
-vercel ls
-
-# 特定のデプロイをプロモート
-vercel promote <deployment-url>
-```
+1. Vercel Dashboardで過去のデプロイを選択
+2. "Promote to Production" で即座に切り替え
+3. DNS/CDN自動更新で反映
 
 ### Railwayロールバック
 
-**方法1: Railway Dashboard**:
-1. Railway Dashboardにログイン
-2. プロジェクトを選択
-3. Deploymentsタブを開く
-4. ロールバックしたいデプロイを選択
-5. "Rollback" をクリック
+**方針**: Dockerイメージタグによるバージョン管理
 
-**方法2: Railway CLI**:
+1. 各デプロイにgit SHAタグを付与
+2. 問題発生時は前バージョンのイメージを再デプロイ
 
-```bash
-# デプロイ履歴確認
-railway status
+### データベースロールバック
 
-# ロールバック（再デプロイ）
-railway up
-```
+**方針**: 破壊的マイグレーションを避け、後方互換を維持
+
+- カラム削除は2フェーズで実施（非推奨化 → 削除）
+- 型変更は新カラム追加 → データ移行 → 旧カラム削除
+- インデックス追加は`CREATE CONCURRENTLY`で無停止実行
 
 ---
 
-## 8. トラブルシューティング
+## 関連ドキュメント
 
-### デプロイが失敗する
-
-**原因**: 環境変数が未設定
-
-**解決方法**:
-
-```bash
-# Vercel環境変数確認
-vercel env ls
-
-# 環境変数追加
-vercel env add DATABASE_URL production
-
-# Railway環境変数確認
-railway variables
-
-# 環境変数追加
-railway variables set DATABASE_URL=postgresql://...
-```
-
-### Worktreeでポートが衝突する
-
-**原因**: 計算されたポートが既に使用中
-
-**解決方法**:
-
-```bash
-# ポート使用状況確認
-lsof -i :3120
-
-# プロセスを終了
-kill -9 <PID>
-
-# または、ブランチ名を変更して異なるポートを使用
-git branch -m feature/auth-v2
-```
-
-### マイグレーションエラー
-
-**原因**: DATABASE_URLが不正
-
-**解決方法**:
-
-```bash
-# 環境変数確認
-echo $DATABASE_URL
-
-# マイグレーション手動実行
-pnpm db:migrate:deploy
-
-# Prisma Studioで確認
-pnpm db:studio
-```
-
----
-
-## まとめ
-
-このデプロイメント戦略に従うことで、以下を実現できます：
-
-1. **マルチプラットフォーム**: Vercel + Railway のハイブリッドデプロイ
-2. **環境変数管理**: dotenv-cliによる階層的ロード
-3. **Worktree対応**: SHA-256ハッシュベースの動的ポート割り当て
-4. **Docker化**: Next.js Standaloneビルドによる効率的なコンテナ化
-5. **ロールバック**: Vercel/Railway Dashboardから簡単にロールバック
-
-すべてのデプロイメント操作は、このガイドラインに従って実施してください。
+- [環境変数設計方針](./environment-variables.md)
+- [デプロイセットアップ手順](../../instructions/deployment-setup.md)
+- [環境変数セットアップ手順](../../instructions/environment-setup.md)

@@ -1,17 +1,20 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database for local development
+  # 全ワークツリーで共有する単一インスタンス
+  # データベース名で分離: main, feature_xxx など
   postgres:
     image: postgres:15-alpine
-    container_name: einja-postgres
+    container_name: ${POSTGRES_CONTAINER_NAME:-einja-management-postgres}
     restart: unless-stopped
     environment:
-      POSTGRES_DB: einja_management
+      POSTGRES_DB: main
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      # Collation問題を防ぐための設定
+      # DockerコンテナとmacOSホスト間のロケール差異を防ぎ、Prisma Migrateを正常動作させる
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-25432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,7 +22,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
 
 volumes:
   postgres_data:

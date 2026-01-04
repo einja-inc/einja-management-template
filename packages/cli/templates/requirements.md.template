@@ -106,14 +106,17 @@ graph TD
   - 例: バリデーション関数、ユーティリティ関数
 - **Integration**: 統合テスト（task-qa が実行）
   - 例: APIエンドポイント、データベース連携
-- **E2E**: エンドツーエンドテスト（task-qa が実行）
-  - 例: ログインフロー、画面遷移
+- **E2E**: Playwrightコードによる自動テスト（CI/開発者 が実行）
+  - 例: `pnpm test:e2e` で実行されるリグレッションテスト
+- **Browser**: Playwright MCPによるブラウザテスト（task-qa が実行）
+  - 例: 画面フロー、UIインタラクション確認
 
 **検証者**:
 - **task-executer**: 実装フェーズで Unit テストを作成・実行
-- **task-qa**: QA フェーズで Integration/E2E テストを実行
+- **CI/開発者**: E2E テスト（`pnpm test:e2e`）を実行
+- **task-qa**: QA フェーズで Integration/Browser テストを実行
 
-詳細は `docs/steering/acceptance-criteria-and-qa-guide.md` を参照してください。
+詳細は `docs/steering/terminology.md` および `docs/steering/acceptance-criteria-and-qa-guide.md` を参照してください。
 
 #### 受け入れ基準
 
@@ -144,13 +147,14 @@ graph TD
 
 ##### UIインタラクション要件
 <!-- 画面操作に関する受け入れ基準（該当する場合） -->
+<!-- Browser検証レベルはPlaywright MCPによるブラウザテストで確認します -->
 
-- [ ] **AC1.4** [検証レベル: E2E] [検証者: task-qa]
-      Given: [前提条件]
+- [ ] **AC1.4** [検証レベル: Browser] [検証者: task-qa]
+      Given: [前提条件（画面が表示されている状態）]
       When: [ユーザー操作]
       Then: [期待される画面の振る舞い]
 
-- [ ] **AC1.5** [検証レベル: E2E] [検証者: task-qa]
+- [ ] **AC1.5** [検証レベル: Browser] [検証者: task-qa]
       Given: [前提条件]
       When: [ユーザー操作]
       Then: [期待される画面の振る舞い]
@@ -185,8 +189,9 @@ P0 (必須)
 
 ##### UIインタラクション要件
 <!-- 画面操作に関する受け入れ基準（該当する場合） -->
+<!-- Browser検証レベルはPlaywright MCPによるブラウザテストで確認します -->
 
-- [ ] **AC2.3** [検証レベル: E2E] [検証者: task-qa]
+- [ ] **AC2.3** [検証レベル: Browser] [検証者: task-qa]
       Given: [前提条件]
       When: [ユーザー操作]
       Then: [期待される画面の振る舞い]

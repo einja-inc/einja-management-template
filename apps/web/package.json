@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"dev": "rm -rf .next && next dev --turbopack",
+		"dev": "rm -rf .next && next dev --turbopack --port ${PORT_WEB:-3000}",
 		"build": "panda codegen && next build",
 		"start": "next start",
 		"panda": "panda codegen",

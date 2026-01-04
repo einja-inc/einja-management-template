@@ -6,6 +6,7 @@ import type {
 	SyncMetadata,
 } from "../../types/sync.js";
 import { SyncMetadataSchema } from "../../types/sync.js";
+import { HashCache } from "./hash-cache.js";
 
 /**
  * メタデータ管理クラス
@@ -13,9 +14,11 @@ import { SyncMetadataSchema } from "../../types/sync.js";
  */
 export class MetadataManager {
 	private metadataPath: string;
+	private hashCache: HashCache;
 
-	constructor(projectRoot: string) {
+	constructor(projectRoot: string, hashCache?: HashCache) {
 		this.metadataPath = `${projectRoot}/.einja-sync.json`;
+		this.hashCache = hashCache ?? new HashCache();
 	}
 
 	/**
@@ -78,7 +81,7 @@ export class MetadataManager {
 	async getBaseContent(filePath: string): Promise<BaseContent> {
 		try {
 			const content = await fs.readFile(filePath, "utf-8");
-			const hash = this.calculateHash(content);
+			const hash = this.calculateHash(content, filePath);
 			return { content, hash };
 		} catch (error) {
 			if (error instanceof Error) {
@@ -98,7 +101,7 @@ export class MetadataManager {
 		filePath: string,
 		content: string,
 	): Promise<SyncMetadata> {
-		const hash = this.calculateHash(content);
+		const hash = this.calculateHash(content, filePath);
 		const fileMetadata: FileMetadata = {
 			hash,
 			syncedAt: new Date().toISOString(),
@@ -114,10 +117,36 @@ export class MetadataManager {
 	}
 
 	/**
-	 * SHA-256ハッシュを計算する
+	 * SHA-256ハッシュを計算する（キャッシュあり）
+	 * 同一ファイル内容の場合、2回目以降はキャッシュから取得
 	 */
-	calculateHash(content: string): string {
-		return createHash("sha256").update(content, "utf8").digest("hex");
+	calculateHash(content: string, filePath = ""): string {
+		const contentLength = content.length;
+
+		// キャッシュヒット判定
+		if (filePath && this.hashCache.has(filePath, contentLength)) {
+			const cachedHash = this.hashCache.get(filePath, contentLength);
+			if (cachedHash) {
+				return cachedHash;
+			}
+		}
+
+		// ハッシュ計算
+		const hash = createHash("sha256").update(content, "utf8").digest("hex");
+
+		// キャッシュに保存
+		if (filePath) {
+			this.hashCache.set(filePath, contentLength, hash);
+		}
+
+		return hash;
+	}
+
+	/**
+	 * ハッシュキャッシュをクリアする
+	 */
+	clearHashCache(): void {
+		this.hashCache.clear();
 	}
 
 	/**

@@ -1,6 +1,7 @@
 import { failure, isFailure, isSuccess, success } from "@repo/server-core/core/result";
-import { User } from "@repo/server-core/domain/entities/User";
+import type { User } from "@repo/server-core/domain/entities/User";
 import type { PaginatedResult } from "@repo/server-core/domain/repository-interfaces/IUserRepository";
+import { createUser } from "@repo/server-core/testing/factories/UserFactory";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userUseCases } from "./UserUseCases";
 
@@ -17,18 +18,6 @@ vi.mock("@repo/server-core/infrastructure/database/repositories/UserRepository",
 import { userRepository } from "@repo/server-core/infrastructure/database/repositories/UserRepository";
 
 describe("UserUseCases", () => {
-  const createMockUser = (overrides: Partial<ConstructorParameters<typeof User>[0]> = {}): User =>
-    new User({
-      id: "user-123",
-      email: "test@example.com",
-      name: "Test User",
-      status: "active",
-      role: "user",
-      createdAt: new Date("2025-01-01T00:00:00Z"),
-      lastLogin: new Date("2025-01-02T00:00:00Z"),
-      ...overrides,
-    });
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -37,8 +26,8 @@ describe("UserUseCases", () => {
     it("ユーザー一覧をDTO形式で取得できる", async () => {
       // Given
       const mockUsers = [
-        createMockUser({ id: "user-1", email: "user1@example.com" }),
-        createMockUser({ id: "user-2", email: "user2@example.com" }),
+        createUser({ id: "user-1", email: "user1@example.com" }),
+        createUser({ id: "user-2", email: "user2@example.com" }),
       ];
       const mockPaginatedResult: PaginatedResult<User> = {
         items: mockUsers,
@@ -74,7 +63,7 @@ describe("UserUseCases", () => {
 
     it("nameがnullの場合、空文字に変換される", async () => {
       // Given
-      const mockUser = createMockUser({ name: null });
+      const mockUser = createUser({ name: null });
       const mockPaginatedResult: PaginatedResult<User> = {
         items: [mockUser],
         total: 1,
@@ -96,7 +85,7 @@ describe("UserUseCases", () => {
 
     it("lastLoginがnullの場合、nullのまま返される", async () => {
       // Given
-      const mockUser = createMockUser({ lastLogin: null });
+      const mockUser = createUser({ lastLogin: null });
       const mockPaginatedResult: PaginatedResult<User> = {
         items: [mockUser],
         total: 1,
@@ -152,7 +141,7 @@ describe("UserUseCases", () => {
   describe("getById", () => {
     it("IDでユーザーをDTO形式で取得できる", async () => {
       // Given
-      const mockUser = createMockUser();
+      const mockUser = createUser();
       vi.mocked(userRepository.findById).mockResolvedValue(success(mockUser));
 
       // When
@@ -184,7 +173,7 @@ describe("UserUseCases", () => {
   describe("getByEmail", () => {
     it("メールアドレスでユーザーをDTO形式で取得できる", async () => {
       // Given
-      const mockUser = createMockUser();
+      const mockUser = createUser();
       vi.mocked(userRepository.findByEmail).mockResolvedValue(success(mockUser));
 
       // When

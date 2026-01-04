@@ -1,22 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { User, type UserProps } from "./User";
+import { createUserProps } from "../../testing/factories/UserFactory";
+import { User } from "./User";
 
 describe("User Entity", () => {
-	const createValidUserProps = (overrides: Partial<UserProps> = {}): UserProps => ({
-		id: "user-123",
-		email: "test@example.com",
-		name: "Test User",
-		status: "active",
-		role: "user",
-		createdAt: new Date("2025-01-01T00:00:00Z"),
-		lastLogin: new Date("2025-01-02T00:00:00Z"),
-		...overrides,
-	});
-
 	describe("constructor", () => {
 		it("有効なプロパティでエンティティが生成される", () => {
 			// Given
-			const props = createValidUserProps();
+			const props = createUserProps();
 
 			// When
 			const user = new User(props);
@@ -33,7 +23,7 @@ describe("User Entity", () => {
 
 		it("nameがnullでもエンティティが生成される", () => {
 			// Given
-			const props = createValidUserProps({ name: null });
+			const props = createUserProps({ name: null });
 
 			// When
 			const user = new User(props);
@@ -44,7 +34,7 @@ describe("User Entity", () => {
 
 		it("lastLoginがnullでもエンティティが生成される", () => {
 			// Given
-			const props = createValidUserProps({ lastLogin: null });
+			const props = createUserProps({ lastLogin: null });
 
 			// When
 			const user = new User(props);
@@ -57,7 +47,7 @@ describe("User Entity", () => {
 			// Given & When & Then
 			const statuses = ["active", "inactive", "pending"] as const;
 			for (const status of statuses) {
-				const user = new User(createValidUserProps({ status }));
+				const user = new User(createUserProps({ status }));
 				expect(user.status).toBe(status);
 			}
 		});
@@ -66,7 +56,7 @@ describe("User Entity", () => {
 			// Given & When & Then
 			const roles = ["admin", "user", "moderator"] as const;
 			for (const role of roles) {
-				const user = new User(createValidUserProps({ role }));
+				const user = new User(createUserProps({ role }));
 				expect(user.role).toBe(role);
 			}
 		});
@@ -75,7 +65,7 @@ describe("User Entity", () => {
 	describe("withLastLogin", () => {
 		it("最終ログイン日時を更新した新しいインスタンスを返す", () => {
 			// Given
-			const originalUser = new User(createValidUserProps({ lastLogin: null }));
+			const originalUser = new User(createUserProps({ lastLogin: null }));
 			const newLoginTime = new Date("2025-01-03T12:00:00Z");
 
 			// When
@@ -89,7 +79,7 @@ describe("User Entity", () => {
 		it("元のインスタンスは変更されない（イミュータビリティ）", () => {
 			// Given
 			const originalLastLogin = new Date("2025-01-02T00:00:00Z");
-			const originalUser = new User(createValidUserProps({ lastLogin: originalLastLogin }));
+			const originalUser = new User(createUserProps({ lastLogin: originalLastLogin }));
 			const newLoginTime = new Date("2025-01-03T12:00:00Z");
 
 			// When
@@ -101,7 +91,7 @@ describe("User Entity", () => {
 
 		it("他のプロパティは維持される", () => {
 			// Given
-			const originalUser = new User(createValidUserProps());
+			const originalUser = new User(createUserProps());
 			const newLoginTime = new Date("2025-01-03T12:00:00Z");
 
 			// When
@@ -120,7 +110,7 @@ describe("User Entity", () => {
 	describe("withStatus", () => {
 		it("ステータスを更新した新しいインスタンスを返す", () => {
 			// Given
-			const originalUser = new User(createValidUserProps({ status: "pending" }));
+			const originalUser = new User(createUserProps({ status: "pending" }));
 
 			// When
 			const updatedUser = originalUser.withStatus("active");
@@ -132,7 +122,7 @@ describe("User Entity", () => {
 
 		it("元のインスタンスは変更されない（イミュータビリティ）", () => {
 			// Given
-			const originalUser = new User(createValidUserProps({ status: "pending" }));
+			const originalUser = new User(createUserProps({ status: "pending" }));
 
 			// When
 			originalUser.withStatus("active");
@@ -145,7 +135,7 @@ describe("User Entity", () => {
 	describe("withRole", () => {
 		it("ロールを更新した新しいインスタンスを返す", () => {
 			// Given
-			const originalUser = new User(createValidUserProps({ role: "user" }));
+			const originalUser = new User(createUserProps({ role: "user" }));
 
 			// When
 			const updatedUser = originalUser.withRole("admin");
@@ -157,7 +147,7 @@ describe("User Entity", () => {
 
 		it("元のインスタンスは変更されない（イミュータビリティ）", () => {
 			// Given
-			const originalUser = new User(createValidUserProps({ role: "user" }));
+			const originalUser = new User(createUserProps({ role: "user" }));
 
 			// When
 			originalUser.withRole("admin");
@@ -170,7 +160,7 @@ describe("User Entity", () => {
 	describe("isActive", () => {
 		it("statusがactiveの場合、trueを返す", () => {
 			// Given
-			const user = new User(createValidUserProps({ status: "active" }));
+			const user = new User(createUserProps({ status: "active" }));
 
 			// When & Then
 			expect(user.isActive()).toBe(true);
@@ -178,7 +168,7 @@ describe("User Entity", () => {
 
 		it("statusがinactiveの場合、falseを返す", () => {
 			// Given
-			const user = new User(createValidUserProps({ status: "inactive" }));
+			const user = new User(createUserProps({ status: "inactive" }));
 
 			// When & Then
 			expect(user.isActive()).toBe(false);
@@ -186,7 +176,7 @@ describe("User Entity", () => {
 
 		it("statusがpendingの場合、falseを返す", () => {
 			// Given
-			const user = new User(createValidUserProps({ status: "pending" }));
+			const user = new User(createUserProps({ status: "pending" }));
 
 			// When & Then
 			expect(user.isActive()).toBe(false);
@@ -196,7 +186,7 @@ describe("User Entity", () => {
 	describe("isAdmin", () => {
 		it("roleがadminの場合、trueを返す", () => {
 			// Given
-			const user = new User(createValidUserProps({ role: "admin" }));
+			const user = new User(createUserProps({ role: "admin" }));
 
 			// When & Then
 			expect(user.isAdmin()).toBe(true);
@@ -204,7 +194,7 @@ describe("User Entity", () => {
 
 		it("roleがuserの場合、falseを返す", () => {
 			// Given
-			const user = new User(createValidUserProps({ role: "user" }));
+			const user = new User(createUserProps({ role: "user" }));
 
 			// When & Then
 			expect(user.isAdmin()).toBe(false);
@@ -212,7 +202,7 @@ describe("User Entity", () => {
 
 		it("roleがmoderatorの場合、falseを返す", () => {
 			// Given
-			const user = new User(createValidUserProps({ role: "moderator" }));
+			const user = new User(createUserProps({ role: "moderator" }));
 
 			// When & Then
 			expect(user.isAdmin()).toBe(false);

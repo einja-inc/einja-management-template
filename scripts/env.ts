@@ -19,6 +19,47 @@ const ENV_PERSONAL_PATH = path.join(cwd, ".env.personal");
 const ENV_PERSONAL_EXAMPLE_PATH = path.join(cwd, ".env.personal.example");
 const ENV_KEYS_PATH = path.join(cwd, ".env.keys");
 
+// 環境定義
+interface EnvironmentConfig {
+	name: string;
+	file: string;
+	privateKeyEnv: string;
+	description: string;
+}
+
+const ENVIRONMENTS: EnvironmentConfig[] = [
+	{
+		name: "local",
+		file: ".env.local",
+		privateKeyEnv: "DOTENV_PRIVATE_KEY_LOCAL",
+		description: "ローカル開発環境",
+	},
+	{
+		name: "development",
+		file: ".env.development",
+		privateKeyEnv: "DOTENV_PRIVATE_KEY_DEVELOPMENT",
+		description: "開発環境",
+	},
+	{
+		name: "staging",
+		file: ".env.staging",
+		privateKeyEnv: "DOTENV_PRIVATE_KEY_STAGING",
+		description: "ステージング環境",
+	},
+	{
+		name: "production",
+		file: ".env.production",
+		privateKeyEnv: "DOTENV_PRIVATE_KEY_PRODUCTION",
+		description: "本番環境",
+	},
+	{
+		name: "ci",
+		file: ".env.ci",
+		privateKeyEnv: "DOTENV_PRIVATE_KEY_CI",
+		description: "CI環境",
+	},
+];
+
 /**
  * 環境変数ファイルを読み込んでパース
  */
@@ -213,22 +254,24 @@ async function setupPersonalTokens(): Promise<void> {
 }
 
 /**
- * .env.keysから秘密鍵を取得
+ * .env.keysから指定された環境の秘密鍵を取得
  */
-function getPrivateKey(): string | null {
+function getPrivateKey(privateKeyEnv: string): string | null {
 	if (!fs.existsSync(ENV_KEYS_PATH)) {
 		return null;
 	}
 	const keys = parseEnvFile(ENV_KEYS_PATH);
-	return keys.DOTENV_PRIVATE_KEY_LOCAL || null;
+	return keys[privateKeyEnv] || null;
 }
 
 /**
- * チーム共有設定を変更
+ * 環境設定を変更（汎用）
  */
-async function updateTeamSettings(): Promise<void> {
-	if (!fs.existsSync(ENV_LOCAL_PATH)) {
-		p.log.error(".env.local が見つかりません");
+async function updateEnvironmentSettings(env: EnvironmentConfig): Promise<void> {
+	const envFilePath = path.join(cwd, env.file);
+
+	if (!fs.existsSync(envFilePath)) {
+		p.log.error(`${env.file} が見つかりません`);
 		return;
 	}
 
@@ -238,23 +281,36 @@ async function updateTeamSettings(): Promise<void> {
 		return;
 	}
 
-	const privateKey = getPrivateKey();
+	const privateKey = getPrivateKey(env.privateKeyEnv);
 	if (!privateKey) {
-		p.log.error(".env.keys に DOTENV_PRIVATE_KEY_LOCAL が見つかりません");
+		p.log.error(`.env.keys に ${env.privateKeyEnv} が見つかりません`);
 		return;
+	}
+
+	// 本番環境の場合は追加確認
+	if (env.name === "production") {
+		p.log.warn("⚠️  本番環境の設定を変更しようとしています");
+		const confirmProd = await p.confirm({
+			message: "本当に本番環境の設定を変更しますか？",
+			initialValue: false,
+		});
+		if (p.isCancel(confirmProd) || !confirmProd) {
+			p.cancel("キャンセルしました");
+			return;
+		}
 	}
 
 	p.note(
 		[
-			"チーム共有設定（.env.local）を変更します。",
+			`${env.description}（${env.file}）を変更します。`,
 			"",
 			"手順:",
-			"1. .env.local を復号",
+			`1. ${env.file} を復号`,
 			"2. エディタで編集",
 			"3. 再暗号化",
 			"4. git commit & push",
 		].join("\n"),
-		"📝 チーム共有設定の変更"
+		`📝 ${env.description}の変更`
 	);
 
 	const proceed = await p.confirm({
@@ -268,22 +324,22 @@ async function updateTeamSettings(): Promise<void> {
 	}
 
 	const spinner = p.spinner();
-	const tmpPath = path.join(cwd, ".env.local.tmp");
-	const backupPath = path.join(cwd, ".env.local.bak");
+	const tmpPath = path.join(cwd, `${env.file}.tmp`);
+	const backupPath = path.join(cwd, `${env.file}.bak`);
 
 	// dotenvx実行時の環境変数
-	const dotenvxEnv = { ...process.env, DOTENV_PRIVATE_KEY_LOCAL: privateKey };
+	const dotenvxEnv = { ...process.env, [env.privateKeyEnv]: privateKey };
 
 	try {
 		// 1. 復号
-		spinner.start(".env.local を復号中...");
-		const decrypted = execSync("dotenvx decrypt -f .env.local --stdout", {
+		spinner.start(`${env.file} を復号中...`);
+		const decrypted = execSync(`dotenvx decrypt -f ${env.file} --stdout`, {
 			cwd,
 			encoding: "utf-8",
 			env: dotenvxEnv,
 		});
 		fs.writeFileSync(tmpPath, decrypted);
-		spinner.stop(".env.local を復号しました");
+		spinner.stop(`${env.file} を復号しました`);
 
 		// 2. エディタで開く
 		const editor = process.env.EDITOR || "vi";
@@ -317,9 +373,9 @@ ${vimHelpMarker}
 			fs.writeFileSync(tmpPath, vimHelp + currentContent);
 		}
 
-		p.log.info(`${editor} で .env.local.tmp を開きます...`);
+		p.log.info(`${editor} で ${env.file}.tmp を開きます...`);
 
-		execSync(`${editor} .env.local.tmp`, {
+		execSync(`${editor} ${env.file}.tmp`, {
 			cwd,
 			stdio: "inherit",
 		});
@@ -352,15 +408,15 @@ ${vimHelpMarker}
 		}
 
 		// 元のファイルをバックアップ
-		fs.copyFileSync(ENV_LOCAL_PATH, backupPath);
+		fs.copyFileSync(envFilePath, backupPath);
 
 		try {
-			// テンポラリファイルを.env.localにリネーム
-			fs.unlinkSync(ENV_LOCAL_PATH);
-			fs.renameSync(tmpPath, ENV_LOCAL_PATH);
+			// テンポラリファイルを元のファイルにリネーム
+			fs.unlinkSync(envFilePath);
+			fs.renameSync(tmpPath, envFilePath);
 
 			// 暗号化
-			execSync("dotenvx encrypt -f .env.local", {
+			execSync(`dotenvx encrypt -f ${env.file}`, {
 				cwd,
 				stdio: "pipe",
 				env: dotenvxEnv,
@@ -373,7 +429,7 @@ ${vimHelpMarker}
 			// 暗号化失敗時はバックアップから復元
 			spinner.stop("暗号化に失敗しました");
 			if (fs.existsSync(backupPath)) {
-				fs.copyFileSync(backupPath, ENV_LOCAL_PATH);
+				fs.copyFileSync(backupPath, envFilePath);
 				fs.unlinkSync(backupPath);
 				p.log.info("元のファイルを復元しました");
 			}
@@ -382,11 +438,13 @@ ${vimHelpMarker}
 
 		p.note(
 			[
-				"git add .env.local",
-				'git commit -m "chore: ローカル開発設定を更新"',
+				`git add ${env.file}`,
+				`git commit -m "chore: ${env.description}設定を更新"`,
 				"git push",
 				"",
-				"チームメンバーは git pull 後に pnpm dev:setup で反映",
+				env.name === "local"
+					? "チームメンバーは git pull 後に pnpm dev:setup で反映"
+					: "変更はデプロイ時に反映されます",
 			].join("\n"),
 			"💡 次のステップ"
 		);
@@ -405,6 +463,46 @@ ${vimHelpMarker}
 }
 
 /**
+ * 環境選択メニューを表示
+ */
+async function selectEnvironment(): Promise<void> {
+	// 利用可能な環境をチェック
+	const availableEnvs = ENVIRONMENTS.filter((env) => {
+		const envFilePath = path.join(cwd, env.file);
+		const hasFile = fs.existsSync(envFilePath);
+		const hasKey = getPrivateKey(env.privateKeyEnv) !== null;
+		return hasFile && hasKey;
+	});
+
+	if (availableEnvs.length === 0) {
+		p.log.error("編集可能な環境がありません");
+		p.log.info("環境ファイルと秘密鍵が必要です");
+		return;
+	}
+
+	const envOptions = availableEnvs.map((env) => ({
+		value: env.name,
+		label: env.description,
+		hint: env.file,
+	}));
+
+	const selectedEnv = await p.select({
+		message: "編集する環境を選択してください",
+		options: envOptions,
+	});
+
+	if (p.isCancel(selectedEnv)) {
+		p.cancel("キャンセルしました");
+		return;
+	}
+
+	const env = ENVIRONMENTS.find((e) => e.name === selectedEnv);
+	if (env) {
+		await updateEnvironmentSettings(env);
+	}
+}
+
+/**
  * メイン処理
  */
 async function main(): Promise<void> {
@@ -419,9 +517,9 @@ async function main(): Promise<void> {
 				hint: "GITHUB_TOKEN, API_KEY等",
 			},
 			{
-				value: "team",
-				label: "チーム共有設定を変更",
-				hint: ".env.local を編集",
+				value: "environment",
+				label: "環境設定を変更",
+				hint: "local, staging, production, ci 等",
 			},
 			{
 				value: "status",
@@ -440,8 +538,8 @@ async function main(): Promise<void> {
 		case "personal":
 			await setupPersonalTokens();
 			break;
-		case "team":
-			await updateTeamSettings();
+		case "environment":
+			await selectEnvironment();
 			break;
 		case "status":
 			showStatus();

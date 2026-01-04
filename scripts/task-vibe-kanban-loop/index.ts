@@ -37,6 +37,20 @@ import { VibeKanbanClient } from "./lib/vibe-kanban-client.js";
 const POLLING_INTERVAL_MS = 15_000;
 
 /**
+ * 現在日時を YYYY/MM/DD HH:mm:ss 形式で取得
+ */
+function getTimestamp(): string {
+  const now = new Date();
+  const date = now.toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const time = now.toLocaleTimeString("ja-JP", { hour12: false });
+  return `${date} ${time}`;
+}
+
+/**
  * 待機関数
  */
 function sleep(ms: number): Promise<void> {
@@ -53,7 +67,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log("\n🚀 タスク自動実行ループ開始\n");
+  console.log(`\n🚀 タスク自動実行ループ開始 [${getTimestamp()}]\n`);
 
   // 設定表示
   const repoInfo = getRepoInfo();
@@ -106,6 +120,13 @@ async function main(): Promise<void> {
   const existingTasks = await vibeKanban.listTasks(projectId);
   stateManager.initializeDoneTaskIds(existingTasks);
 
+  // デバッグ: 起動時のタスク状態を表示
+  const initialDoneTasks = existingTasks.filter((t) => t.status === "done");
+  const initialInProgressTasks = existingTasks.filter((t) => t.status === "inprogress");
+  console.log(`📊 起動時のタスク状態:`);
+  console.log(`   - Done: ${initialDoneTasks.length > 0 ? initialDoneTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ") : "なし"}`);
+  console.log(`   - InProgress: ${initialInProgressTasks.length > 0 ? initialInProgressTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ") : "なし"}`);
+
   // 既存タスクのマッピングを登録
   for (const task of existingTasks) {
     const taskGroupId = extractTaskGroupIdFromTitle(task.title);
@@ -113,6 +134,15 @@ async function main(): Promise<void> {
       stateManager.registerTaskMapping(task.id, taskGroupId);
     }
   }
+
+  // 起動時に既存のDoneタスクのGitHub Issueを同期
+  console.log("\n🔄 既存Doneタスクの同期チェック...");
+  parsedIssue = await syncExistingDoneTasks(
+    parsedIssue,
+    existingTasks,
+    args.issueNumber,
+    stateManager
+  );
 
   try {
     // 初期化: 着手可能なタスクを全部 Doing に移す
@@ -132,10 +162,16 @@ async function main(): Promise<void> {
     let loopCount = 0;
     while (true) {
       loopCount++;
-      console.log(`\n🔄 ポーリング #${loopCount}`);
+      console.log(`\n🔄 ポーリング #${loopCount} [${getTimestamp()}]`);
 
       // Vibe-Kanban のタスク状態を取得
       const currentTasks = await vibeKanban.listTasks(projectId);
+
+      // デバッグ: 現在のタスク状態を表示
+      const doneTasks = currentTasks.filter((t) => t.status === "done");
+      if (doneTasks.length > 0) {
+        console.log(`   📊 Done状態のタスク: ${doneTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ")}`);
+      }
 
       // Done 増加を検知
       const newlyCompletedVibeTaskIds = stateManager.detectNewlyCompletedTasks(currentTasks);
@@ -288,6 +324,45 @@ async function startExecutableTasks(
       console.error(`   ❌ Attempt開始失敗: ${taskGroup.id}`, error);
     }
   }
+}
+
+/**
+ * 起動時に既存のDoneタスクについてGitHub Issueを同期
+ *
+ * Vibe-KanbanでDone状態なのにGitHub Issueで未完了のタスクを検出し、
+ * GitHub Issueを更新する
+ */
+async function syncExistingDoneTasks(
+  parsedIssue: ParsedIssue,
+  existingTasks: Array<{ id: string; title: string; status: string }>,
+  issueNumber: number,
+  stateManager: TaskStateManager
+): Promise<ParsedIssue> {
+  // Vibe-KanbanでDone状態のタスクを取得
+  const doneTasks = existingTasks.filter((t) => t.status === "done");
+
+  // GitHub Issueで未完了のタスクグループIDを取得
+  const { getCompletedTaskGroupIds } = await import("./lib/issue-parser.js");
+  const completedInIssue = getCompletedTaskGroupIds(parsedIssue);
+
+  // Vibe-KanbanでDoneだがGitHub Issueで未完了のタスクを検出
+  const needsSync: string[] = [];
+  for (const task of doneTasks) {
+    const taskGroupId = extractTaskGroupIdFromTitle(task.title);
+    if (taskGroupId && !completedInIssue.has(taskGroupId)) {
+      needsSync.push(taskGroupId);
+      console.log(`   📝 同期が必要: ${taskGroupId} (Vibe-Kanban: Done, GitHub: 未完了)`);
+    }
+  }
+
+  if (needsSync.length === 0) {
+    console.log("   ✅ 同期が必要なタスクはありません");
+    return parsedIssue;
+  }
+
+  // GitHub Issueを更新
+  console.log(`   🔄 ${needsSync.length} 件のタスクをGitHub Issueに同期...`);
+  return stateManager.markTaskGroupsAsCompleted(issueNumber, needsSync);
 }
 
 // エントリポイント

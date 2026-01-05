@@ -1,10 +1,20 @@
 import { UserRole, UserStatus } from "@prisma/client";
 
 /**
+ * シードユーザーの型定義
+ */
+export interface SeedUser {
+  name: string;
+  email: string;
+  status: UserStatus;
+  role: UserRole;
+}
+
+/**
  * シードデータ用の固定ユーザー定義
  * 決定論的なデータで再現性を確保
  */
-export const SEED_USERS = [
+export const SEED_USERS: readonly SeedUser[] = [
   {
     name: "田中太郎",
     email: "tanaka@example.com",
@@ -53,7 +63,7 @@ export const SEED_USERS = [
     status: UserStatus.pending,
     role: UserRole.user,
   },
-] as const;
+];
 
 /**
  * 管理者ユーザーのフィクスチャ

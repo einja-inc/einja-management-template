@@ -105,14 +105,22 @@ export class FileCopier {
 
         // ドライランモードでない場合のみコピー実行
         if (!dryRun) {
-          // コピー先ディレクトリを作成
-          const destDir = dirname(destinationPath);
-          if (!existsSync(destDir)) {
-            mkdirSync(destDir, { recursive: true });
-          }
+          try {
+            // コピー先ディレクトリを作成
+            const destDir = dirname(destinationPath);
+            if (!existsSync(destDir)) {
+              mkdirSync(destDir, { recursive: true });
+            }
 
-          // ファイルコピー
-          copyFileSync(sourceFile.absolutePath, destinationPath);
+            // ファイルコピー
+            copyFileSync(sourceFile.absolutePath, destinationPath);
+          } catch (error) {
+            // ファイル書き込みエラーの詳細を提供
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new Error(
+              `ファイルの書き込みに失敗しました: ${destinationPath}\n詳細: ${errorMessage}`
+            );
+          }
         }
 
         copiedFiles.push({
@@ -128,6 +136,12 @@ export class FileCopier {
         skipped: skippedFiles,
       };
     } catch (error) {
+      // エラーメッセージをそのまま再スロー（既に詳細情報を含んでいる）
+      if (error instanceof Error && error.message.includes("書き込みに失敗しました")) {
+        throw error;
+      }
+
+      // その他のエラーはラップしてスロー
       throw new Error(
         `ファイルコピーに失敗しました: ${error instanceof Error ? error.message : String(error)}`
       );

@@ -269,6 +269,10 @@ async function main(): Promise<void> {
 
   try {
     // 1. CLIリポジトリかどうかを検証
+    if (options.json) {
+      log("🔍 CLIリポジトリを検証中...");
+    }
+
     const detector = new CLIRepoDetector();
     const validation = await detector.validateRepository();
 
@@ -280,6 +284,10 @@ async function main(): Promise<void> {
     const cliPackagePath = validation.cliPackagePath!;
 
     // 2. プリセットを検出
+    if (options.json) {
+      log("📦 プリセットを検出中...");
+    }
+
     const finder = new PresetFinder();
     let presetsToUpdate: Preset[] = [];
 
@@ -307,12 +315,20 @@ async function main(): Promise<void> {
     }
 
     // 3. コピー対象ファイルをスキャン
+    if (options.json) {
+      log("🔍 コピー対象をスキャン中...");
+    }
+
     const copier = new FileCopier();
     const sourceFiles = await copier.scanSourceFiles(process.cwd());
 
     if (sourceFiles.length === 0) {
       printError("コピー対象ファイルが見つかりませんでした", options.json);
       process.exit(1);
+    }
+
+    if (options.json) {
+      log(`✓ ${sourceFiles.length}ファイルを検出`);
     }
 
     // 4. 確認プロンプト（--forceまたは--dry-runでない場合）
@@ -335,6 +351,8 @@ async function main(): Promise<void> {
 
     if (!options.json && !options.dryRun) {
       log("\n⚙️  プリセットへコピー中...\n");
+    } else if (options.json) {
+      log("\n⚙️  プリセットへコピー中...");
     }
 
     for (const preset of presetsToUpdate) {
@@ -345,6 +363,10 @@ async function main(): Promise<void> {
       });
 
       results.set(preset.name, result);
+
+      if (options.json) {
+        log(`✓ ${preset.name}: ${result.files.length}ファイル`);
+      }
     }
 
     // 6. 結果を出力

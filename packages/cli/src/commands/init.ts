@@ -157,8 +157,8 @@ export async function initCommand(options: InitOptions): Promise<void> {
 	console.log(chalk.green("\n✅ セットアップ完了!"));
 	console.log(chalk.gray("\n生成されたファイル:"));
 	console.log("  - .claude/           Claude Code設定");
-	console.log("  - docs/templates/    ドキュメントテンプレート");
-	console.log("  - docs/steering/     ステアリングドキュメント");
+	console.log("  - docs/einja/templates/    ドキュメントテンプレート");
+	console.log("  - docs/einja/steering/     ステアリングドキュメント");
 	console.log("  - CLAUDE.md          プロジェクト設定");
 	console.log(chalk.gray("\n次のステップ:"));
 	console.log("  1. CLAUDE.md をプロジェクトに合わせてカスタマイズ");

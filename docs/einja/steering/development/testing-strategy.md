@@ -6,7 +6,7 @@
 
 テストカバレッジ目標を達成し、高品質なコードを維持するためのベストプラクティスを提供します。
 
-> **Note**: このドキュメントは開発者向けの自動テスト戦略を扱います。QAエージェント（task-qa）が実行するBrowserテスト（Playwright MCP）については、`docs/steering/terminology.md` および `docs/steering/acceptance-criteria-and-qa-guide.md` を参照してください。
+> **Note**: このドキュメントは開発者向けの自動テスト戦略を扱います。QAエージェント（task-qa）が実行するBrowserテスト（Playwright MCP）については、`docs/einja/steering/terminology.md` および `docs/einja/steering/acceptance-criteria-and-qa-guide.md` を参照してください。
 
 ---
 
@@ -432,7 +432,7 @@ describe('ビルドパイプライン統合テスト', () => {
 
 ## 4. E2Eテスト（Playwrightコード）
 
-> **用語の明確化**: このセクションで説明する「E2Eテスト」は、`pnpm test:e2e` で実行されるPlaywrightコードベースの自動テストを指します。QAエージェントがPlaywright MCPを使用して実行する「Browserテスト」とは異なります。詳細は `docs/steering/terminology.md` を参照してください。
+> **用語の明確化**: このセクションで説明する「E2Eテスト」は、`pnpm test:e2e` で実行されるPlaywrightコードベースの自動テストを指します。QAエージェントがPlaywright MCPを使用して実行する「Browserテスト」とは異なります。詳細は `docs/einja/steering/terminology.md` を参照してください。
 
 ### Playwright設定
 

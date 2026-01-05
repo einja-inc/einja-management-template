@@ -303,8 +303,8 @@ CLIリポジトリ内でpreset:updateスクリプトを実行し、プロジェ�
 | - | .claude/commands/einja/cmd-test.md 作成 | - | - | - |
 | - | .claude/agents/einja/agent-test.md 作成 | - | - | - |
 | - | .claude/skills/einja/skill-test.md 作成 | - | - | - |
-| - | docs/steering/steer-test.md 作成 | - | - | - |
-| - | docs/templates/tmpl-test.md 作成 | - | - | - |
+| - | docs/einja/steering/steer-test.md 作成 | - | - | - |
+| - | docs/einja/templates/tmpl-test.md 作成 | - | - | - |
 | 3 | pnpm preset:update 実行 | 全ディレクトリ更新成功 | ✅ 更新完了メッセージ | - |
 | 4 | 各プリセットディレクトリを確認 | マッピング確認 | 下記期待値を満たす | - |
 | - | ls packages/cli/presets/*/\`.claude/commands/einja/\` | cmd-test.md 存在 | - |

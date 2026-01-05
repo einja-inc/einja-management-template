@@ -515,8 +515,8 @@ pnpm build
 環境構築が完了したら、以下のドキュメントも参照してください：
 
 - **[タスク実行ガイド](./task-execute.md)**: /task-execコマンドの使用方法
-- **[コーディング規約](../coding-standards.mdc)**: コードスタイルと規約
-- **[テストガイドライン](../testing.mdc)**: Vitestを使用したテスト戦略
+- **[コーディング規約](../../.claude/skills/einja/coding-standards/SKILL.md)**: コードスタイルと規約
+- **[テストガイドライン](../einja/steering/development/testing-strategy.md)**: Vitestを使用したテスト戦略
 
 ## 質問・サポート
 

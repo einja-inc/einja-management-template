@@ -7,7 +7,7 @@ AI駆動開発ツール（カスタムコマンド、エージェント、スキ
 
 ### 現在の実装状況
 - CLIは`init`コマンドでプロジェクト初期セットアップを実行
-- `.claude/`, `docs/templates/`, `docs/steering/`, `CLAUDE.md`を一括生成
+- `.claude/`, `docs/einja/templates/`, `docs/einja/steering/`, `CLAUDE.md`を一括生成
 - プリセット（minimal, turborepo-pandacss）から選択して初期化
 - パッケージ名は`@einja/claude-cli`
 
@@ -409,9 +409,9 @@ CLIパッケージ
 - [ ] **AC10.5**: Given: `--force`オプション指定
              When: `pnpm cli-template:update --force`を実行
              Then: 確認プロンプトなしで上書きが実行される
-- [ ] **AC10.6**: Given: プロジェクトの`docs/steering/`, `docs/templates/`が存在
+- [ ] **AC10.6**: Given: プロジェクトの`docs/einja/steering/`, `docs/einja/templates/`が存在
              When: `pnpm cli-template:update`を実行
-             Then: これらのディレクトリは`docs/einja/steering/`, `docs/einja/templates/`にコピーされる
+             Then: これらのディレクトリはプリセットにコピーされる
 - [ ] **AC10.7**: Given: `_`プレフィックスのファイルが存在
              When: `pnpm cli-template:update`を実行
              Then: `_`プレフィックスファイルはスキップされ、コピーされない
@@ -474,8 +474,6 @@ P2 (あれば良い)
 - `.claude/commands/` (einja/外)
 - `.claude/agents/` (einja/外)
 - `.claude/skills/` (einja/外)
-- `docs/steering/`
-- `docs/templates/`
 - `docs/specs/`
 
 ### プリセット更新のディレクトリ構造要件
@@ -489,8 +487,8 @@ P2 (あれば良い)
 | `.claude/commands/` | `packages/cli/presets/<preset>/.claude/commands/einja/` |
 | `.claude/agents/` | `packages/cli/presets/<preset>/.claude/agents/einja/` |
 | `.claude/skills/` | `packages/cli/presets/<preset>/.claude/skills/einja/` |
-| `docs/steering/` | `packages/cli/presets/<preset>/docs/einja/steering/` |
-| `docs/templates/` | `packages/cli/presets/<preset>/docs/einja/templates/` |
+| `docs/einja/steering/` | `packages/cli/presets/<preset>/docs/einja/steering/` |
+| `docs/einja/templates/` | `packages/cli/presets/<preset>/docs/einja/templates/` |
 
 **プリセット一覧**:
 - `minimal`: 最小構成プリセット
@@ -515,7 +513,7 @@ P2 (あれば良い)
 **NG例（同期対象外）**:
 - `.claude/agents/einja/_my-custom-agent.md` - `_`プレフィックス
 - `.claude/commands/my-project-specific.md` - einja/外
-- `docs/steering/development/testing-strategy.md` - 同期対象外ディレクトリ
+- `docs/specs/issues/my-project-issue/` - 同期対象外ディレクトリ
 
 ### 3方向マージ仕様
 #### マージアルゴリズム

@@ -237,8 +237,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 
 以下のドキュメントも参照して作業を進めてください:
 
-- @docs/coding-standards.mdc - コーディング規約
-- @docs/component-design.mdc - コンポーネント設計ガイドライン
-- @docs/github-workflow.mdc - GitHubワークフロー・ブランチ戦略
-- @docs/testing.mdc - Vitestを使用したテスト戦略とベストプラクティス
-- @docs/code-review.mdc - コードレビューのガイドライン
+- @.claude/skills/einja/coding-standards/SKILL.md - コーディング規約
+- @.claude/skills/einja/component-design/SKILL.md - コンポーネント設計ガイドライン
+- @docs/einja/steering/commit-rules.md - コミットルール・ブランチ戦略
+- @docs/einja/steering/development/testing-strategy.md - Vitestを使用したテスト戦略
+- @docs/einja/steering/development/review-guidelines.md - コードレビューのガイドライン

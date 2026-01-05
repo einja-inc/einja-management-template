@@ -64,13 +64,23 @@ export class FileCopier {
       category: "skills",
     },
     {
-      source: "docs/steering",
+      source: "docs/einja/steering",
       destination: "docs/einja/steering",
       category: "docs",
     },
     {
-      source: "docs/templates",
+      source: "docs/einja/templates",
       destination: "docs/einja/templates",
+      category: "docs",
+    },
+    {
+      source: "docs/einja/instructions",
+      destination: "docs/einja/instructions",
+      category: "docs",
+    },
+    {
+      source: "docs/einja/example",
+      destination: "docs/einja/example",
       category: "docs",
     },
   ];

@@ -75,7 +75,7 @@ color: blue
 
 #### 4.3 テスト実装の原則
 
-**⚠️ 重要**: テスト実装は `docs/steering/development/testing-strategy.md` に従うこと。
+**⚠️ 重要**: テスト実装は `docs/einja/steering/development/testing-strategy.md` に従うこと。
 
 ##### 価値あるテストの実装
 - ✅ AC（受け入れ基準）で指定された**振る舞い**をテストで再現する

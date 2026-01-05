@@ -119,7 +119,7 @@ GitHub Issueから Issue番号を取得し、ブランチ名を生成して作�
    - Phase 1タスク → `feat/monorepo/20251104-turborepo-setup-phase1`
    - Phase 2タスク → `feat/monorepo/20251104-turborepo-setup-phase2`
 
-**詳細**: ブランチ運用の詳細は [ブランチ運用戦略](../../docs/steering/branch-strategy.md) を参照
+**詳細**: ブランチ運用の詳細は [ブランチ運用戦略](../../docs/einja/steering/branch-strategy.md) を参照
 
 ## 処理フロー
 

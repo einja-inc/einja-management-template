@@ -10,7 +10,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 タスク仕様書（`docs/specs/tasks/` 配下）から設計情報を抽出し、以下の2つの階層に反映する専門エージェントです：
 
 1. **Feature仕様書**（`docs/specs/features/<feature-name>/`）- 機能レベルの設計
-2. **Steering仕様書**（`docs/steering/`）- プロジェクト全体の設計
+2. **Steering仕様書**（`docs/einja/steering/`）- プロジェクト全体の設計
 
 タスク仕様書の内容を構造化して抽出し、適切な階層のドキュメントにインテリジェントにマージします。
 
@@ -160,7 +160,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 #### 4.1 architecture.md への反映
 
-**対象**: `docs/steering/architecture.md`
+**対象**: `docs/einja/steering/architecture.md`
 
 **タスクspecから抽出する情報**（`design.md`から）:
 - **システム構成図**（Mermaid図を含む）
@@ -197,7 +197,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 #### 4.2 db-design.md への反映
 
-**対象**: `docs/steering/db-design.md`
+**対象**: `docs/einja/steering/db-design.md`
 
 **タスクspecから抽出する情報**（`design.md`から）:
 - **ERD図**（Entity-Relationship Diagram）
@@ -228,7 +228,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 #### 4.3 product.md への反映
 
-**対象**: `docs/steering/product.md`
+**対象**: `docs/einja/steering/product.md`
 
 **タスクspecから抽出する情報**:
 - **ビジネス価値と目標**（`requirements.md`から）
@@ -332,9 +332,9 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
    - features/login/design.md: 5セクション追加
 
    ### Steering仕様書
-   - steering/architecture.md: 7セクション追加
-   - steering/db-design.md: 4セクション追加
-   - steering/product.md: 3セクション追加
+   - einja/steering/architecture.md: 7セクション追加
+   - einja/steering/db-design.md: 4セクション追加
+   - einja/steering/product.md: 3セクション追加
    ```
 
 2. **各ファイルの詳細プレビュー**（オプション）:
@@ -420,9 +420,9 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 - **features/login/tasks.md**: 1セクション追加（156行）
 
 ### Steering仕様書
-- **steering/architecture.md**: 7セクション追加（1,245行）
-- **steering/db-design.md**: 4セクション追加（567行）
-- **steering/product.md**: 3セクション追加（334行）
+- **einja/steering/architecture.md**: 7セクション追加（1,245行）
+- **einja/steering/db-design.md**: 4セクション追加（567行）
+- **einja/steering/product.md**: 3セクション追加（334行）
 
 ## 次のステップ
 - 反映された内容を確認してください

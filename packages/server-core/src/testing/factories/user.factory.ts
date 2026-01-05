@@ -1,5 +1,5 @@
 import { UserRole, UserStatus } from "@prisma/client";
-import { defineUserFactory } from "@repo/server-core/__generated__/fabbrica";
+import { defineUserFactory } from "../../__generated__/fabbrica";
 import { faker } from "@faker-js/faker/locale/ja";
 import { getDefaultHashedPassword } from "../helpers/password";
 import { randomDateInPastDays } from "../helpers/date";
@@ -10,6 +10,7 @@ import { randomDateInPastDays } from "../helpers/date";
  */
 export const UserFactory = defineUserFactory({
   defaultData: async () => ({
+    id: faker.string.nanoid(25), // cuid()と同様の長さのIDを生成
     name: faker.person.fullName(),
     email: faker.internet.email(),
     password: await getDefaultHashedPassword(),

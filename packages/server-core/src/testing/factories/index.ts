@@ -3,7 +3,7 @@
  */
 
 // fabbricaの初期化関数をエクスポート
-export { initialize } from "@repo/server-core/__generated__/fabbrica";
+export { initialize } from "../../__generated__/fabbrica";
 
 // ユーザーファクトリー
 export {

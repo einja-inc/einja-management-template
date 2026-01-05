@@ -39,7 +39,8 @@
 		"env:prepare": "tsx scripts/worktree/dev.ts --setup-only",
 		"cli-template:update": "tsx scripts/cli-template-update.ts",
 		"dotenvx": "dotenvx",
-		"env:encrypt": "dotenvx encrypt"
+		"env:encrypt": "dotenvx encrypt",
+		"env:show": "tsx scripts/env-show.ts"
 	},
 	"devDependencies": {
 		"@clack/prompts": "^0.11.0",

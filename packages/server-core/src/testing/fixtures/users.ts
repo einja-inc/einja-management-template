@@ -1,14 +1,12 @@
-import { UserRole, UserStatus } from "@prisma/client";
+import { Prisma, UserRole, UserStatus } from "@prisma/client";
 
 /**
- * シードユーザーの型定義
+ * シードユーザーの型定義（Prisma.UserCreateInputから必要なフィールドを抽出）
  */
-export interface SeedUser {
-  name: string;
-  email: string;
-  status: UserStatus;
-  role: UserRole;
-}
+export type SeedUser = Pick<
+  Prisma.UserCreateInput,
+  "name" | "email" | "status" | "role"
+>;
 
 /**
  * シードデータ用の固定ユーザー定義

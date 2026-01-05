@@ -1,7 +1,7 @@
 import { failure, isFailure, isSuccess, success } from "@repo/server-core/core/result";
 import { User } from "@repo/server-core/domain/entities/User";
 import type { PaginatedResult } from "@repo/server-core/domain/repository-interfaces/IUserRepository";
-import { UserFactory, initialize } from "@repo/server-core/testing";
+import { buildUserProps, initialize } from "@repo/server-core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userUseCases } from "./UserUseCases";
 
@@ -28,8 +28,8 @@ describe("UserUseCases", () => {
     it("ユーザー一覧をDTO形式で取得できる", async () => {
       // Given
       const mockUsers = [
-        new User(await UserFactory.build({ id: "user-1", email: "user1@example.com" })),
-        new User(await UserFactory.build({ id: "user-2", email: "user2@example.com" })),
+        new User(await buildUserProps({ id: "user-1", email: "user1@example.com" })),
+        new User(await buildUserProps({ id: "user-2", email: "user2@example.com" })),
       ];
       const mockPaginatedResult: PaginatedResult<User> = {
         items: mockUsers,
@@ -60,7 +60,7 @@ describe("UserUseCases", () => {
 
     it("nameがnullの場合、空文字に変換される", async () => {
       // Given
-      const mockUser = new User(await UserFactory.build({ name: null }));
+      const mockUser = new User(await buildUserProps({ id: "user-3", name: null }));
       const mockPaginatedResult: PaginatedResult<User> = {
         items: [mockUser],
         total: 1,
@@ -82,7 +82,7 @@ describe("UserUseCases", () => {
 
     it("lastLoginがnullの場合、nullのまま返される", async () => {
       // Given
-      const mockUser = new User(await UserFactory.build({ lastLogin: null }));
+      const mockUser = new User(await buildUserProps({ id: "user-4", lastLogin: null }));
       const mockPaginatedResult: PaginatedResult<User> = {
         items: [mockUser],
         total: 1,
@@ -138,7 +138,7 @@ describe("UserUseCases", () => {
   describe("getById", () => {
     it("IDでユーザーをDTO形式で取得できる", async () => {
       // Given
-      const mockUser = new User(await UserFactory.build());
+      const mockUser = new User(await buildUserProps({ id: "user-123" }));
       vi.mocked(userRepository.findById).mockResolvedValue(success(mockUser));
 
       // When
@@ -170,7 +170,9 @@ describe("UserUseCases", () => {
   describe("getByEmail", () => {
     it("メールアドレスでユーザーをDTO形式で取得できる", async () => {
       // Given
-      const mockUser = new User(await UserFactory.build({ email: "test@example.com" }));
+      const mockUser = new User(
+        await buildUserProps({ id: "user-456", email: "test@example.com" })
+      );
       vi.mocked(userRepository.findByEmail).mockResolvedValue(success(mockUser));
 
       // When

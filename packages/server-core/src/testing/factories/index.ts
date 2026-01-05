@@ -14,6 +14,7 @@ export {
   AdminUserFactory,
   ModeratorUserFactory,
   VerifiedUserFactory,
+  buildUserProps,
 } from "./user.factory";
 
 // 将来的に他のモデルのファクトリーもここに追加

@@ -66,6 +66,6 @@
 
 以下のドキュメントも参照して作業を進めてください:
 
-- @docs/steering/task-management.md - タスク管理ガイドライン
-- @docs/steering/acceptance-criteria-and-qa-guide.md - 受け入れ基準とQAガイド
-- @docs/templates/README.md - テンプレート使用方法
+- @docs/einja/steering/task-management.md - タスク管理ガイドライン
+- @docs/einja/steering/acceptance-criteria-and-qa-guide.md - 受け入れ基準とQAガイド
+- @docs/einja/templates/README.md - テンプレート使用方法

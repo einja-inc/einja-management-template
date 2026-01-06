@@ -27,7 +27,7 @@ color: yellow
    - テストが適切に実装されているか
 
 4. **ガイドライン準拠**
-   - `docs/steering/development/review-guidelines.md` のチェックリストに準拠しているか
+   - `docs/einja/steering/development/review-guidelines.md` のチェックリストに準拠しているか
    - 特に「コードスメル検出 > 肥大化」セクションを重点的に確認
      - 深いネスト（3レベル以上）がないか
      - 長すぎるメソッド（50行超）がないか

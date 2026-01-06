@@ -116,7 +116,7 @@ graph TD
 - **CI/開発者**: E2E テスト（`pnpm test:e2e`）を実行
 - **task-qa**: QA フェーズで Integration/Browser テストを実行
 
-詳細は `docs/steering/terminology.md` および `docs/steering/acceptance-criteria-and-qa-guide.md` を参照してください。
+詳細は `docs/einja/steering/terminology.md` および `docs/einja/steering/acceptance-criteria-and-qa-guide.md` を参照してください。
 
 #### 受け入れ基準
 

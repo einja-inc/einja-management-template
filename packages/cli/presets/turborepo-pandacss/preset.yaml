@@ -22,7 +22,6 @@ variables:
     ├── database/                 # Prismaスキーマとクライアント
     ├── auth/                     # NextAuth設定と認証ロジック
     └── ui/                       # 共通UIコンポーネント（shadcn/ui）
-  CODING_STANDARDS_PATH: "docs/coding-standards.mdc"
   MCP_TOOLS: |
     - Serena MCP: コード分析・編集
     - Playwright MCP: ブラウザテスト

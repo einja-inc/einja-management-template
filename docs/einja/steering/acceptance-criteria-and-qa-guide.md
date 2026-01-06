@@ -23,7 +23,7 @@ ACx.y: <振る舞いの名前>
 - 操作: <ユーザー操作 or システムイベント>
 - 期待結果: <観測可能なアウトプット>（例: HTTP ステータス/レスポンス/DB 変化/イベント）
 - 検証レベル: <Unit | Integration | E2E | Browser>（複数可）
-  - 詳細は `docs/steering/terminology.md` を参照
+  - 詳細は `docs/einja/steering/terminology.md` を参照
 - 補足: <ビジネスルールやエッジケース>
 ```
 
@@ -35,7 +35,7 @@ ACx.y: <振る舞いの名前>
 - **E2E**: Playwrightコードによる自動テスト。`pnpm test:e2e`で実行され、リグレッション防止に使用。
 - **Browser**: Playwright MCPによるブラウザテスト。task-qa Skillで実行され、画面フロー・UIインタラクションの確認に使用。
 
-> **Note**: E2EとBrowserの違いについては `docs/steering/terminology.md` を参照してください。
+> **Note**: E2EとBrowserの違いについては `docs/einja/steering/terminology.md` を参照してください。
 
 ### 価値あるテスト判定基準
 - 仮説: テストが守るべきビジネスルールや SLA が明文化されている。

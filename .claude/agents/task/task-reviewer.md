@@ -22,7 +22,7 @@ color: yellow
 
 ### 3. ガイドライン準拠性の確認
 
-`docs/steering/development/review-guidelines.md` を読み込み、変更内容に該当するチェックリスト（`- [ ]` 形式）を1項目ずつ検証する。
+`docs/einja/steering/development/review-guidelines.md` を読み込み、変更内容に該当するチェックリスト（`- [ ]` 形式）を1項目ずつ検証する。
 
 **変更ファイルの種類別に確認**:
 - フロントエンド（tsx/css）: Server/Client Component使い分け、Tanstack Query、React Hook Form、Hono Client

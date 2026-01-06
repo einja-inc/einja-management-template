@@ -20,7 +20,7 @@ color: orange
 
 設計書作成前に、以下のサンプルを必ず読み込んで形式を確認してください：
 
-1. **`docs/example/specs/issues/issue999-example-task/design.md`**
+1. **`docs/einja/example/specs/issues/issue999-example-task/design.md`**
    - 画面設計、UIインタラクション設計が充実
    - ワイヤーフレーム（mermaid graph）、画面遷移図（mermaid stateDiagram）
 
@@ -81,11 +81,11 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 2. **不明点の解消プロセス**
    - **優先順位1: 既存コード・ドキュメントの調査**
      - **【必須】開発ガイドラインの読み込み**（設計前に必ず確認）
-       - `docs/steering/development/backend-architecture.md` - 4層レイヤードアーキテクチャ、Repositoryパターン
-       - `docs/steering/development/frontend-development.md` - Server/Client Component、状態管理
-       - `docs/steering/development/api-development.md` - API設計標準、エンドポイント命名規則
-       - `docs/steering/development/testing-strategy.md` - テスト戦略、カバレッジ基準
-       - `docs/steering/acceptance-criteria-and-qa-guide.md` - ATDD、受け入れ基準の書き方
+       - `docs/einja/steering/development/backend-architecture.md` - 4層レイヤードアーキテクチャ、Repositoryパターン
+       - `docs/einja/steering/development/frontend-development.md` - Server/Client Component、状態管理
+       - `docs/einja/steering/development/api-development.md` - API設計標準、エンドポイント命名規則
+       - `docs/einja/steering/development/testing-strategy.md` - テスト戦略、カバレッジ基準
+       - `docs/einja/steering/acceptance-criteria-and-qa-guide.md` - ATDD、受け入れ基準の書き方
      - Serena MCPを使用して既存コードベースの調査
        - 類似機能のアーキテクチャパターンを検索
        - 既存のデータモデルやAPI設計を確認
@@ -224,7 +224,7 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 
 **⚠️ 設計書作成前に必ずサンプルを読み込むこと（冒頭のルール参照）**
 
-サンプル設計書：`docs/example/specs/issues/issue999-example-task/design.md`
+サンプル設計書：`docs/einja/example/specs/issues/issue999-example-task/design.md`
 
 ### サンプルの特徴
 
@@ -355,7 +355,7 @@ stateDiagram-v2
 - 単体テスト、統合テスト、E2Eテスト、Browserテストそれぞれについて、正常系・異常系のテストケースをGiven-When-Then形式で記載
   - E2E: Playwrightコードによる自動テスト（`pnpm test:e2e`で実行）
   - Browser: Playwright MCPによるブラウザテスト（task-qaが実行）
-  - 詳細は `docs/steering/terminology.md` を参照
+  - 詳細は `docs/einja/steering/terminology.md` を参照
 - テストカバレッジ目標
 
 ### 15. 実装フェーズ
@@ -388,11 +388,11 @@ CLAUDE.mdに記載された以下の要素を必ず考慮：
 - エラーハンドリングパターン（Result型、ApplicationError）
 
 **開発ガイドライン（設計時に必ず準拠）**：
-- `docs/steering/development/backend-architecture.md` - バックエンド4層アーキテクチャ
-- `docs/steering/development/frontend-development.md` - フロントエンド設計パターン
-- `docs/steering/development/api-development.md` - API設計標準
-- `docs/steering/development/testing-strategy.md` - テスト戦略
-- `docs/steering/acceptance-criteria-and-qa-guide.md` - ATDD・受け入れ基準
+- `docs/einja/steering/development/backend-architecture.md` - バックエンド4層アーキテクチャ
+- `docs/einja/steering/development/frontend-development.md` - フロントエンド設計パターン
+- `docs/einja/steering/development/api-development.md` - API設計標準
+- `docs/einja/steering/development/testing-strategy.md` - テスト戦略
+- `docs/einja/steering/acceptance-criteria-and-qa-guide.md` - ATDD・受け入れ基準
 
 ## 設計書作成プロセス
 

@@ -61,8 +61,8 @@ Issue本文には以下のセクションを含みます：
 新規タスク作成時は以下のテンプレートを使用してください：
 
 - **GitHub Issue**: `.github/ISSUE_TEMPLATE/task-implementation.yml`
-- **要件定義書**: `docs/templates/requirements.md.template`
-- **設計書**: `docs/templates/design.md.template`
+- **要件定義書**: `docs/einja/templates/requirements.md.template`
+- **設計書**: `docs/einja/templates/design.md.template`
 
 これらのテンプレートを使用することで、task-execコマンドのサブエージェント（task-executer、task-reviewer、task-qa）が確実に受け入れ条件を参照できます。
 
@@ -71,7 +71,7 @@ Issue本文には以下のセクションを含みます：
 - **受け入れ基準（Acceptance Criteria）セクションは必須です**
 - QAエージェント（task-qa）はこのセクションを参照してテストシナリオを作成します
 - Given/When/Then形式を使用してください
-- テンプレートの使用方法の詳細は `docs/templates/README.md` を参照してください
+- テンプレートの使用方法の詳細は `docs/einja/templates/README.md` を参照してください
 
 ### タスクグループのステータス管理
 

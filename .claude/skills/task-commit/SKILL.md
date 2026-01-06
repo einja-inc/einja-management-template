@@ -1,6 +1,6 @@
 ---
 name: task-commit
-description: "コミット・プッシュを実行するSkill。docs/github-workflow.mdcのルールに従い、分割コミットを実施。直接呼び出し可能（確認あり）、task-exec経由では自動実行"
+description: "コミット・プッシュを実行するSkill。docs/einja/steering/commit-rules.mdのルールに従い、分割コミットを実施。直接呼び出し可能（確認あり）、task-exec経由では自動実行"
 allowed-tools:
   - Bash
   - Read
@@ -15,7 +15,7 @@ allowed-tools:
 
 ## 役割
 
-変更をコミット・プッシュします。`docs/github-workflow.mdc` のコミットルールに厳格に従い、適切な粒度でコミットを分割します。
+変更をコミット・プッシュします。`docs/einja/steering/commit-rules.md` のコミットルールに厳格に従い、適切な粒度でコミットを分割します。
 
 ## 実行手順（6ステップ）
 
@@ -59,7 +59,7 @@ allowed-tools:
 
 ### ステップ3: コミット分割方針の決定
 
-**⚠️ 重要**: `docs/github-workflow.mdc` の「コミットの分割方針」を**必ず**参照すること。
+**⚠️ 重要**: `docs/einja/steering/commit-rules.md` の「コミットの分割方針」を**必ず**参照すること。
 
 #### 分割基準
 
@@ -128,7 +128,7 @@ QAフェーズで既に実行済みのため、重複実行は不要です。
 
 #### コミットメッセージ形式
 
-`docs/github-workflow.mdc` に従い:
+`docs/einja/steering/commit-rules.md` に従い:
 
 - **プレフィックス**: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`
 - **言語**: 日本語
@@ -214,7 +214,7 @@ EOF
 
 ## 参考資料
 
-- `docs/github-workflow.mdc` - コミットルール、分割方針、メッセージ形式の詳細
+- `docs/einja/steering/commit-rules.md` - コミットルール、分割方針、メッセージ形式の詳細
 
 ---
 

@@ -46,7 +46,7 @@ describe("FileCopier", () => {
       expect(copier.shouldSkip(".claude/agents/spec-requirements.md")).toBe(
         false
       );
-      expect(copier.shouldSkip("docs/steering/terminology.md")).toBe(false);
+      expect(copier.shouldSkip("docs/einja/steering/terminology.md")).toBe(false);
     });
   });
 
@@ -156,10 +156,10 @@ describe("FileCopier", () => {
       }
     });
 
-    it("docs/steering/とdocs/templates/が正しいマッピングでコピーされる", async () => {
+    it("docs/einja/steering/とdocs/einja/templates/が正しいマッピングでコピーされる", async () => {
       // テストファイルを作成
-      const steeringDir = join(testDir, "docs", "steering");
-      const templatesDir = join(testDir, "docs", "templates");
+      const steeringDir = join(testDir, "docs", "einja", "steering");
+      const templatesDir = join(testDir, "docs", "einja", "templates");
       mkdirSync(steeringDir, { recursive: true });
       mkdirSync(templatesDir, { recursive: true });
 
@@ -324,8 +324,8 @@ describe("FileCopier", () => {
       const commandsDir = join(testDir, ".claude", "commands");
       const agentsDir = join(testDir, ".claude", "agents");
       const skillsDir = join(testDir, ".claude", "skills");
-      const steeringDir = join(testDir, "docs", "steering");
-      const templatesDir = join(testDir, "docs", "templates");
+      const steeringDir = join(testDir, "docs", "einja", "steering");
+      const templatesDir = join(testDir, "docs", "einja", "templates");
 
       mkdirSync(commandsDir, { recursive: true });
       mkdirSync(agentsDir, { recursive: true });

@@ -40,11 +40,11 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 2. **不明点の解消プロセス**
    - **優先順位1: 既存コード・ドキュメントの調査**
      - **【必須】QAテストガイドラインの読み込み**（作成前に必ず確認）
-       - `docs/steering/acceptance-criteria-and-qa-guide.md` - ATDD、受け入れ基準とテストの対応
-       - `docs/steering/development/testing-strategy.md` - テスト戦略、カバレッジ基準
-       - `docs/steering/development/backend-architecture.md` - バックエンドアーキテクチャ（テスト対象の理解）
-       - `docs/steering/development/frontend-development.md` - フロントエンド設計（画面テストの参考）
-       - `docs/steering/development/api-development.md` - API設計標準（APIテストの参考）
+       - `docs/einja/steering/acceptance-criteria-and-qa-guide.md` - ATDD、受け入れ基準とテストの対応
+       - `docs/einja/steering/development/testing-strategy.md` - テスト戦略、カバレッジ基準
+       - `docs/einja/steering/development/backend-architecture.md` - バックエンドアーキテクチャ（テスト対象の理解）
+       - `docs/einja/steering/development/frontend-development.md` - フロントエンド設計（画面テストの参考）
+       - `docs/einja/steering/development/api-development.md` - API設計標準（APIテストの参考）
      - Serena MCPを使用して既存コードベースの調査
        - 既存のテストパターンとテストコードを確認
        - E2Eテストの実装例を検索
@@ -117,7 +117,7 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 ## QAテスト仕様テンプレート
 
 以下のサンプルQAテスト仕様を参考にしてください：
-- **テストファイル例**: `/docs/example/specs/issues/issue999-example-task/qa-tests`内の各ディレクトリにあるファイル （フェーズ別テスト）
+- **テストファイル例**: `/docs/einja/example/specs/issues/issue999-example-task/qa-tests`内の各ディレクトリにあるファイル （フェーズ別テスト）
 
 これらのサンプルを基に、プロジェクトの文脈に適したQAテスト仕様を作成します。
 
@@ -221,7 +221,7 @@ curl -X POST http://localhost:3000/api/auth/magic-link \
 ---
 
 ## 必須自動テスト結果
-（詳細構造は `/docs/example/specs/issues/issue999-example-task/qa-tests/phase1/1-1.md` を参照）
+（詳細構造は `/docs/einja/example/specs/issues/issue999-example-task/qa-tests/phase1/1-1.md` を参照）
 
 ---
 
@@ -288,7 +288,7 @@ curl -X POST http://localhost:3000/api/auth/magic-link \
    - 指定されたディレクトリ内のすべてのファイルをリストアップ
    - `tasks.md`、`requirements.md`、`design.md`を最優先で読み込む
    - その他のドキュメント（メモ等）もすべて読み込む
-   - **必ず** `/docs/example/specs/issues/issue999-example-task/qa-tests/` サンプルを確認
+   - **必ず** `/docs/einja/example/specs/issues/issue999-example-task/qa-tests/` サンプルを確認
 
 2. **タスク・フェーズ分析**:
    - tasks.mdからフェーズ構造を抽出（1-1, 1-2, 2-1等）

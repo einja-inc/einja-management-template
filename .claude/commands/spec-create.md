@@ -26,7 +26,7 @@ TodoWriteツールを使用して全体の進捗を可視化し、ユーザー�
 | Phaseブランチ | `issue/{issue番号}-phase{N}` | `issue/42-phase1` |
 
 - **ディレクトリ**: 機能名を含める（人間が識別しやすくするため）
-- **ブランチ**: Issue番号のみ（[branch-strategy.md](../docs/steering/branch-strategy.md)参照）
+- **ブランチ**: Issue番号のみ（[branch-strategy.md](../docs/einja/steering/branch-strategy.md)参照）
 
 ## 実行手順
 

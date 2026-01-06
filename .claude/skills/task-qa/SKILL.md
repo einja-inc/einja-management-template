@@ -29,7 +29,7 @@ allowed-tools:
 - `reference/failure-patterns.md` - 失敗原因分類の実践例（10パターン）
 - `reference/usage-patterns.md` - 利用パターン（5パターン）
 - `reference/troubleshooting.md` - トラブルシューティング（6ケース）
-- `docs/steering/acceptance-criteria-and-qa-guide.md` - 価値あるテストの判定基準
+- `docs/einja/steering/acceptance-criteria-and-qa-guide.md` - 価値あるテストの判定基準
 
 ---
 
@@ -96,13 +96,13 @@ allowed-tools:
 | スクリプト | 直接実行 | 正常終了、期待出力 |
 | ライブラリ | ユニットテスト | すべてPASS |
 
-詳細は `docs/steering/acceptance-criteria-and-qa-guide.md` のセクション9を参照。
+詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md` のセクション9を参照。
 
 ---
 
 ### ステップ5: 失敗原因の分類
 
-失敗時は4分類（A/B/C/D）のいずれかに分類します。詳細は `docs/steering/acceptance-criteria-and-qa-guide.md` のセクション8を参照。
+失敗時は4分類（A/B/C/D）のいずれかに分類します。詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md` のセクション8を参照。
 
 **分類フローチャート（簡易版）**:
 1. 環境・インフラ問題？ → **D** → qa再実行
@@ -205,7 +205,7 @@ allowed-tools:
 
 ## 参考資料
 
-- `docs/steering/acceptance-criteria-and-qa-guide.md` - QAテストの目的、失敗分類詳細、動作確認ツール使用法
+- `docs/einja/steering/acceptance-criteria-and-qa-guide.md` - QAテストの目的、失敗分類詳細、動作確認ツール使用法
 - `templates/qa-test-template.md` - QAテストファイルテンプレート
 - `reference/failure-patterns.md` - 失敗分類の実践例（10パターン）
 - `reference/usage-patterns.md` - 利用パターン（5パターン）

@@ -119,18 +119,25 @@ export class TaskStateManager {
 
 /**
  * Vibe-Kanban タスクのタイトルからタスクグループ ID を抽出
- * タイトル形式: "[X.Y] タスク名"
+ * タイトル形式: "[Issue番号 X.Y] タスク名" または "[X.Y] タスク名" (後方互換)
  */
 export function extractTaskGroupIdFromTitle(title: string): string | null {
-  const match = title.match(/\[(\d+\.\d+)\]/);
-  return match ? match[1] : null;
+  // 新形式: [Issue番号 X.Y]
+  const newMatch = title.match(/\[Issue\d+\s+(\d+\.\d+)\]/);
+  if (newMatch) {
+    return newMatch[1];
+  }
+  // 旧形式: [X.Y] (後方互換)
+  const oldMatch = title.match(/\[(\d+\.\d+)\]/);
+  return oldMatch ? oldMatch[1] : null;
 }
 
 /**
  * タスクグループ用の Vibe-Kanban タスクタイトルを生成
+ * タイトル形式: "[Issue番号 X.Y] タスク名"
  */
-export function generateVibeKanbanTitle(taskGroup: TaskGroup): string {
-  return `[${taskGroup.id}] ${taskGroup.name}`;
+export function generateVibeKanbanTitle(taskGroup: TaskGroup, issueNumber: number): string {
+  return `[Issue${issueNumber} ${taskGroup.id}] ${taskGroup.name}`;
 }
 
 /**

@@ -51,7 +51,7 @@
 
 ### 受け入れ基準作成のガイドライン
 
-詳細は `docs/steering/acceptance-criteria-and-qa-guide.md` を参照してください。
+詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md` を参照してください。
 
 #### Do（推奨）
 - 振る舞い・入力・観測可能な結果をセットで書く（Given/When/Then）
@@ -151,8 +151,8 @@ QA テスト結果記録のテンプレートです。
 
 ## 関連ドキュメント
 
-- [タスク管理ガイド](../docs/steering/task-management.md)
-- [受け入れ基準とQAガイド](../docs/steering/acceptance-criteria-and-qa-guide.md)
+- [タスク管理ガイド](../docs/einja/steering/task-management.md)
+- [受け入れ基準とQAガイド](../docs/einja/steering/acceptance-criteria-and-qa-guide.md)
 
 ## サポート
 

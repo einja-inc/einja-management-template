@@ -288,11 +288,11 @@ rm -rf .turbo apps/*/.turbo packages/*/.turbo
 
 詳細は以下のドキュメントを参照してください：
 
-- [コーディング規約](./docs/coding-standards.mdc)
-- [コンポーネント設計ガイドライン](./docs/component-design.mdc)
-- [テスト戦略](./docs/testing.mdc)
-- [コードレビューガイドライン](./docs/code-review.mdc)
-- [GitHubワークフロー](./docs/github-workflow.mdc)
+- [コーディング規約](./.claude/skills/einja/coding-standards/SKILL.md)
+- [コンポーネント設計ガイドライン](./.claude/skills/einja/component-design/SKILL.md)
+- [テスト戦略](./docs/einja/steering/development/testing-strategy.md)
+- [コードレビューガイドライン](./docs/einja/steering/development/review-guidelines.md)
+- [コミットルール](./docs/einja/steering/commit-rules.md)
 
 ## ライセンス
 

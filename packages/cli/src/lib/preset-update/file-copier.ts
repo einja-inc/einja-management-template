@@ -64,6 +64,11 @@ export class FileCopier {
       category: "skills",
     },
     {
+      source: ".claude/hooks",
+      destination: ".claude/hooks",
+      category: "hooks",
+    },
+    {
       source: "docs/einja/steering",
       destination: "docs/einja/steering",
       category: "docs",

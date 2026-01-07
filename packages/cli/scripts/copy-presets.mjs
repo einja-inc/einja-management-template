@@ -8,10 +8,12 @@
  * - .claude/skills/einja/
  * - .claude/hooks/
  * - docs/einja/steering/
+ * - packages/cli/templates/CLAUDE.md.template
  *
  * コピー先（CLI配布用）:
  * - packages/cli/presets/minimal/.claude/
  * - packages/cli/scaffolds/steering/
+ * - packages/cli/scaffolds/CLAUDE.md.template
  */
 
 import fs from "node:fs";
@@ -51,6 +53,15 @@ const mappings = [
 	{
 		src: path.join(projectRoot, "docs/einja/steering"),
 		dest: path.join(cliDir, "scaffolds/steering"),
+	},
+];
+
+// 単一ファイルのコピー設定
+const fileMappings = [
+	// CLAUDE.mdテンプレート
+	{
+		src: path.join(cliDir, "templates/CLAUDE.md.template"),
+		dest: path.join(cliDir, "scaffolds/CLAUDE.md.template"),
 	},
 ];
 
@@ -95,6 +106,8 @@ function copyDir(src, dest, filter = () => true) {
 function copyPresets() {
 	console.log("📦 プリセットファイルをコピー中...\n");
 
+	// ディレクトリのコピー
+	console.log("ディレクトリ:");
 	for (const { src, dest } of mappings) {
 		if (fs.existsSync(src)) {
 			// コピー先をクリア
@@ -112,6 +125,22 @@ function copyPresets() {
 			console.log(`    → ${path.relative(cliDir, dest)}`);
 		} else {
 			console.log(`  ⚠ スキップ: ${path.relative(projectRoot, src)} (存在しません)`);
+		}
+	}
+
+	// 単一ファイルのコピー
+	console.log("\nファイル:");
+	for (const { src, dest } of fileMappings) {
+		if (fs.existsSync(src)) {
+			// コピー先ディレクトリを作成
+			const destDir = path.dirname(dest);
+			fs.mkdirSync(destDir, { recursive: true });
+			// コピー
+			fs.copyFileSync(src, dest);
+			console.log(`  ✓ ${path.relative(cliDir, src)}`);
+			console.log(`    → ${path.relative(cliDir, dest)}`);
+		} else {
+			console.log(`  ⚠ スキップ: ${path.relative(cliDir, src)} (存在しません)`);
 		}
 	}
 

@@ -5,10 +5,17 @@ version: "1.0.0"
 
 # 変数定義（ユーザーがカスタマイズ可能）
 variables:
-  BUILD_COMMAND: "npm run build"
-  TEST_COMMAND: "npm test"
-  LINT_COMMAND: "npm run lint"
-  TYPE_CHECK_COMMAND: "npm run typecheck"
+  # CLAUDE.mdテンプレート用
+  PROJECT_NAME: "my-project"
+  INSTALL_COMMAND: "pnpm install"
+  DEV_COMMAND: "pnpm dev"
+  START_COMMAND: "pnpm start"
+  FORMAT_COMMAND: "pnpm format"
+  # 既存の変数
+  BUILD_COMMAND: "pnpm build"
+  TEST_COMMAND: "pnpm test"
+  LINT_COMMAND: "pnpm lint"
+  TYPE_CHECK_COMMAND: "pnpm typecheck"
   PROJECT_STRUCTURE: |
     src/           # ソースコード
     tests/         # テストコード

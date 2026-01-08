@@ -213,6 +213,29 @@ pnpm db:studio
 - **@repo/front-core**: フロントエンド共通層（認証共通設定、hooks、utils、context）
 - **@repo/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
 - **@repo/ui**: 共通UIコンポーネント（shadcn/ui）
+- **@einja/cli**: Claude Code設定配布CLI（[詳細](./packages/cli/README.md)）
+
+## CLI パッケージ (@einja/cli)
+
+Claude Code用の`.claude`設定ディレクトリを配布するCLIツールです。
+
+```bash
+# 新規プロジェクトへのセットアップ
+npx @einja/cli init
+```
+
+### 配布内容
+
+- `.claude/` - エージェント、コマンド、スキル、hooks
+- `docs/einja/` - テンプレート、ステアリングドキュメント
+- `CLAUDE.md` - プロジェクト設定テンプレート
+
+### 関連ドキュメント
+
+- [CLI README](./packages/cli/README.md) - 使用方法
+- [ビルドプロセス](./packages/cli/docs/BUILD.md) - ビルドパイプラインの説明
+- [NPM公開手順](./packages/cli/docs/PUBLISHING.md) - リリース手順
+- [リリース手順](./packages/cli/RELEASING.md) - バージョン管理とタグプッシュ
 
 ## 開発ワークフロー
 

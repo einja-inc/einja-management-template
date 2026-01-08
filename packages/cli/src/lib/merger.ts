@@ -86,6 +86,16 @@ export async function generateClaudeDirectory(
 			presetConfig.variables,
 		);
 	}
+
+	// 4. hooksをコピー
+	const presetHooksPath = path.join(presetPath, ".claude", "hooks");
+	if (await fs.pathExists(presetHooksPath)) {
+		await copyAndProcessDirectory(
+			presetHooksPath,
+			path.join(targetPath, "hooks"),
+			presetConfig.variables,
+		);
+	}
 }
 
 /**

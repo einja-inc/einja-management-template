@@ -20,6 +20,7 @@
 	},
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"prebuild": "node ./scripts/copy-presets.mjs",
 		"build": "pnpm clean && tsc",
 		"postbuild": "node ./scripts/add-shebang.mjs",
 		"dev": "tsc --watch",

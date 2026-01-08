@@ -1,0 +1,10 @@
+{
+  "extends": "../config/typescript/base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "incremental": false,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

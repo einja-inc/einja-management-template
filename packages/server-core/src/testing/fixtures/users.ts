@@ -1,4 +1,4 @@
-import { Prisma, UserRole, UserStatus } from "@prisma/client";
+import { type Prisma, UserRole, UserStatus } from "@prisma/client";
 
 /**
  * シードユーザーの型定義（Prisma.UserCreateInputから必要なフィールドを抽出）

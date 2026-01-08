@@ -1,0 +1,60 @@
+# create-einja-app テンプレート除外設定
+# このファイルはテンプレート更新時に除外するファイル・ディレクトリを定義します
+
+# CLI関連パッケージ
+packages/cli/
+packages/create-einja-app/
+
+# 依存関係・ビルド成果物
+node_modules/
+.next/
+out/
+dist/
+build/
+styled-system/
+
+# Git関連
+.git/
+.github/
+
+# ログファイル
+*.log
+logs/
+
+# 環境変数ファイル
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.env.development
+
+# IDE設定
+.idea/
+.vscode/settings.json
+
+# OS固有ファイル
+.DS_Store
+Thumbs.db
+
+# テストカバレッジ
+coverage/
+
+# Prisma migrations（テンプレートには含めない）
+packages/database/prisma/migrations/
+
+# Worktree設定（プロジェクト固有）
+worktree.config.json
+
+# タスク実行関連スクリプト（Einja固有）
+scripts/task-vibe-kanban-loop/
+
+# Einja固有のClaude設定
+.claude/agents/einja/
+.claude/commands/einja/
+.claude/skills/einja/
+
+# 仕様書・タスク記録（Einja固有のプロジェクト管理ファイル）
+docs/specs/
+modifications/
+qa-tests/

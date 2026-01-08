@@ -19,7 +19,8 @@
 **主要な技術的課題と解決方針：**
 
 1. **テンプレート管理の効率化**
-   - 解決策: メインリポジトリと同期する自動化スクリプト（pnpm template:sync）
+   - 解決策: ビルド前に自動実行されるテンプレート更新スクリプト（pnpm template:update）
+   - prebuildスクリプトによる自動実行（手動実行不要）
    - .templateignoreによる除外ファイル管理
    - プレースホルダー変数による柔軟なカスタマイズ
 
@@ -267,7 +268,7 @@ flowchart TD
 | フィールド | 型 | 説明 |
 |-----------|-----|------|
 | projectName | string | プロジェクト名 |
-| packageName | string | パッケージ名 |
+| packageName | string | パッケージスコープ（例: @my-project） |
 | description | string | プロジェクト説明 |
 
 **主要な処理**:
@@ -471,18 +472,18 @@ styled-system/
 | 変数 | 置換内容 | 使用例 |
 |------|---------|--------|
 | `{{projectName}}` | プロジェクト名 | `my-project` |
-| `{{packageName}}` | パッケージ名 | `@my-project` |
+| `{{packageName}}` | パッケージスコープ | `@my-project` |
 | `{{description}}` | プロジェクト説明 | `my-project - Einja Management Template` |
 
 ---
 
-## 5. テンプレート同期システム
+## 5. テンプレート更新システム
 
-### 5.1 同期フロー図
+### 5.1 更新フロー図
 
 ```mermaid
 flowchart TD
-    Start([pnpm template:sync 実行]) --> LoadIgnore[.templateignore 読み込み]
+    Start([pnpm template:update 実行<br/>※prebuildで自動実行]) --> LoadIgnore[.templateignore 読み込み]
     LoadIgnore --> RemoveOld[既存テンプレートディレクトリ削除]
     RemoveOld --> CreateDir[テンプレートディレクトリ作成]
     CreateDir --> GlobFiles[ルートディレクトリからファイル列挙]
@@ -497,9 +498,19 @@ flowchart TD
     Complete --> End([終了])
 ```
 
-### 5.2 同期スクリプト設計
+### 5.2 更新スクリプト設計
 
-**配置**: `scripts/template-sync.ts`
+**配置**: `scripts/template-update.ts`
+
+**実行方法**:
+- `pnpm template:update` - 直接実行
+- `pnpm template:update --dry-run` - 変更内容のプレビュー（ファイル書き込みなし）
+- `pnpm build` - prebuildで自動実行
+
+**設計方針**:
+- **確認プロンプトなし**: Gitで変更追跡されるため、上書き確認は不要
+- **--dry-runオプション**: 変更内容を事前確認したい場合のみ使用
+- **@einja/cliとの整合性**: `pnpm cli-template:update`と同様の命名・動作
 
 **処理ステップ**:
 
@@ -510,15 +521,19 @@ flowchart TD
 | 3. ファイル列挙 | ルートディレクトリから全ファイルを列挙（globパターン使用） |
 | 4. フィルタリング | ignoreパターンに基づきコピー対象ファイルを選定 |
 | 5. 変数変換 | package.jsonのnameフィールド等を`{{projectName}}`に置換 |
-| 6. コピー | テンプレートディレクトリへファイルをコピー |
-| 7. 完了 | 同期完了メッセージとファイル数を表示 |
+| 6. コピー | テンプレートディレクトリへファイルをコピー（fs-extra使用） |
+| 7. 完了 | 更新完了メッセージとファイル数を表示 |
 
 **変数変換ロジック**:
 
 | 対象ファイル | 変換処理 |
 |------------|---------|
-| package.json | `name` フィールドを `{{projectName}}` に置換<br/>JSON形式を保持してシリアライズ |
+| package.json | `name` フィールドを `{{projectName}}` に置換<br/>`description` フィールドを `{{description}}` に置換<br/>JSON形式を保持してシリアライズ |
+| tsconfig.json | `paths` 内の `@repo/*` を `{{packageName}}/*` に置換 |
+| import文を含むファイル | `@repo/` を `{{packageName}}/` に置換（テンプレート展開時に逆変換） |
 | その他 | 変換なし（そのままコピー） |
+
+**注**: `{{packageName}}` は `@repo` などのパッケージスコープを表し、プロジェクト生成時にユーザー指定のスコープに置換されます。
 
 ---
 
@@ -654,11 +669,13 @@ classDiagram
 
 | スクリプト | コマンド | 説明 |
 |-----------|---------|------|
+| prebuild | pnpm template:update | ビルド前にテンプレート更新（自動実行） |
 | build | tsup | ビルド |
 | dev | tsup --watch | 開発モード |
 | typecheck | tsc --noEmit | 型チェック |
 | lint | biome lint . | Lint |
 | test | vitest | テスト |
+| template:update | tsx scripts/template-update.ts | テンプレート更新（手動実行時） |
 | prepublishOnly | pnpm build | npm publish前ビルド |
 
 ### 8.2 tsup設定
@@ -721,7 +738,9 @@ packages/create-einja-app/
 | テストケース | Given | When | Then |
 |------------|-------|------|------|
 | テンプレート展開 | 有効なProjectConfig | generateTemplate実行 | ファイルがコピーされる |
-| 変数置換 | `{{projectName}}`を含むファイル | generateTemplate実行 | プレースホルダーが実際の値に置換される |
+| プロジェクト名置換 | `{{projectName}}`を含むファイル | generateTemplate実行 | プレースホルダーが指定されたプロジェクト名に置換される |
+| パッケージスコープ置換 | `{{packageName}}`を含むtsconfig.json/import文 | generateTemplate実行 | `@repo/`が指定されたパッケージスコープに置換される |
+| 説明文置換 | `{{description}}`を含むpackage.json | generateTemplate実行 | プレースホルダーが指定された説明文に置換される |
 | 認証なし除外 | authMethod="none" | generateTemplate実行 | 認証関連ファイルが除外される |
 
 **direnv.test.ts**:
@@ -778,11 +797,11 @@ packages/create-einja-app/
 
 ```mermaid
 graph LR
-    Test[Test<br/>typecheck/lint/test] --> SyncBuild[Sync & Build<br/>template:sync/build]
-    SyncBuild --> Publish[Publish<br/>npm publish]
+    Test[Test<br/>typecheck/lint/test] --> Build[Build<br/>prebuild + build]
+    Build --> Publish[Publish<br/>npm publish]
 
     Test -.-> |失敗| Fail[失敗]
-    SyncBuild -.-> |失敗| Fail
+    Build -.-> |失敗| Fail
     Publish -.-> |成功| Success[成功]
 ```
 
@@ -793,8 +812,7 @@ graph LR
 | test | pnpm -F create-einja-app typecheck | 型チェック |
 |  | pnpm -F create-einja-app lint | Lint |
 |  | pnpm -F create-einja-app test | テスト実行 |
-| sync-and-build | pnpm template:sync | テンプレート同期 |
-|  | pnpm -F create-einja-app build | ビルド |
+| build | pnpm -F create-einja-app build | ビルド（prebuildでtemplate:updateが自動実行） |
 |  | actions/upload-artifact | 成果物アップロード |
 | publish | actions/download-artifact | 成果物ダウンロード |
 |  | pnpm -F create-einja-app publish | npm公開 |

@@ -137,19 +137,21 @@
 | AC-007-2 | pre-commitフックが設定される | ファイル内容テスト |
 | AC-007-3 | lint-staged設定が追加される | ファイル内容テスト |
 
-### US-008: テンプレート同期
+### US-008: テンプレート更新
 
 **ストーリー:**
-> 開発者として、メインリポジトリの変更をテンプレートに同期したい。
+> 開発者として、メインリポジトリの変更をテンプレートに更新したい。
 > そうすることで、常に最新のテンプレートをnpmで配布できる。
 
 **受け入れ基準:**
 
 | AC ID | 受け入れ基準 | 検証方法 |
 |-------|-------------|--------|
-| AC-008-1 | `pnpm template:sync` でテンプレートが同期される | CLI実行テスト |
-| AC-008-2 | `.templateignore` に基づきファイルが除外される | ファイル存在テスト |
-| AC-008-3 | プレースホルダー変数が適切に置換される | ファイル内容テスト |
+| AC-008-1 | `pnpm template:update` でテンプレートが更新される | CLI実行テスト |
+| AC-008-2 | `pnpm build` 実行時にprebuildで自動実行される | ビルドテスト |
+| AC-008-3 | `.templateignore` に基づきファイルが除外される | ファイル存在テスト |
+| AC-008-4 | プレースホルダー変数が適切に置換される | ファイル内容テスト |
+| AC-008-5 | `--dry-run` オプションで変更内容がプレビューできる | CLI実行テスト |
 
 ### US-009: 認証方式選択
 
@@ -371,19 +373,27 @@ packages/create-einja-app/
 └── README.md
 ```
 
-### 5.3 テンプレート同期スクリプト
+### 5.3 テンプレート更新スクリプト
 
-**コマンド:** `pnpm template:sync`
+**コマンド:** `pnpm template:update`
+
+**実行タイミング:**
+- `pnpm build` 実行時にprebuildで自動実行（推奨）
+- `pnpm template:update` で手動実行も可能
+- `pnpm template:update --dry-run` で変更内容のプレビュー
 
 **処理内容:**
-1. `apps/`、`packages/` から `templates/default/` へコピー
+1. `apps/`、`packages/` から `templates/turborepo-pandacss/` へコピー
 2. `.templateignore` に基づき除外ファイルを削除
 3. テンプレート変数のプレースホルダー化
-4. `package.json` の名前を `{{projectName}}` に置換
+4. `package.json` の `name` を `{{projectName}}`、`description` を `{{description}}` に置換
+
+**オプション:**
+- `--dry-run` - 変更内容をプレビュー（ファイル書き込みなし）
 
 **プレースホルダー:**
 - `{{projectName}}` - プロジェクト名
-- `{{packageName}}` - パッケージ名（@scope/name形式）
+- `{{packageName}}` - パッケージスコープ（例: @my-project）
 - `{{description}}` - プロジェクト説明
 
 ---

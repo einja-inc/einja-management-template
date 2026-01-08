@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { createCommand } from "./commands/create.js";
 
 // package.jsonからバージョン情報を読み込み
 const __filename = fileURLToPath(import.meta.url);
@@ -16,7 +17,7 @@ program
   .description("CLI tool to create new projects with Einja Management Template")
   .version(packageJson.version);
 
-// createコマンド（プレースホルダー）
+// createコマンド
 program
   .argument("[project-name]", "Project name")
   .option("--template <template>", "Template to use", "turborepo-pandacss")
@@ -33,10 +34,7 @@ program
         yes?: boolean;
       }
     ) => {
-      console.log("create command - placeholder");
-      console.log("Project name:", projectName);
-      console.log("Options:", options);
-      // 実装はタスクグループ1.2で行う
+      await createCommand(projectName, options);
     }
   );
 

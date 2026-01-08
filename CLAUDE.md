@@ -2,11 +2,23 @@
 - 回答は日本語で行ってください。
 - 必ずこのドキュメントの通りに作業を行ってください。
 
-## 新規セッション時の動作方針
+## コード変更時の動作方針
 
-**重要**: 新規セッションでコード変更の指示があった場合、**即座に実装を開始せず、必ずPlanモードで計画を立て、ユーザー承認を得てから実装する**。例外は読み取り専用操作（質問への回答、情報調査）のみ。
+**【厳守事項】コード変更の指示があった場合、絶対に即座に実装を開始してはならない。**
 
-提案文言: 「この変更について、まずPlanモードで計画を立てて提示しましょうか？」
+### 必須フロー
+1. 問題・要件を調査・分析する
+2. 修正計画を提示する
+3. **ユーザーの明示的な承認を得る**
+4. 承認後に実装を開始する
+
+### 例外（承認不要）
+- 読み取り専用操作（質問への回答、情報調査、コード調査）
+
+### 提案文言
+「この変更について、まずPlanモードで計画を立てて提示しましょうか？」
+
+**注意**: この規則は新規セッションだけでなく、セッション継続中のすべてのコード変更に適用される。ユーザーが「直して」「修正して」「なおしたい」等と言った場合も、必ず計画を提示して承認を得ること。
 
 ## プロジェクト構成
 
@@ -225,8 +237,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 
 以下のドキュメントも参照して作業を進めてください:
 
-- @docs/coding-standards.mdc - コーディング規約
-- @docs/component-design.mdc - コンポーネント設計ガイドライン
-- @docs/github-workflow.mdc - GitHubワークフロー・ブランチ戦略
-- @docs/testing.mdc - Vitestを使用したテスト戦略とベストプラクティス
-- @docs/code-review.mdc - コードレビューのガイドライン
+- @.claude/skills/einja/coding-standards/SKILL.md - コーディング規約
+- @.claude/skills/einja/component-design/SKILL.md - コンポーネント設計ガイドライン
+- @docs/einja/steering/commit-rules.md - コミットルール・ブランチ戦略
+- @docs/einja/steering/development/testing-strategy.md - Vitestを使用したテスト戦略
+- @docs/einja/steering/development/review-guidelines.md - コードレビューのガイドライン

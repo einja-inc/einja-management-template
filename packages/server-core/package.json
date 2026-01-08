@@ -3,7 +3,8 @@
 	"version": "0.1.0",
 	"private": true,
 	"exports": {
-		"./*": "./src/*.ts"
+		"./*": "./src/*.ts",
+		"./testing": "./src/testing/index.ts"
 	},
 	"scripts": {
 		"db:generate": "prisma generate",
@@ -20,6 +21,8 @@
 		"bcryptjs": "^3.0.2"
 	},
 	"devDependencies": {
+		"@faker-js/faker": "^9.6.0",
+		"@quramy/prisma-fabbrica": "^2.2.0",
 		"@repo/config": "workspace:*",
 		"prisma": "^6.10.1",
 		"tsx": "^4.19.4",

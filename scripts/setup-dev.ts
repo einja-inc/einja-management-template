@@ -38,6 +38,57 @@ function commandExists(cmd: string): boolean {
 	}
 }
 
+/**
+ * git worktreeのメインリポジトリのパスを取得
+ * worktreeでない場合はnullを返す
+ */
+function getMainWorktreePath(): string | null {
+	try {
+		const result = execSync("git worktree list --porcelain", {
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		});
+		const lines = result.trim().split("\n");
+		// 最初の "worktree /path/to/main" がメインリポジトリ
+		for (const line of lines) {
+			if (line.startsWith("worktree ")) {
+				const mainPath = line.substring("worktree ".length);
+				// 現在のディレクトリと異なる場合のみ返す（worktree環境の場合）
+				if (mainPath !== process.cwd()) {
+					return mainPath;
+				}
+				break;
+			}
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * worktreeの親から.env.keysをコピー
+ * 成功した場合はtrue、失敗またはworktreeでない場合はfalseを返す
+ */
+function copyEnvKeysFromMainWorktree(targetPath: string): boolean {
+	const mainPath = getMainWorktreePath();
+	if (!mainPath) {
+		return false;
+	}
+
+	const sourceEnvKeysPath = path.join(mainPath, ".env.keys");
+	if (!fs.existsSync(sourceEnvKeysPath)) {
+		return false;
+	}
+
+	try {
+		fs.copyFileSync(sourceEnvKeysPath, targetPath);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 function getShellConfig(): { rcFile: string; hookCmd: string } | null {
 	const shell = process.env.SHELL || "";
 	const shellName = path.basename(shell);
@@ -390,7 +441,8 @@ async function main(): Promise<void> {
 				const privateKey = localKeyMatch[1];
 
 				// dotenvxで復号
-				execSync(`npx dotenvx decrypt -f .env.local -o .env`, {
+				execSync("npx dotenvx decrypt -f .env.local --stdout > .env", {
+					shell: true,
 					cwd,
 					stdio: "pipe",
 					env: { ...process.env, DOTENV_PRIVATE_KEY_LOCAL: privateKey },
@@ -409,14 +461,46 @@ async function main(): Promise<void> {
 				}
 			}
 		} else if (!fs.existsSync(envKeysPath)) {
-			// .env.keysがない場合
-			warn(".env.keys が見つかりません（秘密鍵ファイル）");
-			console.log(colors.yellow("  チームから .env.keys を共有してもらってください"));
-			console.log(colors.gray("  または 1Password 等で共有されています"));
-			// フォールバック: .env.exampleからコピー
-			if (fs.existsSync(envExamplePath)) {
-				fs.copyFileSync(envExamplePath, envPath);
-				warn("フォールバック: .env.example から .env を作成しました");
+			// .env.keysがない場合、まずworktreeの親からコピーを試みる
+			if (copyEnvKeysFromMainWorktree(envKeysPath)) {
+				succeed("worktreeのメインリポジトリから .env.keys をコピーしました");
+				// コピー成功後、復号を再試行
+				try {
+					const keysContent = fs.readFileSync(envKeysPath, "utf-8");
+					const localKeyMatch = keysContent.match(
+						/DOTENV_PRIVATE_KEY_LOCAL=["']?([^"'\n]+)["']?/,
+					);
+					if (localKeyMatch) {
+						const privateKey = localKeyMatch[1];
+						execSync("npx dotenvx decrypt -f .env.local --stdout > .env", {
+							shell: true,
+							cwd,
+							stdio: "pipe",
+							env: { ...process.env, DOTENV_PRIVATE_KEY_LOCAL: privateKey },
+						});
+						succeed(".env.local を復号して .env を作成しました");
+					} else {
+						throw new Error("DOTENV_PRIVATE_KEY_LOCAL が見つかりません");
+					}
+				} catch {
+					warn(".env.keys のコピー後、復号に失敗しました");
+					if (fs.existsSync(envExamplePath)) {
+						fs.copyFileSync(envExamplePath, envPath);
+						warn("フォールバック: .env.example から .env を作成しました");
+					}
+				}
+			} else {
+				// worktreeからのコピーも失敗した場合
+				warn(".env.keys が見つかりません（秘密鍵ファイル）");
+				console.log(
+					colors.yellow("  チームから .env.keys を共有してもらってください"),
+				);
+				console.log(colors.gray("  または 1Password 等で共有されています"));
+				// フォールバック: .env.exampleからコピー
+				if (fs.existsSync(envExamplePath)) {
+					fs.copyFileSync(envExamplePath, envPath);
+					warn("フォールバック: .env.example から .env を作成しました");
+				}
 			}
 		} else if (!fs.existsSync(envLocalPath)) {
 			// .env.localがない場合（古いリポジトリ）

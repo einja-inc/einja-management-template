@@ -380,7 +380,7 @@ export function syncPhaseBranch(
 /**
  * リモートブランチの変更をローカルブランチにマージ（pull相当）
  * ローカルとリモートが異なる場合のみマージを実行
- * checkout を使用せず、worktree または fast-forward で処理
+ * 現在のブランチの場合は直接マージ、それ以外は worktree または fast-forward で処理
  */
 function mergeRemoteIntoLocal(branchName: string): void {
   // ローカルとリモートが同じか確認
@@ -396,11 +396,21 @@ function mergeRemoteIntoLocal(branchName: string): void {
     return;
   }
 
+  // 現在のブランチかどうか確認
+  const currentBranch = getCurrentBranch();
+  const isCurrentBranch = currentBranch === branchName;
+
   // ローカルがリモートの祖先か確認 (fast-forward 可能)
   try {
     execSync(`git merge-base --is-ancestor ${localCommit} ${remoteCommit}`, { stdio: "ignore" });
-    // fast-forward 可能: ローカルをリモートに更新
-    execSync(`git branch -f ${branchName} origin/${branchName}`, { stdio: "inherit" });
+    // fast-forward 可能
+    if (isCurrentBranch) {
+      // 現在のブランチの場合は直接マージ
+      execSync(`git merge origin/${branchName} --ff-only`, { stdio: "inherit" });
+    } else {
+      // 別のブランチの場合は branch -f で更新
+      execSync(`git branch -f ${branchName} origin/${branchName}`, { stdio: "inherit" });
+    }
     console.log(`   ✅ リモートの変更を取り込み (fast-forward): ${branchName}`);
     return;
   } catch {
@@ -418,35 +428,50 @@ function mergeRemoteIntoLocal(branchName: string): void {
     // プッシュだけでは不十分、マージが必要
   }
 
-  // 両方が進んでいる場合: worktree でマージ（常に --detach モードで、ローカル作業に依存しない）
+  // 両方が進んでいる場合: マージが必要
   console.log(`   🔀 リモートの変更をマージ: ${branchName}`);
-  const tempDir = path.join(os.tmpdir(), `merge-sync-${Date.now()}`);
 
-  try {
-    // detachモードでworktreeを作成（現在のチェックアウト状態に依存しない）
-    execSync(`git worktree add --detach "${tempDir}" ${branchName}`, { stdio: "pipe" });
-
-    // リモートの変更をマージ
+  if (isCurrentBranch) {
+    // 現在のブランチの場合は直接マージ
     try {
-      execSync(`git -C "${tempDir}" merge origin/${branchName} --no-edit`, { stdio: "pipe" });
+      execSync(`git merge origin/${branchName} --no-edit`, { stdio: "pipe" });
     } catch {
-      execSync(`git -C "${tempDir}" merge --abort`, { stdio: "ignore" });
+      execSync(`git merge --abort`, { stdio: "ignore" });
       throw new Error(
         `ブランチ ${branchName} のリモート同期でコンフリクトが発生しました。手動で解決してください。`
       );
     }
-
-    // マージ結果を直接リモートにプッシュ（ローカルブランチは更新しない）
-    // 注: 現在チェックアウト中のブランチはgit branch -fで更新できないため、
-    //     worktree内から直接プッシュし、ローカルブランチの更新はスキップする
-    execSync(`git -C "${tempDir}" push origin HEAD:refs/heads/${branchName}`, { stdio: "pipe" });
+    // マージ結果をプッシュ
+    execSync(`git push origin ${branchName}`, { stdio: "pipe" });
     console.log(`   ✅ リモートの変更をマージ: ${branchName}`);
-  } finally {
-    // クリーンアップ
+  } else {
+    // 別のブランチの場合は worktree でマージ
+    const tempDir = path.join(os.tmpdir(), `merge-sync-${Date.now()}`);
+
     try {
-      execSync(`git worktree remove "${tempDir}" --force`, { stdio: "ignore" });
-    } catch {
-      // クリーンアップ失敗は無視
+      // ローカルブランチを一時的に worktree にチェックアウト
+      execSync(`git worktree add "${tempDir}" ${branchName}`, { stdio: "pipe" });
+
+      // リモートの変更をマージ
+      try {
+        execSync(`git -C "${tempDir}" merge origin/${branchName} --no-edit`, { stdio: "pipe" });
+      } catch {
+        execSync(`git -C "${tempDir}" merge --abort`, { stdio: "ignore" });
+        throw new Error(
+          `ブランチ ${branchName} のリモート同期でコンフリクトが発生しました。手動で解決してください。`
+        );
+      }
+
+      // マージ結果をプッシュ
+      execSync(`git -C "${tempDir}" push origin ${branchName}`, { stdio: "pipe" });
+      console.log(`   ✅ リモートの変更をマージ: ${branchName}`);
+    } finally {
+      // クリーンアップ
+      try {
+        execSync(`git worktree remove "${tempDir}" --force`, { stdio: "ignore" });
+      } catch {
+        // クリーンアップ失敗は無視
+      }
     }
   }
 }

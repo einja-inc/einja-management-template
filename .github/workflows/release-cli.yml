@@ -73,7 +73,7 @@ jobs:
       - name: Verify package contents
         run: |
           cd packages/cli
-          pnpm pack --dry-run
+          npm pack --dry-run
 
       - name: Publish to npm (dry-run)
         if: ${{ github.event.inputs.dry_run == 'true' }}

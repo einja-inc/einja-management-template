@@ -1,21 +1,21 @@
-# @repo/claude-cli
+# @einja/cli
 
 Claude Code用の`.claude`設定ディレクトリをnpxでインストールできるCLI。
 
 ## クイックスタート
 
 ```bash
-npx @repo/claude-cli init
+npx @einja/cli init
 ```
 
 ## インストール
 
 ```bash
 # npx（推奨）
-npx @repo/claude-cli init
+npx @einja/cli init
 
 # グローバルインストール
-npm install -g @repo/claude-cli
+npm install -g @einja/cli
 einja-claude init
 ```
 
@@ -26,56 +26,50 @@ einja-claude init
 `.claude`ディレクトリをセットアップします。
 
 ```bash
-# 対話型（プリセット選択）
-npx @repo/claude-cli init
-
-# プリセット指定
-npx @repo/claude-cli init --preset minimal
-npx @repo/claude-cli init --preset turborepo-pandacss
+npx @einja/cli init
 ```
 
 **オプション:**
 
 | オプション | 説明 |
 |-----------|------|
-| `-p, --preset <name>` | プリセットを指定 |
 | `-f, --force` | 上書き確認をスキップ |
 | `--dry-run` | 実行内容をプレビュー |
 | `--no-backup` | バックアップを作成しない |
 
-### `list`
+### `sync`
 
-利用可能なプリセット一覧を表示します。
+テンプレートから更新を同期します。
 
 ```bash
-npx @repo/claude-cli list
+# 全カテゴリを同期
+npx @einja/cli sync
+
+# 特定カテゴリのみ同期
+npx @einja/cli sync --only commands,agents
+npx @einja/cli sync --only hooks
 ```
 
-## プリセット
+**オプション:**
 
-| プリセット | 説明 | MCP | エージェント |
-|-----------|------|-----|-------------|
-| `minimal` | 最小構成のATDDワークフロー | なし | 8個 |
-| `turborepo-pandacss` | Turborepo + Next.js 15フルスタック | 6種 | 12個 |
+| オプション | 説明 |
+|-----------|------|
+| `-o, --only <categories>` | 同期するカテゴリをカンマ区切りで指定 |
+| `-d, --dry-run` | 実際の変更を行わず、差分のみ表示 |
+| `-f, --force` | ローカル変更を無視してテンプレートで上書き |
+| `-y, --yes` | 確認プロンプトをスキップ |
+| `--no-backup` | 変更前にバックアップを作成しない |
 
-### minimal
+**同期可能なカテゴリ:**
+- `commands` - Claude Code コマンド
+- `agents` - エージェント定義
+- `skills` - スキル定義
+- `hooks` - Git Hooks
+- `docs` - ステアリングドキュメント
 
-汎用的なATDD（受け入れテスト駆動開発）ワークフロー。
+## 配布内容
 
-```
-.claude/
-├── settings.json
-├── agents/
-│   ├── specs/           # 仕様書生成 (3)
-│   └── task/            # タスク実行 (5)
-└── commands/
-    ├── spec-create.md
-    └── task-exec.md
-```
-
-### turborepo-pandacss
-
-Einja管理画面テンプレート互換のフルスタック構成。
+Einja ATDDワークフロー構成（Next.js、Vibe-Kanban統合）を配布します。
 
 ```
 .claude/
@@ -83,16 +77,24 @@ Einja管理画面テンプレート互換のフルスタック構成。
 ├── agents/
 │   ├── specs/           # 仕様書生成 (3)
 │   ├── task/            # タスク実行 (6)
-│   └── frontend/        # フロントエンド (3)
-└── commands/
-    ├── spec-create.md
-    ├── task-exec.md
-    ├── frontend-implement.md
-    ├── start-dev.md
+│   └── einja/frontend/  # フロントエンド (3)
+├── commands/
+│   ├── spec-create.md
+│   ├── task-exec.md
+│   └── einja/           # Einja固有コマンド
+├── skills/
+│   └── einja/           # コーディング規約、設計ガイド
+└── hooks/               # Git Hooks (9個)
+    ├── biome-format.sh
+    ├── typecheck.sh
     └── ...
+
+docs/
+├── templates/           # ドキュメントテンプレート
+└── steering/            # プロジェクト基本方針
 ```
 
-**含まれるMCPサーバー:**
+**含まれるMCPサーバー設定:**
 - codex, context7, playwright, serena, github, vibe_kanban
 
 ## カスタマイズ

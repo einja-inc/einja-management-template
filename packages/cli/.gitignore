@@ -1,0 +1,7 @@
+# ビルド出力
+dist/
+tsconfig.tsbuildinfo
+
+# ビルド時に自動生成されるファイル（プロジェクト原本からコピー）
+presets/minimal/.claude/
+scaffolds/

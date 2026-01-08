@@ -32,8 +32,8 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 2. **不明点の解消プロセス**
    - **優先順位1: 既存コード・ドキュメントの調査**
      - **【必須】要件定義ガイドラインの読み込み**（作成前に必ず確認）
-       - `docs/steering/acceptance-criteria-and-qa-guide.md` - ATDD、受け入れ基準の書き方
-       - `docs/steering/development/testing-strategy.md` - テスト戦略（テストシナリオ作成の参考）
+       - `docs/einja/steering/acceptance-criteria-and-qa-guide.md` - ATDD、受け入れ基準の書き方
+       - `docs/einja/steering/development/testing-strategy.md` - テスト戦略（テストシナリオ作成の参考）
      - Serena MCPを使用して既存コードベースの調査
        - 類似機能の実装パターンを検索
        - 既存のドメインモデルやビジネスロジックを確認
@@ -86,7 +86,7 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 - **受け入れ基準**：Given-When-Then形式
 - **機能要件**：実装すべき具体的な機能
 - **非機能要件**：パフォーマンス、セキュリティ等
-- **テストシナリオ**：E2E/Browserテストケース（詳細は `docs/steering/terminology.md` 参照）
+- **テストシナリオ**：E2E/Browserテストケース（詳細は `docs/einja/steering/terminology.md` 参照）
 
 ### 4. 既存ファイルの考慮
 **既存のrequirements.mdが存在する場合**：
@@ -161,15 +161,15 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 ## 要件定義書テンプレート
 
 以下のサンプル要件定義書を参考にしてください：
-- **推奨サンプル**: `/docs/example/specs/issues/issue999-example-task/requirements.md` （AS-IS/TO-BE形式の完全な例）
+- **推奨サンプル**: `/docs/einja/example/specs/issues/issue999-example-task/requirements.md` （AS-IS/TO-BE形式の完全な例）
 - ローカルサンプル: `.kiro/specs/subscription-management/requirements.md`
 - 外部リファレンス: https://github.com/gotalab/claude-code-spec/blob/main/.claude/commands/kiro/spec-requirements.md
 
-これらのサンプルを基に、プロジェクトの文脈に適した要件定義書を作成します。特に`/docs/example/specs/issues/issue999-example-task/requirements.md`のAS-IS/TO-BE構造を参考にしてください。
+これらのサンプルを基に、プロジェクトの文脈に適した要件定義書を作成します。特に`/docs/einja/example/specs/issues/issue999-example-task/requirements.md`のAS-IS/TO-BE構造を参考にしてください。
 
 ## 要件定義書の構造
 
-**重要**: 必ず`/docs/example/specs/issues/issue999-example-task/requirements.md`のサンプルと同じ構造・順序で作成してください。
+**重要**: 必ず`/docs/einja/example/specs/issues/issue999-example-task/requirements.md`のサンプルと同じ構造・順序で作成してください。
 
 requirements.mdファイルは、この正確な構造と順序に従う必要があります：
 
@@ -350,7 +350,7 @@ P0 (必須)
 1. **ディレクトリ探索（最重要）**:
    - 指定されたディレクトリ内のすべてのファイルをリストアップ
    - 関連しそうなファイルを全て読み込む
-   - **必ず** `/docs/example/specs/issues/issue999-example-task/requirements.md` サンプルを確認
+   - **必ず** `/docs/einja/example/specs/issues/issue999-example-task/requirements.md` サンプルを確認
    
 2. **現状分析（AS-IS）**:
    - 既存コードやドキュメントから現在の実装状況を把握

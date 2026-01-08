@@ -1,6 +1,6 @@
 ---
 name: task-commit
-description: "コミット・プッシュを実行するSkill。docs/github-workflow.mdcのルールに従い、分割コミットを実施"
+description: "コミット・プッシュを実行するSkill。docs/einja/steering/commit-rules.mdのルールに従い、分割コミットを実施。直接呼び出し可能（確認あり）、task-exec経由では自動実行"
 allowed-tools:
   - Bash
   - Read
@@ -15,7 +15,7 @@ allowed-tools:
 
 ## 役割
 
-変更をコミット・プッシュします。`docs/github-workflow.mdc` のコミットルールに厳格に従い、適切な粒度でコミットを分割します。
+変更をコミット・プッシュします。`docs/einja/steering/commit-rules.md` のコミットルールに厳格に従い、適切な粒度でコミットを分割します。
 
 ## 実行手順（6ステップ）
 
@@ -59,7 +59,7 @@ allowed-tools:
 
 ### ステップ3: コミット分割方針の決定
 
-**⚠️ 重要**: `docs/github-workflow.mdc` の「コミットの分割方針」を**必ず**参照すること。
+**⚠️ 重要**: `docs/einja/steering/commit-rules.md` の「コミットの分割方針」を**必ず**参照すること。
 
 #### 分割基準
 
@@ -78,7 +78,7 @@ allowed-tools:
    - 大規模な変更は小さな論理的なまとまりに分割
    - テストコードの追加・更新は実装とは別のコミット
 
-#### ユーザーへの確認
+#### ユーザーへの確認（通常モード）
 
 **AskUserQuestion**を使用して、以下の形式でユーザーに分割案を提示し合意を取得:
 
@@ -94,6 +94,22 @@ allowed-tools:
 | 3 | docs | docs: 認証機能のドキュメント更新 | docs/*.md |
 
 この分割案でよろしいですか？修正が必要な場合はお知らせください。
+```
+
+#### 自動モード（確認スキップ）
+
+呼び出し元から `--auto` または `確認なしで実行` と指示された場合は、確認をスキップして分割案をそのまま適用します。
+
+分割案は以下の形式でログに出力:
+
+```
+### コミット分割案（自動適用）
+
+| # | 種類 | コミットメッセージ | 対象ファイル |
+|---|------|------------------|-------------|
+| 1 | feat | feat: ユーザー認証機能の追加 | src/auth/*.ts |
+| 2 | test | test: 認証機能のテスト追加 | src/auth/*.test.ts |
+| 3 | docs | docs: 認証機能のドキュメント更新 | docs/*.md |
 ```
 
 ---
@@ -112,7 +128,7 @@ QAフェーズで既に実行済みのため、重複実行は不要です。
 
 #### コミットメッセージ形式
 
-`docs/github-workflow.mdc` に従い:
+`docs/einja/steering/commit-rules.md` に従い:
 
 - **プレフィックス**: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`
 - **言語**: 日本語
@@ -198,7 +214,7 @@ EOF
 
 ## 参考資料
 
-- `docs/github-workflow.mdc` - コミットルール、分割方針、メッセージ形式の詳細
+- `docs/einja/steering/commit-rules.md` - コミットルール、分割方針、メッセージ形式の詳細
 
 ---
 

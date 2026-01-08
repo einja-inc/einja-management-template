@@ -122,7 +122,7 @@ async function main(): Promise<void> {
 
   // デバッグ: 起動時のタスク状態を表示
   const initialDoneTasks = existingTasks.filter((t) => t.status === "done");
-  const initialInProgressTasks = existingTasks.filter((t) => t.status === "inprogress");
+  const initialInProgressTasks = existingTasks.filter((t) => t.status === "in-progress");
   console.log(`📊 起動時のタスク状態:`);
   console.log(`   - Done: ${initialDoneTasks.length > 0 ? initialDoneTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ") : "なし"}`);
   console.log(`   - InProgress: ${initialInProgressTasks.length > 0 ? initialInProgressTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ") : "なし"}`);
@@ -286,7 +286,7 @@ async function startExecutableTasks(
 
   // 各タスクグループを Vibe-Kanban に登録
   for (const taskGroup of executableGroups) {
-    const title = generateVibeKanbanTitle(taskGroup);
+    const title = generateVibeKanbanTitle(taskGroup, issueNumber);
 
     // 既に存在する場合はスキップ
     if (existingTitles.has(title)) {

@@ -163,16 +163,5 @@
 			"Bash(pkill:*)",
 			"Bash(killall:*)"
 		]
-	},
-	"enableAllProjectMcpServers": false,
-	"enabledMcpjsonServers": [
-		"codex",
-		"context7",
-		"playwright",
-		"serena",
-		"github",
-		"asana",
-		"vibe_kanban",
-		"shadcn"
-	]
+	}
 }

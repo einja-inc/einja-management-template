@@ -33,3 +33,12 @@ export interface CoreSettings {
 	enableAllProjectMcpServers: boolean;
 	enabledMcpjsonServers: string[];
 }
+
+export interface SyncOptions {
+	only?: string;
+	dryRun?: boolean;
+	force?: boolean;
+	yes?: boolean;
+	json?: boolean;
+	backup?: boolean;
+}

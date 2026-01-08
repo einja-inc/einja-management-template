@@ -332,9 +332,9 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
    - features/login/design.md: 5セクション追加
 
    ### Steering仕様書
-   - einja/steering/architecture.md: 7セクション追加
-   - einja/steering/db-design.md: 4セクション追加
-   - einja/steering/product.md: 3セクション追加
+   - steering/architecture.md: 7セクション追加
+   - steering/db-design.md: 4セクション追加
+   - steering/product.md: 3セクション追加
    ```
 
 2. **各ファイルの詳細プレビュー**（オプション）:
@@ -420,9 +420,9 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 - **features/login/tasks.md**: 1セクション追加（156行）
 
 ### Steering仕様書
-- **einja/steering/architecture.md**: 7セクション追加（1,245行）
-- **einja/steering/db-design.md**: 4セクション追加（567行）
-- **einja/steering/product.md**: 3セクション追加（334行）
+- **steering/architecture.md**: 7セクション追加（1,245行）
+- **steering/db-design.md**: 4セクション追加（567行）
+- **steering/product.md**: 3セクション追加（334行）
 
 ## 次のステップ
 - 反映された内容を確認してください

@@ -271,9 +271,22 @@ task-starterサブエージェント（haiku モデル）を使用してタス�
 3. **タスクの実行を開始**
    - `mcp__vibe_kanban__start_task_attempt` を呼び出し
    - executor: CLAUDE_CODE
-   - base_branch: **タスクが属するフェーズのフェーズブランチ**
-     - 例: Phase 1のタスク → `feat/monorepo/20251104-turborepo-setup-phase1`
-     - 例: Phase 2のタスク → `feat/monorepo/20251104-turborepo-setup-phase2`
+   - base_branch: **タスクが属するフェーズのフェーズブランチ**（**絶対にmainを指定してはいけない**）
+
+   **🚨 フェーズ番号の判定ロジック（必須）**:
+   - タスクグループ番号の**整数部分（メジャーバージョン）**がフェーズ番号
+   - 例: タスクグループ `3.2` → Phase **3**
+   - 例: タスクグループ `1.1` → Phase **1**
+   - 例: タスクグループ `4.1` → Phase **4**
+
+   **🚨 フェーズブランチ名の生成ルール**:
+   - **GitHub Issueベースの場合**: `issue/{issue_number}-phase{N}`
+     - 例: Issue #22、Phase 3 → `issue/22-phase3`
+     - 例: Issue #21、Phase 1 → `issue/21-phase1`
+   - **タスクファイルベースの場合**: `feat/{ディレクトリ}/{タスク名}-phase{N}`
+     - 例: Phase 1 → `feat/monorepo/20251104-turborepo-setup-phase1`
+     - 例: Phase 2 → `feat/monorepo/20251104-turborepo-setup-phase2`
+
    - 実行試行IDを取得
    - **重要**: GitHub Issueは更新しない（エージェントが完了時に自動更新する）
 

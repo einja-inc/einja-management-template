@@ -47,6 +47,22 @@ Task(subagent_type='Explore', prompt='[レビュー対象ファイル一覧]を�
 - 受け入れ条件を満たしているか
 - 不要な機能が追加されていないか
 
+**設計仕様との乖離発見時**:
+設計仕様と実装に大きな乖離が見られる場合、AskUserQuestionでロールバック/再実装の判断を仰ぐ。
+
+```markdown
+AskUserQuestion:
+  question: "設計仕様と実装に大きな乖離があります。どのように対応しますか？"
+  header: "乖離対応"
+  options:
+    - label: "実装を修正（推奨）"
+      description: "推奨理由: 設計仕様が正しい場合、実装を設計に合わせる"
+    - label: "設計仕様を更新"
+      description: "実装の方が適切な場合、設計仕様を実装に合わせて更新"
+    - label: "ロールバックして再実装"
+      description: "実装品質に問題がある場合、一から再実装"
+```
+
 ### 3. ガイドライン準拠性の確認
 
 `docs/einja/steering/development/review-guidelines.md` を読み込み、変更内容に該当するチェックリスト（`- [ ]` 形式）を1項目ずつ検証する。
@@ -61,6 +77,22 @@ Task(subagent_type='Explore', prompt='[レビュー対象ファイル一覧]を�
 **特に注意すべき項目**:
 - コードスメル検出 > 肥大化 (Bloaters) セクションの「深いネスト」「長すぎるメソッド」
 - 可読性・理解可能性セクションの「ネストの深さ」
+
+**複数の改善案がある場合**:
+複数の改善案がある場合、優先順位をAskUserQuestionで確認する。
+
+```markdown
+AskUserQuestion:
+  question: "複数の改善案があります。どの順序で対応しますか？"
+  header: "改善優先度"
+  options:
+    - label: "重大度順（推奨）"
+      description: "推奨理由: 品質に影響する問題から優先的に対応"
+    - label: "修正容易度順"
+      description: "簡単な修正から着手し、進捗を出す"
+    - label: "提案されたすべてを並行対応"
+      description: "時間はかかるが網羅的に対応"
+```
 
 ### 4. 仮実装の検出
 以下のパターンを検出：

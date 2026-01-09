@@ -1,0 +1,242 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { execPostSetup } from "../../../src/generators/post-setup.js";
+import type { ProjectConfig } from "../../../src/types/index.js";
+
+// execaとinquirerをモック化
+vi.mock("execa", () => ({
+  execa: vi.fn().mockResolvedValue({ stdout: "", stderr: "" }),
+  execaSync: vi.fn().mockReturnValue({ stdout: "", stderr: "" }),
+}));
+
+vi.mock("inquirer", () => ({
+  default: {
+    prompt: vi.fn().mockResolvedValue({ shouldAllow: true }),
+  },
+}));
+
+// oraをモック化
+vi.mock("ora", () => ({
+  default: vi.fn().mockReturnValue({
+    start: vi.fn().mockReturnThis(),
+    succeed: vi.fn().mockReturnThis(),
+    fail: vi.fn().mockReturnThis(),
+  }),
+}));
+
+describe("post-setup generator", () => {
+  let testDir: string;
+  let mockConfig: ProjectConfig;
+
+  beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), "post-setup-test-"));
+    const initialPackageJson = {
+      name: "test-project",
+      version: "1.0.0",
+    };
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify(initialPackageJson, null, 2),
+      "utf-8"
+    );
+
+    mockConfig = {
+      projectName: "test-project",
+      packageScope: "@test",
+      template: "turborepo-pandacss",
+      authMethod: "google",
+      tools: {
+        direnv: false,
+        dotenvx: false,
+        volta: false,
+        biome: true,
+        husky: true,
+      },
+      setupEinjaCli: false,
+    };
+
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  describe("execPostSetup", () => {
+    it("skipオプションなしの場合、Git初期化とpnpm installが実行される", async () => {
+      // Given: デフォルトオプション
+      const { execa } = await import("execa");
+
+      // When: execPostSetup実行
+      await execPostSetup(mockConfig, testDir, {});
+
+      // Then: git init, git add, git commit が実行される
+      expect(execa).toHaveBeenCalledWith("git", ["init"], { cwd: testDir });
+      expect(execa).toHaveBeenCalledWith("git", ["add", "."], { cwd: testDir });
+      expect(execa).toHaveBeenCalledWith("git", ["commit", "-m", "Initial commit"], {
+        cwd: testDir,
+      });
+
+      // Then: pnpm install が実行される
+      expect(execa).toHaveBeenCalledWith("pnpm", ["install"], { cwd: testDir });
+
+      // Then: pnpm db:generate が実行される
+      expect(execa).toHaveBeenCalledWith("pnpm", ["db:generate"], { cwd: testDir });
+    });
+
+    it("skipGitオプションが有効な場合、Git初期化がスキップされる", async () => {
+      // Given: skipGit = true
+      const { execa } = await import("execa");
+
+      // When: execPostSetup実行
+      await execPostSetup(mockConfig, testDir, { skipGit: true });
+
+      // Then: git関連コマンドが実行されない
+      expect(execa).not.toHaveBeenCalledWith("git", ["init"], { cwd: testDir });
+      expect(execa).not.toHaveBeenCalledWith("git", ["add", "."], { cwd: testDir });
+      expect(execa).not.toHaveBeenCalledWith("git", ["commit", "-m", "Initial commit"], {
+        cwd: testDir,
+      });
+
+      // Then: pnpm install は実行される
+      expect(execa).toHaveBeenCalledWith("pnpm", ["install"], { cwd: testDir });
+    });
+
+    it("skipInstallオプションが有効な場合、依存関係インストールがスキップされる", async () => {
+      // Given: skipInstall = true
+      const { execa } = await import("execa");
+
+      // When: execPostSetup実行
+      await execPostSetup(mockConfig, testDir, { skipInstall: true });
+
+      // Then: git関連コマンドは実行される
+      expect(execa).toHaveBeenCalledWith("git", ["init"], { cwd: testDir });
+
+      // Then: pnpm installが実行されない
+      expect(execa).not.toHaveBeenCalledWith("pnpm", ["install"], { cwd: testDir });
+
+      // Then: pnpm db:generateも実行されない
+      expect(execa).not.toHaveBeenCalledWith("pnpm", ["db:generate"], { cwd: testDir });
+    });
+
+    it("setupEinjaCliが有効な場合、@einja/cli initが実行される", async () => {
+      // Given: setupEinjaCli = true
+      const { execa } = await import("execa");
+      const configWithEinja = { ...mockConfig, setupEinjaCli: true };
+
+      // When: execPostSetup実行
+      await execPostSetup(configWithEinja, testDir, {});
+
+      // Then: npx @einja/cli initが実行される
+      expect(execa).toHaveBeenCalledWith("npx", ["@einja/cli", "init"], { cwd: testDir });
+    });
+
+    it("setupEinjaCliが無効な場合、@einja/cli initが実行されない", async () => {
+      // Given: setupEinjaCli = false
+      const { execa } = await import("execa");
+
+      // When: execPostSetup実行
+      await execPostSetup(mockConfig, testDir, {});
+
+      // Then: npx @einja/cli initが実行されない
+      expect(execa).not.toHaveBeenCalledWith("npx", ["@einja/cli", "init"], {
+        cwd: testDir,
+      });
+    });
+
+    it("direnvが有効で利用可能な場合、direnv allowプロンプトが表示される", async () => {
+      // Given: direnv有効 & execaSyncでwhich direnvが成功
+      const { execaSync } = await import("execa");
+      const inquirer = (await import("inquirer")).default;
+      const configWithDirenv = {
+        ...mockConfig,
+        tools: { ...mockConfig.tools, direnv: true },
+      };
+
+      // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
+      (execaSync as any).mockReturnValueOnce({ stdout: "/usr/local/bin/direnv" });
+      // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
+      (inquirer.prompt as any).mockResolvedValueOnce({ shouldAllow: true });
+
+      // When: execPostSetup実行
+      await execPostSetup(configWithDirenv, testDir, {});
+
+      // Then: direnv allowプロンプトが表示される
+      expect(inquirer.prompt).toHaveBeenCalled();
+    });
+
+    it("direnvが無効な場合、direnv allow処理がスキップされる", async () => {
+      // Given: direnv無効
+      const inquirer = (await import("inquirer")).default;
+
+      // When: execPostSetup実行
+      await execPostSetup(mockConfig, testDir, {});
+
+      // Then: direnv allowプロンプトが表示されない
+      expect(inquirer.prompt).not.toHaveBeenCalled();
+    });
+
+    it("Git初期化に失敗した場合、エラーハンドリングされる", async () => {
+      // Given: git initが失敗する
+      const { execa } = await import("execa");
+      // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
+      (execa as any).mockRejectedValueOnce(new Error("git init failed"));
+
+      // When: execPostSetup実行
+      // Then: エラーが投げられずに処理が継続される
+      await expect(execPostSetup(mockConfig, testDir, {})).resolves.toBeUndefined();
+    });
+
+    it("pnpm installに失敗した場合、エラーハンドリングされる", async () => {
+      // Given: pnpm installが失敗する
+      const { execa } = await import("execa");
+      // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
+      (execa as any)
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git init成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git add成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git commit成功
+        .mockRejectedValueOnce(new Error("pnpm install failed")); // pnpm install失敗
+
+      // When: execPostSetup実行
+      // Then: エラーが投げられずに処理が継続される
+      await expect(execPostSetup(mockConfig, testDir, {})).resolves.toBeUndefined();
+    });
+
+    it("Prismaクライアント生成に失敗した場合、エラーハンドリングされる", async () => {
+      // Given: pnpm db:generateが失敗する
+      const { execa } = await import("execa");
+      // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
+      (execa as any)
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git init成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git add成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git commit成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm install成功
+        .mockRejectedValueOnce(new Error("pnpm db:generate failed")); // pnpm db:generate失敗
+
+      // When: execPostSetup実行
+      // Then: エラーが投げられずに処理が継続される
+      await expect(execPostSetup(mockConfig, testDir, {})).resolves.toBeUndefined();
+    });
+
+    it("@einja/cli initに失敗した場合、エラーハンドリングされる", async () => {
+      // Given: npx @einja/cli initが失敗する
+      const { execa } = await import("execa");
+      const configWithEinja = { ...mockConfig, setupEinjaCli: true };
+
+      // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
+      (execa as any)
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git init成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git add成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git commit成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm install成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm db:generate成功
+        .mockRejectedValueOnce(new Error("@einja/cli init failed")); // @einja/cli init失敗
+
+      // When: execPostSetup実行
+      // Then: エラーが投げられずに処理が継続される
+      await expect(execPostSetup(configWithEinja, testDir, {})).resolves.toBeUndefined();
+    });
+  });
+});

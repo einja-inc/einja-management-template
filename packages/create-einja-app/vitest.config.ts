@@ -12,5 +12,17 @@ export default defineConfig({
     exclude: ["templates/**", "node_modules/**"],
     // ルート設定ファイルを無視
     root: __dirname,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "json"],
+      exclude: [
+        "node_modules/",
+        "dist/",
+        "**/*.test.ts",
+        "**/*.spec.ts",
+        "tests/",
+        "templates/",
+      ],
+    },
   },
 });

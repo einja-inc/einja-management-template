@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import ora from "ora";
-import chalk from "chalk";
 import { promptProjectConfig, type ProjectConfig } from "../prompts/project.js";
 import { generateTemplate } from "../generators/template.js";
+import { execPostSetup } from "../generators/post-setup.js";
 import * as logger from "../utils/logger.js";
 
 /**
@@ -39,24 +39,6 @@ function checkProjectExists(targetPath: string): boolean {
   return existsSync(targetPath);
 }
 
-/**
- * 完了メッセージを表示
- * @param config - プロジェクト設定
- * @param targetPath - プロジェクトパス
- */
-function printCompletionMessage(config: ProjectConfig, targetPath: string): void {
-  console.log();
-  logger.success("プロジェクトの作成が完了しました！");
-  console.log();
-  console.log(chalk.bold("次のステップ:"));
-  console.log();
-  console.log(chalk.cyan(`  cd ${config.projectName}`));
-  console.log(chalk.cyan("  pnpm install"));
-  console.log(chalk.cyan("  pnpm dev"));
-  console.log();
-  console.log(chalk.gray("詳細は README.md をご確認ください。"));
-  console.log();
-}
 
 /**
  * createコマンドの実装
@@ -88,6 +70,8 @@ export async function createCommand(
           direnv: true,
           dotenvx: true,
           volta: true,
+          biome: true,
+          husky: true,
         },
         setupEinjaCli: true,
         worktreeConfig: undefined,
@@ -122,8 +106,11 @@ export async function createCommand(
       throw error;
     }
 
-    // 完了メッセージ表示
-    printCompletionMessage(config, targetPath);
+    // 生成後セットアップ実行
+    await execPostSetup(config, targetPath, {
+      skipGit: options.skipGit,
+      skipInstall: options.skipInstall,
+    });
   } catch (error) {
     logger.error("エラーが発生しました:");
     if (error instanceof Error) {

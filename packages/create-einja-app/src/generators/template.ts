@@ -75,6 +75,9 @@ function replacePlaceholders(
   // {{projectName}} の置換
   result = result.replaceAll("{{projectName}}", variables.projectName);
 
+  // {{packageName}}/ の置換（長いパターンを先に置換）
+  result = result.replaceAll("{{packageName}}/", `${variables.packageName}/`);
+
   // {{packageName}} の置換
   result = result.replaceAll("{{packageName}}", variables.packageName);
 
@@ -186,14 +189,13 @@ export async function generateTemplate(
     filter: (src: string): boolean => {
       const relativePath = relative(templatePath, src);
 
-      // node_modules, .git, .next などを除外
+      // 除外パターン（ディレクトリ名やファイル名として完全一致するもの）
       const excludePatterns = [
         "node_modules",
         ".git",
         ".next",
         "out",
         "dist",
-        "*.log",
         "logs",
         ".env",
         ".env.local",
@@ -202,7 +204,25 @@ export async function generateTemplate(
         "coverage",
       ];
 
-      return !excludePatterns.some((pattern) => relativePath.includes(pattern));
+      // ファイル拡張子パターン（*.log など）
+      const excludeExtensions = [".log"];
+
+      // パスセグメントに分割（/ または \ で分割）
+      const pathSegments = relativePath.split(/[/\\]/);
+
+      // パスセグメント単位で完全一致チェック
+      // これにより "out" は "out/" ディレクトリにマッチするが
+      // "logout-button.tsx" にはマッチしない
+      const matchesExcludePattern = excludePatterns.some((pattern) =>
+        pathSegments.includes(pattern)
+      );
+
+      // 拡張子チェック
+      const matchesExtension = excludeExtensions.some((ext) =>
+        relativePath.endsWith(ext)
+      );
+
+      return !matchesExcludePattern && !matchesExtension;
     },
   });
 

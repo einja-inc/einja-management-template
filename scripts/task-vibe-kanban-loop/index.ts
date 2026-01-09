@@ -15,6 +15,7 @@ import {
   mergePhaseBranchIntoIssue,
   syncPhaseBranch,
 } from "./lib/branch-manager.js";
+import { ensureGhSetup } from "./lib/gh-setup.js";
 import {
   detectCircularDependencies,
   getCompletedPhaseNumbers,
@@ -67,6 +68,9 @@ async function main(): Promise<void> {
   if (!args) {
     process.exit(1);
   }
+
+  // GitHub CLI セットアップ確認
+  ensureGhSetup();
 
   console.log(`\n🚀 タスク自動実行ループ開始 [${getTimestamp()}]\n`);
 

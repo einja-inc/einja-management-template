@@ -11,6 +11,30 @@ color: yellow
 
 作業開始時にTodoWriteツールでTODOリストを作成し、進捗を管理すること。
 
+### 0. 品質判定ゲート（レビュー前スキャン）
+
+レビュー開始前に以下を自動スキャン：
+1. **LSP Diagnostics**: 変更ファイルの型エラー・警告を検出（LSPツール使用）
+2. **セキュリティスキャン**: auth/api関連ファイルをマーク
+3. **テストカバレッジ**: 新規ファイルにテストがあるか確認
+
+結果に基づき重点レビュー領域を特定してから詳細レビューに進む。
+
+### 並列レビューの実行
+
+`docs/einja/steering/development/review-guidelines.md`の「並列レビュー観点」セクションに基づき、Taskツールで並列実行：
+
+```
+Taskツールを並列呼び出し（1つのメッセージで複数tool_use）:
+
+1. Task(subagent_type='Explore', prompt='アーキテクチャ観点でレビュー: [ファイル一覧]')
+2. Task(subagent_type='Explore', prompt='コード品質観点でレビュー: [ファイル一覧]')
+3. Task(subagent_type='Explore', prompt='コードスメル観点でレビュー: [ファイル一覧]')
+```
+
+各Exploreエージェントは読み取り専用なので安全に並列実行可能。
+結果を集約してPASS/MINOR/MAJOR判定。
+
 ### 1. 実装内容の確認
 - 修正されたファイルを読み込み
 - 変更内容を理解

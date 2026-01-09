@@ -242,3 +242,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - @docs/einja/steering/commit-rules.md - コミットルール・ブランチ戦略
 - @docs/einja/steering/development/testing-strategy.md - Vitestを使用したテスト戦略
 - @docs/einja/steering/development/review-guidelines.md - コードレビューのガイドライン
+- @docs/einja/memory/decisions.md - 過去の意思決定記録（セッション跨ぎで継承）
+- @docs/einja/memory/patterns.md - 再利用可能なパターン（セッション跨ぎで継承）

@@ -124,6 +124,32 @@ it('UserRepository が存在する', () => {
 - ✅ 適切なエラーハンドリング
 - ✅ コメントは実装の意図のみ説明（アーキテクチャ説明は設計書を参照）
 
+#### 4.5 形骸化実装の禁止
+
+**⚠️ 以下の実装パターンは絶対禁止**:
+- ❌ テスト期待値をそのまま返す辞書/マップ
+- ❌ 特定の入力値のみ動作するハードコード
+- ❌ `TODO: 後で実装` のまま放置
+
+**禁止例**:
+```typescript
+// ❌ 絶対禁止: テスト期待値をそのまま返す
+function slugify(text: string): string {
+  const answers: Record<string, string> = { "HelloWorld": "hello-world" };
+  return answers[text] ?? "";
+}
+
+// ✅ 正しい実装
+function slugify(text: string): string {
+  return text.trim().toLowerCase().replace(/[\s_]+/g, "-");
+}
+```
+
+**実装前セルフチェック**:
+- [ ] テストケース以外の入力でも動作するか？
+- [ ] エッジケース（空、null、境界値）を処理しているか？
+- [ ] ハードコードされた辞書や決め打ち値がないか？
+
 ### 5. 修正記録の作成
 
 #### 5.1 記録ファイルパスの決定

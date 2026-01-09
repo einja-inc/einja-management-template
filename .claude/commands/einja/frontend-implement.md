@@ -22,41 +22,41 @@ allowed-tools: Task, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, mcp__figma_
 #### 0.1 コンポーネント構成
 
 AskUserQuestion:
-- **question**: "コンポーネント構成をどのように設計しますか？"
-- **header**: "構成選択"
-- **options**:
-  1. **既存パターンに従う（推奨）**
-     - 推奨理由: プロジェクトの一貫性を維持。既存コンポーネントとの整合性が高い
-  2. **Atomic Design**
-     - atoms/molecules/organisms/templates/pages の階層構造。大規模UI向け
-  3. **Feature-based構成**
-     - 機能単位でファイルをまとめる。独立性の高い機能向け
+  question: "コンポーネント構成をどのように設計しますか？"
+  header: "構成選択"
+  options:
+    - label: "既存パターンに従う（推奨）"
+      description: "推奨理由: プロジェクトの一貫性を維持。メリット: 既存コンポーネントとの整合性が高く、チーム内での理解が容易。デメリット: 新しいパターンが必要な場合は対応できない可能性がある"
+    - label: "Atomic Design"
+      description: "atoms/molecules/organisms/templates/pagesの階層構造。メリット: 再利用性が高く、大規模UIに向いている。デメリット: 学習コストが高く、過度な抽象化のリスクがある"
+    - label: "Feature-based構成"
+      description: "機能単位でファイルをまとめる。メリット: 機能の独立性が高く、コードの関連性が分かりやすい。デメリット: 共通コンポーネントの管理が複雑になる可能性がある"
 
 #### 0.2 Figmaデザイン参照
 
 AskUserQuestion:
-- **question**: "Figmaデザイン参照は利用できますか？"
-- **header**: "Figma連携"
-- **options**:
-  1. **Figma URLを提供する**
-     - design-engineerエージェントがFigma MCPでデザイントークンを抽出
-  2. **既存デザインシステムで対応**
-     - プロジェクトの既存Panda CSS設定を使用
-  3. **デザイン仕様書を参照**
-     - 別途提供されたデザイン仕様書に従う
+  question: "Figmaデザイン参照は利用できますか？"
+  header: "Figma連携"
+  options:
+    - label: "Figma URLを提供する"
+      description: "design-engineerエージェントがFigma MCPでデザイントークンを抽出。メリット: デザインとコードの一貫性が高く、デザイナーとの連携が容易。デメリット: Figma MCPの設定が必要、デザイン変更の同期に手間がかかる"
+    - label: "既存デザインシステムで対応"
+      description: "プロジェクトの既存Panda CSS設定を使用。メリット: 既存のトークンとレシピを再利用でき、実装が迅速。デメリット: 新しいデザインパターンに対応できない場合がある"
+    - label: "デザイン仕様書を参照"
+      description: "別途提供されたデザイン仕様書に従う。メリット: デザイナーの意図を正確に理解できる。デメリット: 仕様書の解釈にばらつきが出る可能性、手動でトークン定義が必要"
 
 #### 0.3 状態管理の複雑さ
 
 AskUserQuestion:
-- **question**: "状態管理の複雑さはどの程度ですか？"
-- **header**: "状態管理"
-- **options**:
-  1. **シンプル（UI State のみ）**
-     - useState, useReducerで十分な場合
-  2. **中程度（Server State + UI State）**
-     - TanStack Queryでサーバー状態管理。推奨パターン
-  3. **複雑（複数の状態層の連携）**
-     - グローバル状態管理（Zustand等）の検討が必要
+  question: "状態管理の複雑さはどの程度ですか？"
+  header: "状態管理"
+  options:
+    - label: "シンプル（UI Stateのみ）"
+      description: "useState, useReducerで十分な場合。メリット: シンプルで理解しやすく、学習コストが低い。デメリット: サーバーとの同期やキャッシュ管理が手動になる"
+    - label: "中程度（Server State + UI State）（推奨）"
+      description: "TanStack Queryでサーバー状態管理。メリット: サーバー状態とUIステートが明確に分離され、キャッシュ管理が自動化される。デメリット: TanStack Queryの学習が必要"
+    - label: "複雑（複数の状態層の連携）"
+      description: "グローバル状態管理（Zustand等）の検討が必要。メリット: 複雑な状態の共有が容易になる。デメリット: 状態管理ライブラリの追加が必要、過度な使用は保守性を下げる"
 
 ---
 

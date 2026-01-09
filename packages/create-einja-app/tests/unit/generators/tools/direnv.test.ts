@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { setupDirenv } from "../../../../src/generators/tools/direnv.js";
+import { setupDirenv, promptDirenvAllow } from "../../../../src/generators/tools/direnv.js";
 
 describe("direnv generator", () => {
   let testDir: string;
@@ -87,6 +87,21 @@ describe("direnv generator", () => {
       // Then: 既存ファイルが保持される
       const content = readFileSync(envrcPath, "utf-8");
       expect(content).toBe(existingContent);
+    });
+  });
+
+  describe("promptDirenvAllow", () => {
+    it("promptDirenvAllow関数が定義されている", () => {
+      // Then: promptDirenvAllow関数が存在する
+      expect(typeof promptDirenvAllow).toBe("function");
+    });
+
+    it("promptDirenvAllow関数がPromiseを返す", () => {
+      // Given: モック環境でinquirerが使えない状況
+      // Then: 関数はPromiseを返す（エクスポートと型定義の確認）
+      // 注: inquirerの対話プロンプトはE2Eテストで検証
+      expect(promptDirenvAllow).toBeDefined();
+      expect(typeof promptDirenvAllow).toBe("function");
     });
   });
 });

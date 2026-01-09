@@ -132,9 +132,9 @@ describe("promptProjectConfig", () => {
       "worktree-project-postgres"
     );
     expect(result.worktreeConfig?.apps).toHaveLength(1);
-    expect(result.worktreeConfig?.apps[0].id).toBe("web");
-    expect(result.worktreeConfig?.apps[0].portRangeStart).toBe(3000);
-    expect(result.worktreeConfig?.apps[0].rangeSize).toBe(1000);
+    expect(result.worktreeConfig?.apps?.[0]?.id).toBe("web");
+    expect(result.worktreeConfig?.apps?.[0]?.portRangeStart).toBe(3000);
+    expect(result.worktreeConfig?.apps?.[0]?.rangeSize).toBe(1000);
   });
 
   it("GitHub OAuth認証を選択した場合、authMethodがgithubになる", async () => {

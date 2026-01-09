@@ -6,3 +6,4 @@ coverage
 .env
 .env.local
 templates/
+test-temp/

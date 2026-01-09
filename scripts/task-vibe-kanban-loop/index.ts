@@ -263,11 +263,11 @@ const mergedPhaseNumbers = new Set<number>();
 /**
  * 完了した Phase を Issue ブランチにマージ
  */
-function mergeCompletedPhases(
+async function mergeCompletedPhases(
   parsedIssue: ParsedIssue,
   issueNumber: number,
   issueBranch: string
-): void {
+): Promise<void> {
   const completedPhases = getCompletedPhaseNumbers(parsedIssue);
 
   for (const phaseNumber of completedPhases) {
@@ -277,7 +277,7 @@ function mergeCompletedPhases(
 
     console.log(`\n🔀 Phase ${phaseNumber} が完了 - Issue ブランチにマージします`);
     try {
-      mergePhaseBranchIntoIssue(issueNumber, phaseNumber, issueBranch);
+      await mergePhaseBranchIntoIssue(issueNumber, phaseNumber, issueBranch);
       mergedPhaseNumbers.add(phaseNumber);
     } catch (error) {
       console.error(`   ❌ Phase ${phaseNumber} のマージに失敗:`, error);
@@ -300,7 +300,7 @@ async function startExecutableTasks(
   stateManager: TaskStateManager
 ): Promise<void> {
   // 完了した Phase を Issue ブランチにマージ（新しい Phase のタスク開始前に実行）
-  mergeCompletedPhases(parsedIssue, issueNumber, issueBranch);
+  await mergeCompletedPhases(parsedIssue, issueNumber, issueBranch);
 
   // 着手可能なタスクグループを選定
   const executableGroups = await selectExecutableTaskGroups(parsedIssue, maxTaskNumber);
@@ -359,7 +359,7 @@ async function startExecutableTasks(
     const description = generateVibeKanbanDescription(taskGroup, issueNumber);
 
     // タスク開始前に Phase ブランチを同期（リモートの最新を取得）
-    syncPhaseBranch(issueNumber, taskGroup.phaseNumber, issueBranch, baseBranch);
+    await syncPhaseBranch(issueNumber, taskGroup.phaseNumber, issueBranch, baseBranch);
 
     // タスク作成
     console.log(`   📌 タスク作成: ${taskGroup.id} - ${taskGroup.name}`);

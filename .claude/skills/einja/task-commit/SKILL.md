@@ -22,7 +22,7 @@ allowed-tools:
 ### ステップ1: 最新化（最初に実行）
 
 1. `git pull --rebase` を実行して最新化
-2. **コンフリクト発生時**: **conflict-resolver Skill** を呼び出して解消
+2. **コンフリクト発生時**: **conflict-resolver エージェント** を Task ツールで呼び出して解消
 3. コンフリクト解消できない場合は以下を出力して終了:
 
 ```markdown
@@ -205,7 +205,7 @@ EOF
 
 | エラー種別 | 対処 |
 |-----------|------|
-| git pull コンフリクト | conflict-resolver Skillを呼び出して解消を試行 |
+| git pull コンフリクト | conflict-resolver エージェントを Task ツールで呼び出して解消を試行 |
 | コンフリクト解消失敗 | 報告して終了、手動解決を依頼 |
 | git commit 失敗 | エラー内容を報告 |
 | git push 失敗 | エラー内容を報告、原因を説明 |

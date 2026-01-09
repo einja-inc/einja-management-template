@@ -523,7 +523,7 @@ This is a local customization that should be overwritten.`;
 			const templateFile = path.join(
 				packageRoot,
 				"presets",
-				"turborepo-pandacss",
+				"minimal",
 				".claude",
 				"commands",
 				"einja",
@@ -641,7 +641,7 @@ This is a local customization that should be overwritten.`;
 			const templateFile = path.join(
 				packageRoot,
 				"presets",
-				"turborepo-pandacss",
+				"minimal",
 				".claude",
 				"commands",
 				"einja",

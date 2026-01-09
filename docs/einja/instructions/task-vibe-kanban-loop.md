@@ -35,13 +35,13 @@ pnpm task:loop <issue-number>
 # PRがマージされると自動で次のタスクが始まる（ちょっとラグあり）
 
 # オプション指定
-pnpm task:loop <issue-number> --max <number> --base <branch>
+pnpm task:loop <issue-number> --max-group <number> --branch <branch>
 
 # 例
-pnpm task:loop 123                  # Issue #123 の全タスクを実行
-pnpm task:loop 123 --max 4          # Phase 4 まで実行
-pnpm task:loop 123 --max 4.2        # タスクグループ 4.2 まで実行
-pnpm task:loop 123 --base develop   # develop ブランチベースで実行
+pnpm task:loop 123                        # Issue #123 の全タスクを実行
+pnpm task:loop 123 --max-group 4          # Phase 4 まで実行
+pnpm task:loop 123 --max-group 4.2        # タスクグループ 4.2 まで実行
+pnpm task:loop 123 --branch develop       # develop ブランチベースで実行
 
 # ヘルプ
 pnpm task:loop --help
@@ -74,7 +74,7 @@ main (デフォルト)
 ```
 
 - **main**: プロダクションブランチ
-- **issue/N**: Issue 単位のブランチ（`--base` で変更可能）
+- **issue/N**: Issue 単位のブランチ（`--branch` で変更可能）
 - **issue/N-phaseM**: Phase 単位のブランチ、タスクグループの作業ベース
 
 ---
@@ -83,6 +83,7 @@ main (デフォルト)
 
 ### 事前準備チェックリスト
 
+- [ ] `npx @einja/cli init` 実行済み（`pnpm task:loop` コマンドが使用可能）
 - [ ] Docker が起動している
 - [ ] `pnpm install` 済み
 - [ ] Vibe-Kanban にプロジェクトが登録されている（後述）

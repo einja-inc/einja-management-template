@@ -350,14 +350,15 @@ design.md「Server Core構築」セクション
 - QA合格後は追加指示待ち状態に入る
 - GitHub Issue更新はユーザーの明示的指示時のみ
 
-**自動ループ実行（TypeScriptスクリプト）**:
+**自動ループ実行**:
 ```bash
 pnpm task:loop <issue番号>
-pnpm task:loop <issue番号> --max <番号>     # 指定番号まで実行
-pnpm task:loop <issue番号> --base <ブランチ>  # ベースブランチ指定
+pnpm task:loop <issue番号> --max-group <番号>  # 指定番号まで実行
+pnpm task:loop <issue番号> --branch <ブランチ> # ベースブランチ指定
 ```
 - 着手可能なタスクグループを並列でVibe-Kanbanに登録
 - Done状態を監視して次のタスクを自動開始
+- **前提**: `npx @einja/cli init` 実行済み、Claude Code インストール済み
 
 **仕様書からドキュメント更新**:
 ```bash

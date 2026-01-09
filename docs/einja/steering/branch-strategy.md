@@ -47,7 +47,7 @@ graph TB
 - `issue/456`
 - `issue/789`
 
-**作成元**: IssueBranchBase（`--base` オプションで指定、デフォルトは main）
+**作成元**: IssueBranchBase（`--branch` オプションで指定、デフォルトは main）
 
 **目的**:
 - GitHub Issue全体の作業を統合する親ブランチ

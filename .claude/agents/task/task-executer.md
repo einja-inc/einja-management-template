@@ -33,6 +33,24 @@ color: blue
   - インターフェース定義
   - エラーハンドリング方針
 
+#### 1.3 実装種別に応じたSkill読み込み
+
+**⚠️ 必須**: 実装を開始する前に、該当するSkillを読み込むこと。
+
+| 実装種別 | 読み込むSkill |
+|---------|--------------|
+| **API実装** | `.claude/skills/einja/api-development/SKILL.md` |
+| **フロントエンド実装** | `.claude/skills/einja/frontend-development/SKILL.md` |
+| **バックエンド実装** | `.claude/skills/einja/backend-architecture/SKILL.md` |
+| **コード全般** | `.claude/skills/einja/coding-standards/SKILL.md` |
+| **コンポーネント設計** | `.claude/skills/einja/component-design/SKILL.md` |
+
+**詳細規約が必要な場合**:
+- 命名規則: `.claude/skills/einja/coding-standards/reference/naming-conventions.md`
+- 禁止パターン: `.claude/skills/einja/coding-standards/reference/prohibited-patterns.md`
+- TypeScript規約: `.claude/skills/einja/coding-standards/reference/typescript-rules.md`
+- スタイリング: `.claude/skills/einja/component-design/reference/styling-guide.md`
+
 ### 2. 実装方針の策定
 
 #### 2.1 ファイルリストアップ
@@ -123,6 +141,32 @@ it('UserRepository が存在する', () => {
 - ✅ 既存のコーディング規約に準拠
 - ✅ 適切なエラーハンドリング
 - ✅ コメントは実装の意図のみ説明（アーキテクチャ説明は設計書を参照）
+
+#### 4.5 形骸化実装の禁止
+
+**⚠️ 以下の実装パターンは絶対禁止**:
+- ❌ テスト期待値をそのまま返す辞書/マップ
+- ❌ 特定の入力値のみ動作するハードコード
+- ❌ `TODO: 後で実装` のまま放置
+
+**禁止例**:
+```typescript
+// ❌ 絶対禁止: テスト期待値をそのまま返す
+function slugify(text: string): string {
+  const answers: Record<string, string> = { "HelloWorld": "hello-world" };
+  return answers[text] ?? "";
+}
+
+// ✅ 正しい実装
+function slugify(text: string): string {
+  return text.trim().toLowerCase().replace(/[\s_]+/g, "-");
+}
+```
+
+**実装前セルフチェック**:
+- [ ] テストケース以外の入力でも動作するか？
+- [ ] エッジケース（空、null、境界値）を処理しているか？
+- [ ] ハードコードされた辞書や決め打ち値がないか？
 
 ### 5. 修正記録の作成
 

@@ -82,9 +82,18 @@ allowed-tools:
 
 **AskUserQuestionツール**を使用して、コミット分割案の承認を得る。
 
+**⚠️ 重要**: `question` パラメータに**具体的なコミット分割内容を必ず記載**すること。「コミット分割案を確認してください」のような抽象的な質問は**禁止**。
+
 ```
 AskUserQuestion:
-  question: "コミット分割案を確認してください"
+  question: |
+    以下のコミット分割案で実行してよろしいですか？
+
+    【コミット1】feat: ユーザー認証機能の追加
+    対象: src/auth/login.ts, src/auth/logout.ts, src/auth/middleware.ts
+
+    【コミット2】test: 認証機能のテスト追加
+    対象: src/auth/__tests__/login.test.ts, src/auth/__tests__/logout.test.ts
   header: "分割案"
   options:
     - label: "承認"
@@ -93,16 +102,9 @@ AskUserQuestion:
       description: "すべての変更を1つのコミットにまとめる"
 ```
 
-質問の前に、以下の形式で分割案を提示:
-
-```markdown
-### コミット分割案
-
-| # | 種類 | コミットメッセージ | 対象ファイル |
-|---|------|------------------|-------------|
-| 1 | feat | feat: ユーザー認証機能の追加 | src/auth/*.ts |
-| 2 | test | test: 認証機能のテスト追加 | src/auth/*.test.ts |
-```
+**question記載必須項目**:
+- 各コミットのメッセージ（プレフィックス付き）
+- 各コミットの対象ファイル一覧
 
 ユーザーが「Other」で修正指示を出した場合は、その指示に従って分割案を修正し、再度確認を取る。
 
@@ -237,4 +239,4 @@ EOF
 
 ---
 
-**最終更新**: 2025-01-05
+**最終更新**: 2026-01-10

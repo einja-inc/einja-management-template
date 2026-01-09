@@ -1,7 +1,7 @@
 {
   "name": "create-einja-app",
   "version": "1.0.0",
-  "description": "CLI tool to create Einja project templates",
+  "description": "CLI tool to create new projects with Einja Management Template",
   "type": "module",
   "bin": {
     "create-einja-app": "./dist/cli.js"
@@ -11,15 +11,15 @@
     "templates"
   ],
   "scripts": {
+    "prebuild": "pnpm template:update",
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "test": "vitest",
-    "test:coverage": "vitest run --coverage"
-  },
-  "engines": {
-    "node": ">=20.0.0"
+    "test:coverage": "vitest run --coverage",
+    "template:update": "tsx scripts/template-update.ts",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "chalk": "^5.3.0",
@@ -37,10 +37,27 @@
     "@types/inquirer": "^9.0.7",
     "@types/node": "^22.10.2",
     "tsup": "^8.3.5",
+    "tsx": "^4.7.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/einja-inc/einja-management-template.git",
+    "directory": "packages/create-einja-app"
+  },
+  "keywords": [
+    "einja",
+    "cli",
+    "template",
+    "turborepo",
+    "nextjs"
+  ],
+  "license": "MIT"
 }

@@ -23,6 +23,7 @@ import { userRepository } from "./UserRepository";
 describe("UserRepository", () => {
 	beforeEach(() => {
 		// リポジトリテストではモックprismaを使用するため、空のオブジェクトを渡す
+		// biome-ignore lint/suspicious/noExplicitAny: test fixture initialization
 		initialize({ prisma: {} as any });
 		vi.clearAllMocks();
 	});
@@ -34,6 +35,7 @@ describe("UserRepository", () => {
 				await UserFactory.build({ id: "user-1", email: "user1@example.com" }),
 				await UserFactory.build({ id: "user-2", email: "user2@example.com" }),
 			];
+			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 			vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any);
 			vi.mocked(prisma.user.count).mockResolvedValue(25);
 
@@ -54,6 +56,7 @@ describe("UserRepository", () => {
 		it("検索条件なしで全件取得できる", async () => {
 			// Given
 			const mockUsers = [await UserFactory.build()];
+			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 			vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any);
 			vi.mocked(prisma.user.count).mockResolvedValue(1);
 
@@ -177,6 +180,7 @@ describe("UserRepository", () => {
 		it("条件に一致するユーザーを取得できる", async () => {
 			// Given
 			const mockUser = await UserFactory.build();
+			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 			vi.mocked(prisma.user.findFirst).mockResolvedValue(mockUser as any);
 
 			// When
@@ -220,6 +224,7 @@ describe("UserRepository", () => {
 		it("IDでユーザーを取得できる", async () => {
 			// Given
 			const mockUser = await UserFactory.build({ id: "user-456" });
+			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any);
 
 			// When
@@ -251,6 +256,7 @@ describe("UserRepository", () => {
 		it("メールアドレスでユーザーを取得できる", async () => {
 			// Given
 			const mockUser = await UserFactory.build({ email: "specific@example.com" });
+			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 			vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser as any);
 
 			// When
@@ -283,6 +289,7 @@ describe("UserRepository", () => {
 			// Given
 			const loginTime = new Date("2025-01-03T12:00:00Z");
 			const updatedUser = await UserFactory.build({ lastLogin: loginTime });
+			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 			vi.mocked(prisma.user.update).mockResolvedValue(updatedUser as any);
 
 			// When

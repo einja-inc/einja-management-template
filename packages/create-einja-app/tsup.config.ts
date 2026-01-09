@@ -9,4 +9,9 @@ export default defineConfig({
   banner: {
     js: "#!/usr/bin/env node",
   },
+  target: "es2022",
+  outDir: "dist",
+  splitting: false,
+  sourcemap: true,
+  minify: false,
 });

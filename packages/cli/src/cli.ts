@@ -3,6 +3,7 @@ import chalk from "chalk";
 import { initCommand } from "./commands/init.js";
 import { listCommand } from "./commands/list.js";
 import { syncCommand } from "./commands/sync.js";
+import { taskLoopCommand } from "./commands/task-loop.js";
 
 const program = new Command();
 
@@ -46,5 +47,12 @@ program
 	.option("-j, --json", "JSON形式で結果を出力")
 	.option("--no-backup", "変更前にバックアップを作成しない")
 	.action(syncCommand);
+
+program
+	.command("task:loop [issue]")
+	.description("GitHub Issueのタスクを自動実行（Claude Code経由）")
+	.option("-m, --max-group <number>", "最大タスクグループ番号")
+	.option("-b, --branch <name>", "ベースブランチ")
+	.action(taskLoopCommand);
 
 program.parse();

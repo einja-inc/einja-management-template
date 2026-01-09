@@ -302,4 +302,131 @@ describe("generateTemplate", { concurrent: false }, () => {
       }
     }
   });
+
+  it("除外パターンに部分一致するファイル名（logout-button.tsx等）が正しくコピーされる", async () => {
+    // Given: テンプレートディレクトリ
+    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+
+    const config: ProjectConfig = {
+      projectName: "test-app",
+      packageScope: "@test",
+      template: "turborepo-pandacss",
+      authMethod: "google",
+      tools: {
+        direnv: false,
+        dotenvx: false,
+        volta: false,
+        biome: true,
+        husky: true,
+      },
+      setupEinjaCli: false,
+    };
+
+    if (existsSync(realTemplatePath)) {
+      // "out" を含むファイル名（logout-button.tsx）を作成
+      const logoutButtonPath = join(realTemplatePath, "test-logout-button.tsx");
+      writeFileSync(logoutButtonPath, "// Logout button component", "utf-8");
+      testFilesToCleanup.push(logoutButtonPath);
+
+      // "log" を含むファイル名（dialog.tsx）を作成
+      const dialogPath = join(realTemplatePath, "test-dialog.tsx");
+      writeFileSync(dialogPath, "// Dialog component", "utf-8");
+      testFilesToCleanup.push(dialogPath);
+
+      // "dist" を含むファイル名（distribution.ts）を作成
+      const distributionPath = join(realTemplatePath, "test-distribution.ts");
+      writeFileSync(distributionPath, "// Distribution util", "utf-8");
+      testFilesToCleanup.push(distributionPath);
+
+      // When: generateTemplateを実行
+      await generateTemplate(config, targetPath);
+
+      // Then: これらのファイルは除外されずにコピーされる
+      expect(existsSync(join(targetPath, "test-logout-button.tsx"))).toBe(true);
+      expect(existsSync(join(targetPath, "test-dialog.tsx"))).toBe(true);
+      expect(existsSync(join(targetPath, "test-distribution.ts"))).toBe(true);
+    }
+  });
+
+  it("除外パターンのディレクトリ（out/, dist/, logs/等）は正しく除外される", async () => {
+    // Given: テンプレートディレクトリ
+    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+
+    const config: ProjectConfig = {
+      projectName: "test-app",
+      packageScope: "@test",
+      template: "turborepo-pandacss",
+      authMethod: "google",
+      tools: {
+        direnv: false,
+        dotenvx: false,
+        volta: false,
+        biome: true,
+        husky: true,
+      },
+      setupEinjaCli: false,
+    };
+
+    if (existsSync(realTemplatePath)) {
+      // out/ ディレクトリを作成
+      const outDir = join(realTemplatePath, "out");
+      mkdirSync(outDir, { recursive: true });
+      const outFile = join(outDir, "test-file.js");
+      writeFileSync(outFile, "// Build output", "utf-8");
+      testFilesToCleanup.push(outFile);
+
+      // dist/ ディレクトリを作成
+      const distDir = join(realTemplatePath, "dist");
+      mkdirSync(distDir, { recursive: true });
+      const distFile = join(distDir, "bundle.js");
+      writeFileSync(distFile, "// Bundle output", "utf-8");
+      testFilesToCleanup.push(distFile);
+
+      // When: generateTemplateを実行
+      await generateTemplate(config, targetPath);
+
+      // Then: これらのディレクトリ内のファイルは除外される
+      expect(existsSync(join(targetPath, "out/test-file.js"))).toBe(false);
+      expect(existsSync(join(targetPath, "dist/bundle.js"))).toBe(false);
+    }
+  });
+
+  it(".logファイルは除外されるが、blog.tsxは除外されない", async () => {
+    // Given: テンプレートディレクトリ
+    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+
+    const config: ProjectConfig = {
+      projectName: "test-app",
+      packageScope: "@test",
+      template: "turborepo-pandacss",
+      authMethod: "google",
+      tools: {
+        direnv: false,
+        dotenvx: false,
+        volta: false,
+        biome: true,
+        husky: true,
+      },
+      setupEinjaCli: false,
+    };
+
+    if (existsSync(realTemplatePath)) {
+      // .logファイルを作成（除外されるべき）
+      const logFilePath = join(realTemplatePath, "test-error.log");
+      writeFileSync(logFilePath, "Error log content", "utf-8");
+      testFilesToCleanup.push(logFilePath);
+
+      // blog.tsxを作成（除外されないべき）
+      const blogPath = join(realTemplatePath, "test-blog.tsx");
+      writeFileSync(blogPath, "// Blog component", "utf-8");
+      testFilesToCleanup.push(blogPath);
+
+      // When: generateTemplateを実行
+      await generateTemplate(config, targetPath);
+
+      // Then: .logファイルは除外され、blog.tsxは除外されない
+      expect(existsSync(join(targetPath, "test-error.log"))).toBe(false);
+      expect(existsSync(join(targetPath, "test-blog.tsx"))).toBe(true);
+    }
+  });
 });

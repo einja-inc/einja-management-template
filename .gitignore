@@ -78,3 +78,9 @@ storybook-static
 
 # prisma
 prisma/dev.db
+
+# 作業記録（個人用）
+modifications/
+
+# Serena設定（個人用）
+**/.serena/

@@ -40,7 +40,7 @@ export async function resolveConflictWithClaude(
 conflict-resolver スキルを使用してコンフリクトを解消し、完了したら /exit で終了してください。`;
 
   return new Promise((resolve) => {
-    const child = spawn("claude", ["--prompt", prompt], {
+    const child = spawn("claude", [prompt], {
       stdio: "inherit",
       cwd: worktreePath,
     });

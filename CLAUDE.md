@@ -233,6 +233,20 @@ const authOptions = mergeAuthOptions(baseAuthOptions, {
 export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 ```
 
+## AskUserQuestion ツールの使用
+
+選択肢を提示してユーザーに質問する場合は、**必ず AskUserQuestion ツール**を使用してください。
+
+### 使用必須シーン
+- 複数の実装方法・設計アプローチがある場合
+- 重要な判断（コミット分割、リファクタリング方針など）
+- 破壊的な操作の前
+
+### 提示形式
+- テーブル形式: 複数項目の比較
+- 番号付きリスト: 詳細説明が必要な場合
+- 推奨オプションには `（推奨）` と理由を付記
+
 ## 追加指示
 
 以下のドキュメントも参照して作業を進めてください:

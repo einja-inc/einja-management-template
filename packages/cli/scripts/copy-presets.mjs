@@ -57,9 +57,9 @@ const mappings = [
 	},
 	// フック
 	{
-		src: path.join(projectRoot, ".claude/hooks"),
-		dest: path.join(cliDir, "presets/minimal/.claude/hooks"),
-		basePath: ".claude/hooks",
+		src: path.join(projectRoot, ".claude/hooks/einja"),
+		dest: path.join(cliDir, "presets/minimal/.claude/hooks/einja"),
+		basePath: ".claude/hooks/einja",
 	},
 	// ステアリングドキュメント（scaffoldsはシンボリックリンク非対象）
 	{

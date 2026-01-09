@@ -42,7 +42,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 	const __filename = fileURLToPath(import.meta.url);
 	const __dirname = path.dirname(__filename);
 	const packageRoot = path.resolve(__dirname, "../..");
-	const templateRoot = path.join(packageRoot, "presets", "turborepo-pandacss");
+	const templateRoot = path.join(packageRoot, "presets", "minimal");
 
 	log(chalk.blue("\n🔄 テンプレート同期を開始...\n"), options);
 

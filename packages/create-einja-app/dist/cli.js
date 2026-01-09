@@ -2,9 +2,9 @@
 
 // src/cli.ts
 import { Command } from "commander";
-import { readFileSync as readFileSync3 } from "fs";
+import { readFileSync as readFileSync4 } from "fs";
 import { fileURLToPath as fileURLToPath2 } from "url";
-import { dirname as dirname3, join as join3 } from "path";
+import { dirname as dirname3, join as join10 } from "path";
 
 // src/commands/create.ts
 import { existsSync as existsSync3 } from "fs";
@@ -198,10 +198,62 @@ import { fileURLToPath } from "url";
 // src/utils/fs.ts
 import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
+function writeWithStrategy(filePath, content, strategy) {
+  const exists = existsSync(filePath);
+  if (!exists) {
+    ensureDir(dirname(filePath));
+    writeFileSync(filePath, content, "utf-8");
+    return true;
+  }
+  switch (strategy) {
+    case "overwrite": {
+      writeFileSync(filePath, content, "utf-8");
+      return true;
+    }
+    case "merge": {
+      const existingContent = readFileSync(filePath, "utf-8");
+      const mergedContent = mergeContent(existingContent, content);
+      writeFileSync(filePath, mergedContent, "utf-8");
+      return true;
+    }
+    case "skip": {
+      return false;
+    }
+    default: {
+      const _exhaustiveCheck = strategy;
+      throw new Error(`Unknown strategy: ${_exhaustiveCheck}`);
+    }
+  }
+}
+function mergeContent(existing, newContent) {
+  if (existing.includes(newContent)) {
+    return existing;
+  }
+  return `${existing}
+${newContent}`;
+}
 function ensureDir(dirPath) {
   if (!existsSync(dirPath)) {
     mkdirSync(dirPath, { recursive: true });
   }
+}
+function appendToGitignore(targetDir, line) {
+  const gitignorePath = join(targetDir, ".gitignore");
+  if (!existsSync(gitignorePath)) {
+    writeFileSync(gitignorePath, `${line}
+`, "utf-8");
+    return;
+  }
+  const content = readFileSync(gitignorePath, "utf-8");
+  if (content.includes(line)) {
+    return;
+  }
+  appendFileSync(gitignorePath, `
+${line}
+`, "utf-8");
+}
+function fileExists(filePath) {
+  return existsSync(filePath);
 }
 
 // src/utils/logger.ts
@@ -314,7 +366,6 @@ async function generateTemplate(config, targetPath) {
         ".next",
         "out",
         "dist",
-        "*.log",
         "logs",
         ".env",
         ".env.local",
@@ -322,7 +373,15 @@ async function generateTemplate(config, targetPath) {
         "Thumbs.db",
         "coverage"
       ];
-      return !excludePatterns.some((pattern) => relativePath.includes(pattern));
+      const excludeExtensions = [".log"];
+      const pathSegments = relativePath.split(/[/\\]/);
+      const matchesExcludePattern = excludePatterns.some(
+        (pattern) => pathSegments.includes(pattern)
+      );
+      const matchesExtension = excludeExtensions.some(
+        (ext) => relativePath.endsWith(ext)
+      );
+      return !matchesExcludePattern && !matchesExtension;
     }
   });
   excludeAuthFiles(targetPath, config.authMethod);
@@ -517,11 +576,456 @@ async function createCommand(projectName, options) {
   }
 }
 
+// src/commands/setup.ts
+import { existsSync as existsSync4 } from "fs";
+import { join as join9 } from "path";
+import ora3 from "ora";
+
+// src/prompts/setup.ts
+import inquirer3 from "inquirer";
+async function promptSetupConfig() {
+  const answers = await inquirer3.prompt([
+    {
+      type: "checkbox",
+      name: "tools",
+      message: "\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3059\u308B\u30C4\u30FC\u30EB\u3092\u9078\u629E\uFF08\u8907\u6570\u9078\u629E\u53EF\uFF09:",
+      choices: [
+        {
+          name: "direnv\uFF08\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u3054\u3068\u306E\u74B0\u5883\u5909\u6570\u7BA1\u7406\uFF09",
+          value: "direnv",
+          checked: true
+        },
+        {
+          name: "dotenvx\uFF08.env\u6697\u53F7\u5316\uFF09",
+          value: "dotenvx",
+          checked: true
+        },
+        {
+          name: "Volta\uFF08Node.js\u30D0\u30FC\u30B8\u30E7\u30F3\u7BA1\u7406\uFF09",
+          value: "volta",
+          checked: true
+        },
+        {
+          name: "Biome\uFF08Linter / Formatter\uFF09",
+          value: "biome",
+          checked: false
+        },
+        {
+          name: "Husky + lint-staged\uFF08Git hooks\uFF09",
+          value: "husky",
+          checked: false
+        }
+      ]
+    },
+    {
+      type: "list",
+      name: "conflictStrategy",
+      message: "\u65E2\u5B58\u30D5\u30A1\u30A4\u30EB\u304C\u3042\u308B\u5834\u5408\u306E\u52D5\u4F5C:",
+      choices: [
+        {
+          name: "\u30DE\u30FC\u30B8\uFF08\u65E2\u5B58\u8A2D\u5B9A\u3092\u4FDD\u6301\u3057\u3064\u3064\u8FFD\u52A0\uFF09",
+          value: "merge"
+        },
+        {
+          name: "\u4E0A\u66F8\u304D",
+          value: "overwrite"
+        },
+        {
+          name: "\u30B9\u30AD\u30C3\u30D7",
+          value: "skip"
+        }
+      ],
+      default: "merge"
+    }
+  ]);
+  const toolsArray = answers.tools;
+  const tools = {
+    direnv: toolsArray.includes("direnv"),
+    dotenvx: toolsArray.includes("dotenvx"),
+    volta: toolsArray.includes("volta"),
+    biome: toolsArray.includes("biome"),
+    husky: toolsArray.includes("husky")
+  };
+  return {
+    tools,
+    conflictStrategy: answers.conflictStrategy
+  };
+}
+
+// src/generators/tools/direnv.ts
+import { join as join3 } from "path";
+import { execSync } from "child_process";
+import inquirer4 from "inquirer";
+var ENVRC_CONTENT = `# direnv configuration
+# Load .env if it exists
+dotenv_if_exists
+
+# Allow local overrides
+dotenv_if_exists .env.local
+`;
+var ENVRC_EXAMPLE_CONTENT = `# Example direnv configuration
+# Copy this file to .envrc and run 'direnv allow'
+
+# Load environment variables from .env
+dotenv_if_exists
+
+# Load local overrides
+dotenv_if_exists .env.local
+`;
+function setupDirenv(options) {
+  const { targetDir, conflictStrategy } = options;
+  const envrcPath = join3(targetDir, ".envrc");
+  const envrcExamplePath = join3(targetDir, ".envrc.example");
+  writeWithStrategy(envrcPath, ENVRC_CONTENT, conflictStrategy);
+  writeWithStrategy(envrcExamplePath, ENVRC_EXAMPLE_CONTENT, conflictStrategy);
+  appendToGitignore(targetDir, ".envrc");
+}
+async function promptDirenvAllow(targetDir) {
+  try {
+    const { shouldAllow } = await inquirer4.prompt([
+      {
+        type: "confirm",
+        name: "shouldAllow",
+        message: "direnv allow \u3092\u5B9F\u884C\u3057\u307E\u3059\u304B\uFF1F\uFF08\u74B0\u5883\u5909\u6570\u3092\u6709\u52B9\u5316\u3057\u307E\u3059\uFF09",
+        default: true
+      }
+    ]);
+    if (shouldAllow) {
+      try {
+        execSync("direnv allow", { cwd: targetDir, stdio: "inherit" });
+        success("direnv allow \u3092\u5B9F\u884C\u3057\u307E\u3057\u305F");
+      } catch (error2) {
+        warn("direnv allow \u306E\u5B9F\u884C\u306B\u5931\u6557\u3057\u307E\u3057\u305F");
+        info("\u5F8C\u3067\u624B\u52D5\u3067 'direnv allow' \u3092\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044");
+      }
+    } else {
+      info("direnv allow \u3092\u30B9\u30AD\u30C3\u30D7\u3057\u307E\u3057\u305F");
+      info("\u5F8C\u3067\u624B\u52D5\u3067 'direnv allow' \u3092\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044");
+    }
+  } catch (error2) {
+    info("direnv allow \u3092\u30B9\u30AD\u30C3\u30D7\u3057\u307E\u3057\u305F");
+  }
+}
+
+// src/generators/tools/dotenvx.ts
+import { join as join5 } from "path";
+
+// src/utils/package-json.ts
+import { readFileSync as readFileSync3, writeFileSync as writeFileSync3 } from "fs";
+import { join as join4 } from "path";
+function readPackageJson(targetDir) {
+  const packageJsonPath2 = join4(targetDir, "package.json");
+  if (!fileExists(packageJsonPath2)) {
+    return {};
+  }
+  const content = readFileSync3(packageJsonPath2, "utf-8");
+  return JSON.parse(content);
+}
+function writePackageJson(targetDir, data) {
+  const packageJsonPath2 = join4(targetDir, "package.json");
+  const content = JSON.stringify(data, null, 2);
+  writeFileSync3(packageJsonPath2, `${content}
+`, "utf-8");
+}
+function addScripts(targetDir, scripts) {
+  const pkg = readPackageJson(targetDir);
+  pkg.scripts = { ...pkg.scripts, ...scripts };
+  writePackageJson(targetDir, pkg);
+}
+function addDependencies(targetDir, dependencies, dev = false) {
+  const pkg = readPackageJson(targetDir);
+  if (dev) {
+    pkg.devDependencies = { ...pkg.devDependencies, ...dependencies };
+  } else {
+    pkg.dependencies = { ...pkg.dependencies, ...dependencies };
+  }
+  writePackageJson(targetDir, pkg);
+}
+function addVoltaField(targetDir, nodeVersion, pnpmVersion) {
+  const pkg = readPackageJson(targetDir);
+  pkg.volta = {
+    node: nodeVersion,
+    pnpm: pnpmVersion
+  };
+  writePackageJson(targetDir, pkg);
+}
+function addLintStaged(targetDir, config) {
+  const pkg = readPackageJson(targetDir);
+  pkg["lint-staged"] = { ...pkg["lint-staged"], ...config };
+  writePackageJson(targetDir, pkg);
+}
+
+// src/generators/tools/dotenvx.ts
+var ENV_EXAMPLE_CONTENT = `# Environment variables template
+# Copy this file to .env and fill in the values
+
+# Database
+DATABASE_URL="postgresql://user:password@localhost:25432/dbname"
+
+# NextAuth
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secret-here"
+
+# OAuth (if using)
+# GOOGLE_CLIENT_ID=""
+# GOOGLE_CLIENT_SECRET=""
+# GITHUB_CLIENT_ID=""
+# GITHUB_CLIENT_SECRET=""
+`;
+function setupDotenvx(options) {
+  const { targetDir, conflictStrategy } = options;
+  addDependencies(targetDir, {
+    "@dotenvx/dotenvx": "^1.29.0"
+  });
+  addScripts(targetDir, {
+    "env:encrypt": "dotenvx encrypt",
+    "env:decrypt": "dotenvx decrypt"
+  });
+  const envExamplePath = join5(targetDir, ".env.example");
+  writeWithStrategy(envExamplePath, ENV_EXAMPLE_CONTENT, conflictStrategy);
+}
+
+// src/generators/tools/volta.ts
+import { join as join6 } from "path";
+var NODE_VERSION = "22.16.0";
+var PNPM_VERSION = "9.15.0";
+var NODE_VERSION_CONTENT = `${NODE_VERSION}
+`;
+function setupVolta(options) {
+  const { targetDir, conflictStrategy } = options;
+  addVoltaField(targetDir, NODE_VERSION, PNPM_VERSION);
+  const nodeVersionPath = join6(targetDir, ".node-version");
+  writeWithStrategy(nodeVersionPath, NODE_VERSION_CONTENT, conflictStrategy);
+}
+
+// src/generators/tools/biome.ts
+import { join as join7 } from "path";
+var BIOME_CONFIG = `{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "ignore": ["node_modules", "dist", ".next", "out", "build", "coverage"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 100
+  },
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "es5",
+      "semicolons": "always",
+      "arrowParentheses": "always"
+    }
+  }
+}
+`;
+var VSCODE_SETTINGS = `{
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  }
+}
+`;
+function setupBiome(options) {
+  const { targetDir, conflictStrategy } = options;
+  const biomeConfigPath = join7(targetDir, "biome.json");
+  writeWithStrategy(biomeConfigPath, BIOME_CONFIG, conflictStrategy);
+  addDependencies(
+    targetDir,
+    {
+      "@biomejs/biome": "^1.9.4"
+    },
+    true
+  );
+  addScripts(targetDir, {
+    lint: "biome lint .",
+    "lint:fix": "biome lint --write .",
+    format: "biome format .",
+    "format:fix": "biome format --write ."
+  });
+  const vscodeDir = join7(targetDir, ".vscode");
+  ensureDir(vscodeDir);
+  const vscodeSettingsPath = join7(vscodeDir, "settings.json");
+  writeWithStrategy(vscodeSettingsPath, VSCODE_SETTINGS, conflictStrategy);
+}
+
+// src/generators/tools/husky.ts
+import { join as join8 } from "path";
+import { writeFileSync as writeFileSync4 } from "fs";
+var PRE_COMMIT_HOOK = `#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+pnpm lint-staged
+`;
+function setupHusky(options) {
+  const { targetDir } = options;
+  addDependencies(
+    targetDir,
+    {
+      husky: "^9.1.7",
+      "lint-staged": "^15.2.11"
+    },
+    true
+  );
+  addScripts(targetDir, {
+    prepare: "husky"
+  });
+  addLintStaged(targetDir, {
+    "*.{js,jsx,ts,tsx}": ["biome format --write", "biome lint --write"],
+    "*.{json,md,yml,yaml}": ["biome format --write"]
+  });
+  const huskyDir = join8(targetDir, ".husky");
+  ensureDir(huskyDir);
+  const preCommitPath = join8(huskyDir, "pre-commit");
+  writeFileSync4(preCommitPath, PRE_COMMIT_HOOK, { mode: 493 });
+}
+
+// src/commands/setup.ts
+async function setupCommand() {
+  const targetDir = process.cwd();
+  const packageJsonPath2 = join9(targetDir, "package.json");
+  if (!existsSync4(packageJsonPath2)) {
+    error("\u30A8\u30E9\u30FC: package.json\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093");
+    info("\u3053\u306E\u30B3\u30DE\u30F3\u30C9\u306F\u65E2\u5B58\u306E\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u3067\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044");
+    process.exit(1);
+  }
+  info("\u65E2\u5B58\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u3078\u306E\u30C4\u30FC\u30EB\u8FFD\u52A0\u3092\u958B\u59CB\u3057\u307E\u3059");
+  info("");
+  const config = await promptSetupConfig();
+  info("");
+  info("\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u958B\u59CB\u3057\u307E\u3059...");
+  info("");
+  const options = {
+    targetDir,
+    conflictStrategy: config.conflictStrategy
+  };
+  let setupCount = 0;
+  if (config.tools.direnv) {
+    const spin = ora3("direnv \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
+    try {
+      setupDirenv(options);
+      spin.succeed("direnv \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
+      setupCount++;
+    } catch (error2) {
+      spin.fail("direnv \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
+      error(
+        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
+      );
+    }
+  }
+  if (config.tools.dotenvx) {
+    const spin = ora3("dotenvx \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
+    try {
+      setupDotenvx(options);
+      spin.succeed("dotenvx \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
+      setupCount++;
+    } catch (error2) {
+      spin.fail("dotenvx \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
+      error(
+        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
+      );
+    }
+  }
+  if (config.tools.volta) {
+    const spin = ora3("Volta \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
+    try {
+      setupVolta(options);
+      spin.succeed("Volta \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
+      setupCount++;
+    } catch (error2) {
+      spin.fail("Volta \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
+      error(
+        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
+      );
+    }
+  }
+  if (config.tools.biome) {
+    const spin = ora3("Biome \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
+    try {
+      setupBiome(options);
+      spin.succeed("Biome \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
+      setupCount++;
+    } catch (error2) {
+      spin.fail("Biome \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
+      error(
+        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
+      );
+    }
+  }
+  if (config.tools.husky) {
+    const spin = ora3("Husky \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
+    try {
+      setupHusky(options);
+      spin.succeed("Husky \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
+      setupCount++;
+    } catch (error2) {
+      spin.fail("Husky \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
+      error(
+        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
+      );
+    }
+  }
+  info("");
+  if (config.tools.direnv) {
+    await promptDirenvAllow(targetDir);
+    info("");
+  }
+  success(`\u2705 \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u304C\u5B8C\u4E86\u3057\u307E\u3057\u305F\uFF01\uFF08${setupCount}\u500B\u306E\u30C4\u30FC\u30EB\uFF09`);
+  info("");
+  info("\u6B21\u306E\u30B9\u30C6\u30C3\u30D7:");
+  if (config.tools.direnv) {
+    info("  1. .envrc \u3092\u7DE8\u96C6\u3057\u3066\u74B0\u5883\u5909\u6570\u3092\u8A2D\u5B9A");
+    info("  2. direnv allow \u3092\u5B9F\u884C\uFF08\u307E\u3060\u306E\u5834\u5408\uFF09");
+  }
+  if (config.tools.dotenvx) {
+    info("  - .env.example \u3092\u30B3\u30D4\u30FC\u3057\u3066 .env \u3092\u4F5C\u6210");
+    info("  - \u5FC5\u8981\u306B\u5FDC\u3058\u3066 pnpm env:encrypt \u3067\u6697\u53F7\u5316");
+  }
+  if (config.tools.biome) {
+    info("  - pnpm lint \u3067\u30B3\u30FC\u30C9\u3092\u30C1\u30A7\u30C3\u30AF");
+    info("  - pnpm format:fix \u3067\u30D5\u30A9\u30FC\u30DE\u30C3\u30C8");
+  }
+  if (config.tools.husky) {
+    info("  - pnpm install \u3067Husky\u30D5\u30C3\u30AF\u3092\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB");
+  }
+  info("");
+  success("\u958B\u767A\u3092\u958B\u59CB\u3067\u304D\u307E\u3059\uFF01");
+}
+
 // src/cli.ts
 var __filename2 = fileURLToPath2(import.meta.url);
 var __dirname2 = dirname3(__filename2);
-var packageJsonPath = join3(__dirname2, "../package.json");
-var packageJson = JSON.parse(readFileSync3(packageJsonPath, "utf-8"));
+var packageJsonPath = join10(__dirname2, "../package.json");
+var packageJson = JSON.parse(readFileSync4(packageJsonPath, "utf-8"));
 var program = new Command();
 program.name("create-einja-app").description("CLI tool to create new projects with Einja Management Template").version(packageJson.version);
 program.argument("[project-name]", "Project name").option("--template <template>", "Template to use", "turborepo-pandacss").option("--skip-git", "Skip git initialization").option("--skip-install", "Skip package installation").option("-y, --yes", "Skip interactive prompts").action(
@@ -530,7 +1034,7 @@ program.argument("[project-name]", "Project name").option("--template <template>
   }
 );
 program.command("setup").description("Setup tools for existing project").action(async () => {
-  console.log("setup command - placeholder");
+  await setupCommand();
 });
 program.parse();
 //# sourceMappingURL=cli.js.map

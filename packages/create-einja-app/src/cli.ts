@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createCommand } from "./commands/create.js";
+import { setupCommand } from "./commands/setup.js";
 
 // package.jsonからバージョン情報を読み込み
 const __filename = fileURLToPath(import.meta.url);
@@ -38,13 +39,12 @@ program
     }
   );
 
-// setupコマンド（プレースホルダー）
+// setupコマンド
 program
   .command("setup")
   .description("Setup tools for existing project")
   .action(async () => {
-    console.log("setup command - placeholder");
-    // 実装はタスクグループ1.3で行う
+    await setupCommand();
   });
 
 program.parse();

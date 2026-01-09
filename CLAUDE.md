@@ -271,6 +271,75 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - 番号付きリスト: 詳細説明が必要な場合
 - 推奨オプションには `（推奨）` と理由を付記
 
+## サブエージェント結果報告のルール
+
+サブエージェント（Taskツール経由で呼び出されたエージェント）の実行結果は、**必ず**ユーザーに可視化すること。
+
+### 必須要件
+
+1. **完全出力の原則**: サブエージェントの最終出力は**そのまま全文**をユーザーに表示する
+2. **省略・要約の禁止**: サブエージェントの出力を要約したり、一部のみ抜粋することは禁止
+
+### 長い出力の取り扱い
+
+出力が50行を超える場合、以下の形式で表示：
+
+```markdown
+## [エージェント名] 実行結果
+
+### サマリー
+[最初の10行（ヘッダー・ステータス部分）]
+
+### 詳細
+<details>
+<summary>全文を表示（N行）</summary>
+
+[残りの出力全文]
+
+</details>
+```
+
+### 失敗・エラー時の報告
+
+サブエージェントが失敗した場合、以下を必ず含めること：
+- **エラーステータス**: ❌ FAILURE / ⚠️ PARTIAL
+- **エラー内容**: 具体的なエラーメッセージ
+- **次のアクション**: 推奨される対処方法
+
+### 途中キャンセル時の報告
+
+```markdown
+## [エージェント名] 実行中断
+
+### ステータス: ⏹️ CANCELLED
+
+**中断時点**: [実行中だったステップ]
+**実行済み処理**: [完了していた処理の一覧]
+
+ロールバックが必要な場合は指示してください。
+```
+
+### 出力形式の標準構造
+
+すべてのサブエージェントは以下の構造で出力を統一すること：
+
+```markdown
+## [絵文字] [フェーズ名]完了
+
+### タスク: [タスクID] - [タスク名]
+
+### [メイン結果]: [✅ SUCCESS / ❌ FAILURE / ⚠️ PARTIAL / ⏹️ CANCELLED]
+
+### サマリー
+[主要な結果・数値]
+
+### 詳細
+[項目別の詳細情報]
+
+### 次のステップ
+[後続処理の説明]
+```
+
 ## 追加指示
 
 以下のドキュメントも参照して作業を進めてください:
@@ -282,3 +351,33 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - @docs/einja/steering/development/review-guidelines.md - コードレビューのガイドライン
 - @docs/einja/memory/decisions.md - 過去の意思決定記録（セッション跨ぎで継承）
 - @docs/einja/memory/patterns.md - 再利用可能なパターン（セッション跨ぎで継承）
+
+<!-- @einja:template-exclude:start -->
+## このリポジトリ限定の設定
+
+このセクションはテンプレート生成時に除外され、CLIで他リポジトリにコピーされません。
+
+### キーワードトリガー（専用Skill使用必須）
+
+以下のキーワードを検出したら、**即座に該当Skillを参照**すること：
+
+| キーワード | 使用するSkill |
+|-----------|--------------|
+| `einja cli` `@einja/cli` `公開` `リリース` `publish` `release` | `.claude/skills/cli/release/SKILL.md` |
+
+### CLIパッケージの二重管理禁止
+
+以下のファイルは**原本（Single Source of Truth）**として管理され、ビルド時に自動的にCLI配布用ディレクトリにコピー/生成されます。
+
+| 原本 | コピー先 | 備考 |
+|-----|---------|------|
+| `.claude/agents/einja/` | `presets/minimal/.claude/agents/einja/` | 単純コピー |
+| `.claude/commands/einja/` | `presets/minimal/.claude/commands/einja/` | 単純コピー |
+| `.claude/skills/einja/` | `presets/minimal/.claude/skills/einja/` | 単純コピー |
+| `.claude/hooks/einja/` | `presets/minimal/.claude/hooks/einja/` | 単純コピー |
+| `.claude/settings.json` | `presets/minimal/.claude/settings.json` | 単純コピー |
+| `docs/einja/steering/` | `scaffolds/steering/` | 単純コピー |
+| `CLAUDE.md` | `scaffolds/CLAUDE.md.template` | **変換生成** |
+
+**コピー先のファイルは直接編集禁止**（ビルド時に上書きされる）
+<!-- @einja:template-exclude:end -->

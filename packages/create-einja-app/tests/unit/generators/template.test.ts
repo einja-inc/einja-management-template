@@ -106,6 +106,8 @@ describe("generateTemplate", { concurrent: false }, () => {
         direnv: true,
         dotenvx: true,
         volta: true,
+        biome: true,
+        husky: true,
       },
       setupEinjaCli: true,
     };
@@ -147,6 +149,8 @@ describe("generateTemplate", { concurrent: false }, () => {
         direnv: true,
         dotenvx: true,
         volta: true,
+        biome: true,
+        husky: true,
       },
       setupEinjaCli: false,
     };
@@ -183,6 +187,8 @@ describe("generateTemplate", { concurrent: false }, () => {
         direnv: false,
         dotenvx: false,
         volta: false,
+        biome: true,
+        husky: true,
       },
       setupEinjaCli: false,
     };
@@ -220,6 +226,8 @@ describe("generateTemplate", { concurrent: false }, () => {
         direnv: true,
         dotenvx: true,
         volta: true,
+        biome: true,
+        husky: true,
       },
       setupEinjaCli: false,
     };
@@ -248,6 +256,50 @@ describe("generateTemplate", { concurrent: false }, () => {
       // Then: 認証関連ファイルが除外される
       expect(existsSync(join(targetPath, "api/auth/test-route.ts"))).toBe(false);
       expect(existsSync(join(targetPath, "signin/test-page.tsx"))).toBe(false);
+    }
+  });
+
+  it("{{packageName}}/パターンが正しく置換される", async () => {
+    // Given: テンプレートディレクトリ
+    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+
+    const config: ProjectConfig = {
+      projectName: "test-app",
+      packageScope: "@custom",
+      template: "turborepo-pandacss",
+      authMethod: "credentials",
+      tools: {
+        direnv: false,
+        dotenvx: false,
+        volta: false,
+        biome: true,
+        husky: true,
+      },
+      setupEinjaCli: false,
+    };
+
+    if (existsSync(realTemplatePath)) {
+      // 実際のテンプレートが存在する場合、テスト用ファイルを追加
+      const testFilePath = join(realTemplatePath, "packagename-slash-test.ts");
+      writeFileSync(
+        testFilePath,
+        'import { utils } from "{{packageName}}/ui/utils";\nimport { auth } from "{{packageName}}/front-core/auth";\nimport { prisma } from "{{packageName}}/server-core/infrastructure/database/client";',
+        "utf-8"
+      );
+      testFilesToCleanup.push(testFilePath);
+
+      // When: generateTemplateを実行
+      await generateTemplate(config, targetPath);
+
+      // Then: {{packageName}}/が@custom/に正しく置換される
+      if (existsSync(join(targetPath, "packagename-slash-test.ts"))) {
+        const content = readFileSync(join(targetPath, "packagename-slash-test.ts"), "utf-8");
+        expect(content).toContain("@custom/ui/utils");
+        expect(content).toContain("@custom/front-core/auth");
+        expect(content).toContain("@custom/server-core/infrastructure/database/client");
+        // {{packageName}}/が残っていないことを確認
+        expect(content).not.toContain("{{packageName}}/");
+      }
     }
   });
 });

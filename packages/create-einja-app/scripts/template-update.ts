@@ -65,7 +65,8 @@ function transformContent(filePath: string, content: string): string {
       const pkg = JSON.parse(content);
 
       // name フィールドを {{projectName}} に置換
-      if (pkg.name) {
+      // ただし、@repo/* パターン（共有パッケージ）は除外
+      if (pkg.name && !pkg.name.startsWith("@repo/")) {
         pkg.name = "{{projectName}}";
       }
 
@@ -131,6 +132,7 @@ async function updateTemplate(options: TemplateUpdateOptions): Promise<void> {
   if (!options.dryRun) {
     if (existsSync(TEMPLATE_DIR)) {
       console.log(chalk.gray(`既存のテンプレートディレクトリを削除: ${TEMPLATE_DIR}`));
+      await fse.emptyDir(TEMPLATE_DIR);
       await fse.remove(TEMPLATE_DIR);
     }
     await fse.ensureDir(TEMPLATE_DIR);

@@ -75,6 +75,9 @@ function replacePlaceholders(
   // {{projectName}} の置換
   result = result.replaceAll("{{projectName}}", variables.projectName);
 
+  // {{packageName}}/ の置換（長いパターンを先に置換）
+  result = result.replaceAll("{{packageName}}/", `${variables.packageName}/`);
+
   // {{packageName}} の置換
   result = result.replaceAll("{{packageName}}", variables.packageName);
 

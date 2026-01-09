@@ -34,7 +34,21 @@ export async function initCommand(options: InitOptions): Promise<void> {
 
 	const preset = await loadPreset(presetName);
 
-	// 2. 既存の.claude確認
+	// 2. ドライラン（ファイル操作前にチェック）
+	if (options.dryRun) {
+		console.log(chalk.blue("\n[Dry Run] 以下の操作が実行されます:"));
+		console.log(`  - ${claudeDir} を作成`);
+		console.log(`  - プリセット "${preset.name}" の設定を適用`);
+		console.log("  - コアエージェント・コマンドをコピー");
+		console.log("  - プリセット固有のファイルをコピー");
+		console.log("  - settings.json をマージ・生成");
+		console.log(`  - ${templatesDir} にドキュメントテンプレートをコピー`);
+		console.log(`  - ${steeringDir} にステアリングドキュメントをコピー`);
+		console.log(`  - ${claudeMdPath} を生成`);
+		return;
+	}
+
+	// 3. 既存の.claude確認
 	if (await fs.pathExists(claudeDir)) {
 		if (!options.force) {
 			const { proceed } = await inquirer.prompt([
@@ -52,7 +66,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 			}
 		}
 
-		// 3. バックアップ作成
+		// バックアップ作成
 		if (options.backup !== false) {
 			spinner.start("バックアップを作成中...");
 			const backupPath = await backupDirectory(claudeDir);
@@ -63,21 +77,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		await fs.remove(claudeDir);
 	}
 
-	// 4. ドライラン
-	if (options.dryRun) {
-		console.log(chalk.blue("\n[Dry Run] 以下の操作が実行されます:"));
-		console.log(`  - ${claudeDir} を作成`);
-		console.log(`  - プリセット "${preset.name}" の設定を適用`);
-		console.log("  - コアエージェント・コマンドをコピー");
-		console.log("  - プリセット固有のファイルをコピー");
-		console.log("  - settings.json をマージ・生成");
-		console.log(`  - ${templatesDir} にドキュメントテンプレートをコピー`);
-		console.log(`  - ${steeringDir} にステアリングドキュメントをコピー`);
-		console.log(`  - ${claudeMdPath} を生成`);
-		return;
-	}
-
-	// 5. .claudeディレクトリを生成
+	// 4. .claudeディレクトリを生成
 	spinner.start(".claudeをセットアップ中...");
 
 	try {
@@ -90,7 +90,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	// 6. ドキュメントテンプレートをコピー
+	// 5. ドキュメントテンプレートをコピー
 	spinner.start("ドキュメントテンプレートをセットアップ中...");
 
 	try {
@@ -102,7 +102,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	// 7. ステアリングドキュメントをコピー
+	// 6. ステアリングドキュメントをコピー
 	spinner.start("ステアリングドキュメントをセットアップ中...");
 
 	try {
@@ -114,7 +114,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	// 8. CLAUDE.mdを生成
+	// 7. CLAUDE.mdを生成
 	spinner.start("CLAUDE.mdを生成中...");
 
 	try {
@@ -126,7 +126,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	// 9. 完了メッセージ
+	// 8. 完了メッセージ
 	console.log(chalk.green("\n✅ セットアップ完了!"));
 	console.log(chalk.gray("\n生成されたファイル:"));
 	console.log("  - .claude/           Claude Code設定");

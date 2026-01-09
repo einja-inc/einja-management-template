@@ -1,5 +1,5 @@
 module.exports = {
-	// Biomeによるリントとフォーマット（CLAUDE.md、docs/specs/を除外）
+	// Biomeによるリントとフォーマット（CLAUDE.md、.claude/、docs/specs/を除外）
 	"**/*.{js,jsx,ts,tsx,json}": (filenames) => {
 		const filteredFiles = filenames.filter(
 			(filename) =>
@@ -8,10 +8,10 @@ module.exports = {
 				!filename.includes("docs/specs/"),
 		);
 		if (filteredFiles.length === 0) return [];
-		return ["pnpm lint:fix", "pnpm format:fix"];
+		// ステージングされたファイルだけをBiomeに直接渡す（高速）
+		return [`npx biome check --write ${filteredFiles.join(" ")}`];
 	},
 	"**/*.md": (filenames) => {
-		// CLAUDE.md、.claudeディレクトリ、docs/specs/を除外
 		const filteredFiles = filenames.filter(
 			(filename) =>
 				!filename.includes("CLAUDE.md") &&
@@ -19,6 +19,6 @@ module.exports = {
 				!filename.includes("docs/specs/"),
 		);
 		if (filteredFiles.length === 0) return [];
-		return ["pnpm lint:fix", "pnpm format:fix"];
+		return [`npx biome check --write ${filteredFiles.join(" ")}`];
 	},
 };

@@ -51,6 +51,27 @@ graph TB
 | 統合テスト | パッケージ間の連携確認 | @repo/server-core ⇔ apps/* | 毎PR |
 | E2Eテスト | 完全なユーザーフローの確認 | Web, Admin, Cron Worker | デプロイ前 |
 
+### TDDワークフロー（Red-Green-Refactor）
+
+TDD採用が推奨される場合（ビジネスロジック、データ変換、外部API連携、金銭・認証処理など）、以下のサイクルを実施：
+
+1. **Red**: 失敗するテストを書く（Given-When-Then形式で記述）
+   - 期待する振る舞いをテストとして記述
+   - テストを実行し、失敗することを確認
+
+2. **Green**: テストを通す最小限の実装
+   - テストが通る最小限のコードを書く
+   - この段階では美しさより動作を優先
+
+3. **Refactor**: コードを改善
+   - テストが通ったまま、コードを改善
+   - 重複削除、命名改善、構造改善
+
+**補足**: Given-When-ThenとRed-Green-Refactorは**補完関係**：
+- **Given-When-Then**: テストの記述形式（どう書くか）
+- **Red-Green-Refactor**: TDDの実施サイクル（どう進めるか）
+- 組み合わせ: 「Red-Green-RefactorサイクルでGiven-When-Then形式のテストを書く」
+
 ---
 
 ## 2. ユニットテスト

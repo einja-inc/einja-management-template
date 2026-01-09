@@ -47,7 +47,18 @@ task-commit Skillの出力形式に従い、以下の形式で結果を報告し
 
 このエージェントは `task-exec` コマンドから `Task` ツール経由でのみ呼び出されます。
 
+## コンフリクト発生時
+
+`git pull --rebase` でコンフリクトが発生した場合、`conflict-resolver` エージェントを Task ツールで呼び出して解消します。
+
+```
+Task ツール呼び出し:
+- subagent_type: conflict-resolver
+- prompt: "rebase中のコンフリクトを解消してください"
+```
+
 ## 連携エージェント
 
 - **前提**: `task-qa` - 品質保証フェーズ完了後に呼び出される
+- **コンフリクト時**: `conflict-resolver` - rebase/merge時のコンフリクト解消
 - **後続**: なし（追加指示待ち状態へ移行）

@@ -63,6 +63,11 @@ const fileMappings = [
 		src: path.join(cliDir, "templates/CLAUDE.md.template"),
 		dest: path.join(cliDir, "scaffolds/CLAUDE.md.template"),
 	},
+	// settings.json
+	{
+		src: path.join(projectRoot, ".claude/settings.json"),
+		dest: path.join(cliDir, "presets/minimal/.claude/settings.json"),
+	},
 ];
 
 /**

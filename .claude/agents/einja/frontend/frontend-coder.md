@@ -42,7 +42,43 @@ color: blue
    - 再利用可能なコンポーネントを特定
    - 命名規則とディレクトリ構造を把握
 
+3. **既存パターンとの整合性確認**:
+
+既存実装の分析後、既存パターンと異なる実装が必要な場合はAskUserQuestionで方針承認を得ます。
+
+**AskUserQuestion**:
+```
+question: "既存パターンと異なる実装方針が必要です。どのように進めますか？"
+header: "実装方針"
+options:
+  - label: "新パターンで実装（推奨）"
+    description: "推奨理由: 既存パターンでは要件を満たせない。影響: 新パターンが今後の標準となる可能性"
+  - label: "既存パターンに合わせて要件調整"
+    description: "影響: 機能制限が発生する可能性"
+  - label: "両パターンの折衷案"
+    description: "既存との互換性を保ちつつ新機能を実現"
+```
+
 ### 2. コンポーネント実装
+
+#### 状態管理方法の確認
+
+コンポーネント実装前に、複数の状態管理方法が選択可能な場合はAskUserQuestionで確認します。
+
+**AskUserQuestion**:
+```
+question: "状態管理の方法を選択してください"
+header: "状態管理"
+options:
+  - label: "TanStack Query（推奨）"
+    description: "推奨理由: サーバー状態管理に最適。キャッシュ・再取得が自動化"
+  - label: "Context API"
+    description: "シンプルなUI状態管理向け。prop drilling回避"
+  - label: "useReducer"
+    description: "複雑なローカル状態管理向け。状態遷移が明確"
+  - label: "useState（複数）"
+    description: "最もシンプル。独立した状態が少数の場合"
+```
 
 #### ディレクトリ構造（モノレポ対応）
 ```

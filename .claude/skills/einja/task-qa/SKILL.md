@@ -33,7 +33,7 @@ allowed-tools:
 
 ---
 
-## 実行手順（7ステップ）
+## 実行手順（8ステップ）
 
 ### ステップ0: 引数の解析と初期化
 
@@ -41,7 +41,7 @@ allowed-tools:
 
 **例**: `docs/specs/tasks/user-auth/ --task-group-id 1.1`
 
-**TODOリストの作成**: TodoWriteツールで7ステップのTODOを作成してください。
+**TODOリストの作成**: TodoWriteツールで8ステップのTODOを作成してください。
 
 ---
 
@@ -54,6 +54,22 @@ allowed-tools:
 **パース目標**: AC番号、タイトル、前提条件、操作、期待結果、**検証レベル**
 
 **エラー時**: requirements.md不在は失敗分類B（要件未定義）
+
+#### 受け入れ基準の解釈確認
+
+テスト準備時に受け入れ基準の解釈に疑問がある場合、AskUserQuestionで明確化します。
+
+```
+question: "受け入れ基準の解釈を確認させてください"
+header: "基準確認"
+options:
+  - label: "厳密に解釈（推奨）"
+    description: "推奨理由: 仕様書の文言通りに検証。品質保証の観点から安全"
+  - label: "柔軟に解釈"
+    description: "仕様書の意図を汲み取り、合理的な範囲で検証"
+  - label: "追加確認が必要"
+    description: "仕様書だけでは判断できない。追加情報を要求"
+```
 
 ---
 
@@ -85,6 +101,57 @@ allowed-tools:
 
 ---
 
+### ステップ3.5: テスト方針の確認
+
+修正種別に応じたテスト方法を確認します。
+
+#### 画面修正の場合
+
+AskUserQuestionで確認：
+
+```
+question: "画面テストの範囲を選択してください"
+header: "画面テスト"
+options:
+  - label: "画面フロー全体をテスト（推奨）"
+    description: "推奨理由: 修正の影響範囲を網羅的に確認"
+  - label: "特定機能のみテスト"
+    description: "修正箇所が限定的で影響範囲が明確な場合"
+```
+
+#### API修正の場合
+
+AskUserQuestionで確認：
+
+```
+question: "APIテストの範囲を選択してください"
+header: "APIテスト"
+options:
+  - label: "関連エンドポイント全体（推奨）"
+    description: "推奨理由: 依存関係のある機能も含めて確認"
+  - label: "単一エンドポイントのみ"
+    description: "修正が独立しており、他への影響がない場合"
+```
+
+#### エッジケーステスト
+
+AskUserQuestionで確認：
+
+```
+question: "エッジケーステストの深度を選択してください"
+header: "エッジケース"
+multiSelect: true
+options:
+  - label: "境界値テスト"
+    description: "入力値の上限・下限を確認"
+  - label: "異常系テスト"
+    description: "エラーハンドリングを確認"
+  - label: "並行処理テスト"
+    description: "複数リクエストの同時実行を確認"
+```
+
+---
+
 ### ステップ4: テスト仕様に従った動作確認の実施
 
 **ステップ3で読み込んだテスト仕様に従って**、各テストシナリオを実行します。
@@ -109,6 +176,24 @@ allowed-tools:
 2. requirements.md不正確？ → **B** → requirements修正 → task-executer
 3. design.md設計問題？ → **C** → design修正 → task-executer
 4. それ以外 → **A**（実装ミス） → task-executer
+
+#### 不具合原因の調査方針
+
+不具合発見時に原因が複数考えられる場合、AskUserQuestionで対応方針を確認します。
+
+```
+question: "不具合の原因として複数の可能性があります。どのように対応しますか？"
+header: "不具合対応"
+options:
+  - label: "発生確率の高い原因から調査（推奨）"
+    description: "推奨理由: 効率的に原因特定できる可能性が高い"
+  - label: "修正が容易な原因から調査"
+    description: "早期に進捗を出したい場合に有効"
+  - label: "両方の原因を並行調査"
+    description: "時間はかかるが確実に原因を特定"
+  - label: "task-executerに差し戻し"
+    description: "実装に問題がある可能性が高い場合"
+```
 
 ---
 

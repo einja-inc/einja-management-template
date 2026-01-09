@@ -15,6 +15,51 @@ allowed-tools: Task, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, mcp__figma_
 
 ## 実行フロー
 
+### Phase 0: 実装戦略の確認（Phase 1前）
+
+フロントエンド実装を開始する前に、以下の戦略を確認します。
+
+#### 0.1 コンポーネント構成
+
+AskUserQuestion:
+- **question**: "コンポーネント構成をどのように設計しますか？"
+- **header**: "構成選択"
+- **options**:
+  1. **既存パターンに従う（推奨）**
+     - 推奨理由: プロジェクトの一貫性を維持。既存コンポーネントとの整合性が高い
+  2. **Atomic Design**
+     - atoms/molecules/organisms/templates/pages の階層構造。大規模UI向け
+  3. **Feature-based構成**
+     - 機能単位でファイルをまとめる。独立性の高い機能向け
+
+#### 0.2 Figmaデザイン参照
+
+AskUserQuestion:
+- **question**: "Figmaデザイン参照は利用できますか？"
+- **header**: "Figma連携"
+- **options**:
+  1. **Figma URLを提供する**
+     - design-engineerエージェントがFigma MCPでデザイントークンを抽出
+  2. **既存デザインシステムで対応**
+     - プロジェクトの既存Panda CSS設定を使用
+  3. **デザイン仕様書を参照**
+     - 別途提供されたデザイン仕様書に従う
+
+#### 0.3 状態管理の複雑さ
+
+AskUserQuestion:
+- **question**: "状態管理の複雑さはどの程度ですか？"
+- **header**: "状態管理"
+- **options**:
+  1. **シンプル（UI State のみ）**
+     - useState, useReducerで十分な場合
+  2. **中程度（Server State + UI State）**
+     - TanStack Queryでサーバー状態管理。推奨パターン
+  3. **複雑（複数の状態層の連携）**
+     - グローバル状態管理（Zustand等）の検討が必要
+
+---
+
 ### フェーズ1: アーキテクチャ設計 🏗️
 
 **architect**エージェントを呼び出し：

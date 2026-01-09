@@ -19,6 +19,7 @@ export type ToolConfig = {
  */
 export type ProjectConfig = {
   projectName: string;
+  packageScope: string;
   template: "turborepo-pandacss" | "minimal";
   authMethod: "google" | "credentials" | "github" | "none";
   tools: ToolConfig;

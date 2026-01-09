@@ -40,6 +40,8 @@ describe("promptProjectConfig", () => {
         direnv: true,
         dotenvx: true,
         volta: true,
+        biome: true,
+        husky: true,
       },
       setupEinjaCli: true,
       worktreeConfig: undefined,
@@ -71,6 +73,8 @@ describe("promptProjectConfig", () => {
     expect(result.tools.direnv).toBe(true);
     expect(result.tools.dotenvx).toBe(false);
     expect(result.tools.volta).toBe(false);
+    expect(result.tools.biome).toBe(true);
+    expect(result.tools.husky).toBe(true);
     expect(result.setupEinjaCli).toBe(false);
   });
 

@@ -1,44 +1,7 @@
 import inquirer from "inquirer";
+import type { ProjectConfig, WorktreeConfig, App } from "../types/index.js";
 
-/**
- * App型
- * Worktree設定内のアプリケーション設定
- */
-export interface App {
-  id: string;
-  portRangeStart: number;
-  rangeSize: number;
-}
-
-/**
- * WorktreeConfig型
- * Worktree設定（ポート範囲、Dockerコンテナ名等）
- */
-export interface WorktreeConfig {
-  postgres: {
-    port: number;
-    containerName: string;
-  };
-  apps: App[];
-}
-
-/**
- * ProjectConfig型
- * プロジェクト作成時の設定
- */
-export interface ProjectConfig {
-  projectName: string;
-  packageScope: string;
-  template: "turborepo-pandacss" | "minimal";
-  authMethod: "google" | "credentials" | "github" | "none";
-  tools: {
-    direnv: boolean;
-    dotenvx: boolean;
-    volta: boolean;
-  };
-  setupEinjaCli: boolean;
-  worktreeConfig?: WorktreeConfig;
-}
+export type { ProjectConfig, WorktreeConfig, App };
 
 /**
  * プロジェクト作成用プロンプトを実行
@@ -144,6 +107,8 @@ export async function promptProjectConfig(
     direnv: toolsArray.includes("direnv"),
     dotenvx: toolsArray.includes("dotenvx"),
     volta: toolsArray.includes("volta"),
+    biome: true,
+    husky: true,
   };
 
   let worktreeConfig: WorktreeConfig | undefined;

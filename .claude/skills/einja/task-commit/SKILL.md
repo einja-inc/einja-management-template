@@ -108,11 +108,23 @@ AskUserQuestion:
 
 ---
 
-### ステップ4: 品質チェック（スキップ）
+### ステップ4: 品質チェック
+
+#### task-exec経由での呼び出しの場合
 
 task-exec経由でQA合格後に呼び出されるため、品質チェック（lint/typecheck/test/build）は**スキップ**します。
 
 QAフェーズで既に実行済みのため、重複実行は不要です。
+
+#### 直接呼び出しの場合
+
+コミット前に `pnpm prepush` を実行して以下のチェックを行います:
+
+1. **lint**: lint-staged による変更ファイルの lint チェック
+2. **typecheck**: TypeScript の型チェック
+3. **test**: 変更ファイルに関連するテストのみ実行（vitest related --run）
+
+`pnpm prepush` が失敗した場合は、エラー内容を報告して終了します。
 
 ---
 
@@ -128,12 +140,25 @@ QAフェーズで既に実行済みのため、重複実行は不要です。
 - **言語**: 日本語
 - **形式**: 1行目に概要、2行目以降に詳細
 
-#### コミットコマンド例
+#### コミットコマンド
+
+**task-exec経由での呼び出しの場合**（QA済み）:
 
 ```bash
-git add src/auth/login.ts src/auth/logout.ts
+git add src/auth/login.ts src/auth/logout.ts && git commit -m "$(cat <<'EOF'
+feat: ユーザー認証機能の追加
 
-git commit -m "$(cat <<'EOF'
+- JWT認証の実装
+- ログイン・ログアウトエンドポイントの追加
+- 認証ミドルウェアの実装
+EOF
+)"
+```
+
+**直接呼び出しの場合**（prepush実行）:
+
+```bash
+git add src/auth/login.ts src/auth/logout.ts && pnpm prepush && git commit -m "$(cat <<'EOF'
 feat: ユーザー認証機能の追加
 
 - JWT認証の実装

@@ -12,6 +12,7 @@ import {
 	generateClaudeDirectory,
 	generateClaudeMd,
 } from "../lib/merger.js";
+import { setupMcpConfig } from "../lib/mcp-config.js";
 import { loadPreset, presetExists } from "../lib/preset.js";
 
 export async function initCommand(options: InitOptions): Promise<void> {
@@ -49,6 +50,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		console.log(`  - ${claudeMdPath} を生成`);
 		console.log("  - シンボリックリンクを作成（symlinks.json に基づく）");
 		console.log("    リンク先パスはインストール時に自動計算");
+		console.log("  - .mcp.json をセットアップ（既存設定とマージ）");
 		return;
 	}
 
@@ -170,7 +172,44 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		// シンボリックリンクの失敗は致命的ではないので続行
 	}
 
-	// 9. package.json に scripts を追加
+	// 9. .mcp.json をセットアップ
+	spinner.start(".mcp.json をセットアップ中...");
+
+	// セットアップ結果を記録
+	let mcpSetupSuccess = false;
+
+	try {
+		const mcpResult = await setupMcpConfig(cwd);
+
+		if (mcpResult.skipped) {
+			spinner.info(".mcp.json: テンプレートが見つかりません（スキップ）");
+		} else if (!mcpResult.success) {
+			spinner.warn(".mcp.json: 既存ファイルの読み込みに失敗しました（スキップ）");
+			console.log(chalk.yellow(`    ⚠ ${mcpResult.error}`));
+			console.log(chalk.yellow("    既存の .mcp.json は保持されます"));
+		} else if (mcpResult.result) {
+			mcpSetupSuccess = true;
+			const totalServers =
+				mcpResult.result.added.length +
+				mcpResult.result.overwritten.length +
+				mcpResult.result.preserved.length;
+			spinner.succeed(`.mcp.json: ${totalServers} 件のサーバー設定`);
+			if (mcpResult.result.added.length > 0) {
+				console.log(chalk.green(`    + 追加: ${mcpResult.result.added.join(", ")}`));
+			}
+			if (mcpResult.result.overwritten.length > 0) {
+				console.log(chalk.yellow(`    ↻ 更新: ${mcpResult.result.overwritten.join(", ")}`));
+			}
+			if (mcpResult.result.preserved.length > 0) {
+				console.log(chalk.gray(`    = 保持: ${mcpResult.result.preserved.join(", ")}`));
+			}
+		}
+	} catch (error) {
+		spinner.fail(".mcp.json のセットアップに失敗しました");
+		console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+	}
+
+	// 10. package.json に scripts を追加
 	const packageJsonPath = path.join(cwd, "package.json");
 	if (await fs.pathExists(packageJsonPath)) {
 		spinner.start("package.json に scripts を追加中...");
@@ -215,13 +254,16 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		}
 	}
 
-	// 10. 完了メッセージ
+	// 11. 完了メッセージ
 	console.log(chalk.green("\n✅ セットアップ完了!"));
 	console.log(chalk.gray("\n生成されたファイル:"));
 	console.log("  - .claude/           Claude Code設定");
 	console.log("  - docs/einja/templates/    ドキュメントテンプレート");
 	console.log("  - docs/einja/steering/     ステアリングドキュメント");
 	console.log("  - CLAUDE.md          プロジェクト設定");
+	if (mcpSetupSuccess) {
+		console.log("  - .mcp.json          MCPサーバー設定");
+	}
 	console.log(chalk.gray("\n追加された scripts:"));
 	console.log("  - pnpm task:loop <issue>   タスクループ実行");
 	console.log("  - pnpm einja:sync          テンプレート同期");

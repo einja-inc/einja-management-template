@@ -8,11 +8,13 @@
  * - .claude/skills/einja/
  * - .claude/hooks/
  * - .claude/settings.json
+ * - .mcp.json
  * - docs/einja/steering/
  *
  * コピー先（CLI配布用）:
  * - packages/cli/presets/minimal/.claude/
  * - packages/cli/scaffolds/steering/
+ * - packages/cli/scaffolds/.mcp.json
  *
  * シンボリックリンク:
  * - プロジェクト原本のシンボリックリンクは symlinks.json に記録される
@@ -75,6 +77,11 @@ const fileMappings = [
 	{
 		src: path.join(projectRoot, ".claude/settings.json"),
 		dest: path.join(cliDir, "presets/minimal/.claude/settings.json"),
+	},
+	// .mcp.json
+	{
+		src: path.join(projectRoot, ".mcp.json"),
+		dest: path.join(cliDir, "scaffolds/.mcp.json"),
 	},
 ];
 

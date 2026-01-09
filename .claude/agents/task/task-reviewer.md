@@ -20,20 +20,23 @@ color: yellow
 
 結果に基づき重点レビュー領域を特定してから詳細レビューに進む。
 
-### 並列レビューの実行
+### 並列レビューの実行（必須）
 
-`docs/einja/steering/development/review-guidelines.md`の「並列レビュー観点」セクションに基づき、Taskツールで並列実行：
+**重要**: 以下の4観点を**Taskツールで並列にサブエージェントを呼び出して**レビューすること。
+
+`docs/einja/steering/development/review-guidelines.md`の「並列レビュー観点」セクションを参照し、
+**1つのメッセージで複数のTaskツール呼び出し**を行う：
 
 ```
-Taskツールを並列呼び出し（1つのメッセージで複数tool_use）:
-
-1. Task(subagent_type='Explore', prompt='アーキテクチャ観点でレビュー: [ファイル一覧]')
-2. Task(subagent_type='Explore', prompt='コード品質観点でレビュー: [ファイル一覧]')
-3. Task(subagent_type='Explore', prompt='コードスメル観点でレビュー: [ファイル一覧]')
+// 並列実行のため、1つのメッセージで4つのTask tool_useを同時に呼び出す
+Task(subagent_type='Explore', prompt='[レビュー対象ファイル一覧]をアーキテクチャ観点でレビュー。review-guidelines.mdの「1. アーキテクチャ観点」セクションのチェック項目を検証')
+Task(subagent_type='Explore', prompt='[レビュー対象ファイル一覧]をコード品質観点でレビュー。review-guidelines.mdの「2. コード品質観点」セクションのチェック項目を検証')
+Task(subagent_type='Explore', prompt='[レビュー対象ファイル一覧]をコードスメル観点でレビュー。review-guidelines.mdの「3. コードスメル観点」セクションのチェック項目を検証')
+Task(subagent_type='Explore', prompt='[レビュー対象ファイル一覧]をテスト品質観点でレビュー。review-guidelines.mdの「4. テスト品質観点」セクションのチェック項目を検証')
 ```
 
 各Exploreエージェントは読み取り専用なので安全に並列実行可能。
-結果を集約してPASS/MINOR/MAJOR判定。
+4つのエージェント結果を集約してPASS/MINOR/MAJOR判定を行う。
 
 ### 1. 実装内容の確認
 - 修正されたファイルを読み込み

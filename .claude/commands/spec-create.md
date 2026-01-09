@@ -37,6 +37,7 @@ TodoWriteツールを使用して全体の進捗を可視化し、ユーザー�
 - ビジネスロジックが含まれる（計算・判定・状態遷移）
 - データ変換・加工がある
 - 外部API連携がある
+- 複数の分岐・条件がある
 - 金銭・認証・権限に関わる
 
 → 該当時: 「TDDを推奨します。詳細は docs/einja/steering/development/testing-strategy.md を参照」

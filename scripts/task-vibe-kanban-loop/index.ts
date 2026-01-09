@@ -15,6 +15,7 @@ import {
   mergePhaseBranchIntoIssue,
   syncPhaseBranch,
 } from "./lib/branch-manager.js";
+import { ensureGhSetup } from "./lib/gh-setup.js";
 import {
   detectCircularDependencies,
   getCompletedPhaseNumbers,
@@ -26,6 +27,7 @@ import { parseIssueBody } from "./lib/issue-parser.js";
 import { selectProject } from "./lib/project-selector.js";
 import {
   TaskStateManager,
+  extractIssueNumberFromTitle,
   extractTaskGroupIdFromTitle,
   generateVibeKanbanDescription,
   generateVibeKanbanTitle,
@@ -66,6 +68,9 @@ async function main(): Promise<void> {
   if (!args) {
     process.exit(1);
   }
+
+  // GitHub CLI セットアップ確認
+  ensureGhSetup();
 
   console.log(`\n🚀 タスク自動実行ループ開始 [${getTimestamp()}]\n`);
 
@@ -116,23 +121,55 @@ async function main(): Promise<void> {
   // タスク状態マネージャー初期化
   const stateManager = new TaskStateManager();
 
-  // 既存の Vibe-Kanban タスクを取得して初期化
+  // 既存の Vibe-Kanban タスクを取得
   const existingTasks = await vibeKanban.listTasks(projectId);
-  stateManager.initializeDoneTaskIds(existingTasks);
 
-  // デバッグ: 起動時のタスク状態を表示
-  const initialDoneTasks = existingTasks.filter((t) => t.status === "done");
-  const initialInProgressTasks = existingTasks.filter((t) => t.status === "in-progress");
-  console.log(`📊 起動時のタスク状態:`);
+  // descriptionキャッシュを作成（パフォーマンス改善: getTaskを複数回呼ばない）
+  console.log(`📦 タスクのdescriptionをキャッシュ中...`);
+  const descriptionCache = new Map<string, string | null>();
+  for (const task of existingTasks) {
+    let description = task.description ?? null;
+    if (!description) {
+      const fullTask = await vibeKanban.getTask(task.id);
+      description = fullTask?.description ?? null;
+    }
+    descriptionCache.set(task.id, description);
+  }
+  console.log(`   ✅ ${descriptionCache.size} 件のタスクをキャッシュ`);
+
+  // Done タスク ID を初期化（ログは対象Issue関連のみ表示）
+  stateManager.initializeDoneTaskIds(existingTasks, args.issueNumber, descriptionCache);
+
+  // デバッグ: 起動時のタスク状態を表示（対象Issue関連のみ）
+  const issuePatternInDesc = `GitHub Issue #${args.issueNumber}`;
+  const isTaskForThisIssue = (task: { title: string; id: string }) => {
+    // 新形式: タイトルからIssue番号を抽出
+    const titleIssueNum = extractIssueNumberFromTitle(task.title);
+    if (titleIssueNum === args.issueNumber) return true;
+    // 旧形式: descriptionで判定
+    const desc = descriptionCache.get(task.id);
+    return desc?.includes(issuePatternInDesc) ?? false;
+  };
+
+  const initialDoneTasks = existingTasks.filter((t) => t.status === "done" && isTaskForThisIssue(t));
+  const initialInProgressTasks = existingTasks.filter((t) => t.status === "inprogress" && isTaskForThisIssue(t));
+  console.log(`📊 起動時のタスク状態 (Issue #${args.issueNumber} 関連):`);
   console.log(`   - Done: ${initialDoneTasks.length > 0 ? initialDoneTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ") : "なし"}`);
   console.log(`   - InProgress: ${initialInProgressTasks.length > 0 ? initialInProgressTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ") : "なし"}`);
 
-  // 既存タスクのマッピングを登録
+  // 既存タスクのマッピングを登録（対象Issueのタスクのみ）
+  console.log(`📋 既存タスクのマッピング登録中 (Issue #${args.issueNumber} のみ)...`);
   for (const task of existingTasks) {
     const taskGroupId = extractTaskGroupIdFromTitle(task.title);
-    if (taskGroupId) {
+    if (!taskGroupId) {
+      continue;
+    }
+
+    // 対象のGitHub Issueに属するタスクのみ登録
+    if (isTaskForThisIssue(task)) {
       stateManager.registerTaskMapping(task.id, taskGroupId);
     }
+    // Issue番号が一致しないタスクは何もしない（ログ出力も不要）
   }
 
   // 起動時に既存のDoneタスクのGitHub Issueを同期
@@ -141,7 +178,8 @@ async function main(): Promise<void> {
     parsedIssue,
     existingTasks,
     args.issueNumber,
-    stateManager
+    stateManager,
+    descriptionCache
   );
 
   try {
@@ -167,11 +205,10 @@ async function main(): Promise<void> {
       // Vibe-Kanban のタスク状態を取得
       const currentTasks = await vibeKanban.listTasks(projectId);
 
-      // デバッグ: 現在のタスク状態を表示
-      const doneTasks = currentTasks.filter((t) => t.status === "done");
-      if (doneTasks.length > 0) {
-        console.log(`   📊 Done状態のタスク: ${doneTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ")}`);
-      }
+      // 対象Issueに関連するDoneタスクの件数のみ表示
+      const doneTasks = currentTasks.filter((t) => t.status === "done" && isTaskForThisIssue(t));
+      const totalDoneTasks = currentTasks.filter((t) => t.status === "done").length;
+      console.log(`   📊 Done: ${doneTasks.length}件 (対象Issue) / ${totalDoneTasks}件 (全体)`);
 
       // Done 増加を検知
       const newlyCompletedVibeTaskIds = stateManager.detectNewlyCompletedTasks(currentTasks);
@@ -226,11 +263,11 @@ const mergedPhaseNumbers = new Set<number>();
 /**
  * 完了した Phase を Issue ブランチにマージ
  */
-function mergeCompletedPhases(
+async function mergeCompletedPhases(
   parsedIssue: ParsedIssue,
   issueNumber: number,
   issueBranch: string
-): void {
+): Promise<void> {
   const completedPhases = getCompletedPhaseNumbers(parsedIssue);
 
   for (const phaseNumber of completedPhases) {
@@ -240,7 +277,7 @@ function mergeCompletedPhases(
 
     console.log(`\n🔀 Phase ${phaseNumber} が完了 - Issue ブランチにマージします`);
     try {
-      mergePhaseBranchIntoIssue(issueNumber, phaseNumber, issueBranch);
+      await mergePhaseBranchIntoIssue(issueNumber, phaseNumber, issueBranch);
       mergedPhaseNumbers.add(phaseNumber);
     } catch (error) {
       console.error(`   ❌ Phase ${phaseNumber} のマージに失敗:`, error);
@@ -263,7 +300,7 @@ async function startExecutableTasks(
   stateManager: TaskStateManager
 ): Promise<void> {
   // 完了した Phase を Issue ブランチにマージ（新しい Phase のタスク開始前に実行）
-  mergeCompletedPhases(parsedIssue, issueNumber, issueBranch);
+  await mergeCompletedPhases(parsedIssue, issueNumber, issueBranch);
 
   // 着手可能なタスクグループを選定
   const executableGroups = await selectExecutableTaskGroups(parsedIssue, maxTaskNumber);
@@ -277,27 +314,52 @@ async function startExecutableTasks(
 
   // 既存の Vibe-Kanban タスクを取得（cancelled 以外）
   const existingTasks = await vibeKanban.listTasks(projectId);
-  const existingTitles = new Set(
-    existingTasks.filter((t) => t.status !== "cancelled").map((t) => t.title)
-  );
+
+  // 対象Issueに属する既存タスクのタスクグループIDを収集
+  const existingTaskGroupIdsForThisIssue = new Set<string>();
+  const issuePatternInDesc = `GitHub Issue #${issueNumber}`;
+  for (const task of existingTasks) {
+    if (task.status === "cancelled") {
+      continue;
+    }
+    const taskGroupId = extractTaskGroupIdFromTitle(task.title);
+    if (!taskGroupId) continue;
+
+    // タイトルからIssue番号を抽出（新形式）
+    const titleIssueNum = extractIssueNumberFromTitle(task.title);
+    if (titleIssueNum === issueNumber) {
+      existingTaskGroupIdsForThisIssue.add(taskGroupId);
+      continue;
+    }
+
+    // 旧形式の場合はdescriptionで判定
+    let description = task.description;
+    if (!description) {
+      const fullTask = await vibeKanban.getTask(task.id);
+      description = fullTask?.description;
+    }
+    if (description?.includes(issuePatternInDesc)) {
+      existingTaskGroupIdsForThisIssue.add(taskGroupId);
+    }
+  }
 
   // リポジトリ情報を取得（startTaskAttempt に必要）
   const repos = await vibeKanban.listRepos(projectId);
 
   // 各タスクグループを Vibe-Kanban に登録
   for (const taskGroup of executableGroups) {
-    const title = generateVibeKanbanTitle(taskGroup, issueNumber);
-
-    // 既に存在する場合はスキップ
-    if (existingTitles.has(title)) {
+    // 対象Issueで既に存在する場合はスキップ（タスクグループIDで判定）
+    if (existingTaskGroupIdsForThisIssue.has(taskGroup.id)) {
       console.log(`   ⏭️  既存タスクをスキップ: ${taskGroup.id}`);
       continue;
     }
 
+    const title = generateVibeKanbanTitle(taskGroup, issueNumber);
+
     const description = generateVibeKanbanDescription(taskGroup, issueNumber);
 
     // タスク開始前に Phase ブランチを同期（リモートの最新を取得）
-    syncPhaseBranch(issueNumber, taskGroup.phaseNumber, issueBranch, baseBranch);
+    await syncPhaseBranch(issueNumber, taskGroup.phaseNumber, issueBranch, baseBranch);
 
     // タスク作成
     console.log(`   📌 タスク作成: ${taskGroup.id} - ${taskGroup.name}`);
@@ -327,16 +389,36 @@ async function startExecutableTasks(
 }
 
 /**
+ * タスクが指定されたGitHub Issueに属しているか確認
+ *
+ * タスクのdescriptionに "GitHub Issue #<issueNumber>" が含まれているかチェック
+ */
+function isTaskBelongsToIssue(
+  task: { id: string; title: string; description?: string },
+  issueNumber: number
+): boolean {
+  if (!task.description) {
+    return false;
+  }
+  const issuePattern = `GitHub Issue #${issueNumber}`;
+  return task.description.includes(issuePattern);
+}
+
+/**
  * 起動時に既存のDoneタスクについてGitHub Issueを同期
  *
  * Vibe-KanbanでDone状態なのにGitHub Issueで未完了のタスクを検出し、
  * GitHub Issueを更新する
+ *
+ * 注意: 同じプロジェクト内に複数のGitHub Issueのタスクが混在している可能性があるため、
+ * タスクのdescriptionに含まれるIssue番号をチェックして、対象Issueのタスクのみを同期する
  */
 async function syncExistingDoneTasks(
   parsedIssue: ParsedIssue,
-  existingTasks: Array<{ id: string; title: string; status: string }>,
+  existingTasks: Array<{ id: string; title: string; status: string; description?: string }>,
   issueNumber: number,
-  stateManager: TaskStateManager
+  stateManager: TaskStateManager,
+  descriptionCache: Map<string, string | null>
 ): Promise<ParsedIssue> {
   // Vibe-KanbanでDone状態のタスクを取得
   const doneTasks = existingTasks.filter((t) => t.status === "done");
@@ -346,10 +428,26 @@ async function syncExistingDoneTasks(
   const completedInIssue = getCompletedTaskGroupIds(parsedIssue);
 
   // Vibe-KanbanでDoneだがGitHub Issueで未完了のタスクを検出
+  // 対象のGitHub Issueに属するタスクのみを処理（Issue番号が一致しないものは無視）
   const needsSync: string[] = [];
+  const issuePattern = `GitHub Issue #${issueNumber}`;
   for (const task of doneTasks) {
     const taskGroupId = extractTaskGroupIdFromTitle(task.title);
-    if (taskGroupId && !completedInIssue.has(taskGroupId)) {
+    if (!taskGroupId) {
+      continue;
+    }
+
+    // キャッシュからdescriptionを取得
+    const taskDescription = descriptionCache.get(task.id);
+
+    // 対象のGitHub Issueに属するタスクのみ処理
+    // descriptionに "GitHub Issue #<issueNumber>" が含まれているタスクのみを対象とする
+    if (!taskDescription?.includes(issuePattern)) {
+      // Issue番号が一致しないタスクは何もしない（ログ出力も不要）
+      continue;
+    }
+
+    if (!completedInIssue.has(taskGroupId)) {
       needsSync.push(taskGroupId);
       console.log(`   📝 同期が必要: ${taskGroupId} (Vibe-Kanban: Done, GitHub: 未完了)`);
     }

@@ -8,6 +8,7 @@ import { backupDirectory } from "../lib/file-system.js";
 import {
 	copyDocTemplates,
 	copySteeringDocs,
+	createSymlinks,
 	generateClaudeDirectory,
 	generateClaudeMd,
 } from "../lib/merger.js";
@@ -18,8 +19,9 @@ export async function initCommand(options: InitOptions): Promise<void> {
 	const cwd = process.cwd();
 	const claudeDir = path.join(cwd, ".claude");
 	const docsDir = path.join(cwd, "docs");
-	const templatesDir = path.join(docsDir, "templates");
-	const steeringDir = path.join(docsDir, "steering");
+	const einjaDocsDir = path.join(docsDir, "einja");
+	const templatesDir = path.join(einjaDocsDir, "templates");
+	const steeringDir = path.join(einjaDocsDir, "steering");
 	const claudeMdPath = path.join(cwd, "CLAUDE.md");
 
 	console.log(chalk.blue("\n🚀 Einja Claude CLI - .claude セットアップ\n"));
@@ -34,7 +36,23 @@ export async function initCommand(options: InitOptions): Promise<void> {
 
 	const preset = await loadPreset(presetName);
 
-	// 2. 既存の.claude確認
+	// 2. ドライラン（ファイル操作前にチェック）
+	if (options.dryRun) {
+		console.log(chalk.blue("\n[Dry Run] 以下の操作が実行されます:"));
+		console.log(`  - ${claudeDir} を作成`);
+		console.log(`  - プリセット "${preset.name}" の設定を適用`);
+		console.log("  - コアエージェント・コマンドをコピー");
+		console.log("  - プリセット固有のファイルをコピー");
+		console.log("  - settings.json をマージ・生成");
+		console.log(`  - ${templatesDir} にドキュメントテンプレートをコピー`);
+		console.log(`  - ${steeringDir} にステアリングドキュメントをコピー`);
+		console.log(`  - ${claudeMdPath} を生成`);
+		console.log("  - シンボリックリンクを作成（symlinks.json に基づく）");
+		console.log("    リンク先パスはインストール時に自動計算");
+		return;
+	}
+
+	// 3. 既存の.claude確認
 	if (await fs.pathExists(claudeDir)) {
 		if (!options.force) {
 			const { proceed } = await inquirer.prompt([
@@ -52,7 +70,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 			}
 		}
 
-		// 3. バックアップ作成
+		// バックアップ作成
 		if (options.backup !== false) {
 			spinner.start("バックアップを作成中...");
 			const backupPath = await backupDirectory(claudeDir);
@@ -63,21 +81,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		await fs.remove(claudeDir);
 	}
 
-	// 4. ドライラン
-	if (options.dryRun) {
-		console.log(chalk.blue("\n[Dry Run] 以下の操作が実行されます:"));
-		console.log(`  - ${claudeDir} を作成`);
-		console.log(`  - プリセット "${preset.name}" の設定を適用`);
-		console.log("  - コアエージェント・コマンドをコピー");
-		console.log("  - プリセット固有のファイルをコピー");
-		console.log("  - settings.json をマージ・生成");
-		console.log(`  - ${templatesDir} にドキュメントテンプレートをコピー`);
-		console.log(`  - ${steeringDir} にステアリングドキュメントをコピー`);
-		console.log(`  - ${claudeMdPath} を生成`);
-		return;
-	}
-
-	// 5. .claudeディレクトリを生成
+	// 4. .claudeディレクトリを生成
 	spinner.start(".claudeをセットアップ中...");
 
 	try {
@@ -90,7 +94,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	// 6. ドキュメントテンプレートをコピー
+	// 5. ドキュメントテンプレートをコピー
 	spinner.start("ドキュメントテンプレートをセットアップ中...");
 
 	try {
@@ -102,7 +106,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	// 7. ステアリングドキュメントをコピー
+	// 6. ステアリングドキュメントをコピー
 	spinner.start("ステアリングドキュメントをセットアップ中...");
 
 	try {
@@ -114,7 +118,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	// 8. CLAUDE.mdを生成
+	// 7. CLAUDE.mdを生成
 	spinner.start("CLAUDE.mdを生成中...");
 
 	try {
@@ -124,6 +128,46 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		spinner.fail("CLAUDE.mdの生成に失敗しました");
 		console.error(chalk.red(error instanceof Error ? error.message : String(error)));
 		process.exit(1);
+	}
+
+	// 8. シンボリックリンクを作成
+	spinner.start("シンボリックリンクをセットアップ中...");
+
+	try {
+		const symlinkResult = await createSymlinks(cwd, presetName);
+
+		if (symlinkResult.created > 0 || symlinkResult.fallback > 0) {
+			const successCount = symlinkResult.created + symlinkResult.fallback;
+			spinner.succeed(`シンボリックリンク: ${successCount} 件作成`);
+
+			// 詳細ログを表示
+			if (symlinkResult.logs.length > 0) {
+				for (const log of symlinkResult.logs) {
+					if (log.startsWith("警告:") || log.startsWith("エラー:")) {
+						console.log(chalk.yellow(`    ${log}`));
+					} else if (log.startsWith("リンク作成:")) {
+						console.log(chalk.gray(`    ${log}`));
+					}
+				}
+			}
+
+			if (symlinkResult.fallback > 0) {
+				console.log(
+					chalk.yellow(`    ⚠ ${symlinkResult.fallback} 件は実体ファイルにフォールバック`)
+				);
+			}
+		} else if (symlinkResult.skipped > 0 || symlinkResult.errors > 0) {
+			spinner.warn("シンボリックリンク: 一部スキップまたはエラー");
+			for (const log of symlinkResult.logs) {
+				console.log(chalk.yellow(`    ${log}`));
+			}
+		} else {
+			spinner.info("シンボリックリンク: 対象なし");
+		}
+	} catch (error) {
+		spinner.fail("シンボリックリンクのセットアップに失敗しました");
+		console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+		// シンボリックリンクの失敗は致命的ではないので続行
 	}
 
 	// 9. 完了メッセージ

@@ -2,6 +2,26 @@
 - 回答は日本語で行ってください。
 - 必ずこのドキュメントの通りに作業を行ってください。
 
+## 役割と動作原則
+
+**あなたはマネージャーでありagentオーケストレーターです。**
+
+### 絶対ルール
+- **あなたは絶対に直接実装を行わない**
+- すべての作業はsubagentに委託すること
+- 可能な限りsubagentは並行で呼び出すこと
+- サブエージェントを呼び出している際、サブエージェントからの出力はユーザにも見える場所に出力すること
+
+### サブエージェント委託ルール
+
+| 作業 | 委託先 |
+|------|--------|
+| コミット・プッシュ | `task-committer` |
+| コンフリクト解消 | `conflict-resolver` |
+| コード実装 | `task-executer` |
+| 品質検証（QA） | `task-qa` |
+| 実装レビュー | `task-reviewer` |
+
 ## コード変更時の動作方針
 
 **【厳守事項】コード変更の指示があった場合、絶対に即座に実装を開始してはならない。**
@@ -19,6 +39,10 @@
 「この変更について、まずPlanモードで計画を立てて提示しましょうか？」
 
 **注意**: この規則は新規セッションだけでなく、セッション継続中のすべてのコード変更に適用される。ユーザーが「直して」「修正して」「なおしたい」等と言った場合も、必ず計画を提示して承認を得ること。
+
+## gitコンフリクト発生時の対応
+
+**【必須】** gitコンフリクトが発生した場合、必ず `.claude/skills/einja/conflict-resolver/SKILL.md` の手順に従うこと。
 
 ## プロジェクト構成
 
@@ -233,6 +257,20 @@ const authOptions = mergeAuthOptions(baseAuthOptions, {
 export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 ```
 
+## AskUserQuestion ツールの使用
+
+選択肢を提示してユーザーに質問する場合は、**必ず AskUserQuestion ツール**を使用してください。
+
+### 使用必須シーン
+- 複数の実装方法・設計アプローチがある場合
+- 重要な判断（コミット分割、リファクタリング方針など）
+- 破壊的な操作の前
+
+### 提示形式
+- テーブル形式: 複数項目の比較
+- 番号付きリスト: 詳細説明が必要な場合
+- 推奨オプションには `（推奨）` と理由を付記
+
 ## 追加指示
 
 以下のドキュメントも参照して作業を進めてください:
@@ -242,3 +280,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - @docs/einja/steering/commit-rules.md - コミットルール・ブランチ戦略
 - @docs/einja/steering/development/testing-strategy.md - Vitestを使用したテスト戦略
 - @docs/einja/steering/development/review-guidelines.md - コードレビューのガイドライン
+- @docs/einja/memory/decisions.md - 過去の意思決定記録（セッション跨ぎで継承）
+- @docs/einja/memory/patterns.md - 再利用可能なパターン（セッション跨ぎで継承）

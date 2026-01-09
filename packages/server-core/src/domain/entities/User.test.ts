@@ -5,6 +5,7 @@ import { User, type UserProps } from "./User";
 describe("User Entity", () => {
 	beforeAll(() => {
 		// ドメインエンティティのテストではPrismaクライアントは使用しないため、空のオブジェクトを渡す
+		// biome-ignore lint/suspicious/noExplicitAny: test fixture initialization
 		initialize({ prisma: {} as any });
 	});
 

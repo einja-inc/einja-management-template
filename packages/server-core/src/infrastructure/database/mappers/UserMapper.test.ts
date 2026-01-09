@@ -7,6 +7,7 @@ import { UserMapper } from "./UserMapper";
 describe("UserMapper", () => {
 	beforeAll(() => {
 		// マッパーテストではPrismaクライアントは使用しないため、空のオブジェクトを渡す
+		// biome-ignore lint/suspicious/noExplicitAny: test fixture initialization
 		initialize({ prisma: {} as any });
 	});
 
@@ -16,6 +17,7 @@ describe("UserMapper", () => {
 			const prismaUser = await UserFactory.build();
 
 			// When
+			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 			const domainUser = UserMapper.toDomain(prismaUser as any);
 
 			// Then
@@ -34,6 +36,7 @@ describe("UserMapper", () => {
 			const prismaUser = await UserFactory.build({ name: null });
 
 			// When
+			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 			const domainUser = UserMapper.toDomain(prismaUser as any);
 
 			// Then
@@ -45,6 +48,7 @@ describe("UserMapper", () => {
 			const prismaUser = await UserFactory.build({ lastLogin: null });
 
 			// When
+			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 			const domainUser = UserMapper.toDomain(prismaUser as any);
 
 			// Then
@@ -57,6 +61,7 @@ describe("UserMapper", () => {
 				const prismaUser = await UserFactory.build({ status: "active" as PrismaUserStatus });
 
 				// When
+				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 				const domainUser = UserMapper.toDomain(prismaUser as any);
 
 				// Then
@@ -68,6 +73,7 @@ describe("UserMapper", () => {
 				const prismaUser = await UserFactory.build({ status: "inactive" as PrismaUserStatus });
 
 				// When
+				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 				const domainUser = UserMapper.toDomain(prismaUser as any);
 
 				// Then
@@ -79,6 +85,7 @@ describe("UserMapper", () => {
 				const prismaUser = await UserFactory.build({ status: "pending" as PrismaUserStatus });
 
 				// When
+				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 				const domainUser = UserMapper.toDomain(prismaUser as any);
 
 				// Then
@@ -92,6 +99,7 @@ describe("UserMapper", () => {
 				const prismaUser = await UserFactory.build({ role: "admin" as PrismaUserRole });
 
 				// When
+				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 				const domainUser = UserMapper.toDomain(prismaUser as any);
 
 				// Then
@@ -103,6 +111,7 @@ describe("UserMapper", () => {
 				const prismaUser = await UserFactory.build({ role: "user" as PrismaUserRole });
 
 				// When
+				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 				const domainUser = UserMapper.toDomain(prismaUser as any);
 
 				// Then
@@ -114,6 +123,7 @@ describe("UserMapper", () => {
 				const prismaUser = await UserFactory.build({ role: "moderator" as PrismaUserRole });
 
 				// When
+				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
 				const domainUser = UserMapper.toDomain(prismaUser as any);
 
 				// Then

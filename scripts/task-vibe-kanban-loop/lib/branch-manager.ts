@@ -5,6 +5,7 @@
 import { execSync } from "node:child_process";
 import * as os from "node:os";
 import * as path from "node:path";
+import { resolveConflictWithClaude } from "./conflict-handler";
 
 /**
  * マージ結果の型
@@ -14,6 +15,7 @@ interface MergeResult {
   alreadyUpToDate?: boolean;
   conflicted?: boolean;
   error?: string;
+  worktreePath?: string;
 }
 
 /**
@@ -60,6 +62,7 @@ function mergeWithGitHubApi(
 /**
  * git worktree を使用してマージ（フォールバック）
  * --detach で既存 worktree と競合しない
+ * コンフリクト時は worktree を削除せず、パスを返す
  */
 function mergeWithWorktree(
   baseBranch: string,
@@ -80,30 +83,44 @@ function mergeWithWorktree(
         stdio: "pipe",
       });
     } catch (mergeError) {
-      // マージコンフリクト
-      execSync(`git -C "${tempDir}" merge --abort`, { stdio: "ignore" });
-      return { success: false, conflicted: true, error: "マージコンフリクトが発生しました" };
+      // マージコンフリクト - worktree を保持してパスを返す
+      return {
+        success: false,
+        conflicted: true,
+        error: "マージコンフリクトが発生しました",
+        worktreePath: tempDir
+      };
     }
 
     // プッシュ（ブランチ名を明示）
     execSync(`git -C "${tempDir}" push origin HEAD:${baseBranch}`, { stdio: "pipe" });
 
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: String(error) };
-  } finally {
-    // クリーンアップ
+    // 成功時のみクリーンアップ
     try {
       execSync(`git worktree remove "${tempDir}" --force`, { stdio: "ignore" });
     } catch {
       // クリーンアップ失敗は無視
     }
+
+    return { success: true };
+  } catch (error) {
+    // エラー時はクリーンアップ
+    try {
+      execSync(`git worktree remove "${tempDir}" --force`, { stdio: "ignore" });
+    } catch {
+      // クリーンアップ失敗は無視
+    }
+    return { success: false, error: String(error) };
   }
 }
 
 /**
  * 統合マージ関数（gh CLI → worktree のフォールバック）
  * ローカルの状態に依存せずにリモートブランチをマージ
+ *
+ * GitHub APIで409（コンフリクト）が返った場合、worktreeで再試行する。
+ * GitHub APIは保守的な判定をするため、ローカルのgit merge（ort戦略）なら
+ * 自動解決できるケースがある。
  */
 function mergeRemoteBranches(
   baseBranch: string,
@@ -113,10 +130,20 @@ function mergeRemoteBranches(
   // gh CLI が認証済みなら GitHub API を使用
   if (isGhCliAuthenticated()) {
     console.log("   🔧 GitHub API でマージを実行");
-    return mergeWithGitHubApi(baseBranch, headBranch, commitMessage);
+    const apiResult = mergeWithGitHubApi(baseBranch, headBranch, commitMessage);
+
+    // API成功 or コンフリクト以外のエラー → そのまま返す
+    if (apiResult.success || !apiResult.conflicted) {
+      return apiResult;
+    }
+
+    // 409（コンフリクト）の場合のみ worktree で再試行
+    // GitHub APIは保守的なため、ローカルのort戦略なら解決できる場合がある
+    console.log("   ⚠️ GitHub API で 409 Conflict、worktree で再試行...");
+    return mergeWithWorktree(baseBranch, headBranch, commitMessage);
   }
 
-  // フォールバック: git worktree を使用
+  // gh CLI 未認証: git worktree を使用
   console.log("   🔧 git worktree でマージを実行");
   return mergeWithWorktree(baseBranch, headBranch, commitMessage);
 }
@@ -307,19 +334,19 @@ export function getPhaseBranchName(issueNumber: number, phaseNumber: number): st
  * タスク着手時に呼び出され、リモートの最新状態を反映する
  * また、作成元の Issue ブランチの変更も取り込む
  */
-export function syncPhaseBranch(
+export async function syncPhaseBranch(
   issueNumber: number,
   phaseNumber: number,
   issueBranch: string,
   issueBranchBase: string
-): string {
+): Promise<string> {
   const branchName = `issue/${issueNumber}-phase${phaseNumber}`;
 
   // リモートの最新を取得
   fetchRemote();
 
   // Issue ブランチをリモートの最新に同期し、ベースブランチの変更も取り込む
-  syncIssueBranch(issueBranch, issueBranchBase);
+  await syncIssueBranch(issueBranch, issueBranchBase);
 
   // リモートにブランチが存在するか確認
   let remoteExists = false;
@@ -359,11 +386,11 @@ export function syncPhaseBranch(
     }
 
     // Issue ブランチの変更を Phase ブランチに取り込む
-    mergeIssueBranchIntoPhase(branchName, issueBranch);
+    await mergeIssueBranchIntoPhase(branchName, issueBranch);
   } else if (branchExists(branchName)) {
     // ローカルのみに存在する場合: Issue ブランチの変更を取り込んでプッシュ
     console.log(`   📤 Phase ブランチをプッシュ: ${branchName}`);
-    mergeIssueBranchIntoPhase(branchName, issueBranch);
+    await mergeIssueBranchIntoPhase(branchName, issueBranch);
     execSync(`git push -u origin ${branchName}`, { stdio: "inherit" });
   } else {
     // どこにも存在しない場合: Issue ブランチの最新から新規作成
@@ -380,7 +407,7 @@ export function syncPhaseBranch(
 /**
  * リモートブランチの変更をローカルブランチにマージ（pull相当）
  * ローカルとリモートが異なる場合のみマージを実行
- * checkout を使用せず、worktree または fast-forward で処理
+ * 現在のブランチの場合は直接マージ、それ以外は worktree または fast-forward で処理
  */
 function mergeRemoteIntoLocal(branchName: string): void {
   // ローカルとリモートが同じか確認
@@ -396,11 +423,21 @@ function mergeRemoteIntoLocal(branchName: string): void {
     return;
   }
 
+  // 現在のブランチかどうか確認
+  const currentBranch = getCurrentBranch();
+  const isCurrentBranch = currentBranch === branchName;
+
   // ローカルがリモートの祖先か確認 (fast-forward 可能)
   try {
     execSync(`git merge-base --is-ancestor ${localCommit} ${remoteCommit}`, { stdio: "ignore" });
-    // fast-forward 可能: ローカルをリモートに更新
-    execSync(`git branch -f ${branchName} origin/${branchName}`, { stdio: "inherit" });
+    // fast-forward 可能
+    if (isCurrentBranch) {
+      // 現在のブランチの場合は直接マージ
+      execSync(`git merge origin/${branchName} --ff-only`, { stdio: "inherit" });
+    } else {
+      // 別のブランチの場合は branch -f で更新
+      execSync(`git branch -f ${branchName} origin/${branchName}`, { stdio: "inherit" });
+    }
     console.log(`   ✅ リモートの変更を取り込み (fast-forward): ${branchName}`);
     return;
   } catch {
@@ -418,35 +455,50 @@ function mergeRemoteIntoLocal(branchName: string): void {
     // プッシュだけでは不十分、マージが必要
   }
 
-  // 両方が進んでいる場合: worktree でマージ（常に --detach モードで、ローカル作業に依存しない）
+  // 両方が進んでいる場合: マージが必要
   console.log(`   🔀 リモートの変更をマージ: ${branchName}`);
-  const tempDir = path.join(os.tmpdir(), `merge-sync-${Date.now()}`);
 
-  try {
-    // detachモードでworktreeを作成（現在のチェックアウト状態に依存しない）
-    execSync(`git worktree add --detach "${tempDir}" ${branchName}`, { stdio: "pipe" });
-
-    // リモートの変更をマージ
+  if (isCurrentBranch) {
+    // 現在のブランチの場合は直接マージ
     try {
-      execSync(`git -C "${tempDir}" merge origin/${branchName} --no-edit`, { stdio: "pipe" });
+      execSync(`git merge origin/${branchName} --no-edit`, { stdio: "pipe" });
     } catch {
-      execSync(`git -C "${tempDir}" merge --abort`, { stdio: "ignore" });
+      execSync(`git merge --abort`, { stdio: "ignore" });
       throw new Error(
         `ブランチ ${branchName} のリモート同期でコンフリクトが発生しました。手動で解決してください。`
       );
     }
-
-    // マージ結果を直接リモートにプッシュ（ローカルブランチは更新しない）
-    // 注: 現在チェックアウト中のブランチはgit branch -fで更新できないため、
-    //     worktree内から直接プッシュし、ローカルブランチの更新はスキップする
-    execSync(`git -C "${tempDir}" push origin HEAD:refs/heads/${branchName}`, { stdio: "pipe" });
+    // マージ結果をプッシュ
+    execSync(`git push origin ${branchName}`, { stdio: "pipe" });
     console.log(`   ✅ リモートの変更をマージ: ${branchName}`);
-  } finally {
-    // クリーンアップ
+  } else {
+    // 別のブランチの場合は worktree でマージ
+    const tempDir = path.join(os.tmpdir(), `merge-sync-${Date.now()}`);
+
     try {
-      execSync(`git worktree remove "${tempDir}" --force`, { stdio: "ignore" });
-    } catch {
-      // クリーンアップ失敗は無視
+      // ローカルブランチを一時的に worktree にチェックアウト
+      execSync(`git worktree add "${tempDir}" ${branchName}`, { stdio: "pipe" });
+
+      // リモートの変更をマージ
+      try {
+        execSync(`git -C "${tempDir}" merge origin/${branchName} --no-edit`, { stdio: "pipe" });
+      } catch {
+        execSync(`git -C "${tempDir}" merge --abort`, { stdio: "ignore" });
+        throw new Error(
+          `ブランチ ${branchName} のリモート同期でコンフリクトが発生しました。手動で解決してください。`
+        );
+      }
+
+      // マージ結果をプッシュ
+      execSync(`git -C "${tempDir}" push origin ${branchName}`, { stdio: "pipe" });
+      console.log(`   ✅ リモートの変更をマージ: ${branchName}`);
+    } finally {
+      // クリーンアップ
+      try {
+        execSync(`git worktree remove "${tempDir}" --force`, { stdio: "ignore" });
+      } catch {
+        // クリーンアップ失敗は無視
+      }
     }
   }
 }
@@ -454,7 +506,7 @@ function mergeRemoteIntoLocal(branchName: string): void {
 /**
  * Issue ブランチをリモートの最新に同期し、ベースブランチの変更も取り込む
  */
-function syncIssueBranch(issueBranch: string, issueBranchBase: string): void {
+async function syncIssueBranch(issueBranch: string, issueBranchBase: string): Promise<void> {
   // リモートに Issue ブランチが存在するか確認
   let remoteExists = false;
   try {
@@ -495,15 +547,15 @@ function syncIssueBranch(issueBranch: string, issueBranchBase: string): void {
   }
 
   // ベースブランチの変更を Issue ブランチに取り込む
-  mergeBaseBranchIntoIssue(issueBranch, issueBranchBase);
+  await mergeBaseBranchIntoIssue(issueBranch, issueBranchBase);
 }
 
 /**
  * ベースブランチの変更を Issue ブランチに取り込む（マージ）
  * checkout を使用せず、GitHub API または worktree でリモートマージを実行
- * コンフリクトが発生した場合はエラーをスロー
+ * コンフリクトが発生した場合は Claude Code でインタラクティブに解決
  */
-function mergeBaseBranchIntoIssue(issueBranch: string, issueBranchBase: string): void {
+async function mergeBaseBranchIntoIssue(issueBranch: string, issueBranchBase: string): Promise<void> {
   // Issue ブランチがベースブランチの変更を既に含んでいるか確認
   const remoteBaseBranch = `origin/${issueBranchBase}`;
   const remoteIssueBranch = `origin/${issueBranch}`;
@@ -532,15 +584,42 @@ function mergeBaseBranchIntoIssue(issueBranch: string, issueBranchBase: string):
   );
 
   if (!result.success) {
-    if (result.conflicted) {
-      throw new Error(
-        `Issue ブランチ ${issueBranch} へのベースブランチ ${issueBranchBase} のマージでコンフリクトが発生しました。手動で解決してください。`
+    if (result.conflicted && result.worktreePath) {
+      // Claude Code でコンフリクト解消
+      const resolved = await resolveConflictWithClaude(
+        {
+          targetBranch: issueBranch,
+          sourceBranch: issueBranchBase,
+          operationType: "base"
+        },
+        result.worktreePath
       );
-    }
-    throw new Error(`マージに失敗しました: ${result.error}`);
-  }
 
-  console.log("   ✅ ベースブランチのマージ完了");
+      if (!resolved) {
+        // コンフリクト解消失敗 - worktree をクリーンアップ
+        try {
+          execSync(`git worktree remove "${result.worktreePath}" --force`, { stdio: "ignore" });
+        } catch {
+          // クリーンアップ失敗は無視
+        }
+        throw new Error(
+          `Issue ブランチ ${issueBranch} へのベースブランチ ${issueBranchBase} のマージでコンフリクトを解消できませんでした。`
+        );
+      }
+
+      // コンフリクト解消成功 - プッシュしてクリーンアップ
+      try {
+        execSync(`git -C "${result.worktreePath}" push origin HEAD:${issueBranch}`, { stdio: "pipe" });
+        console.log("   ✅ コンフリクト解消後のマージを完了しました");
+      } finally {
+        execSync(`git worktree remove "${result.worktreePath}" --force`, { stdio: "ignore" });
+      }
+    } else {
+      throw new Error(`マージに失敗しました: ${result.error}`);
+    }
+  } else {
+    console.log("   ✅ ベースブランチのマージ完了");
+  }
 
   // ローカルブランチをリモートに合わせて更新
   try {
@@ -555,13 +634,13 @@ function mergeBaseBranchIntoIssue(issueBranch: string, issueBranchBase: string):
 /**
  * Phase ブランチを Issue ブランチにマージ（フェーズ完了時）
  * checkout を使用せず、GitHub API または worktree でリモートマージを実行
- * コンフリクトが発生した場合はエラーをスロー
+ * コンフリクトが発生した場合は Claude Code でインタラクティブに解決
  */
-export function mergePhaseBranchIntoIssue(
+export async function mergePhaseBranchIntoIssue(
   issueNumber: number,
   phaseNumber: number,
   issueBranch: string
-): void {
+): Promise<void> {
   const phaseBranch = `issue/${issueNumber}-phase${phaseNumber}`;
 
   // リモートの最新を取得
@@ -607,15 +686,42 @@ export function mergePhaseBranchIntoIssue(
   );
 
   if (!result.success) {
-    if (result.conflicted) {
-      throw new Error(
-        `Issue ブランチ ${issueBranch} への Phase ブランチ ${phaseBranch} のマージでコンフリクトが発生しました。手動で解決してください。`
+    if (result.conflicted && result.worktreePath) {
+      // Claude Code でコンフリクト解消
+      const resolved = await resolveConflictWithClaude(
+        {
+          targetBranch: issueBranch,
+          sourceBranch: phaseBranch,
+          operationType: "phase"
+        },
+        result.worktreePath
       );
-    }
-    throw new Error(`マージに失敗しました: ${result.error}`);
-  }
 
-  console.log(`   ✅ Phase ${phaseNumber} マージ完了`);
+      if (!resolved) {
+        // コンフリクト解消失敗 - worktree をクリーンアップ
+        try {
+          execSync(`git worktree remove "${result.worktreePath}" --force`, { stdio: "ignore" });
+        } catch {
+          // クリーンアップ失敗は無視
+        }
+        throw new Error(
+          `Issue ブランチ ${issueBranch} への Phase ブランチ ${phaseBranch} のマージでコンフリクトを解消できませんでした。`
+        );
+      }
+
+      // コンフリクト解消成功 - プッシュしてクリーンアップ
+      try {
+        execSync(`git -C "${result.worktreePath}" push origin HEAD:${issueBranch}`, { stdio: "pipe" });
+        console.log(`   ✅ Phase ${phaseNumber} コンフリクト解消後のマージを完了しました`);
+      } finally {
+        execSync(`git worktree remove "${result.worktreePath}" --force`, { stdio: "ignore" });
+      }
+    } else {
+      throw new Error(`マージに失敗しました: ${result.error}`);
+    }
+  } else {
+    console.log(`   ✅ Phase ${phaseNumber} マージ完了`);
+  }
 
   // ローカルブランチをリモートに合わせて更新
   try {
@@ -630,9 +736,9 @@ export function mergePhaseBranchIntoIssue(
 /**
  * Issue ブランチの変更を Phase ブランチに取り込む（マージ）
  * checkout を使用せず、GitHub API または worktree でリモートマージを実行
- * コンフリクトが発生した場合はエラーをスロー
+ * コンフリクトが発生した場合は Claude Code でインタラクティブに解決
  */
-function mergeIssueBranchIntoPhase(phaseBranch: string, issueBranch: string): void {
+async function mergeIssueBranchIntoPhase(phaseBranch: string, issueBranch: string): Promise<void> {
   // Phase ブランチが Issue ブランチの変更を既に含んでいるか確認
   // リモートブランチ同士で比較（ローカルの状態に依存しない）
   const remotePhaseBranch = `origin/${phaseBranch}`;
@@ -661,15 +767,42 @@ function mergeIssueBranchIntoPhase(phaseBranch: string, issueBranch: string): vo
   );
 
   if (!result.success) {
-    if (result.conflicted) {
-      throw new Error(
-        `Phase ブランチ ${phaseBranch} への Issue ブランチ ${issueBranch} のマージでコンフリクトが発生しました。手動で解決してください。`
+    if (result.conflicted && result.worktreePath) {
+      // Claude Code でコンフリクト解消
+      const resolved = await resolveConflictWithClaude(
+        {
+          targetBranch: phaseBranch,
+          sourceBranch: issueBranch,
+          operationType: "phase"
+        },
+        result.worktreePath
       );
-    }
-    throw new Error(`マージに失敗しました: ${result.error}`);
-  }
 
-  console.log("   ✅ マージ完了");
+      if (!resolved) {
+        // コンフリクト解消失敗 - worktree をクリーンアップ
+        try {
+          execSync(`git worktree remove "${result.worktreePath}" --force`, { stdio: "ignore" });
+        } catch {
+          // クリーンアップ失敗は無視
+        }
+        throw new Error(
+          `Phase ブランチ ${phaseBranch} への Issue ブランチ ${issueBranch} のマージでコンフリクトを解消できませんでした。`
+        );
+      }
+
+      // コンフリクト解消成功 - プッシュしてクリーンアップ
+      try {
+        execSync(`git -C "${result.worktreePath}" push origin HEAD:${phaseBranch}`, { stdio: "pipe" });
+        console.log("   ✅ コンフリクト解消後のマージを完了しました");
+      } finally {
+        execSync(`git worktree remove "${result.worktreePath}" --force`, { stdio: "ignore" });
+      }
+    } else {
+      throw new Error(`マージに失敗しました: ${result.error}`);
+    }
+  } else {
+    console.log("   ✅ マージ完了");
+  }
 
   // ローカルブランチをリモートに合わせて更新
   try {

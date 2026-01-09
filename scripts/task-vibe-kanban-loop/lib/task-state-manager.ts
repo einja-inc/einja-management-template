@@ -28,13 +28,45 @@ export class TaskStateManager {
 
   /**
    * 現在の Done タスク ID 一覧を設定（初期化用）
+   * @param tasks 全タスク一覧
+   * @param issueNumber 対象Issue番号（ログ出力のフィルタリング用、省略時は全件表示）
+   * @param descriptionCache タスクID -> description のキャッシュ（旧形式タスクのIssue判定用）
    */
-  initializeDoneTaskIds(tasks: VibeKanbanTask[]): void {
+  initializeDoneTaskIds(
+    tasks: VibeKanbanTask[],
+    issueNumber?: number,
+    descriptionCache?: Map<string, string | null>
+  ): void {
     const doneTasks = tasks.filter((t) => t.status === "done");
     this.previousDoneTaskIds = new Set(doneTasks.map((t) => t.id));
+
+    // ログ出力：対象Issueに関連するタスクのみ表示
+    if (!issueNumber) {
+      console.log(`🔧 初期化: previousDoneTaskIds に ${doneTasks.length} 件を登録`);
+      return;
+    }
+
+    const issuePatternInDesc = `GitHub Issue #${issueNumber}`;
+    const relevantDoneTasks = doneTasks.filter((t) => {
+      // 新形式: タイトルからIssue番号を抽出
+      const titleIssueNum = extractIssueNumberFromTitle(t.title);
+      if (titleIssueNum === issueNumber) return true;
+
+      // 旧形式: descriptionで判定
+      if (descriptionCache) {
+        const desc = descriptionCache.get(t.id);
+        if (desc?.includes(issuePatternInDesc)) return true;
+      }
+      return false;
+    });
+
     console.log(`🔧 初期化: previousDoneTaskIds に ${doneTasks.length} 件を登録`);
-    for (const task of doneTasks) {
-      console.log(`   - ${task.id} (${task.title})`);
+    if (relevantDoneTasks.length > 0) {
+      console.log(`   (Issue #${issueNumber} 関連: ${relevantDoneTasks.length} 件)`);
+      for (const task of relevantDoneTasks) {
+        const taskGroupId = extractTaskGroupIdFromTitle(task.title);
+        console.log(`   - ${taskGroupId || task.title}`);
+      }
     }
   }
 
@@ -119,22 +151,29 @@ export class TaskStateManager {
 
 /**
  * Vibe-Kanban タスクのタイトルからタスクグループ ID を抽出
- * タイトル形式: "[Issue番号 X.Y] タスク名" または "[X.Y] タスク名" (後方互換)
+ * タイトル形式: "[IssueXX Y.Z] タスク名" または "[Y.Z] タスク名"（後方互換）
  */
 export function extractTaskGroupIdFromTitle(title: string): string | null {
-  // 新形式: [Issue番号 X.Y]
+  // 新形式: [Issue22 1.2] タスク名
   const newMatch = title.match(/\[Issue\d+\s+(\d+\.\d+)\]/);
-  if (newMatch) {
-    return newMatch[1];
-  }
-  // 旧形式: [X.Y] (後方互換)
+  if (newMatch) return newMatch[1];
+
+  // 旧形式: [1.2] タスク名（後方互換）
   const oldMatch = title.match(/\[(\d+\.\d+)\]/);
   return oldMatch ? oldMatch[1] : null;
 }
 
 /**
+ * Vibe-Kanban タスクのタイトルから Issue 番号を抽出
+ * タイトル形式: "[IssueXX Y.Z] タスク名"
+ */
+export function extractIssueNumberFromTitle(title: string): number | null {
+  const match = title.match(/\[Issue(\d+)\s+\d+\.\d+\]/);
+  return match ? Number.parseInt(match[1], 10) : null;
+}
+
+/**
  * タスクグループ用の Vibe-Kanban タスクタイトルを生成
- * タイトル形式: "[Issue番号 X.Y] タスク名"
  */
 export function generateVibeKanbanTitle(taskGroup: TaskGroup, issueNumber: number): string {
   return `[Issue${issueNumber} ${taskGroup.id}] ${taskGroup.name}`;

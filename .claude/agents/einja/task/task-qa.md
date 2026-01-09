@@ -30,6 +30,8 @@ task-qa Skillの手順に従ってQAを実行し、結果を親プロセス（ta
 task-qa Skillの手順に従って実行してください。
 失敗時の分類と連携情報もSkillを参照してください。
 
+> **Note**: ユーザー確認が必要な場面（テスト方針の選択、受け入れ基準の解釈確認など）でのAskUserQuestionはtask-qa Skillで定義されています。
+
 ## 出力形式（親プロセスへの橋渡し）
 
 SkillでJSON結果を生成後、以下のtask-exec互換形式に変換して出力:

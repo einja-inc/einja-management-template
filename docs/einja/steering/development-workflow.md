@@ -176,10 +176,10 @@ pnpm task:loop <issue-number>
 
 **例**:
 ```bash
-pnpm task:loop 123                  # Issue #123 の全タスクを実行
-pnpm task:loop 123 --max 4          # Phase 4 まで実行
-pnpm task:loop 123 --max 4.2        # タスクグループ 4.2 まで実行
-pnpm task:loop 123 --base develop   # develop ブランチベースで実行
+pnpm task:loop 123                        # Issue #123 の全タスクを実行
+pnpm task:loop 123 --max-group 4          # Phase 4 まで実行
+pnpm task:loop 123 --max-group 4.2        # タスクグループ 4.2 まで実行
+pnpm task:loop 123 --branch develop       # develop ブランチベースで実行
 ```
 
 ### 実行後の流れ
@@ -306,12 +306,12 @@ task-executer → task-reviewer → task-qa → In Review
 pnpm task:loop <issue-number>
 
 # オプション指定
-pnpm task:loop <issue-number> --max <number> --base <branch>
+pnpm task:loop <issue-number> --max-group <number> --branch <branch>
 
 # 例
-pnpm task:loop 123                  # Issue #123 の全タスクを実行
-pnpm task:loop 123 --max 4          # Phase 4 まで実行
-pnpm task:loop 123 --max 4.2        # タスクグループ 4.2 まで実行
+pnpm task:loop 123                        # Issue #123 の全タスクを実行
+pnpm task:loop 123 --max-group 4          # Phase 4 まで実行
+pnpm task:loop 123 --max-group 4.2        # タスクグループ 4.2 まで実行
 
 # 単一タスクグループ実行（品質重視・複雑な実装向け）
 /task-exec #<issue_number> <task_group_number>

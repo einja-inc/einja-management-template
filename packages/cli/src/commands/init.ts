@@ -170,13 +170,61 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		// シンボリックリンクの失敗は致命的ではないので続行
 	}
 
-	// 9. 完了メッセージ
+	// 9. package.json に scripts を追加
+	const packageJsonPath = path.join(cwd, "package.json");
+	if (await fs.pathExists(packageJsonPath)) {
+		spinner.start("package.json に scripts を追加中...");
+
+		try {
+			const packageJson = await fs.readJson(packageJsonPath);
+			const scriptsToAdd = {
+				"task:loop": "npx @einja/cli task:loop",
+				"einja:sync": "npx @einja/cli sync",
+			};
+
+			let added = 0;
+			let skipped = 0;
+
+			if (!packageJson.scripts) {
+				packageJson.scripts = {};
+			}
+
+			for (const [key, value] of Object.entries(scriptsToAdd)) {
+				if (packageJson.scripts[key]) {
+					skipped++;
+				} else {
+					packageJson.scripts[key] = value;
+					added++;
+				}
+			}
+
+			if (added > 0) {
+				await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
+				spinner.succeed(`package.json: ${added} 件の scripts を追加`);
+				if (skipped > 0) {
+					console.log(chalk.yellow(`    ⚠ ${skipped} 件は既に存在するためスキップ`));
+				}
+			} else {
+				spinner.info("package.json: scripts は既に設定済み");
+			}
+		} catch (error) {
+			spinner.warn("package.json への scripts 追加をスキップ");
+			console.log(
+				chalk.yellow(`    ${error instanceof Error ? error.message : String(error)}`),
+			);
+		}
+	}
+
+	// 10. 完了メッセージ
 	console.log(chalk.green("\n✅ セットアップ完了!"));
 	console.log(chalk.gray("\n生成されたファイル:"));
 	console.log("  - .claude/           Claude Code設定");
 	console.log("  - docs/einja/templates/    ドキュメントテンプレート");
 	console.log("  - docs/einja/steering/     ステアリングドキュメント");
 	console.log("  - CLAUDE.md          プロジェクト設定");
+	console.log(chalk.gray("\n追加された scripts:"));
+	console.log("  - pnpm task:loop <issue>   タスクループ実行");
+	console.log("  - pnpm einja:sync          テンプレート同期");
 	console.log(chalk.gray("\n次のステップ:"));
 	console.log("  1. CLAUDE.md をプロジェクトに合わせてカスタマイズ");
 	console.log("  2. settings.local.json を必要に応じて作成");

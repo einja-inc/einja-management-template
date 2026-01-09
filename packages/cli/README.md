@@ -37,6 +37,23 @@ npx @einja/cli init
 | `--dry-run` | 実行内容をプレビュー |
 | `--no-backup` | バックアップを作成しない |
 
+**自動追加されるnpm scripts:**
+
+`init` 実行時に `package.json` の `scripts` に以下が自動追加されます：
+
+```json
+{
+  "scripts": {
+    "task:loop": "npx @einja/cli task:loop",
+    "einja:sync": "npx @einja/cli sync"
+  }
+}
+```
+
+これにより、以下のコマンドが使用可能になります：
+- `pnpm task:loop 123` - タスクループ実行
+- `pnpm einja:sync` - テンプレート同期
+
 ### `sync`
 
 テンプレートから更新を同期します。
@@ -66,6 +83,31 @@ npx @einja/cli sync --only hooks
 - `skills` - スキル定義
 - `hooks` - Git Hooks
 - `docs` - ステアリングドキュメント
+
+### `task:loop`
+
+GitHub Issueのタスクを自動実行します（Claude Code経由）。
+
+```bash
+# pnpm scripts経由（推奨）
+pnpm task:loop 123
+pnpm task:loop 123 --max-group 1.3
+
+# npx直接実行
+npx @einja/cli task:loop 123
+```
+
+**オプション:**
+
+| オプション | 説明 |
+|-----------|------|
+| `-m, --max-group <number>` | 最大タスクグループ番号 |
+| `-b, --branch <name>` | ベースブランチ |
+
+**前提条件:**
+- Claude Code がインストール済み（`npm install -g @anthropic-ai/claude-code`）
+- Claude Code で認証済み（`claude /login`）
+- `npx @einja/cli init` 実行済み（`/task-vibe-kanban-loop` コマンドがインストールされている）
 
 ## 配布内容
 

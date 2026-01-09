@@ -19,11 +19,38 @@ allowed-tools:
 
 ## 実行手順（6ステップ）
 
-### ステップ1: 最新化（最初に実行）
+### ステップ1: 最新化（必要な場合のみ）
 
-1. `git pull --rebase` を実行して最新化
-2. **コンフリクト発生時**: **conflict-resolver エージェント** を Task ツールで呼び出して解消
-3. コンフリクト解消できない場合は以下を出力して終了:
+**⚠️ 重要**: 毎回 `git pull --rebase` を実行するのは非効率。リモートに新しいコミットがある場合のみ実行する。
+
+#### 手順
+
+```bash
+# 1. リモートの最新情報を取得（ローカルは変更しない）
+git fetch origin
+
+# 2. リモートとの差分を確認
+git rev-list HEAD..origin/main --count
+```
+
+- **差分が0の場合**: 最新なので何もしない（次のステップへ）
+- **差分がある場合**: 以下を実行
+
+```bash
+# ローカル変更を一時退避
+git stash
+
+# リモートの変更を取り込み
+git pull --rebase
+
+# ローカル変更を復元
+git stash pop
+```
+
+#### コンフリクト発生時
+
+1. **conflict-resolver エージェント** を Task ツールで呼び出して解消
+2. 解消できない場合は以下を出力して終了:
 
 ```markdown
 ## 🚀 コミット・プッシュ
@@ -82,9 +109,18 @@ allowed-tools:
 
 **AskUserQuestionツール**を使用して、コミット分割案の承認を得る。
 
+**⚠️ 重要**: `question` パラメータに**具体的なコミット分割内容を必ず記載**すること。「コミット分割案を確認してください」のような抽象的な質問は**禁止**。
+
 ```
 AskUserQuestion:
-  question: "コミット分割案を確認してください"
+  question: |
+    以下のコミット分割案で実行してよろしいですか？
+
+    【コミット1】feat: ユーザー認証機能の追加
+    対象: src/auth/login.ts, src/auth/logout.ts, src/auth/middleware.ts
+
+    【コミット2】test: 認証機能のテスト追加
+    対象: src/auth/__tests__/login.test.ts, src/auth/__tests__/logout.test.ts
   header: "分割案"
   options:
     - label: "承認"
@@ -93,26 +129,31 @@ AskUserQuestion:
       description: "すべての変更を1つのコミットにまとめる"
 ```
 
-質問の前に、以下の形式で分割案を提示:
-
-```markdown
-### コミット分割案
-
-| # | 種類 | コミットメッセージ | 対象ファイル |
-|---|------|------------------|-------------|
-| 1 | feat | feat: ユーザー認証機能の追加 | src/auth/*.ts |
-| 2 | test | test: 認証機能のテスト追加 | src/auth/*.test.ts |
-```
+**question記載必須項目**:
+- 各コミットのメッセージ（プレフィックス付き）
+- 各コミットの対象ファイル一覧
 
 ユーザーが「Other」で修正指示を出した場合は、その指示に従って分割案を修正し、再度確認を取る。
 
 ---
 
-### ステップ4: 品質チェック（スキップ）
+### ステップ4: 品質チェック
+
+#### task-exec経由での呼び出しの場合
 
 task-exec経由でQA合格後に呼び出されるため、品質チェック（lint/typecheck/test/build）は**スキップ**します。
 
 QAフェーズで既に実行済みのため、重複実行は不要です。
+
+#### 直接呼び出しの場合
+
+コミット前に `pnpm prepush` を実行して以下のチェックを行います:
+
+1. **lint**: lint-staged による変更ファイルの lint チェック
+2. **typecheck**: TypeScript の型チェック
+3. **test**: 変更ファイルに関連するテストのみ実行（vitest related --run）
+
+`pnpm prepush` が失敗した場合は、エラー内容を報告して終了します。
 
 ---
 
@@ -128,12 +169,25 @@ QAフェーズで既に実行済みのため、重複実行は不要です。
 - **言語**: 日本語
 - **形式**: 1行目に概要、2行目以降に詳細
 
-#### コミットコマンド例
+#### コミットコマンド
+
+**task-exec経由での呼び出しの場合**（QA済み）:
 
 ```bash
-git add src/auth/login.ts src/auth/logout.ts
+git add src/auth/login.ts src/auth/logout.ts && git commit -m "$(cat <<'EOF'
+feat: ユーザー認証機能の追加
 
-git commit -m "$(cat <<'EOF'
+- JWT認証の実装
+- ログイン・ログアウトエンドポイントの追加
+- 認証ミドルウェアの実装
+EOF
+)"
+```
+
+**直接呼び出しの場合**（prepush実行）:
+
+```bash
+git add src/auth/login.ts src/auth/logout.ts && pnpm prepush && git commit -m "$(cat <<'EOF'
 feat: ユーザー認証機能の追加
 
 - JWT認証の実装
@@ -212,4 +266,4 @@ EOF
 
 ---
 
-**最終更新**: 2025-01-05
+**最終更新**: 2026-01-10

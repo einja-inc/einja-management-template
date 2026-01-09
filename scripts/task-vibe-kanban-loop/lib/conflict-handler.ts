@@ -33,11 +33,24 @@ export async function resolveConflictWithClaude(
   console.log("");
 
   const prompt = `${info.sourceBranch} を ${info.targetBranch} にマージ中にコンフリクトが発生しました。
-コンフリクトを解消してください。
 
 作業ディレクトリ: ${worktreePath}
 
-conflict-resolver スキルを使用してコンフリクトを解消し、完了したら /exit で終了してください。`;
+【必須手順】以下の手順で解消してください:
+
+1. コンフリクトファイル一覧を確認 (git diff --name-only --diff-filter=U)
+2. **各ファイルごとに** 以下を実行:
+   - 双方の差分を表示して説明 (git diff --ours / git diff --theirs)
+   - **AskUserQuestionツールで** ユーザーに解消方法を選択させる
+   - ユーザーの選択に従って解消
+3. 全ファイル解消後、git add してから merge/rebase を継続
+
+⚠️ 禁止事項:
+- ユーザー確認なしでの自動解消
+- --ours や --theirs の無断使用
+- 複数ファイルをまとめて処理すること
+
+完了したら /exit で終了してください。`;
 
   return new Promise((resolve) => {
     const child = spawn("claude", [prompt], {

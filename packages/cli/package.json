@@ -1,6 +1,6 @@
 {
   "name": "@einja/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Einja CLI - .claude設定とテンプレート同期をnpxでインストール",
   "type": "module",
   "main": "./dist/index.js",

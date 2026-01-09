@@ -7,21 +7,20 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": [
-      "**",
-      "!**/node_modules",
-      "!**/.next",
-      "!**/.turbo",
-      "!**/dist",
-      "!**/build",
-      "!**/.cache",
-      "!**/coverage",
-      "!**/.vercel",
-      "!**/.pnpm-store",
-      "!**/styled-system",
-      "!**/test-results",
-      "!**/playwright-report",
-      "!**/.claude"
+    "ignore": [
+      "**/node_modules",
+      "**/.next",
+      "**/.turbo",
+      "**/dist",
+      "**/build",
+      "**/.cache",
+      "**/coverage",
+      "**/.vercel",
+      "**/.pnpm-store",
+      "**/styled-system",
+      "**/test-results",
+      "**/playwright-report",
+      "**/.claude"
     ]
   },
   "formatter": {

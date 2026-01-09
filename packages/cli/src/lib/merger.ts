@@ -1,179 +1,233 @@
-import fs from "fs-extra";
 import path from "node:path";
-import type { CoreSettings, PresetConfig } from "../types/index.js";
+import fs from "fs-extra";
+import type { PresetConfig, SymlinksConfig } from "../types/index.js";
 import {
-	getCorePath,
-	getPresetPath,
-	getScaffoldsPath,
-	getTemplatesPath,
-	processTemplateFile,
+  getPresetPath,
+  getScaffoldsPath,
+  getTemplatesPath,
+  processTemplateFile,
 } from "./file-system.js";
-
-/**
- * コアsettings.jsonとプリセット設定をマージ
- */
-export function mergeSettings(
-	core: CoreSettings,
-	preset: PresetConfig,
-): CoreSettings {
-	return {
-		...core,
-		permissions: {
-			allow: [...new Set([...core.permissions.allow, ...preset.additionalPermissions])],
-			ask: [...core.permissions.ask],
-		},
-		enabledMcpjsonServers: preset.mcpServers,
-	};
-}
 
 /**
  * .claudeディレクトリを生成
  */
 export async function generateClaudeDirectory(
-	targetPath: string,
-	presetConfig: PresetConfig,
+  targetPath: string,
+  presetConfig: PresetConfig
 ): Promise<void> {
-	const corePath = getCorePath();
-	const presetPath = getPresetPath(presetConfig.name);
+  const presetPath = getPresetPath(presetConfig.name);
+  const presetClaudePath = path.join(presetPath, ".claude");
 
-	// 1. コアファイルをコピー
-	await copyAndProcessDirectory(
-		path.join(corePath, "agents"),
-		path.join(targetPath, "agents"),
-		presetConfig.variables,
-	);
-
-	await copyAndProcessDirectory(
-		path.join(corePath, "commands"),
-		path.join(targetPath, "commands"),
-		presetConfig.variables,
-	);
-
-	// 2. コアsettings.jsonを読み込み・マージ
-	const coreSettingsPath = path.join(corePath, "settings.json");
-	if (await fs.pathExists(coreSettingsPath)) {
-		const coreSettings = await fs.readJson(coreSettingsPath) as CoreSettings;
-		const mergedSettings = mergeSettings(coreSettings, presetConfig);
-		await fs.writeJson(path.join(targetPath, "settings.json"), mergedSettings, {
-			spaces: "\t",
-		});
-	}
-
-	// 3. プリセット固有のファイルをコピー（einja/サブディレクトリから）
-	const presetAgentsPath = path.join(presetPath, ".claude", "agents", "einja");
-	if (await fs.pathExists(presetAgentsPath)) {
-		await copyAndProcessDirectory(
-			presetAgentsPath,
-			path.join(targetPath, "agents", "einja"),
-			presetConfig.variables,
-		);
-	}
-
-	const presetCommandsPath = path.join(presetPath, ".claude", "commands", "einja");
-	if (await fs.pathExists(presetCommandsPath)) {
-		await copyAndProcessDirectory(
-			presetCommandsPath,
-			path.join(targetPath, "commands", "einja"),
-			presetConfig.variables,
-		);
-	}
-
-	const presetSkillsPath = path.join(presetPath, ".claude", "skills", "einja");
-	if (await fs.pathExists(presetSkillsPath)) {
-		await copyAndProcessDirectory(
-			presetSkillsPath,
-			path.join(targetPath, "skills", "einja"),
-			presetConfig.variables,
-		);
-	}
-
-	// 4. hooksをコピー
-	const presetHooksPath = path.join(presetPath, ".claude", "hooks");
-	if (await fs.pathExists(presetHooksPath)) {
-		await copyAndProcessDirectory(
-			presetHooksPath,
-			path.join(targetPath, "hooks"),
-			presetConfig.variables,
-		);
-	}
+  // プリセットの .claude/ を直接コピー
+  if (await fs.pathExists(presetClaudePath)) {
+    await copyAndProcessDirectory(presetClaudePath, targetPath, presetConfig.variables);
+  }
 }
 
 /**
  * ディレクトリをコピーしてテンプレート変数を展開
  */
 async function copyAndProcessDirectory(
-	srcDir: string,
-	destDir: string,
-	variables: Record<string, string>,
+  srcDir: string,
+  destDir: string,
+  variables: Record<string, string>
 ): Promise<void> {
-	if (!await fs.pathExists(srcDir)) {
-		return;
-	}
+  if (!(await fs.pathExists(srcDir))) {
+    return;
+  }
 
-	await fs.ensureDir(destDir);
+  await fs.ensureDir(destDir);
 
-	const entries = await fs.readdir(srcDir, { withFileTypes: true });
+  const entries = await fs.readdir(srcDir, { withFileTypes: true });
 
-	for (const entry of entries) {
-		const srcPath = path.join(srcDir, entry.name);
-		const destPath = path.join(destDir, entry.name);
+  for (const entry of entries) {
+    const srcPath = path.join(srcDir, entry.name);
+    const destPath = path.join(destDir, entry.name);
 
-		if (entry.isDirectory()) {
-			await copyAndProcessDirectory(srcPath, destPath, variables);
-		} else if (entry.name.endsWith(".md") || entry.name.endsWith(".json")) {
-			// テンプレート変数を展開
-			const processed = await processTemplateFile(srcPath, variables);
-			await fs.writeFile(destPath, processed);
-		} else {
-			// その他のファイルはそのままコピー
-			await fs.copy(srcPath, destPath);
-		}
-	}
+    if (entry.isDirectory()) {
+      await copyAndProcessDirectory(srcPath, destPath, variables);
+    } else if (entry.name.endsWith(".md") || entry.name.endsWith(".json")) {
+      // テンプレート変数を展開
+      const processed = await processTemplateFile(srcPath, variables);
+      await fs.writeFile(destPath, processed);
+    } else {
+      // その他のファイルはそのままコピー
+      await fs.copy(srcPath, destPath);
+    }
+  }
 }
 
 /**
  * ドキュメントテンプレートをコピー
  */
 export async function copyDocTemplates(targetPath: string): Promise<void> {
-	const templatesPath = getTemplatesPath();
+  const templatesPath = getTemplatesPath();
 
-	if (!await fs.pathExists(templatesPath)) {
-		return;
-	}
+  if (!(await fs.pathExists(templatesPath))) {
+    return;
+  }
 
-	await fs.ensureDir(targetPath);
-	await fs.copy(templatesPath, targetPath);
+  await fs.ensureDir(targetPath);
+  await fs.copy(templatesPath, targetPath);
 }
 
 /**
  * CLAUDE.mdを生成
  */
 export async function generateClaudeMd(
-	targetPath: string,
-	variables: Record<string, string>,
+  targetPath: string,
+  variables: Record<string, string>
 ): Promise<void> {
-	const scaffoldsPath = getScaffoldsPath();
-	const templatePath = path.join(scaffoldsPath, "CLAUDE.md.template");
+  const scaffoldsPath = getScaffoldsPath();
+  const templatePath = path.join(scaffoldsPath, "CLAUDE.md.template");
 
-	if (!await fs.pathExists(templatePath)) {
-		return;
-	}
+  if (!(await fs.pathExists(templatePath))) {
+    return;
+  }
 
-	const processed = await processTemplateFile(templatePath, variables);
-	await fs.writeFile(targetPath, processed);
+  const processed = await processTemplateFile(templatePath, variables);
+  await fs.writeFile(targetPath, processed);
 }
 
 /**
  * ステアリングドキュメントをコピー
  */
 export async function copySteeringDocs(targetPath: string): Promise<void> {
-	const scaffoldsPath = getScaffoldsPath();
-	const steeringPath = path.join(scaffoldsPath, "steering");
+  const scaffoldsPath = getScaffoldsPath();
+  const steeringPath = path.join(scaffoldsPath, "steering");
 
-	if (!await fs.pathExists(steeringPath)) {
-		return;
-	}
+  if (!(await fs.pathExists(steeringPath))) {
+    return;
+  }
 
-	await fs.ensureDir(targetPath);
-	await fs.copy(steeringPath, targetPath);
+  await fs.ensureDir(targetPath);
+  await fs.copy(steeringPath, targetPath);
+}
+
+/**
+ * シンボリックリンク作成の結果
+ */
+export interface CreateSymlinksResult {
+  /** 作成に成功したリンク数 */
+  created: number;
+  /** スキップしたリンク数（リンク先が存在しない等） */
+  skipped: number;
+  /** フォールバックしたリンク数（Windowsで権限エラー時に実体コピー） */
+  fallback: number;
+  /** エラー数 */
+  errors: number;
+  /** 詳細ログ */
+  logs: string[];
+}
+
+/**
+ * symlinks.json を読み込んでシンボリックリンクを作成
+ *
+ * @param targetDir - ターゲットリポジトリのルートディレクトリ
+ * @param presetName - プリセット名
+ * @returns 作成結果
+ */
+export async function createSymlinks(
+  targetDir: string,
+  presetName: string
+): Promise<CreateSymlinksResult> {
+  const result: CreateSymlinksResult = {
+    created: 0,
+    skipped: 0,
+    fallback: 0,
+    errors: 0,
+    logs: [],
+  };
+
+  const presetPath = getPresetPath(presetName);
+  const symlinksPath = path.join(presetPath, "symlinks.json");
+
+  // symlinks.json が存在しなければスキップ
+  if (!(await fs.pathExists(symlinksPath))) {
+    result.logs.push("symlinks.json が見つかりません（スキップ）");
+    return result;
+  }
+
+  // symlinks.json を読み込み
+  const symlinksContent = await fs.readFile(symlinksPath, "utf-8");
+  const symlinksConfig: SymlinksConfig = JSON.parse(symlinksContent);
+
+  // バージョンチェック
+  if (symlinksConfig.version !== 1) {
+    result.logs.push(
+      `警告: symlinks.json のバージョンが不明です (version: ${symlinksConfig.version})`
+    );
+  }
+
+  // 各シンボリックリンクを作成
+  for (const { link, target } of symlinksConfig.symlinks) {
+    const linkPath = path.join(targetDir, link);
+    const linkDir = path.dirname(linkPath);
+
+    // target はルートからの相対パス（例: docs/einja/steering/commit-rules.md）
+    // 実体の絶対パスを計算
+    const absoluteTarget = path.join(targetDir, target);
+    if (!(await fs.pathExists(absoluteTarget))) {
+      result.logs.push(`警告: リンク先が存在しません: ${target} (${link})`);
+      result.skipped++;
+      continue;
+    }
+
+    // リンク元ディレクトリからリンク先への相対パスを計算
+    const relativeTarget = path.relative(linkDir, absoluteTarget);
+
+    try {
+      // リンク元ディレクトリを作成
+      await fs.ensureDir(linkDir);
+
+      // 既存ファイルがあれば処理
+      if (await fs.pathExists(linkPath)) {
+        const stat = await fs.lstat(linkPath);
+        if (stat.isDirectory() && !stat.isSymbolicLink()) {
+          // ディレクトリの場合はエラー（手動対応を促す）
+          result.logs.push(
+            `エラー: ${link} にディレクトリが存在します。手動で削除してください。`
+          );
+          result.errors++;
+          continue;
+        }
+        // ファイルまたはシンボリックリンクの場合は削除
+        await fs.remove(linkPath);
+      }
+
+      // シンボリックリンクを作成（計算した相対パスを使用）
+      await fs.symlink(relativeTarget, linkPath);
+      result.logs.push(`リンク作成: ${link} → ${relativeTarget}`);
+      result.created++;
+    } catch (error) {
+      // Windows での権限エラー時はフォールバック
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "EPERM" &&
+        process.platform === "win32"
+      ) {
+        result.logs.push(
+          `警告: シンボリックリンクの作成に失敗しました（管理者権限が必要）: ${link}`
+        );
+        result.logs.push("  代替として実体ファイルをコピーします");
+        try {
+          await fs.copy(absoluteTarget, linkPath);
+          result.fallback++;
+        } catch (copyError) {
+          result.logs.push(
+            `エラー: ファイルコピーにも失敗しました: ${copyError instanceof Error ? copyError.message : String(copyError)}`
+          );
+          result.errors++;
+        }
+      } else {
+        result.logs.push(
+          `エラー: ${link} の作成に失敗しました: ${error instanceof Error ? error.message : String(error)}`
+        );
+        result.errors++;
+      }
+    }
+  }
+
+  return result;
 }

@@ -108,11 +108,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/unset-volta-recursion.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/unset-volta-recursion.sh"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validate-git-commit.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/validate-git-commit.sh"
           }
         ]
       },
@@ -121,7 +121,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/playwright-resize.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/playwright-resize.sh"
           }
         ]
       }
@@ -132,19 +132,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/biome-format.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/biome-format.sh"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/detect-secrets.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/detect-secrets.sh"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/large-file-warning.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/large-file-warning.sh"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/design-doc-check.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/design-doc-check.sh"
           }
         ]
       },
@@ -153,7 +153,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/typecheck.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/typecheck.sh"
           }
         ]
       },
@@ -162,7 +162,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/warn-index-ts.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/warn-index-ts.sh"
           }
         ]
       }

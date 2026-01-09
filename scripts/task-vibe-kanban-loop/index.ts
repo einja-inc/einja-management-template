@@ -205,11 +205,10 @@ async function main(): Promise<void> {
       // Vibe-Kanban のタスク状態を取得
       const currentTasks = await vibeKanban.listTasks(projectId);
 
-      // デバッグ: 現在のタスク状態を表示
-      const doneTasks = currentTasks.filter((t) => t.status === "done");
-      if (doneTasks.length > 0) {
-        console.log(`   📊 Done状態のタスク: ${doneTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ")}`);
-      }
+      // 対象Issueに関連するDoneタスクの件数のみ表示
+      const doneTasks = currentTasks.filter((t) => t.status === "done" && isTaskForThisIssue(t));
+      const totalDoneTasks = currentTasks.filter((t) => t.status === "done").length;
+      console.log(`   📊 Done: ${doneTasks.length}件 (対象Issue) / ${totalDoneTasks}件 (全体)`);
 
       // Done 増加を検知
       const newlyCompletedVibeTaskIds = stateManager.detectNewlyCompletedTasks(currentTasks);
@@ -264,11 +263,11 @@ const mergedPhaseNumbers = new Set<number>();
 /**
  * 完了した Phase を Issue ブランチにマージ
  */
-function mergeCompletedPhases(
+async function mergeCompletedPhases(
   parsedIssue: ParsedIssue,
   issueNumber: number,
   issueBranch: string
-): void {
+): Promise<void> {
   const completedPhases = getCompletedPhaseNumbers(parsedIssue);
 
   for (const phaseNumber of completedPhases) {
@@ -278,7 +277,7 @@ function mergeCompletedPhases(
 
     console.log(`\n🔀 Phase ${phaseNumber} が完了 - Issue ブランチにマージします`);
     try {
-      mergePhaseBranchIntoIssue(issueNumber, phaseNumber, issueBranch);
+      await mergePhaseBranchIntoIssue(issueNumber, phaseNumber, issueBranch);
       mergedPhaseNumbers.add(phaseNumber);
     } catch (error) {
       console.error(`   ❌ Phase ${phaseNumber} のマージに失敗:`, error);
@@ -301,7 +300,7 @@ async function startExecutableTasks(
   stateManager: TaskStateManager
 ): Promise<void> {
   // 完了した Phase を Issue ブランチにマージ（新しい Phase のタスク開始前に実行）
-  mergeCompletedPhases(parsedIssue, issueNumber, issueBranch);
+  await mergeCompletedPhases(parsedIssue, issueNumber, issueBranch);
 
   // 着手可能なタスクグループを選定
   const executableGroups = await selectExecutableTaskGroups(parsedIssue, maxTaskNumber);
@@ -360,7 +359,7 @@ async function startExecutableTasks(
     const description = generateVibeKanbanDescription(taskGroup, issueNumber);
 
     // タスク開始前に Phase ブランチを同期（リモートの最新を取得）
-    syncPhaseBranch(issueNumber, taskGroup.phaseNumber, issueBranch, baseBranch);
+    await syncPhaseBranch(issueNumber, taskGroup.phaseNumber, issueBranch, baseBranch);
 
     // タスク作成
     console.log(`   📌 タスク作成: ${taskGroup.id} - ${taskGroup.name}`);

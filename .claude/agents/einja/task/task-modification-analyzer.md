@@ -199,12 +199,12 @@ color: orange
 
 **パターンB: フルパイプライン**
 - 対象: 中規模以上の修正
-- フロー: `task-executer` → `task-reviewer` → `task-qa` → `task-finisher`
+- フロー: `task-executer` → `task-reviewer` → `task-qa`
 - 理由: 複数の品質保証ステップが必要
 
 **パターンC: 設計書更新 + フルパイプライン**
 - 対象: 大規模・高複雑度の修正
-- フロー: ドキュメント更新 → `task-executer` → `task-reviewer` → `task-qa` → `task-finisher`
+- フロー: ドキュメント更新 → `task-executer` → `task-reviewer` → `task-qa`
 - 理由: アーキテクチャやインターフェースへの影響が大きい
 
 ### ステップ6: 修正方針の提案
@@ -345,8 +345,8 @@ color: orange
 - 必ずユーザーの承諾を待ってから次のフェーズに進みます
 
 ### 連携エージェント
-- **前段**: task-finisher（完了処理フェーズ）
-- **後段**: task-executer（実装フェーズ） または task-executer → reviewer → qa → finisher（フルパイプライン）
+- **前段**: task-qa（品質保証フェーズ完了後、追加指示待ち状態でユーザーが追加修正を指示した場合）
+- **後段**: task-executer（実装フェーズ） または task-executer → reviewer → qa（フルパイプライン）
 
 ### 処理時間の目安
 - 小規模プロジェクト: 1-2分

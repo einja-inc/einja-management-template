@@ -8,6 +8,7 @@ import { backupDirectory } from "../lib/file-system.js";
 import {
 	copyDocTemplates,
 	copySteeringDocs,
+	createSymlinks,
 	generateClaudeDirectory,
 	generateClaudeMd,
 } from "../lib/merger.js";
@@ -18,8 +19,9 @@ export async function initCommand(options: InitOptions): Promise<void> {
 	const cwd = process.cwd();
 	const claudeDir = path.join(cwd, ".claude");
 	const docsDir = path.join(cwd, "docs");
-	const templatesDir = path.join(docsDir, "templates");
-	const steeringDir = path.join(docsDir, "steering");
+	const einjaDocsDir = path.join(docsDir, "einja");
+	const templatesDir = path.join(einjaDocsDir, "templates");
+	const steeringDir = path.join(einjaDocsDir, "steering");
 	const claudeMdPath = path.join(cwd, "CLAUDE.md");
 
 	console.log(chalk.blue("\n🚀 Einja Claude CLI - .claude セットアップ\n"));
@@ -45,6 +47,8 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		console.log(`  - ${templatesDir} にドキュメントテンプレートをコピー`);
 		console.log(`  - ${steeringDir} にステアリングドキュメントをコピー`);
 		console.log(`  - ${claudeMdPath} を生成`);
+		console.log("  - シンボリックリンクを作成（symlinks.json に基づく）");
+		console.log("    リンク先パスはインストール時に自動計算");
 		return;
 	}
 
@@ -126,7 +130,47 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	// 8. 完了メッセージ
+	// 8. シンボリックリンクを作成
+	spinner.start("シンボリックリンクをセットアップ中...");
+
+	try {
+		const symlinkResult = await createSymlinks(cwd, presetName);
+
+		if (symlinkResult.created > 0 || symlinkResult.fallback > 0) {
+			const successCount = symlinkResult.created + symlinkResult.fallback;
+			spinner.succeed(`シンボリックリンク: ${successCount} 件作成`);
+
+			// 詳細ログを表示
+			if (symlinkResult.logs.length > 0) {
+				for (const log of symlinkResult.logs) {
+					if (log.startsWith("警告:") || log.startsWith("エラー:")) {
+						console.log(chalk.yellow(`    ${log}`));
+					} else if (log.startsWith("リンク作成:")) {
+						console.log(chalk.gray(`    ${log}`));
+					}
+				}
+			}
+
+			if (symlinkResult.fallback > 0) {
+				console.log(
+					chalk.yellow(`    ⚠ ${symlinkResult.fallback} 件は実体ファイルにフォールバック`)
+				);
+			}
+		} else if (symlinkResult.skipped > 0 || symlinkResult.errors > 0) {
+			spinner.warn("シンボリックリンク: 一部スキップまたはエラー");
+			for (const log of symlinkResult.logs) {
+				console.log(chalk.yellow(`    ${log}`));
+			}
+		} else {
+			spinner.info("シンボリックリンク: 対象なし");
+		}
+	} catch (error) {
+		spinner.fail("シンボリックリンクのセットアップに失敗しました");
+		console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+		// シンボリックリンクの失敗は致命的ではないので続行
+	}
+
+	// 9. 完了メッセージ
 	console.log(chalk.green("\n✅ セットアップ完了!"));
 	console.log(chalk.gray("\n生成されたファイル:"));
 	console.log("  - .claude/           Claude Code設定");

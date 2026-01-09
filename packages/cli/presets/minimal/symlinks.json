@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "symlinks": [
+    {
+      "link": ".claude/skills/einja/api-development/reference/api-development.md",
+      "target": "docs/einja/steering/development/api-development.md"
+    },
+    {
+      "link": ".claude/skills/einja/backend-architecture/reference/backend-architecture.md",
+      "target": "docs/einja/steering/development/backend-architecture.md"
+    },
+    {
+      "link": ".claude/skills/einja/coding-standards/reference/commit-rules.md",
+      "target": "docs/einja/steering/commit-rules.md"
+    },
+    {
+      "link": ".claude/skills/einja/coding-standards/reference/review-guidelines.md",
+      "target": "docs/einja/steering/development/review-guidelines.md"
+    },
+    {
+      "link": ".claude/skills/einja/coding-standards/reference/testing-strategy.md",
+      "target": "docs/einja/steering/development/testing-strategy.md"
+    },
+    {
+      "link": ".claude/skills/einja/component-design/reference/frontend-development.md",
+      "target": "docs/einja/steering/development/frontend-development.md"
+    },
+    {
+      "link": ".claude/skills/einja/component-design/reference/testing-strategy.md",
+      "target": "docs/einja/steering/development/testing-strategy.md"
+    },
+    {
+      "link": ".claude/skills/einja/frontend-development/reference/frontend-development.md",
+      "target": "docs/einja/steering/development/frontend-development.md"
+    },
+    {
+      "link": ".claude/skills/einja/task-commit/reference/commit-rules.md",
+      "target": "docs/einja/steering/commit-rules.md"
+    },
+    {
+      "link": ".claude/skills/einja/task-qa/reference/acceptance-criteria-and-qa-guide.md",
+      "target": "docs/einja/steering/acceptance-criteria-and-qa-guide.md"
+    }
+  ]
+}

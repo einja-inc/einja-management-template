@@ -104,6 +104,10 @@ function mergeWithWorktree(
 /**
  * 統合マージ関数（gh CLI → worktree のフォールバック）
  * ローカルの状態に依存せずにリモートブランチをマージ
+ *
+ * GitHub APIで409（コンフリクト）が返った場合、worktreeで再試行する。
+ * GitHub APIは保守的な判定をするため、ローカルのgit merge（ort戦略）なら
+ * 自動解決できるケースがある。
  */
 function mergeRemoteBranches(
   baseBranch: string,
@@ -113,10 +117,20 @@ function mergeRemoteBranches(
   // gh CLI が認証済みなら GitHub API を使用
   if (isGhCliAuthenticated()) {
     console.log("   🔧 GitHub API でマージを実行");
-    return mergeWithGitHubApi(baseBranch, headBranch, commitMessage);
+    const apiResult = mergeWithGitHubApi(baseBranch, headBranch, commitMessage);
+
+    // API成功 or コンフリクト以外のエラー → そのまま返す
+    if (apiResult.success || !apiResult.conflicted) {
+      return apiResult;
+    }
+
+    // 409（コンフリクト）の場合のみ worktree で再試行
+    // GitHub APIは保守的なため、ローカルのort戦略なら解決できる場合がある
+    console.log("   ⚠️ GitHub API で 409 Conflict、worktree で再試行...");
+    return mergeWithWorktree(baseBranch, headBranch, commitMessage);
   }
 
-  // フォールバック: git worktree を使用
+  // gh CLI 未認証: git worktree を使用
   console.log("   🔧 git worktree でマージを実行");
   return mergeWithWorktree(baseBranch, headBranch, commitMessage);
 }

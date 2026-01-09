@@ -205,11 +205,10 @@ async function main(): Promise<void> {
       // Vibe-Kanban のタスク状態を取得
       const currentTasks = await vibeKanban.listTasks(projectId);
 
-      // デバッグ: 現在のタスク状態を表示
-      const doneTasks = currentTasks.filter((t) => t.status === "done");
-      if (doneTasks.length > 0) {
-        console.log(`   📊 Done状態のタスク: ${doneTasks.map((t) => extractTaskGroupIdFromTitle(t.title) || t.title).join(", ")}`);
-      }
+      // 対象Issueに関連するDoneタスクの件数のみ表示
+      const doneTasks = currentTasks.filter((t) => t.status === "done" && isTaskForThisIssue(t));
+      const totalDoneTasks = currentTasks.filter((t) => t.status === "done").length;
+      console.log(`   📊 Done: ${doneTasks.length}件 (対象Issue) / ${totalDoneTasks}件 (全体)`);
 
       // Done 増加を検知
       const newlyCompletedVibeTaskIds = stateManager.detectNewlyCompletedTasks(currentTasks);

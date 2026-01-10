@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # ローカル開発サーバー環境構築ガイド（Worktree対応）
 
 ## クイックスタート（推奨）
@@ -526,3 +527,13 @@ pnpm build
 2. プロジェクトのREADME.md
 3. GitHub Issuesで既存の問題を検索
 4. チームメンバーに相談
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="local-server-environment-and-worktree-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

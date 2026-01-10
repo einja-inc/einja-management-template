@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # スキーマ設計
 
 TODO
@@ -607,3 +608,13 @@ pnpm db:seed
 5. **スケーラビリティ**: PostgreSQLとPrismaの組み合わせによる高いスケーラビリティ
 
 すべてのスキーマ変更は、このガイドラインに従って実装してください。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="db-schema-design-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

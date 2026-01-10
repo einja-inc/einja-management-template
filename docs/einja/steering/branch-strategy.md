@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # ブランチ運用戦略
 
 ## 概要
@@ -360,3 +361,13 @@ git push origin タスクブランチ名
 - [task:loop コマンド](../instructions/task-vibe-kanban-loop.md) - コマンドの使用方法と Vibe-Kanban 操作手順
 - [タスク管理](task-management.md) - タスク階層と粒度基準
 - [開発ワークフロー](development-workflow.md) - 仕様書作成からタスク実行までの全体フロー
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="branch-strategy-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

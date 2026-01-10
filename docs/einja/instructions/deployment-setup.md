@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # デプロイセットアップ手順
 
 本番環境へのデプロイに必要な設定手順をまとめたドキュメントです。
@@ -445,3 +446,13 @@ gh secret set TURBO_TOKEN --body "new-token"
 - [Vercel CLI Documentation](https://vercel.com/docs/cli)
 - [Railway Documentation](https://docs.railway.app/)
 - [GitHub Actions - Encrypted secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="deployment-setup-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

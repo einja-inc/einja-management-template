@@ -271,6 +271,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - 番号付きリスト: 詳細説明が必要な場合
 - 推奨オプションには `（推奨）` と理由を付記
 
+## サブエージェント結果報告のルール
+
+サブエージェントの出力形式は **@.claude/skills/einja/output-format/SKILL.md** に定義されています。
+
+### 必須要件
+- サブエージェントの最終出力は**そのまま全文**をユーザーに表示する
+- 省略・要約・言い換えは**禁止**
+
+### サブエージェント呼び出し時の必須指示
+
+出力形式が定義されているサブエージェントを呼び出す際は、プロンプトの末尾に以下を追加:
+
+```
+**出力形式**: @.claude/skills/einja/output-format/SKILL.md に従って報告してください。
+```
+
+#### 呼び出し例
+
+```yaml
+Task:
+  description: "アーキテクチャ設計"
+  prompt: |
+    「ユーザー設定画面」のコンポーネント構造を設計してください。
+
+    要件:
+    - プロフィール編集
+    - 通知設定
+
+    **出力形式**: エージェント定義の「✅ 最重要: 出力形式」に従って報告してください。
+  subagent_type: frontend-architect
+```
+
 ## 追加指示
 
 以下のドキュメントも参照して作業を進めてください:
@@ -282,3 +314,33 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - @docs/einja/steering/development/review-guidelines.md - コードレビューのガイドライン
 - @docs/einja/memory/decisions.md - 過去の意思決定記録（セッション跨ぎで継承）
 - @docs/einja/memory/patterns.md - 再利用可能なパターン（セッション跨ぎで継承）
+
+<!-- @einja:template-exclude:start -->
+## このリポジトリ限定の設定
+
+このセクションはテンプレート生成時に除外され、CLIで他リポジトリにコピーされません。
+
+### キーワードトリガー（専用Skill使用必須）
+
+以下のキーワードを検出したら、**即座に該当Skillを参照**すること：
+
+| キーワード | 使用するSkill |
+|-----------|--------------|
+| `einja cli` `@einja/cli` `公開` `リリース` `publish` `release` | `.claude/skills/cli/release/SKILL.md` |
+
+### CLIパッケージの二重管理禁止
+
+以下のファイルは**原本（Single Source of Truth）**として管理され、ビルド時に自動的にCLI配布用ディレクトリにコピー/生成されます。
+
+| 原本 | コピー先 | 備考 |
+|-----|---------|------|
+| `.claude/agents/einja/` | `presets/minimal/.claude/agents/einja/` | 単純コピー |
+| `.claude/commands/einja/` | `presets/minimal/.claude/commands/einja/` | 単純コピー |
+| `.claude/skills/einja/` | `presets/minimal/.claude/skills/einja/` | 単純コピー |
+| `.claude/hooks/einja/` | `presets/minimal/.claude/hooks/einja/` | 単純コピー |
+| `.claude/settings.json` | `presets/minimal/.claude/settings.json` | 単純コピー |
+| `docs/einja/steering/` | `scaffolds/steering/` | 単純コピー |
+| `CLAUDE.md` | `scaffolds/CLAUDE.md.template` | **変換生成** |
+
+**コピー先のファイルは直接編集禁止**（ビルド時に上書きされる）
+<!-- @einja:template-exclude:end -->

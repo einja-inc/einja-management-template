@@ -131,7 +131,7 @@ describe("post-setup generator", () => {
       await execPostSetup(configWithEinja, testDir, {});
 
       // Then: npx @einja/dev-cli init --forceが実行される
-      expect(execa).toHaveBeenCalledWith("npx", ["@einja/dev-cli", "init", "--force"], { cwd: testDir });
+      expect(execa).toHaveBeenCalledWith("npx", ["@einja/dev-cli", "init", "--force", "--no-backup"], { cwd: testDir });
     });
 
     it("setupEinjaCliが無効な場合、@einja/dev-cli initが実行されない", async () => {
@@ -142,7 +142,7 @@ describe("post-setup generator", () => {
       await execPostSetup(mockConfig, testDir, {});
 
       // Then: npx @einja/dev-cli init --forceが実行されない
-      expect(execa).not.toHaveBeenCalledWith("npx", ["@einja/dev-cli", "init", "--force"], {
+      expect(execa).not.toHaveBeenCalledWith("npx", ["@einja/dev-cli", "init", "--force", "--no-backup"], {
         cwd: testDir,
       });
     });

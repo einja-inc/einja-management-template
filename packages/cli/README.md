@@ -1,22 +1,22 @@
-# einja-dev-cli
+# @einja/dev-cli
 
 Claude Code用の`.claude`設定ディレクトリをnpxでインストールできるCLI。
 
 ## クイックスタート
 
 ```bash
-npx einja-dev-cli init
+npx @einja/dev-cli init
 ```
 
 ## インストール
 
 ```bash
 # npx（推奨）
-npx einja-dev-cli init
+npx @einja/dev-cli init
 
 # グローバルインストール
-npm install -g einja-dev-cli
-einja-dev-cli init
+npm install -g @einja/dev-cli
+@einja/dev-cli init
 ```
 
 ## コマンド
@@ -26,7 +26,7 @@ einja-dev-cli init
 `.claude`ディレクトリをセットアップします。
 
 ```bash
-npx einja-dev-cli init
+npx @einja/dev-cli init
 ```
 
 **オプション:**
@@ -44,8 +44,8 @@ npx einja-dev-cli init
 ```json
 {
   "scripts": {
-    "task:loop": "einja-dev-cli task:loop",
-    "einja:sync": "einja-dev-cli sync"
+    "task:loop": "@einja/dev-cli task:loop",
+    "einja:sync": "@einja/dev-cli sync"
   }
 }
 ```
@@ -60,11 +60,11 @@ npx einja-dev-cli init
 
 ```bash
 # 全カテゴリを同期
-npx einja-dev-cli sync
+npx @einja/dev-cli sync
 
 # 特定カテゴリのみ同期
-npx einja-dev-cli sync --only commands,agents
-npx einja-dev-cli sync --only hooks
+npx @einja/dev-cli sync --only commands,agents
+npx @einja/dev-cli sync --only hooks
 ```
 
 **オプション:**
@@ -94,7 +94,7 @@ pnpm task:loop 123
 pnpm task:loop 123 --max-group 1.3
 
 # npx直接実行
-npx einja-dev-cli task:loop 123
+npx @einja/dev-cli task:loop 123
 ```
 
 **オプション:**
@@ -107,7 +107,7 @@ npx einja-dev-cli task:loop 123
 **前提条件:**
 - Claude Code がインストール済み（`npm install -g @anthropic-ai/claude-code`）
 - Claude Code で認証済み（`claude /login`）
-- `npx einja-dev-cli init` 実行済み（`/task-vibe-kanban-loop` コマンドがインストールされている）
+- `npx @einja/dev-cli init` 実行済み（`/task-vibe-kanban-loop` コマンドがインストールされている）
 
 ## 配布内容
 

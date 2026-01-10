@@ -217,8 +217,8 @@ export async function initCommand(options: InitOptions): Promise<void> {
 		try {
 			const packageJson = await fs.readJson(packageJsonPath);
 			const scriptsToAdd = {
-				"task:loop": "npx einja-dev-cli task:loop",
-				"einja:sync": "npx einja-dev-cli sync",
+				"task:loop": "npx @einja/dev-cli task:loop",
+				"einja:sync": "npx @einja/dev-cli sync",
 			};
 
 			let added = 0;

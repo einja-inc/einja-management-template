@@ -12,14 +12,14 @@ const isLegacyPackageName = process.argv[1]?.includes("@einja/claude-cli");
 if (isLegacyPackageName) {
 	console.warn(
 		chalk.yellow(
-			"⚠️  警告: @einja/claude-cli は非推奨です。今後は einja-dev-cli をご使用ください。",
+			"⚠️  警告: @einja/claude-cli は非推奨です。今後は @einja/dev-cli をご使用ください。",
 		),
 	);
-	console.warn(chalk.yellow("   新しいパッケージ名: npx einja-dev-cli\n"));
+	console.warn(chalk.yellow("   新しいパッケージ名: npx @einja/dev-cli\n"));
 }
 
 program
-	.name("einja-dev-cli")
+	.name("@einja/dev-cli")
 	.description("Einja CLI - .claude設定とテンプレート同期をnpxでインストール")
 	.version("0.1.0");
 

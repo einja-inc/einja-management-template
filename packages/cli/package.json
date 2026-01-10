@@ -1,12 +1,12 @@
 {
-  "name": "einja-dev-cli",
-  "version": "0.1.5",
+  "name": "@einja/dev-cli",
+  "version": "0.1.0",
   "description": "Einja CLI - .claude設定とテンプレート同期をnpxでインストール",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "einja-dev-cli": "./dist/cli.js"
+    "@einja/dev-cli": "./dist/cli.js"
   },
   "files": [
     "dist",

@@ -120,16 +120,10 @@ const mappings = [
 		basePath: ".claude/hooks/einja",
 		cleanParent: true, // hooks/ディレクトリ全体をクリーンアップ
 	},
-	// ステアリングドキュメント（scaffoldsはシンボリックリンク非対象）
+	// docs/einja全体（scaffoldsはシンボリックリンク非対象）
 	{
-		src: path.join(projectRoot, "docs/einja/steering"),
-		dest: path.join(cliDir, "scaffolds/steering"),
-		basePath: null, // シンボリックリンク記録対象外
-	},
-	// テンプレート（シンボリックリンク非対象）
-	{
-		src: path.join(projectRoot, "docs/einja/templates"),
-		dest: path.join(cliDir, "templates"),
+		src: path.join(projectRoot, "docs/einja"),
+		dest: path.join(cliDir, "scaffolds"),
 		basePath: null, // シンボリックリンク記録対象外
 	},
 ];

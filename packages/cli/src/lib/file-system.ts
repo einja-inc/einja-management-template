@@ -23,7 +23,7 @@ export function getPresetsPath(): string {
  * テンプレートディレクトリのパスを取得
  */
 export function getTemplatesPath(): string {
-  return path.join(getPackageRoot(), "templates");
+  return path.join(getPackageRoot(), "scaffolds", "templates");
 }
 
 /**

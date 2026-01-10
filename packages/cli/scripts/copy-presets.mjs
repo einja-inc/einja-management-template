@@ -7,13 +7,14 @@
  * - .claude/commands/einja/
  * - .claude/skills/einja/
  * - .claude/hooks/
+ * - .claude/settings.json
+ * - .mcp.json
  * - docs/einja/steering/
- * - packages/cli/templates/CLAUDE.md.template
  *
  * コピー先（CLI配布用）:
  * - packages/cli/presets/minimal/.claude/
  * - packages/cli/scaffolds/steering/
- * - packages/cli/scaffolds/CLAUDE.md.template
+ * - packages/cli/scaffolds/.mcp.json
  *
  * シンボリックリンク:
  * - プロジェクト原本のシンボリックリンクは symlinks.json に記録される
@@ -55,11 +56,12 @@ const mappings = [
 		dest: path.join(cliDir, "presets/minimal/.claude/skills/einja"),
 		basePath: ".claude/skills/einja",
 	},
-	// フック
+	// フック（hooks/ディレクトリ全体をクリーンアップしてから再コピー）
 	{
 		src: path.join(projectRoot, ".claude/hooks/einja"),
 		dest: path.join(cliDir, "presets/minimal/.claude/hooks/einja"),
 		basePath: ".claude/hooks/einja",
+		cleanParent: true, // hooks/ディレクトリ全体をクリーンアップ
 	},
 	// ステアリングドキュメント（scaffoldsはシンボリックリンク非対象）
 	{
@@ -71,15 +73,15 @@ const mappings = [
 
 // 単一ファイルのコピー設定
 const fileMappings = [
-	// CLAUDE.mdテンプレート
-	{
-		src: path.join(cliDir, "templates/CLAUDE.md.template"),
-		dest: path.join(cliDir, "scaffolds/CLAUDE.md.template"),
-	},
 	// settings.json
 	{
 		src: path.join(projectRoot, ".claude/settings.json"),
 		dest: path.join(cliDir, "presets/minimal/.claude/settings.json"),
+	},
+	// .mcp.json
+	{
+		src: path.join(projectRoot, ".mcp.json"),
+		dest: path.join(cliDir, "scaffolds/.mcp.json"),
 	},
 ];
 
@@ -148,10 +150,16 @@ function copyPresets() {
 
 	// ディレクトリのコピー
 	console.log("ディレクトリ:");
-	for (const { src, dest, basePath } of mappings) {
-		if (fs.existsSync(src)) {
-			// コピー先をクリア
+	for (const { src, dest, basePath, cleanParent } of mappings) {
+		// コピー先をクリア（cleanParent=trueの場合は親ディレクトリを削除）
+		if (cleanParent) {
+			const parentDir = path.dirname(dest);
+			removeDir(parentDir);
+		} else {
 			removeDir(dest);
+		}
+
+		if (fs.existsSync(src)) {
 			// コピー（basePathがnullの場合はシンボリックリンク記録対象外）
 			copyDir(
 				src,

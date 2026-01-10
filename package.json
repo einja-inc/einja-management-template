@@ -44,7 +44,8 @@
 		"template:update": "tsx scripts/template-update.ts",
 		"dotenvx": "dotenvx",
 		"env:encrypt": "dotenvx encrypt",
-		"env:show": "tsx scripts/env-show.ts"
+		"env:show": "tsx scripts/env-show.ts",
+		"task:loop": "node packages/cli/dist/cli.js task:loop"
 	},
 	"devDependencies": {
 		"@clack/prompts": "^0.11.0",

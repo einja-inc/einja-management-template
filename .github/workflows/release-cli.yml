@@ -38,7 +38,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build CLI package
-        run: pnpm --filter @einja/cli build
+        run: pnpm --filter @einja/dev-cli build
 
       - name: Get version info
         id: version
@@ -65,7 +65,7 @@ jobs:
 
       - name: Show release info
         run: |
-          echo "📦 Package: @einja/cli"
+          echo "📦 Package: @einja/dev-cli"
           echo "📌 Version: ${{ steps.version.outputs.pkg_version }}"
           echo "🎯 Trigger: ${{ steps.version.outputs.source }}"
           echo "🧪 Dry run: ${{ github.event.inputs.dry_run || 'false' }}"
@@ -77,10 +77,10 @@ jobs:
 
       - name: Publish to npm (dry-run)
         if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: pnpm --filter @einja/cli publish --no-git-checks --access public --dry-run
+        run: pnpm --filter @einja/dev-cli publish --no-git-checks --access public --dry-run
 
       - name: Publish to npm
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: pnpm --filter @einja/cli publish --no-git-checks --access public
+        run: pnpm --filter @einja/dev-cli publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

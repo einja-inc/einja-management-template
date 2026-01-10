@@ -452,12 +452,22 @@ async function syncExistingDoneTasks(
 			continue;
 		}
 
-		// キャッシュからdescriptionを取得
-		const taskDescription = descriptionCache.get(task.id);
+		// タイトルからIssue番号を抽出（新形式: [Issue22 5.1]）
+		const titleIssueNum = extractIssueNumberFromTitle(task.title);
+		let isTargetIssue = false;
 
-		// 対象のGitHub Issueに属するタスクのみ処理
-		// descriptionに "GitHub Issue #<issueNumber>" が含まれているタスクのみを対象とする
-		if (!taskDescription?.includes(issuePattern)) {
+		if (titleIssueNum === issueNumber) {
+			// タイトルで一致した場合は対象
+			isTargetIssue = true;
+		} else {
+			// 旧形式: descriptionで判定
+			const taskDescription = descriptionCache.get(task.id);
+			if (taskDescription?.includes(issuePattern)) {
+				isTargetIssue = true;
+			}
+		}
+
+		if (!isTargetIssue) {
 			// Issue番号が一致しないタスクは何もしない（ログ出力も不要）
 			continue;
 		}

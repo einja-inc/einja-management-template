@@ -30,6 +30,7 @@
     "test:watch": "vitest --passWithNoTests"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "fs-extra": "^11.3.0",

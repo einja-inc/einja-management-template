@@ -44,8 +44,8 @@ npx @einja/dev-cli init
 ```json
 {
   "scripts": {
-    "task:loop": "@einja/dev-cli task:loop",
-    "einja:sync": "@einja/dev-cli sync"
+    "task:loop": "npx @einja/dev-cli task:loop",
+    "einja:sync": "npx @einja/dev-cli sync"
   }
 }
 ```

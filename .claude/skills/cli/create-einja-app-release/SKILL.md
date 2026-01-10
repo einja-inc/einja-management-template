@@ -59,11 +59,22 @@ pnpm -F create-einja-app lint
 
 ### 4. バージョン更新・コミット・プッシュ
 
+**注意**: `npm version` はデフォルトで `v{version}` タグを生成しますが、このワークフローでは `create-einja-app-v{version}` タグが必要です。そのため、タグは手動で作成します。
+
 #### 通常パターン（未コミット変更なし）
 
 ```bash
-cd packages/create-einja-app
-npm version {patch|minor|major}
+# 1. バージョンのみ更新（タグは作成しない）
+npm version {patch|minor|major} --no-git-tag-version --prefix packages/create-einja-app
+
+# 2. package.jsonの変更をコミット
+git add packages/create-einja-app/package.json
+git commit -m "chore(create-einja-app): v{version}にバージョンアップ"
+
+# 3. 正しい形式のタグを手動作成
+git tag create-einja-app-v{version}
+
+# 4. プッシュ
 git push origin main
 git push origin create-einja-app-v{version}
 ```
@@ -83,7 +94,7 @@ git add packages/create-einja-app/package.json
 # バージョン更新のみコミット
 git commit -m "chore(create-einja-app): v{version}にバージョンアップ"
 
-# タグ作成
+# タグ作成（create-einja-app-v形式）
 git tag create-einja-app-v{version}
 
 # プッシュ

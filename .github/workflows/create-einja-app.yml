@@ -86,10 +86,10 @@ jobs:
 
       - name: Publish to npm (dry-run)
         if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: pnpm -F create-einja-app publish --no-git-checks --access public --dry-run
+        run: pnpm -F create-einja-app publish --no-git-checks --access public --provenance --dry-run
 
       - name: Publish to npm
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: pnpm -F create-einja-app publish --no-git-checks --access public
+        run: pnpm -F create-einja-app publish --no-git-checks --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

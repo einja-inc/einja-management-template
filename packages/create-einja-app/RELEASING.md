@@ -7,43 +7,56 @@
 
 ## リリース手順
 
-### 1. バージョンを更新
+**重要**: `npm version` はデフォルトで `v{version}` タグを生成しますが、このワークフローでは `create-einja-app-v{version}` タグが必要です。そのため、以下の手順でタグを手動作成します。
+
+### 1. バージョンを更新（タグなし）
 
 ```bash
 cd packages/create-einja-app
 
 # パッチバージョン (0.1.0 → 0.1.1)
-npm version patch
+npm version patch --no-git-tag-version
 
 # マイナーバージョン (0.1.0 → 0.2.0)
-npm version minor
+npm version minor --no-git-tag-version
 
 # メジャーバージョン (0.1.0 → 1.0.0)
-npm version major
+npm version major --no-git-tag-version
 ```
 
-### 2. コミットをプッシュ
+### 2. 変更をコミット
+
+```bash
+git add package.json
+git commit -m "chore(create-einja-app): v<version>にバージョンアップ"
+```
+
+### 3. タグを手動作成
+
+```bash
+# 正しい形式のタグを作成
+git tag create-einja-app-v<version>
+
+# 例: create-einja-app-v0.1.1
+git tag create-einja-app-v0.1.1
+```
+
+### 4. プッシュ
 
 ```bash
 git push origin main
-```
-
-### 3. タグをプッシュ
-
-```bash
-# npm version で自動生成されたタグをプッシュ
 git push origin create-einja-app-v<version>
 
-# 例: create-einja-app-v0.2.0
-git push origin create-einja-app-v0.2.0
+# 例
+git push origin create-einja-app-v0.1.1
 ```
 
-### 4. GitHub Actions が自動実行
+### 5. GitHub Actions が自動実行
 
 - Actions タブで "Release create-einja-app" ワークフローの実行を確認
 - 成功すると npm に自動公開される
 
-### 5. 公開を確認
+### 6. 公開を確認
 
 ```bash
 # npm で公開を確認

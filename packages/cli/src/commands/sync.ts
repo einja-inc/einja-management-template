@@ -111,12 +111,19 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 		.filter((result) => result.changed)
 		.map((result) => result.target);
 
-	if (changedFiles.length === 0) {
+	// --force オプション時は全ファイルを対象にする
+	const filesToProcess = options.force ? targets : changedFiles;
+
+	if (filesToProcess.length === 0) {
 		log(chalk.green("\n✅ すでに最新です"), options);
 		return;
 	}
 
-	spinner.succeed(`✓ ${changedFiles.length}ファイルに変更あり`);
+	if (options.force) {
+		spinner.succeed(`✓ ${filesToProcess.length}ファイルを強制同期`);
+	} else {
+		spinner.succeed(`✓ ${changedFiles.length}ファイルに変更あり`);
+	}
 
 	// 6. dry-runモード
 	if (options.dryRun) {
@@ -130,7 +137,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 		};
 		const dryRunConflicts = new Map<string, Array<{ line: number; localContent: string; templateContent: string }>>();
 
-		for (const target of changedFiles) {
+		for (const target of filesToProcess) {
 			const templateContent = await fs.readFile(target.templatePath, "utf-8");
 
 			if (!target.exists) {
@@ -168,7 +175,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 		log(`  - 新規ファイル: ${dryRunStats.new}件`, options);
 		log(`  - 更新ファイル: ${dryRunStats.updated}件`, options);
 		log(`  - コンフリクト: ${dryRunStats.conflicts}件`, options);
-		log(`  - 合計: ${changedFiles.length}件\n`, options);
+		log(`  - 合計: ${filesToProcess.length}件\n`, options);
 
 		// コンフリクト詳細表示
 		if (dryRunConflicts.size > 0) {
@@ -190,7 +197,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 					default: false,
 				}
 			: {
-					message: `${changedFiles.length}ファイルを同期します。続行しますか？`,
+					message: `${filesToProcess.length}ファイルを同期します。続行しますか？`,
 					default: true,
 				};
 
@@ -211,7 +218,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 	// 8. バックアップ作成
 	if (options.backup !== false) {
 		spinner.start("バックアップを作成中...");
-		const filesToBackup = changedFiles
+		const filesToBackup = filesToProcess
 			.filter((f) => f.exists)
 			.map((f) => f.path);
 		await backupManager.backupFiles(filesToBackup);
@@ -230,7 +237,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
 	// マージ計算を並列実行
 	const mergeResults = await batchProcessor.processBatch(
-		changedFiles,
+		filesToProcess,
 		async (target) => {
 			const templateContent = await fs.readFile(target.templatePath, "utf-8");
 			const projectPath = path.join(cwd, target.path);
@@ -314,11 +321,11 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 		Object.assign(metadata, updatedMetadata);
 	}
 
-	skipCount = targets.length - changedFiles.length;
+	skipCount = targets.length - filesToProcess.length;
 
 	// スキップされたファイルのJSON出力データを追加
 	for (const target of targets) {
-		if (!changedFiles.includes(target)) {
+		if (!filesToProcess.includes(target)) {
 			jsonFiles.push({
 				path: target.path,
 				status: "skipped",

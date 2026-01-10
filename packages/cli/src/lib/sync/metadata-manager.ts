@@ -121,11 +121,9 @@ export class MetadataManager {
 	 * 同一ファイル内容の場合、2回目以降はキャッシュから取得
 	 */
 	calculateHash(content: string, filePath = ""): string {
-		const contentLength = content.length;
-
 		// キャッシュヒット判定
-		if (filePath && this.hashCache.has(filePath, contentLength)) {
-			const cachedHash = this.hashCache.get(filePath, contentLength);
+		if (filePath && this.hashCache.has(filePath, content)) {
+			const cachedHash = this.hashCache.get(filePath, content);
 			if (cachedHash) {
 				return cachedHash;
 			}
@@ -136,7 +134,7 @@ export class MetadataManager {
 
 		// キャッシュに保存
 		if (filePath) {
-			this.hashCache.set(filePath, contentLength, hash);
+			this.hashCache.set(filePath, content, hash);
 		}
 
 		return hash;

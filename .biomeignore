@@ -1,0 +1,15 @@
+# Biome ignore patterns
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/build
+**/.cache
+**/coverage
+**/.vercel
+**/.pnpm-store
+styled-system
+**/test-results
+**/playwright-report
+.claude
+**/__generated__

@@ -311,7 +311,7 @@ frontend-implement "認証フロー（ログイン・サインアップ・パス
 
 ### Panda CSS生成エラー
 ```bash
-pnpm --filter @einja/web panda codegen
+pnpm --filter @repo/web panda codegen
 ```
 
 ### 型エラー

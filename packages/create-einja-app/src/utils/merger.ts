@@ -89,7 +89,8 @@ export function mergeTextWithMarkers(
   }
 
   // Then: ファイル先頭の空セクションのみ除去（セクション間の空行は保持）
-  if (result.length > 0 && result[0].length === 0) {
+  const firstElement = result[0];
+  if (result.length > 0 && firstElement !== undefined && firstElement.length === 0) {
     result.shift();
   }
   return result.join("\n");

@@ -55,9 +55,14 @@ function formatDate(dateString: string | null): string {
 }
 
 /**
- * テーブルの列定義
+ * テーブルの列定義を生成
  */
-const columns: ColumnDef<UserListItem>[] = [
+function createColumns(
+  onView?: (userId: string) => void,
+  onEdit?: (userId: string) => void,
+  onDelete?: (userId: string) => void
+): ColumnDef<UserListItem>[] {
+  return [
   {
     accessorKey: "name",
     header: ({ column }) => {
@@ -159,16 +164,16 @@ const columns: ColumnDef<UserListItem>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => console.log("詳細表示:", user.id)}>
+            <DropdownMenuItem onClick={() => onView?.(user.id)}>
               <Eye className="mr-2 h-4 w-4" />
               詳細表示
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => console.log("編集:", user.id)}>
+            <DropdownMenuItem onClick={() => onEdit?.(user.id)}>
               <Edit className="mr-2 h-4 w-4" />
               編集
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => console.log("削除:", user.id)}
+              onClick={() => onDelete?.(user.id)}
               className="text-destructive"
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -179,16 +184,22 @@ const columns: ColumnDef<UserListItem>[] = [
       );
     },
   },
-];
+  ];
+}
 
 interface UserTableProps {
   users: readonly UserListItem[];
+  onView?: (userId: string) => void;
+  onEdit?: (userId: string) => void;
+  onDelete?: (userId: string) => void;
 }
 
 /**
  * ユーザーテーブルコンポーネント
  */
-export function UserTable({ users }: UserTableProps) {
+export function UserTable({ users, onView, onEdit, onDelete }: UserTableProps) {
+  const columns = createColumns(onView, onEdit, onDelete);
+
   return (
     <DataTable
       columns={columns}

@@ -8,6 +8,7 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
+      "@web/*": ["./src/*", "./*"],
       "@/styled-system/*": ["./styled-system/*"],
       "styled-system/*": ["./styled-system/*"]
     }
@@ -18,6 +19,7 @@
     "test/matchers.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "server/**/*.ts",
     ".next/types/**/*.ts",
     "../../packages/front-core/src/auth/types/**/*.d.ts"
   ],

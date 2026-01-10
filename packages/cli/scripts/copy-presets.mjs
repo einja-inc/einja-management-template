@@ -140,16 +140,19 @@ const fileMappings = [
 	{
 		src: path.join(projectRoot, ".claude/settings.json"),
 		dest: path.join(cliDir, "presets/default/.claude/settings.json"),
+		required: true,
 	},
 	// .mcp.json
 	{
 		src: path.join(projectRoot, ".mcp.json"),
 		dest: path.join(cliDir, "scaffolds/.mcp.json"),
+		required: false,
 	},
 	// preset.yaml（プリセット定義）
 	{
 		src: path.join(projectRoot, "docs/einja/cli/preset.yaml"),
 		dest: path.join(cliDir, "presets/default/preset.yaml"),
+		required: true,
 	},
 ];
 
@@ -258,7 +261,7 @@ function copyPresets() {
 
 	// 単一ファイルのコピー
 	console.log("\nファイル:");
-	for (const { src, dest } of fileMappings) {
+	for (const { src, dest, required } of fileMappings) {
 		if (fs.existsSync(src)) {
 			// コピー先ディレクトリを作成
 			const destDir = path.dirname(dest);
@@ -267,6 +270,9 @@ function copyPresets() {
 			fs.copyFileSync(src, dest);
 			console.log(`  ✓ ${path.relative(cliDir, src)}`);
 			console.log(`    → ${path.relative(cliDir, dest)}`);
+		} else if (required) {
+			console.error(`  ❌ 必須ファイルが見つかりません: ${path.relative(projectRoot, src)}`);
+			process.exit(1);
 		} else {
 			console.log(`  ⚠ スキップ: ${path.relative(cliDir, src)} (存在しません)`);
 		}

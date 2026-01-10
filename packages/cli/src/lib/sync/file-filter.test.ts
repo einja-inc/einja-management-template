@@ -47,6 +47,27 @@ describe("FileFilter", () => {
       expect(targets.some((t) => t.path.endsWith("test-agent.md"))).toBe(true);
     });
 
+    it("skillsカテゴリはeinja-プレフィックスのみをスキャンすること", async () => {
+      // Given: einja-プレフィックスとそれ以外のスキルを作成
+      const einjaSkillDir = path.join(templateDir, ".claude/skills/einja-coding-standards");
+      const otherSkillDir = path.join(templateDir, ".claude/skills/custom-skill");
+
+      await fs.ensureDir(einjaSkillDir);
+      await fs.ensureDir(otherSkillDir);
+
+      await fs.writeFile(path.join(einjaSkillDir, "SKILL.md"), "# Einja Skill");
+      await fs.writeFile(path.join(otherSkillDir, "SKILL.md"), "# Custom Skill");
+
+      // When: スキャンを実行
+      const targets = await fileFilter.scanSyncTargets();
+
+      // Then: einja-プレフィックスのみが検出される
+      const skillTargets = targets.filter((t) => t.category === "skills");
+      expect(skillTargets.length).toBe(1);
+      expect(skillTargets[0].path).toContain("einja-coding-standards");
+      expect(skillTargets.some((t) => t.path.includes("custom-skill"))).toBe(false);
+    });
+
     it("カテゴリでフィルタリングできること", async () => {
       // Given: 複数のカテゴリにファイルを作成
       const commandsDir = path.join(templateDir, ".claude/commands/einja");
@@ -199,7 +220,7 @@ describe("FileFilter", () => {
       // Given & When: 各カテゴリのパス
       const commandsCategory = fileFilter.getCategoryFromPath(".claude/commands/einja/test.md");
       const agentsCategory = fileFilter.getCategoryFromPath(".claude/agents/einja/test.md");
-      const skillsCategory = fileFilter.getCategoryFromPath(".claude/skills/einja/test.md");
+      const skillsCategory = fileFilter.getCategoryFromPath(".claude/skills/einja-coding-standards/SKILL.md");
       const docsCategory = fileFilter.getCategoryFromPath("docs/einja/test.md");
 
       // Then: 正しいカテゴリが返される
@@ -207,6 +228,17 @@ describe("FileFilter", () => {
       expect(agentsCategory).toBe("agents");
       expect(skillsCategory).toBe("skills");
       expect(docsCategory).toBe("docs");
+    });
+
+    it("skillsカテゴリでeinja-プレフィックスがない場合はnullを返すこと", () => {
+      // Given: einja-プレフィックスがないスキルパス
+      const customSkillPath = ".claude/skills/custom-skill/SKILL.md";
+
+      // When: カテゴリ推測
+      const category = fileFilter.getCategoryFromPath(customSkillPath);
+
+      // Then: nullが返される（対象外）
+      expect(category).toBe(null);
     });
 
     it("einja/外のパスはnullを返すこと", () => {

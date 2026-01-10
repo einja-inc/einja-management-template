@@ -272,11 +272,50 @@ describe("FileCopier", () => {
       }
     });
 
+    it("skillsカテゴリはeinja-プレフィックスのみコピーされること", async () => {
+      // Given: einja-プレフィックスとそれ以外のスキルを作成
+      const einjaSkillDir = join(testDir, ".claude", "skills", "einja-coding-standards");
+      const customSkillDir = join(testDir, ".claude", "skills", "custom-skill");
+
+      mkdirSync(einjaSkillDir, { recursive: true });
+      mkdirSync(customSkillDir, { recursive: true });
+
+      writeFileSync(join(einjaSkillDir, "SKILL.md"), "# Einja Skill");
+      writeFileSync(join(customSkillDir, "SKILL.md"), "# Custom Skill");
+
+      const originalCwd = process.cwd();
+
+      try {
+        process.chdir(testDir);
+
+        // When: コピー実行
+        const result = await copier.copyToPreset({
+          preset,
+          dryRun: false,
+          force: false,
+        });
+
+        // Then: einja-プレフィックスのみがコピーされる
+        expect(result.success).toBe(true);
+        expect(result.files.length).toBe(1);
+        expect(result.files[0].source).toContain("einja-coding-standards");
+
+        // 検証：einja-スキルのみが存在する
+        const einjaSkillPath = join(presetDir, ".claude", "skills", "einja-coding-standards", "SKILL.md");
+        const customSkillPath = join(presetDir, ".claude", "skills", "custom-skill", "SKILL.md");
+
+        expect(existsSync(einjaSkillPath)).toBe(true);
+        expect(existsSync(customSkillPath)).toBe(false);
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
+
     it("全ディレクトリマッピングが正しく適用される（統合テスト）", async () => {
       // 全カテゴリのテストファイルを作成
       const commandsDir = join(testDir, ".claude", "commands");
       const agentsDir = join(testDir, ".claude", "agents");
-      const skillsDir = join(testDir, ".claude", "skills");
+      const skillsDir = join(testDir, ".claude", "skills", "einja-coding-standards");
       const steeringDir = join(testDir, "docs", "einja", "steering");
       const templatesDir = join(testDir, "docs", "einja", "templates");
 
@@ -288,7 +327,7 @@ describe("FileCopier", () => {
 
       writeFileSync(join(commandsDir, "spec-create.md"), "# spec-create");
       writeFileSync(join(agentsDir, "spec-requirements.md"), "# requirements");
-      writeFileSync(join(skillsDir, "start-dev.md"), "# start-dev");
+      writeFileSync(join(skillsDir, "SKILL.md"), "# einja skill");
       writeFileSync(join(steeringDir, "terminology.md"), "# terminology");
       writeFileSync(join(templatesDir, "qa-test-template.md"), "# qa template");
 
@@ -312,7 +351,7 @@ describe("FileCopier", () => {
         const expectedPaths = [
           join(presetDir, ".claude", "commands", "einja", "spec-create.md"),
           join(presetDir, ".claude", "agents", "einja", "spec-requirements.md"),
-          join(presetDir, ".claude", "skills", "einja", "start-dev.md"),
+          join(presetDir, ".claude", "skills", "einja-coding-standards", "SKILL.md"),
           join(presetDir, "docs", "einja", "steering", "terminology.md"),
           join(presetDir, "docs", "einja", "templates", "qa-test-template.md"),
         ];
@@ -321,10 +360,10 @@ describe("FileCopier", () => {
           expect(existsSync(expectedPath)).toBe(true);
         }
 
-        // 検証：マッピングが正しい（einja/サブディレクトリに配置されている）
+        // 検証：マッピングが正しい（einja/サブディレクトリまたはeinja-プレフィックスに配置されている）
         expect(result.files[0].destination).toContain("/einja/");
         expect(result.files[1].destination).toContain("/einja/");
-        expect(result.files[2].destination).toContain("/einja/");
+        expect(result.files[2].destination).toContain("/einja-");
         expect(result.files[3].destination).toContain("/einja/");
         expect(result.files[4].destination).toContain("/einja/");
       } finally {

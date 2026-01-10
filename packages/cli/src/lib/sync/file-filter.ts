@@ -10,10 +10,15 @@ import type { ScanOptions, SyncTarget } from "../../types/sync.js";
 const CATEGORY_MAPPING: Record<string, string> = {
   commands: ".claude/commands/einja",
   agents: ".claude/agents/einja",
-  skills: ".claude/skills/einja",
+  skills: ".claude/skills",
   hooks: ".claude/hooks",
   docs: "docs/einja",
 };
+
+/**
+ * einja-プレフィックスでフィルタリングが必要なカテゴリ
+ */
+const EINJA_PREFIX_CATEGORIES = ["skills"];
 
 /**
  * ファイルフィルタリングクラス
@@ -53,7 +58,16 @@ export class FileFilter {
       }
 
       // テンプレートディレクトリ内のファイルをスキャン
-      const pattern = `${categoryPath}/**/*`;
+      let pattern: string;
+
+      // einja-プレフィックスフィルタリングが必要なカテゴリ
+      if (EINJA_PREFIX_CATEGORIES.includes(category)) {
+        // einja-で始まるディレクトリのみを対象にする
+        pattern = `${categoryPath}/einja-*/**/*`;
+      } else {
+        pattern = `${categoryPath}/**/*`;
+      }
+
       const files = await glob(pattern, {
         cwd: this.templateRoot,
         nodir: true,
@@ -128,6 +142,17 @@ export class FileFilter {
   getCategoryFromPath(filePath: string): string | null {
     for (const [category, categoryPath] of Object.entries(CATEGORY_MAPPING)) {
       if (filePath.startsWith(categoryPath)) {
+        // einja-プレフィックスフィルタリングが必要なカテゴリの場合
+        if (EINJA_PREFIX_CATEGORIES.includes(category)) {
+          // パスの次のセグメントがeinja-で始まるか確認
+          const relativePath = filePath.slice(categoryPath.length + 1);
+          const firstSegment = relativePath.split("/")[0];
+          if (firstSegment?.startsWith("einja-")) {
+            return category;
+          }
+          // einja-で始まらない場合はnull（対象外）
+          return null;
+        }
         return category;
       }
     }

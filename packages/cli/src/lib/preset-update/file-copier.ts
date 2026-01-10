@@ -54,7 +54,7 @@ export class FileCopier {
     },
     {
       source: ".claude/skills",
-      destination: ".claude/skills/einja",
+      destination: ".claude/skills",
       category: "skills",
     },
     {
@@ -171,8 +171,11 @@ export class FileCopier {
         continue;
       }
 
+      // skillsカテゴリの場合、einja-プレフィックスでフィルタリング
+      const prefixFilter = mapping.category === "skills" ? "einja-" : undefined;
+
       // ディレクトリ内のファイルを再帰的にスキャン
-      const files = this.scanDirectory(sourceDir, projectRoot);
+      const files = this.scanDirectory(sourceDir, projectRoot, prefixFilter);
 
       // カテゴリ情報を付与
       for (const file of files) {
@@ -191,9 +194,16 @@ export class FileCopier {
    *
    * @param dir - スキャン対象のディレクトリ（絶対パス）
    * @param projectRoot - プロジェクトルートの絶対パス
+   * @param prefixFilter - トップレベルディレクトリのプレフィックスフィルタ（例: "einja-"）
+   * @param isTopLevel - トップレベルディレクトリかどうか（内部使用）
    * @returns ファイル一覧
    */
-  private scanDirectory(dir: string, projectRoot: string): Omit<SourceFile, "category">[] {
+  private scanDirectory(
+    dir: string,
+    projectRoot: string,
+    prefixFilter?: string,
+    isTopLevel = true
+  ): Omit<SourceFile, "category">[] {
     const files: Omit<SourceFile, "category">[] = [];
 
     try {
@@ -204,13 +214,13 @@ export class FileCopier {
         const stat = statSync(absolutePath);
 
         if (stat.isDirectory()) {
-          // einjaサブディレクトリはスキップ（既にeinja/に配置されているファイルを除外）
-          if (entry === "einja") {
+          // トップレベルでプレフィックスフィルタがある場合、プレフィックスで始まらないディレクトリはスキップ
+          if (isTopLevel && prefixFilter && !entry.startsWith(prefixFilter)) {
             continue;
           }
 
-          // ディレクトリの場合は再帰的にスキャン
-          files.push(...this.scanDirectory(absolutePath, projectRoot));
+          // ディレクトリの場合は再帰的にスキャン（サブディレクトリではフィルタ適用しない）
+          files.push(...this.scanDirectory(absolutePath, projectRoot, prefixFilter, false));
         } else if (stat.isFile()) {
           // ファイルの場合は一覧に追加
           files.push({

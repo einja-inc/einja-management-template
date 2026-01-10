@@ -59,12 +59,12 @@ CLIでターゲットリポジトリにファイルをインストールする�
   "version": 1,
   "symlinks": [
     {
-      "link": ".claude/skills/einja/coding-standards/reference/commit-rules.md",
-      "target": "../../../../../docs/einja/steering/commit-rules.md"
+      "link": ".claude/skills/einja-coding-standards/reference/commit-rules.md",
+      "target": "../../../../docs/einja/steering/commit-rules.md"
     },
     {
-      "link": ".claude/skills/einja/coding-standards/reference/testing-strategy.md",
-      "target": "../../../../../docs/einja/steering/development/testing-strategy.md"
+      "link": ".claude/skills/einja-coding-standards/reference/testing-strategy.md",
+      "target": "../../../../docs/einja/steering/development/testing-strategy.md"
     }
   ]
 }

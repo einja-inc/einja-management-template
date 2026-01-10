@@ -89,15 +89,15 @@ const app = new Hono()
 
 ### basePathとHono Clientの関係
 
-`basePath("/api")` を使用する場合、クライアント側も `api` を含めてアクセスする。
+`basePath("/api/rpc")` を使用する場合、クライアント側も `api.rpc` を含めてアクセスする。
 
 ```typescript
-// サーバー: basePath("/api") を設定
-const app = new Hono().basePath("/api").route("/posts", postRoutes)
+// サーバー: basePath("/api/rpc") を設定
+const app = new Hono().basePath("/api/rpc").route("/users", userRoutes)
 
-// クライアント: api を含める
-apiClient.api.posts.$get()  // ✅ OK
-apiClient.posts.$get()      // ❌ NG（型エラー）
+// クライアント: api.rpc を含める
+apiClient.api.rpc.users.$get()  // ✅ OK
+apiClient.users.$get()          // ❌ NG（型エラー）
 ```
 
 **使用例**:
@@ -544,6 +544,52 @@ export function PostCreateForm() {
 - セクション5: Tanstack Query
 - セクション6: React Hook Form
 
+#### スキーマ配置の設計方針
+
+スキーマはリクエスト/レスポンスで配置場所を分離します。
+
+| スキーマ種別 | 配置場所 | 用途 |
+|-------------|---------|------|
+| **リクエストスキーマ** | `@repo/server-core/domain/validators/` | APIリクエストのバリデーション（バックエンド） |
+| **レスポンススキーマ** | `apps/*/src/shared/schemas/` | APIレスポンスの型検証（フロントエンド固有） |
+
+**理由**:
+- レスポンス形式はフロントエンドが消費するものなので、フロントエンド側で定義すべき
+- apps間で異なるレスポンス形式を持つ可能性がある（webとadminで異なるレスポンス）
+- フロント固有のバリデーションルール（例: 日付フォーマット）を追加しやすい
+
+#### parseResponseパターン
+
+Hono Client + Tanstack Queryでは、`parseResponse`関数を使用してレスポンスをパースし、Zodスキーマで型検証を行います。
+
+```typescript
+// カスタムフック例
+import { useQuery } from "@tanstack/react-query";
+import { parseResponse } from "@/lib/api/parse-response";
+import { paginatedPostListSchema } from "@/shared/schemas/post";
+import { apiClient } from "@/lib/api/client";
+
+export function usePostList(page: number, limit: number) {
+  return useQuery({
+    queryKey: ["posts", page, limit],
+    queryFn: async () => {
+      const response = await apiClient.api.rpc.posts.$get({
+        query: { page: String(page), limit: String(limit) },
+      });
+      return parseResponse(response, paginatedPostListSchema);
+    },
+  });
+}
+```
+
+**メリット**:
+- レスポンス形式の型安全性を保証
+- フロント固有のバリデーションルールを適用可能
+- エラーハンドリングの一元化（`ApiError`クラス）
+- APIエラーとバリデーションエラーの明確な区別
+
+詳細は **[フロントエンド開発ガイド セクション3](frontend-development.md#apiレスポンスパース処理)** を参照してください。
+
 ### 推奨パターン早見表
 
 | ユースケース | 推奨パターン |
@@ -746,21 +792,21 @@ export default app
 **エントリーポイント**:
 
 ```typescript
-// apps/web/app/api/[[...route]]/route.ts
+// apps/web/src/app/api/rpc/[[...route]]/route.ts
 import { Hono } from 'hono'
 import { handle } from 'hono/vercel'
-import postRoutes from '@/server/routes/postRoutes'
+import { userRoutes } from '@web/server/presentation/routes/userRoutes'
 
-const app = new Hono().basePath('/api')
+const app = new Hono().basePath('/api/rpc')
 
-app.route('/', postRoutes)
+const routes = app.route('/users', userRoutes)
 
 export const GET = handle(app)
 export const POST = handle(app)
 export const PUT = handle(app)
 export const DELETE = handle(app)
 
-export type AppType = typeof app
+export type AppType = typeof routes
 ```
 
 **フロントエンドでの使用**:

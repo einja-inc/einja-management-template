@@ -5,13 +5,10 @@
  * ユーザー一覧・詳細取得エンドポイント
  */
 
-import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import {
-  userListQuerySchema,
-  userIdParamSchema,
-} from "@repo/server-core/domain/validators/user";
+import { userIdParamSchema, userListQuerySchema } from "@repo/server-core/domain/validators/user";
 import { userUseCases } from "@web/application/use-cases/UserUseCases";
+import { Hono } from "hono";
 
 /**
  * ユーザーAPI ルート

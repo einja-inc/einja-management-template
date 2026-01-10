@@ -27,6 +27,12 @@ export async function promptProjectConfig(
       },
     },
     {
+      type: "confirm",
+      name: "useCurrentDir",
+      message: "今いるディレクトリに直接作成しますか？（Noならサブディレクトリを作成）",
+      default: false,
+    },
+    {
       type: "input",
       name: "packageScope",
       message: "パッケージスコープ:",
@@ -154,5 +160,6 @@ export async function promptProjectConfig(
     tools,
     setupEinjaCli: answers.setupEinjaCli,
     worktreeConfig,
+    useCurrentDir: answers.useCurrentDir,
   };
 }

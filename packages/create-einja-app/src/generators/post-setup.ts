@@ -133,15 +133,15 @@ export async function execPostSetup(
     await promptAndExecuteDirenvAllow(targetPath);
   }
 
-  // @einja/cli init
+  // @einja/dev-cli init
   if (config.setupEinjaCli) {
-    const einjaSpinner = ora("@einja/cli を初期化中...").start();
+    const einjaSpinner = ora("@einja/dev-cli を初期化中...").start();
     try {
-      await execa("npx", ["@einja/cli", "init"], { cwd: targetPath });
-      einjaSpinner.succeed("@einja/cli を初期化しました");
+      await execa("npx", ["@einja/dev-cli", "init", "--force"], { cwd: targetPath });
+      einjaSpinner.succeed("@einja/dev-cli を初期化しました");
     } catch (error) {
-      einjaSpinner.fail("@einja/cli の初期化に失敗しました");
-      logger.warn("後で手動で 'npx @einja/cli init' を実行してください");
+      einjaSpinner.fail("@einja/dev-cli の初期化に失敗しました");
+      logger.warn("後で手動で 'npx @einja/dev-cli init' を実行してください");
     }
   }
 

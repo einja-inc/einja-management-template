@@ -1,7 +1,7 @@
 "use client";
 
-import { useUsers, type UserFilters } from "@/hooks/use-users";
-import type { PaginatedUserList } from "@web/application/use-cases/UserUseCases";
+import { type UserFilters, useUsers } from "@/hooks/api/use-users";
+import type { PaginatedUserList } from "@/shared/schemas/user";
 import { UserTable } from "./UserTable";
 
 interface UserTableContainerProps {
@@ -14,10 +14,7 @@ interface UserTableContainerProps {
  *
  * Client Component - Tanstack Queryでデータ管理
  */
-export function UserTableContainer({
-  initialData,
-  filters = {},
-}: UserTableContainerProps) {
+export function UserTableContainer({ initialData, filters = {} }: UserTableContainerProps) {
   const { data, isLoading, error } = useUsers(filters, initialData);
 
   const handleView = (userId: string) => {
@@ -36,11 +33,7 @@ export function UserTableContainer({
   };
 
   if (error) {
-    return (
-      <div className="text-destructive">
-        エラーが発生しました: {error.message}
-      </div>
-    );
+    return <div className="text-destructive">エラーが発生しました: {error.message}</div>;
   }
 
   if (isLoading) {
@@ -52,11 +45,6 @@ export function UserTableContainer({
   }
 
   return (
-    <UserTable
-      users={data.items}
-      onView={handleView}
-      onEdit={handleEdit}
-      onDelete={handleDelete}
-    />
+    <UserTable users={data.items} onView={handleView} onEdit={handleEdit} onDelete={handleDelete} />
   );
 }

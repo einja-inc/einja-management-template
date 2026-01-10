@@ -98,6 +98,78 @@ cd existing-project
 npx create-einja-app --setup
 ```
 
+### `create-einja-app add [options]`
+
+既存のモノレポにEinja標準構成を追加します。
+
+**オプション:**
+
+| オプション | 説明 | デフォルト |
+|----------|------|----------|
+| `-y, --yes` | 対話プロンプトをスキップ（全コンポーネント選択） | false |
+| `--all` | `-y`と同義 | false |
+| `--dry-run` | 変更をプレビュー（実際のファイル操作なし） | false |
+
+**対話式フロー:**
+
+```
+$ npx create-einja-app add
+
+? 追加するコンポーネントを選択:
+  [x] packages/ - 共通パッケージ
+  [x] apps/ - アプリテンプレート
+  [x] 直下設定ファイル
+
+? 追加するパッケージを選択:
+  [x] front-core    [x] server-core
+  [x] config        [x] ui
+
+? 追加するアプリを選択:
+  [x] web
+
+✓ 追加完了！
+```
+
+**競合処理:**
+
+ファイルの競合は以下のマーカーベースで処理されます：
+- `@einja:managed` - テンプレートで上書き
+- `@einja:seed` - ローカル優先（初回のみコピー）
+- マーカーなし - 既存ファイル優先
+
+**JSONマージ設定 (.einja-sync.json):**
+
+```json
+{
+  "jsonPaths": {
+    "managed": {
+      "package.json": ["scripts.dev", "scripts.build"]
+    },
+    "seed": {
+      "package.json": ["scripts.custom"]
+    }
+  }
+}
+```
+
+**除外されるファイル:**
+- `.claude/`, `docs/einja/`, `CLAUDE.md`, `.mcp.json` → @einja/cli管轄
+- `.gitignore`に含まれるファイル
+- 自動生成ファイル（node_modules/, styled-system/等）
+
+**例:**
+
+```bash
+# 対話式で追加
+npx create-einja-app add
+
+# 全コンポーネントを追加（プロンプトスキップ）
+npx create-einja-app add --all
+
+# プレビューのみ
+npx create-einja-app add --dry-run
+```
+
 ---
 
 ## プロジェクト構成

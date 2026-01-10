@@ -1,8 +1,108 @@
-# einja-management-template
+# Einja Management Template
 
-いいんじゃ管理画面テンプレート - Turborepo + pnpm モノレポ構成
+Turborepo + Next.js 15 + Auth.js + Prisma 構成のプロジェクトテンプレートと、Claude Code用のATDDワークフロー設定を提供します。
 
-## プロジェクト構成
+---
+
+## パッケージ利用者向け
+
+### create-einja-app - 新規プロジェクト作成
+
+新しいプロジェクトを作成したい場合に使用します。
+
+```bash
+npx create-einja-app my-project
+```
+
+**何が起きるか:**
+
+1. `my-project/` ディレクトリが作成される
+2. Turborepo + Next.js 15 + Prisma のモノレポ構成が展開される
+3. `.claude/` ディレクトリ（Claude Code設定）が自動セットアップされる
+4. 依存関係がインストールされる
+5. Gitリポジトリが初期化される
+
+**作成後の開始手順:**
+
+```bash
+cd my-project
+docker-compose up -d postgres  # PostgreSQL起動
+pnpm dev                       # 開発サーバー起動
+```
+
+ブラウザで http://localhost:3000 にアクセス
+
+**オプション:**
+
+| オプション | 説明 |
+|-----------|------|
+| `--yes` | 対話プロンプトをスキップ（デフォルト値使用） |
+| `--skip-git` | Git初期化をスキップ |
+| `--skip-install` | 依存関係インストールをスキップ |
+
+📖 詳細: [packages/create-einja-app/README.md](./packages/create-einja-app/README.md)
+
+---
+
+### @einja/dev-cli - 既存プロジェクトにClaude Code設定を追加
+
+既存のプロジェクトにClaude Code用のATDDワークフロー設定を追加したい場合に使用します。
+
+```bash
+cd your-existing-project
+npx @einja/dev-cli init
+```
+
+**何が起きるか:**
+
+1. `.claude/` ディレクトリが作成される
+   - `agents/` - タスク実行、仕様書生成、フロントエンド開発用サブエージェント
+   - `commands/` - `/spec-create`, `/task-exec` などのスラッシュコマンド
+   - `skills/` - コーディング規約、コンポーネント設計ガイド
+   - `hooks/` - Biomeフォーマット、型チェックなどのGit Hooks
+   - `settings.json` - MCPサーバー設定（GitHub, Playwright, Serena等）
+2. `docs/einja/` ディレクトリが作成される
+   - `steering/` - コミットルール、テスト戦略、レビューガイドライン
+   - `templates/` - 仕様書テンプレート
+3. `CLAUDE.md` テンプレートが作成される
+4. `package.json` にスクリプトが追加される
+
+**追加されるnpm scripts:**
+
+```bash
+pnpm task:loop 123      # GitHub Issue #123のタスクを自動実行
+pnpm einja:sync         # テンプレートから最新設定を同期
+```
+
+**その他のコマンド:**
+
+```bash
+# テンプレートから設定を同期（更新があった場合）
+npx @einja/dev-cli sync
+
+# 特定カテゴリのみ同期
+npx @einja/dev-cli sync --only commands,agents
+```
+
+📖 詳細: [packages/cli/README.md](./packages/cli/README.md)
+
+---
+
+### 使い分けガイド
+
+| やりたいこと | 使うパッケージ |
+|-------------|---------------|
+| 新規プロジェクトを作成したい | `npx create-einja-app my-project` |
+| 既存プロジェクトにClaude設定を追加したい | `npx @einja/dev-cli init` |
+| Claude設定を最新に更新したい | `npx @einja/dev-cli sync` |
+
+---
+
+## パッケージ開発者向け
+
+以下は、このリポジトリ自体を開発する場合の情報です。
+
+### プロジェクト構成
 
 このプロジェクトは**Turborepo**を使用したモノレポ構成です。
 
@@ -19,6 +119,8 @@ einja-management-template/
 │       ├── package.json
 │       └── tsconfig.json
 ├── packages/
+│   ├── cli/                      # @einja/dev-cli
+│   ├── create-einja-app/         # create-einja-app
 │   ├── config/                   # 共通設定（Biome, TypeScript, Panda CSS）
 │   ├── front-core/               # フロントエンド共通層
 │   │   └── src/
@@ -38,7 +140,7 @@ einja-management-template/
 └── package.json                  # ルートpackage.json
 ```
 
-## 技術スタック
+### 技術スタック
 
 - **モノレポ**: Turborepo + pnpm workspaces
 - **フレームワーク**: Next.js 15 (App Router)
@@ -52,9 +154,9 @@ einja-management-template/
 - **Linter/Formatter**: Biome
 - **Git Hooks**: Husky + lint-staged
 
-## 開発環境セットアップ
+### 開発環境セットアップ
 
-### 初回セットアップ（初めての方）
+#### 初回セットアップ（初めての方）
 
 ```bash
 # 1. リポジトリをクローン
@@ -79,7 +181,7 @@ pnpm dev:bg
 
 ---
 
-### コマンドの役割
+#### コマンドの役割
 
 | コマンド | タイミング | 内容 |
 |---------|-----------|------|
@@ -90,9 +192,9 @@ pnpm dev:bg
 | `pnpm dev:stop` | 随時 | 開発サーバーを停止 |
 | `pnpm env:update` | 随時 | 環境変数の設定・変更（対話式ウィザード） |
 
-## 主要コマンド
+### 主要コマンド
 
-### 開発
+#### 開発
 
 ```bash
 pnpm dev:bg           # 開発サーバーをバックグラウンドで起動（推奨）
@@ -104,7 +206,7 @@ pnpm build            # 全アプリのプロダクションビルド
 pnpm start            # プロダクションサーバーを起動
 ```
 
-### 環境変数の管理
+#### 環境変数の管理
 
 対話式ウィザードで環境変数を設定・変更できます：
 
@@ -112,13 +214,13 @@ pnpm start            # プロダクションサーバーを起動
 pnpm env:update
 ```
 
-#### メニュー
+##### メニュー
 
 1. **個人トークンを設定** - `GITHUB_TOKEN` 等の個人用トークンを `.env.personal` に設定
 2. **環境設定を変更** - 各環境の暗号化された設定ファイルを編集
 3. **現在の状態を確認** - 環境変数の設定状況を表示
 
-#### 対応環境
+##### 対応環境
 
 | 環境 | ファイル | 用途 |
 |------|----------|------|
@@ -130,7 +232,7 @@ pnpm env:update
 
 > **Note**: 環境設定の変更には `.env.keys` の秘密鍵が必要です。本番環境の変更時は追加の確認が表示されます。
 
-### コード品質
+#### コード品質
 
 ```bash
 pnpm lint             # Biome linterでコードをチェック
@@ -140,7 +242,7 @@ pnpm format:fix       # Biomeでコードを自動フォーマット
 pnpm typecheck        # TypeScriptの型チェック
 ```
 
-### テスト
+#### テスト
 
 ```bash
 pnpm test             # Vitestでテスト実行
@@ -149,7 +251,7 @@ pnpm test:ui          # Vitest UIモード
 pnpm test:coverage    # カバレッジ付きテスト
 ```
 
-### データベース
+#### データベース
 
 ```bash
 pnpm db:generate      # Prismaクライアント生成
@@ -158,7 +260,7 @@ pnpm db:migrate       # マイグレーションファイル作成＆実行
 pnpm db:studio        # Prisma Studio起動
 ```
 
-### ワークスペース固有のコマンド
+#### ワークスペース固有のコマンド
 
 ```bash
 # 特定のワークスペースでコマンド実行
@@ -167,9 +269,9 @@ pnpm --filter @repo/web build
 pnpm --filter @repo/web panda codegen
 ```
 
-## データベース設定
+### データベース設定
 
-### Docker Compose サービス
+#### Docker Compose サービス
 
 - **postgres**: PostgreSQL 15
   - ポート: `${POSTGRES_PORT:-25432}` (ホスト) → 5432 (コンテナ)
@@ -177,7 +279,7 @@ pnpm --filter @repo/web panda codegen
   - ユーザー: `postgres`
   - パスワード: `postgres`
 
-### 便利なコマンド
+#### 便利なコマンド
 
 ```bash
 # ログを確認
@@ -195,9 +297,9 @@ pnpm db:push
 pnpm db:studio
 ```
 
-## ディレクトリ構造の詳細
+### ディレクトリ構造の詳細
 
-### apps/web
+#### apps/web
 
 メイン管理画面アプリケーション
 
@@ -207,37 +309,38 @@ pnpm db:studio
   - `shared/`: 共通コンポーネント（Header, Sidebarなど）
 - **src/lib**: ユーティリティ、認証設定など
 
-### packages
+#### packages
 
+- **@einja/dev-cli**: Claude Code設定配布CLI（[詳細](./packages/cli/README.md)）
+- **create-einja-app**: プロジェクト作成CLI（[詳細](./packages/create-einja-app/README.md)）
 - **@repo/config**: Biome, TypeScript, Panda CSSの共通設定
 - **@repo/front-core**: フロントエンド共通層（認証共通設定、hooks、utils、context）
 - **@repo/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
 - **@repo/ui**: 共通UIコンポーネント（shadcn/ui）
-- **@einja/dev-cli**: Claude Code設定配布CLI（[詳細](./packages/cli/README.md)）
 
-## CLI パッケージ (@einja/dev-cli)
+### CLIパッケージの開発
 
-Claude Code用の`.claude`設定ディレクトリを配布するCLIツールです。
+#### @einja/dev-cli
 
 ```bash
-# 新規プロジェクトへのセットアップ
-npx @einja/dev-cli init
+cd packages/cli
+pnpm build      # ビルド
+pnpm test       # テスト
+pnpm typecheck  # 型チェック
 ```
 
-### 配布内容
+📖 [ビルドプロセス](./packages/cli/docs/BUILD.md) | [NPM公開手順](./packages/cli/docs/PUBLISHING.md) | [リリース手順](./packages/cli/RELEASING.md)
 
-- `.claude/` - エージェント、コマンド、スキル、hooks
-- `docs/einja/` - テンプレート、ステアリングドキュメント
-- `CLAUDE.md` - プロジェクト設定テンプレート
+#### create-einja-app
 
-### 関連ドキュメント
+```bash
+cd packages/create-einja-app
+pnpm build      # ビルド（テンプレート更新含む）
+pnpm test       # テスト
+pnpm typecheck  # 型チェック
+```
 
-- [CLI README](./packages/cli/README.md) - 使用方法
-- [ビルドプロセス](./packages/cli/docs/BUILD.md) - ビルドパイプラインの説明
-- [NPM公開手順](./packages/cli/docs/PUBLISHING.md) - リリース手順
-- [リリース手順](./packages/cli/RELEASING.md) - バージョン管理とタグプッシュ
-
-## 開発ワークフロー
+### 開発ワークフロー
 
 1. ブランチを作成
 2. コードを変更
@@ -247,9 +350,9 @@ npx @einja/dev-cli init
 6. コミット前に自動的にlint-stagedが実行される
 7. プルリクエストを作成
 
-## トラブルシューティング
+### トラブルシューティング
 
-### Volta関連エラー
+#### Volta関連エラー
 
 **`zsh: command not found: volta`**
 
@@ -272,14 +375,14 @@ pnpmがインストールされていません：
 volta install pnpm@10.14.0
 ```
 
-### Panda CSS関連エラー
+#### Panda CSS関連エラー
 
 ```bash
 # styled-systemを再生成
 pnpm --filter @repo/web panda codegen
 ```
 
-### Prisma関連エラー
+#### Prisma関連エラー
 
 ```bash
 # Prismaクライアントを再生成
@@ -291,7 +394,7 @@ docker-compose up -d postgres
 pnpm db:push
 ```
 
-### 依存関係の問題
+#### 依存関係の問題
 
 ```bash
 # node_modulesをクリーンアップ
@@ -300,14 +403,14 @@ rm pnpm-lock.yaml
 pnpm install
 ```
 
-### Turborepoキャッシュのクリア
+#### Turborepoキャッシュのクリア
 
 ```bash
 # .turboディレクトリを削除
 rm -rf .turbo apps/*/.turbo packages/*/.turbo
 ```
 
-## コーディング規約
+### コーディング規約
 
 詳細は以下のドキュメントを参照してください：
 
@@ -316,6 +419,8 @@ rm -rf .turbo apps/*/.turbo packages/*/.turbo
 - [テスト戦略](./docs/einja/steering/development/testing-strategy.md)
 - [コードレビューガイドライン](./docs/einja/steering/development/review-guidelines.md)
 - [コミットルール](./docs/einja/steering/commit-rules.md)
+
+---
 
 ## ライセンス
 

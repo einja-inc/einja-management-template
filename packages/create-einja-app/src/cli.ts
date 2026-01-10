@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createCommand } from "./commands/create.js";
 import { setupCommand } from "./commands/setup.js";
+import { addCommand } from "./commands/add.js";
 
 // package.jsonからバージョン情報を読み込み
 const __filename = fileURLToPath(import.meta.url);
@@ -44,5 +45,21 @@ program
   .action(async () => {
     await setupCommand();
   });
+
+// addコマンド
+program
+  .command("add")
+  .description("Add einja components to existing monorepo")
+  .option("-y, --yes", "Skip prompts and use defaults (select all)")
+  .option("--all", "Select all components (same as -y)")
+  .option("--dry-run", "Preview changes without making them")
+  .action(
+    async (options: { yes?: boolean; all?: boolean; dryRun?: boolean }) => {
+      await addCommand({
+        skipPrompts: options.yes || options.all || false,
+        dryRun: options.dryRun || false,
+      });
+    }
+  );
 
 program.parse();

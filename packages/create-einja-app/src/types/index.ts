@@ -25,6 +25,7 @@ export type ProjectConfig = {
   tools: ToolConfig;
   setupEinjaCli: boolean;
   worktreeConfig?: WorktreeConfig;
+  useCurrentDir: boolean;
 };
 
 /**
@@ -61,4 +62,61 @@ export type SetupConfig = {
 export type ToolSetupOptions = {
   targetDir: string;
   conflictStrategy: ConflictStrategy;
+};
+
+/**
+ * パッケージコンポーネントの型定義
+ */
+export type PackageComponent = "front-core" | "server-core" | "config" | "ui";
+
+/**
+ * アプリコンポーネントの型定義
+ */
+export type AppComponent = "web";
+
+/**
+ * 追加コンポーネントの型定義
+ */
+export type AddComponentType = "packages" | "apps" | "config";
+
+/**
+ * 追加設定の型定義
+ */
+export type AddConfig = {
+  components: {
+    packages: boolean;
+    apps: boolean;
+    config: boolean;
+  };
+  packageComponents: PackageComponent[];
+  appComponents: AppComponent[];
+  dryRun: boolean;
+};
+
+/**
+ * 追加オプションの型定義
+ */
+export type AddOptions = {
+  targetDir: string;
+  templateDir: string;
+  config: AddConfig;
+};
+
+/**
+ * JSONパス設定の型定義（.einja-sync.json用）
+ */
+export type JsonPathsConfig = {
+  managed: Record<string, string[]>;
+  seed: Record<string, string[]>;
+};
+
+/**
+ * 同期メタデータの型定義（.einja-sync.json）
+ */
+export type SyncMetadata = {
+  version: string;
+  lastSync: string;
+  templateVersion: string;
+  files: Record<string, { hash: string; syncedAt: string }>;
+  jsonPaths?: JsonPathsConfig;
 };

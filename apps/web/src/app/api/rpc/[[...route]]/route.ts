@@ -5,9 +5,9 @@
  * basePath: /api/rpc
  */
 
+import { userRoutes } from "@web/server/presentation/routes/userRoutes";
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
-import { userRoutes } from "@web/server/presentation/routes/userRoutes";
 
 const app = new Hono().basePath("/api/rpc");
 

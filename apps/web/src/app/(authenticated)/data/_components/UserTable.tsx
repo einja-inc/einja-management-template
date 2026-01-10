@@ -63,127 +63,124 @@ function createColumns(
   onDelete?: (userId: string) => void
 ): ColumnDef<UserListItem>[] {
   return [
-  {
-    accessorKey: "name",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          名前
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
+    {
+      accessorKey: "name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            名前
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        const name = row.getValue("name") as string;
+        return <div className="font-medium">{name || "-"}</div>;
+      },
     },
-    cell: ({ row }) => {
-      const name = row.getValue("name") as string;
-      return <div className="font-medium">{name || "-"}</div>;
+    {
+      accessorKey: "email",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            メールアドレス
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        return <div className="text-muted-foreground">{row.getValue("email")}</div>;
+      },
     },
-  },
-  {
-    accessorKey: "email",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          メールアドレス
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
+    {
+      accessorKey: "status",
+      header: "ステータス",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as UserListItem["status"];
+        return getStatusBadge(status);
+      },
     },
-    cell: ({ row }) => {
-      return <div className="text-muted-foreground">{row.getValue("email")}</div>;
+    {
+      accessorKey: "role",
+      header: "ロール",
+      cell: ({ row }) => {
+        const role = row.getValue("role") as UserListItem["role"];
+        return getRoleBadge(role);
+      },
     },
-  },
-  {
-    accessorKey: "status",
-    header: "ステータス",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as UserListItem["status"];
-      return getStatusBadge(status);
+    {
+      accessorKey: "createdAt",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            作成日
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        return <div>{formatDate(row.getValue("createdAt"))}</div>;
+      },
     },
-  },
-  {
-    accessorKey: "role",
-    header: "ロール",
-    cell: ({ row }) => {
-      const role = row.getValue("role") as UserListItem["role"];
-      return getRoleBadge(role);
+    {
+      accessorKey: "lastLogin",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            最終ログイン
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        return <div>{formatDate(row.getValue("lastLogin"))}</div>;
+      },
     },
-  },
-  {
-    accessorKey: "createdAt",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          作成日
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      return <div>{formatDate(row.getValue("createdAt"))}</div>;
-    },
-  },
-  {
-    accessorKey: "lastLogin",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          最終ログイン
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      return <div>{formatDate(row.getValue("lastLogin"))}</div>;
-    },
-  },
-  {
-    id: "actions",
-    header: "操作",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const user = row.original;
+    {
+      id: "actions",
+      header: "操作",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const user = row.original;
 
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">メニューを開く</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onView?.(user.id)}>
-              <Eye className="mr-2 h-4 w-4" />
-              詳細表示
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit?.(user.id)}>
-              <Edit className="mr-2 h-4 w-4" />
-              編集
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onDelete?.(user.id)}
-              className="text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              削除
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">メニューを開く</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onView?.(user.id)}>
+                <Eye className="mr-2 h-4 w-4" />
+                詳細表示
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit?.(user.id)}>
+                <Edit className="mr-2 h-4 w-4" />
+                編集
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete?.(user.id)} className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                削除
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
     },
-  },
   ];
 }
 

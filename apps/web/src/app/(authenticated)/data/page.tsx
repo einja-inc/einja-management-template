@@ -1,15 +1,17 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { prefetchUsers } from "@/hooks/use-users";
+import { prefetchUsers } from "@/hooks/api/prefetch-users";
+import type { PaginatedUserList } from "@/shared/schemas/user";
 import { UserTableContainer } from "./_components/UserTableContainer";
 
 export default async function DataPage() {
-  let initialData;
-  let error;
+  let initialData: PaginatedUserList | undefined;
+  let error: string | undefined;
 
-  try {
-    initialData = await prefetchUsers({ page: 1, limit: 100 });
-  } catch (e) {
-    error = e instanceof Error ? e.message : "データの取得に失敗しました";
+  const result = await prefetchUsers({ page: 1, limit: 100 });
+  if (result === null) {
+    error = "データの取得に失敗しました";
+  } else {
+    initialData = result;
   }
 
   if (error) {

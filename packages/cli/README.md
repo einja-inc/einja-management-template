@@ -92,6 +92,33 @@ npx @einja/dev-cli sync --only hooks
 
 詳細は [マーカー仕様書](docs/MARKER_SPECIFICATION.md) を参照してください。
 
+**JSONマージ設定:**
+
+`.einja-sync.json`に`jsonPaths`を設定することで、JSONファイルのマージ動作を制御できます：
+
+```json
+{
+  "version": "1.0.0",
+  "lastSync": "2024-01-11T00:00:00Z",
+  "templateVersion": "1.0.0",
+  "files": {},
+  "jsonPaths": {
+    "managed": {
+      "package.json": ["scripts.dev", "scripts.build", "scripts.lint"]
+    },
+    "seed": {
+      "package.json": ["scripts.custom"]
+    }
+  }
+}
+```
+
+- **managed パス**: 常にテンプレート値で上書き
+- **seed パス**: ローカルに存在しない場合のみテンプレート値をコピー
+- **その他**: ローカル優先（ユーザー追加分を保持）
+
+**注意**: `jsonPaths`設定は`create-einja-app add`コマンドと共通です。
+
 ### `task:loop`
 
 GitHub Issueのタスクを自動実行します（Claude Code経由）。

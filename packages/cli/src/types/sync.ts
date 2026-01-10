@@ -10,6 +10,16 @@ export const FileMetadataSchema = z.object({
 });
 
 /**
+ * JSON パス設定の Zod スキーマ
+ * managed: テンプレート値で上書き
+ * seed: ローカル優先（キーが存在しない場合のみコピー）
+ */
+export const JsonPathsConfigSchema = z.object({
+  managed: z.record(z.string(), z.array(z.string())),
+  seed: z.record(z.string(), z.array(z.string())),
+});
+
+/**
  * 同期メタデータのZodスキーマ
  */
 export const SyncMetadataSchema = z.object({
@@ -17,12 +27,18 @@ export const SyncMetadataSchema = z.object({
   lastSync: z.string(),
   templateVersion: z.string(),
   files: z.record(z.string(), FileMetadataSchema),
+  jsonPaths: JsonPathsConfigSchema.optional(),
 });
 
 /**
  * ファイルメタデータの型定義
  */
 export type FileMetadata = z.infer<typeof FileMetadataSchema>;
+
+/**
+ * JSON パス設定の型定義
+ */
+export type JsonPathsConfig = z.infer<typeof JsonPathsConfigSchema>;
 
 /**
  * 同期メタデータの型定義

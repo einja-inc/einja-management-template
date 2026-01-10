@@ -1,10 +1,27 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import ora from "ora";
 import { promptProjectConfig, type ProjectConfig } from "../prompts/project.js";
 import { generateTemplate } from "../generators/template.js";
 import { execPostSetup } from "../generators/post-setup.js";
 import * as logger from "../utils/logger.js";
+
+/**
+ * ディレクトリが空かどうかを確認
+ * @param dirPath - ディレクトリパス
+ * @returns 空の場合true、存在しないかファイルがある場合false
+ */
+function isDirectoryEmpty(dirPath: string): boolean {
+  if (!existsSync(dirPath)) {
+    return true;
+  }
+  const files = readdirSync(dirPath);
+  // .git, .DS_Store などの隠しファイルは無視
+  const significantFiles = files.filter(
+    (f) => !f.startsWith(".") || f === ".git"
+  );
+  return significantFiles.length === 0;
+}
 
 /**
  * CreateOptions型
@@ -74,6 +91,7 @@ export async function createCommand(
         },
         setupEinjaCli: true,
         worktreeConfig: undefined,
+        useCurrentDir: false,
       };
 
       logger.info(`プロジェクト名: ${config.projectName}`);
@@ -85,13 +103,25 @@ export async function createCommand(
     }
 
     // ターゲットパスの解決
-    const targetPath = resolve(process.cwd(), config.projectName);
+    const targetPath = config.useCurrentDir
+      ? process.cwd()
+      : resolve(process.cwd(), config.projectName);
 
-    // プロジェクトディレクトリの存在確認
-    if (checkProjectExists(targetPath)) {
-      logger.error(`ディレクトリ '${config.projectName}' は既に存在します`);
-      logger.info("別の名前を指定するか、既存ディレクトリを削除してください");
-      process.exit(1);
+    // ディレクトリの確認
+    if (config.useCurrentDir) {
+      // カレントディレクトリに展開する場合、空かどうか確認
+      if (!isDirectoryEmpty(targetPath)) {
+        logger.error("現在のディレクトリにファイルが存在します");
+        logger.info("空のディレクトリで実行するか、サブディレクトリを作成してください");
+        process.exit(1);
+      }
+    } else {
+      // サブディレクトリを作成する場合、存在確認
+      if (checkProjectExists(targetPath)) {
+        logger.error(`ディレクトリ '${config.projectName}' は既に存在します`);
+        logger.info("別の名前を指定するか、既存ディレクトリを削除してください");
+        process.exit(1);
+      }
     }
 
     // テンプレート展開

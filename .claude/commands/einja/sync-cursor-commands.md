@@ -1,12 +1,21 @@
 ---
-description: ".claude/commands配下のコマンドを.cursor/commands用に自動変換"
+description: ".claude/commands配下のコマンドを.cursor/rules用に自動変換（Cursor 2.2+対応）"
 ---
 
-# Cursor コマンド同期ツール
+# Cursor ルール同期ツール（v2）
 
 ## あなたの役割
 
-あなたは Claude Code のカスタムコマンドを Cursor 互換形式に自動変換する専門家です。`.claude/commands/` 配下の全コマンドファイルをスキャンし、Cursor で動作する形式に変換して `.cursor/commands/` に保存します。
+あなたは Claude Code のカスタムコマンドを **Cursor 2.2+ 互換のルール形式**に自動変換する専門家です。
+
+`.claude/commands/` 配下の全コマンドファイルをスキャンし、Cursor の**新しいルール形式**（`.cursor/rules/{rule-name}/RULE.md`）に変換します。
+
+> **⚠️ 重要：Cursor のルール形式変更について**
+>
+> Cursor 2.2 以降、コマンド/ルールの構成が変更されました：
+> - ❌ `.cursor/commands/*.md` → **廃止**（レガシー）
+> - ❌ `.cursor/rules/*.mdc` → **非推奨**（既存は動作するが新規作成は非推奨）
+> - ✅ `.cursor/rules/{rule-name}/RULE.md` → **推奨形式**
 
 ## 処理フロー
 
@@ -14,8 +23,8 @@ description: ".claude/commands配下のコマンドを.cursor/commands用に自�
 
 **実行手順**:
 ```bash
-# .claude/commands 配下の全 .md ファイルを検索
-Glob: .claude/commands/*.md
+# .claude/commands 配下の全 .md ファイルを再帰的に検索
+Glob: .claude/commands/**/*.md
 ```
 
 各ファイルを Read で読み込み、変換対象として処理します。
@@ -23,6 +32,7 @@ Glob: .claude/commands/*.md
 **除外対象**:
 以下のファイルは変換対象から除外します：
 - `sync-cursor-commands.md`（このファイル自体。Claude Code専用機能のため）
+- `sync-cursor-rules.md`（同上）
 
 ### 2. 変換処理
 
@@ -65,18 +75,42 @@ Glob: .claude/commands/*.md
 - 報告内容は構造化マークダウン（絵文字付き見出し使用）
 ```
 
-#### 2.2 Cursor 用の注意書きを追加
+#### 2.2 RULE.md フォーマットへの変換
 
-ファイルの冒頭（YAML フロントマターの直後）に以下のセクションを追加：
+**Cursor の新ルール形式**:
+
+各コマンドを以下のフォルダ構造に変換します：
+
+```
+.cursor/rules/
+  {command-name}/
+    RULE.md
+```
+
+**RULE.md のフロントマター形式**:
 
 ```markdown
 ---
-[既存のYAMLフロントマター]
+description: "{元のdescriptionを使用}"
+globs: 
+alwaysApply: false
 ---
+```
 
-> **⚠️ Cursor での動作について**
+- `description`: 元のコマンドの description をそのまま使用
+- `globs`: 空のまま（手動呼び出し用 = `@{command-name}` で呼び出し）
+- `alwaysApply: false`: 手動呼び出し専用（Apply Manually タイプ）
+
+**注意**: `allowed-tools` は Cursor では使用しないため削除
+
+#### 2.3 Cursor 用の注意書きを追加
+
+ルール本文の冒頭（フロントマター直後）に以下のセクションを追加：
+
+```markdown
+> **⚠️ Cursor での実行について**
 >
-> このコマンドは `.claude/agents/` 配下のサブエージェント定義ファイルを参照します。
+> このルールは `.claude/agents/` 配下のサブエージェント定義ファイルを参照します。
 > サブエージェント呼び出し箇所では、該当する `.md` ファイルを Read で読み込み、
 > そのプロンプト内容に従って処理を実行してください。
 >
@@ -85,61 +119,74 @@ Glob: .claude/commands/*.md
 > 2. YAML フロントマターを除外し、本文プロンプトを取得
 > 3. プロンプトの指示に従って処理を実行
 > 4. プロンプト内の「出力形式」に従った報告を生成
+>
+> **使い方**: チャットで `@{rule-name}` を入力して呼び出してください
 
 [既存のコマンド内容]
 ```
 
 ### 3. ファイルの出力
 
-変換後のファイルを `.cursor/commands/` に Write します：
+変換後のファイルを `.cursor/rules/{command-name}/RULE.md` に Write します：
 
 ```bash
-# 例
-.claude/commands/task-exec.md → .cursor/commands/task-exec.md
-.claude/commands/spec-create.md → .cursor/commands/spec-create.md
+# 例（フォルダ形式）
+.claude/commands/task-exec.md → .cursor/rules/task-exec/RULE.md
+.claude/commands/spec-create.md → .cursor/rules/spec-create/RULE.md
+.claude/commands/einja/start-dev.md → .cursor/rules/start-dev/RULE.md
 ```
 
-### 4. 変更サマリーの表示
+**ディレクトリ作成**:
+出力前に対象ディレクトリが存在しない場合は作成してください。
+
+### 4. レガシーファイルのクリーンアップ（オプション）
+
+古い形式のファイルが存在する場合、削除を提案します：
+
+```bash
+# 削除対象（ユーザーに確認後）
+.cursor/commands/*.md  # 旧コマンド形式
+```
+
+### 5. 変更サマリーの表示
 
 処理完了後、以下の形式で報告を出力してください：
 
 ```markdown
-## 🎉 Cursor コマンド同期完了
+## 🎉 Cursor ルール同期完了（v2 形式）
 
 ### 処理サマリー
 - **変換元ディレクトリ**: `.claude/commands/`
-- **変換先ディレクトリ**: `.cursor/commands/`
+- **変換先ディレクトリ**: `.cursor/rules/` （フォルダ形式）
 - **処理ファイル数**: N個
 
-### 変換済みファイル一覧
-1. ✅ spec-create.md
-   - サブエージェント参照: 3箇所変換
-
-2. ✅ task-exec.md
-   - サブエージェント参照: 4箇所変換
-
-3. ✅ start-dev.md
-   - 変換不要（サブエージェント参照なし）
-
-4. ✅ update-docs-by-task-specs.md
-   - 変換不要（サブエージェント参照なし）
+### 変換済みルール一覧
+| ルール名 | 出力先 | サブエージェント参照 |
+|---------|--------|-------------------|
+| spec-create | `.cursor/rules/spec-create/RULE.md` | 3箇所変換 |
+| task-exec | `.cursor/rules/task-exec/RULE.md` | 4箇所変換 |
+| start-dev | `.cursor/rules/start-dev/RULE.md` | なし |
 
 ### 除外されたファイル
 - ⏭️ sync-cursor-commands.md（Claude Code専用機能のため除外）
 
-### 次のステップ
-Cursor で以下のコマンドが利用可能になりました：
-- `/spec-create`
-- `/task-exec`
-- `/start-dev`
-- `/update-docs-by-task-specs`
+### 使い方
+Cursor で以下のルールが利用可能になりました：
+- チャットで `@spec-create` と入力して呼び出し
+- チャットで `@task-exec` と入力して呼び出し
+- チャットで `@start-dev` と入力して呼び出し
+
+### レガシーファイル
+以下の古い形式のファイルが検出されました（削除推奨）：
+- `.cursor/commands/task-exec.md`
+- `.cursor/commands/spec-create.md`
 ```
 
 
 ## 変換時の注意事項
 
 ### 保持すべき内容
-- YAML フロントマター（description など）
+- YAML フロントマター（description）
 - コマンドの基本的なロジックと手順
 - ユーザー向けの説明文
 - 実行例とサンプルコード
@@ -148,24 +195,28 @@ Cursor で以下のコマンドが利用可能になりました：
 - `Task` ツール呼び出し → サブエージェントファイル読み込み形式
 - サブエージェント参照の説明
 - Cursor 固有の注意書き追加
+- フロントマター形式（`alwaysApply`, `globs` を追加）
 
 ### 削除すべき内容
 - Claude Code 固有のツール説明（Task ツールの使い方など）
+- `allowed-tools` ヘッダー（Cursor では使用しない）
 - サブエージェント実行の内部実装詳細
 
 
 ## 使用例
 
 ```bash
-# コマンド実行
+# コマンド実行（Claude Code から）
 /sync-cursor-commands
 
 # 実行結果
-✅ 4個のコマンドファイルを変換しました
-- spec-create.md: 3箇所のサブエージェント参照を変換
-- task-exec.md: 4箇所のサブエージェント参照を変換
-- start-dev.md: 変換不要
-- update-docs-by-task-specs.md: 変換不要
+✅ 4個のルールを .cursor/rules/ に変換しました
+
+変換結果:
+├── .cursor/rules/spec-create/RULE.md (3箇所のサブエージェント参照を変換)
+├── .cursor/rules/task-exec/RULE.md (4箇所のサブエージェント参照を変換)
+├── .cursor/rules/start-dev/RULE.md (変換不要)
+└── .cursor/rules/update-docs-by-task-specs/RULE.md (変換不要)
 ```
 
 ## エラー処理
@@ -181,8 +232,31 @@ Cursor で以下のコマンドが利用可能になりました：
    - 警告を表示し、該当箇所をスキップ
 
 3. **書き込み権限エラー**
-   - `.cursor/commands/` ディレクトリが書き込み不可の場合
+   - `.cursor/rules/` ディレクトリが書き込み不可の場合
    - エラーメッセージを表示して終了
+
+## Cursor ルールのベストプラクティス
+
+以下は Cursor 公式ドキュメントから抽出したベストプラクティスです：
+
+### ルール設計の原則
+- ✅ **500行以内**に収める
+- ✅ 大きなルールは**複数の組み合わせ可能なルール**に分割
+- ✅ **具体的な例や参照ファイル**を提示する
+- ✅ **曖昧な指示を避け**、社内ドキュメントのように明確に記述
+- ✅ 同じプロンプトを繰り返す場合は**ルールとして再利用**
+
+### ルールタイプの選択
+| タイプ | 用途 | 設定 |
+|--------|------|------|
+| Always Apply | 全チャットに適用 | `alwaysApply: true`, `globs:` なし |
+| Apply Intelligently | 自動判断で適用 | `alwaysApply: false`, `description` 必須 |
+| Apply to Specific Files | 特定ファイルに適用 | `globs: ["**/*.ts"]` |
+| Apply Manually | 手動呼び出し専用 | `alwaysApply: false`, `globs:` 空 |
+
+### コマンドからの変換推奨設定
+- **Apply Manually**（手動呼び出し）を使用
+- `@{rule-name}` でチャットから呼び出し
 
 ## 拡張性
 
@@ -201,3 +275,4 @@ Cursor で以下のコマンドが利用可能になりました：
 - 変換テンプレートの形式
 - 注意書きの内容
 - エラーハンドリングの詳細度
+- ルールタイプ（`alwaysApply` / `globs`）の設定

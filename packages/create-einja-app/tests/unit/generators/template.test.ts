@@ -132,6 +132,7 @@ describe("generateTemplate", { concurrent: false }, () => {
         husky: true,
       },
       setupEinjaCli: true,
+      useCurrentDir: false,
     };
 
     // 実際のテンプレートがあるのでそれを使用
@@ -175,6 +176,7 @@ describe("generateTemplate", { concurrent: false }, () => {
         husky: true,
       },
       setupEinjaCli: false,
+      useCurrentDir: false,
     };
 
     // モックテンプレートをテンプレートディレクトリにコピー
@@ -213,6 +215,7 @@ describe("generateTemplate", { concurrent: false }, () => {
         husky: true,
       },
       setupEinjaCli: false,
+      useCurrentDir: false,
     };
 
     if (existsSync(realTemplatePath)) {
@@ -252,6 +255,7 @@ describe("generateTemplate", { concurrent: false }, () => {
         husky: true,
       },
       setupEinjaCli: false,
+      useCurrentDir: false,
     };
 
     const realTemplatePath = join(process.cwd(), "templates/default");
@@ -298,6 +302,7 @@ describe("generateTemplate", { concurrent: false }, () => {
         husky: true,
       },
       setupEinjaCli: false,
+      useCurrentDir: false,
     };
 
     if (existsSync(realTemplatePath)) {
@@ -342,6 +347,7 @@ describe("generateTemplate", { concurrent: false }, () => {
         husky: true,
       },
       setupEinjaCli: false,
+      useCurrentDir: false,
     };
 
     if (existsSync(realTemplatePath)) {
@@ -387,6 +393,7 @@ describe("generateTemplate", { concurrent: false }, () => {
         husky: true,
       },
       setupEinjaCli: false,
+      useCurrentDir: false,
     };
 
     if (existsSync(realTemplatePath)) {
@@ -430,6 +437,7 @@ describe("generateTemplate", { concurrent: false }, () => {
         husky: true,
       },
       setupEinjaCli: false,
+      useCurrentDir: false,
     };
 
     if (existsSync(realTemplatePath)) {

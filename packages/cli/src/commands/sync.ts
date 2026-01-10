@@ -13,6 +13,7 @@ import {
 import { ConflictReporter } from "../lib/sync/conflict-reporter.js";
 import { DiffEngine } from "../lib/sync/diff-engine.js";
 import { FileFilter } from "../lib/sync/file-filter.js";
+import { JsonProcessor } from "../lib/sync/json-processor.js";
 import { MarkerProcessor } from "../lib/sync/marker-processor.js";
 import { MetadataManager } from "../lib/sync/metadata-manager.js";
 import { SeedSynchronizer } from "../lib/sync/seed-synchronizer.js";
@@ -110,6 +111,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   const batchProcessor = new BatchProcessor(10); // バッチサイズ: 10ファイル
   const markerProcessor = new MarkerProcessor();
   const seedSynchronizer = new SeedSynchronizer();
+  const jsonProcessor = new JsonProcessor();
 
   // 3. メタデータ読み込み
   spinner.start("メタデータを読み込み中...");
@@ -185,20 +187,59 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         // 既存ファイル：マージシミュレーション
         const projectPath = path.join(cwd, target.path);
         const localContent = await fs.readFile(projectPath, "utf-8");
-        const fileMetadata = metadata.files[target.path];
-        const baseContent = fileMetadata
-          ? (await metadataManager.getBaseContent(target.templatePath)).content
-          : "";
 
-        const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+        // JSONファイルの場合はJsonProcessorを使用
+        if (target.path.endsWith(".json")) {
+          try {
+            const templateJson = JSON.parse(templateContent);
+            const localJson = JSON.parse(localContent);
 
-        if (mergeResult.success) {
-          dryRunStats.updated++;
-          log(chalk.cyan(`  📝 更新: ${target.path}`), options);
+            // jsonPathsの取得（メタデータに存在しない場合はデフォルト値）
+            const jsonPaths = metadata.jsonPaths || {
+              managed: {},
+              seed: {},
+            };
+
+            jsonProcessor.mergeJson(templateJson, localJson, jsonPaths, target.path);
+
+            // JSONマージは基本的に成功扱い
+            dryRunStats.updated++;
+            log(chalk.cyan(`  📝 更新: ${target.path}`), options);
+          } catch (error) {
+            // JSONのパースエラーの場合は3方向マージにフォールバック
+            const fileMetadata = metadata.files[target.path];
+            const baseContent = fileMetadata
+              ? (await metadataManager.getBaseContent(target.templatePath)).content
+              : "";
+
+            const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+
+            if (mergeResult.success) {
+              dryRunStats.updated++;
+              log(chalk.cyan(`  📝 更新: ${target.path}`), options);
+            } else {
+              dryRunStats.conflicts++;
+              dryRunConflicts.set(target.path, mergeResult.conflicts);
+              log(chalk.yellow(`  ⚠️  コンフリクト: ${target.path}`), options);
+            }
+          }
         } else {
-          dryRunStats.conflicts++;
-          dryRunConflicts.set(target.path, mergeResult.conflicts);
-          log(chalk.yellow(`  ⚠️  コンフリクト: ${target.path}`), options);
+          // 非JSONファイルの場合
+          const fileMetadata = metadata.files[target.path];
+          const baseContent = fileMetadata
+            ? (await metadataManager.getBaseContent(target.templatePath)).content
+            : "";
+
+          const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+
+          if (mergeResult.success) {
+            dryRunStats.updated++;
+            log(chalk.cyan(`  📝 更新: ${target.path}`), options);
+          } else {
+            dryRunStats.conflicts++;
+            dryRunConflicts.set(target.path, mergeResult.conflicts);
+            log(chalk.yellow(`  ⚠️  コンフリクト: ${target.path}`), options);
+          }
         }
       }
     }
@@ -285,6 +326,54 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
     // 既存ファイルの内容を読み込み
     const localContent = await fs.readFile(projectPath, "utf-8");
+
+    // JSONファイルの場合はJsonProcessorを使用
+    if (target.path.endsWith(".json")) {
+      try {
+        const templateJson = JSON.parse(templateContent);
+        const localJson = JSON.parse(localContent);
+
+        // jsonPathsの取得（メタデータに存在しない場合はデフォルト値）
+        const jsonPaths = metadata.jsonPaths || {
+          managed: {},
+          seed: {},
+        };
+
+        const mergedJson = jsonProcessor.mergeJson(
+          templateJson,
+          localJson,
+          jsonPaths,
+          target.path
+        );
+
+        const mergedContent = `${JSON.stringify(mergedJson, null, 2)}\n`;
+
+        return {
+          target,
+          templateContent,
+          mergeContent: mergedContent,
+          success: true,
+          conflicts: [],
+          action: "merged" as const,
+        };
+      } catch (error) {
+        // JSONのパースエラーの場合は3方向マージにフォールバック
+        const fileMetadata = metadata.files[target.path];
+        const baseContent = fileMetadata
+          ? (await metadataManager.getBaseContent(target.templatePath)).content
+          : "";
+        const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+
+        return {
+          target,
+          templateContent,
+          mergeContent: mergeResult.content,
+          success: mergeResult.success,
+          conflicts: mergeResult.conflicts,
+          action: "merged" as const,
+        };
+      }
+    }
 
     // マーカーの有無をチェック（テンプレートまたはローカルにマーカーがある場合）
     const templateHasMarkers = hasMarkers(templateContent);

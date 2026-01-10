@@ -55,6 +55,7 @@ describe("post-setup generator", () => {
         husky: true,
       },
       setupEinjaCli: false,
+      useCurrentDir: false,
     };
 
     vi.clearAllMocks();

@@ -43,52 +43,58 @@ Tanstack Query、React Hook Form、Hono Clientを活用した型安全で保守�
 
 ```
 apps/web/
-├── app/                          # Next.js App Router
-│   ├── (auth)/                   # ルートグループ: 認証関連
-│   │   ├── login/
-│   │   │   └── page.tsx
-│   │   └── register/
-│   │       └── page.tsx
-│   ├── (dashboard)/              # ルートグループ: ダッシュボード
-│   │   ├── posts/
-│   │   │   ├── page.tsx         # 投稿一覧
-│   │   │   ├── new/
-│   │   │   │   └── page.tsx     # 投稿作成
-│   │   │   └── [id]/
-│   │   │       └── page.tsx     # 投稿詳細
-│   │   └── profile/
-│   │       └── page.tsx
-│   ├── api/                      # API Routes
-│   │   └── [[...route]]/
-│   │       └── route.ts         # Honoエントリーポイント
-│   ├── layout.tsx                # ルートレイアウト
-│   └── page.tsx                  # トップページ
-├── components/                   # UIコンポーネント
-│   ├── ui/                       # 基本コンポーネント
-│   │   ├── button.tsx
-│   │   ├── card.tsx
-│   │   ├── input.tsx
-│   │   ├── modal.tsx
-│   │   └── ...
-│   └── features/                 # 機能別コンポーネント
-│       ├── posts/
-│       │   ├── PostList.tsx
-│       │   ├── PostCard.tsx
-│       │   ├── PostCreateForm.tsx
-│       │   └── PostDetail.tsx
-│       └── auth/
-│           ├── LoginForm.tsx
-│           └── RegisterForm.tsx
-├── lib/                          # ユーティリティ
-│   ├── api-client.ts             # Hono Client設定
-│   ├── query-client.ts           # Tanstack Query設定
-│   └── utils.ts                  # 共通ユーティリティ
-├── hooks/                        # カスタムフック
-│   ├── use-posts.ts              # Postデータフック
-│   └── use-auth.ts               # 認証フック
+├── src/
+│   ├── app/                          # Next.js App Router
+│   │   ├── (auth)/                   # ルートグループ: 認証関連
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx
+│   │   │   └── register/
+│   │   │       └── page.tsx
+│   │   ├── (dashboard)/              # ルートグループ: ダッシュボード
+│   │   │   ├── posts/
+│   │   │   │   ├── page.tsx         # 投稿一覧
+│   │   │   │   ├── new/
+│   │   │   │   │   └── page.tsx     # 投稿作成
+│   │   │   │   └── [id]/
+│   │   │   │       └── page.tsx     # 投稿詳細
+│   │   │   └── profile/
+│   │   │       └── page.tsx
+│   │   ├── api/                      # API Routes
+│   │   │   └── rpc/
+│   │   │       └── [[...route]]/
+│   │   │           └── route.ts     # Honoエントリーポイント
+│   │   ├── layout.tsx                # ルートレイアウト
+│   │   └── page.tsx                  # トップページ
+│   ├── components/                   # UIコンポーネント
+│   │   ├── ui/                       # 基本コンポーネント
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── input.tsx
+│   │   │   ├── modal.tsx
+│   │   │   └── ...
+│   │   └── features/                 # 機能別コンポーネント
+│   │       ├── posts/
+│   │       │   ├── PostList.tsx
+│   │       │   ├── PostCard.tsx
+│   │       │   ├── PostCreateForm.tsx
+│   │       │   └── PostDetail.tsx
+│   │       └── auth/
+│   │           ├── LoginForm.tsx
+│   │           └── RegisterForm.tsx
+│   ├── lib/                          # ユーティリティ
+│   │   ├── api/
+│   │   │   ├── client.ts            # Hono Client設定
+│   │   │   └── parse-response.ts    # レスポンスパース＆バリデーション
+│   │   ├── query-client.ts           # Tanstack Query設定
+│   │   └── utils.ts                  # 共通ユーティリティ
+│   ├── hooks/                        # カスタムフック
+│   │   ├── api/                     # API関連フック
+│   │   │   └── use-posts.ts
+│   │   └── use-auth.ts               # 認証フック
+│   └── shared/
+│       └── schemas/                 # レスポンススキーマ（フロント固有）
+│           └── user.ts
 ├── public/                       # 静的ファイル
-├── styles/                       # グローバルスタイル
-│   └── globals.css
 ├── next.config.js
 ├── package.json
 ├── tsconfig.json
@@ -99,35 +105,76 @@ apps/web/
 
 ```
 apps/admin/
-├── app/
-│   ├── (protected)/              # ルートグループ: 認証必須
-│   │   ├── admin/
-│   │   │   ├── users/
-│   │   │   │   └── page.tsx
-│   │   │   ├── posts/
-│   │   │   │   └── page.tsx
-│   │   │   └── analytics/
-│   │   │       └── page.tsx
-│   ├── api/
-│   │   └── [[...route]]/
-│   │       └── route.ts
-│   ├── layout.tsx
-│   └── page.tsx
-├── components/
-│   ├── ui/
-│   └── features/
-│       └── admin/
-│           ├── UserTable.tsx
-│           └── PostStatusManager.tsx
-├── lib/
-├── hooks/
-└── ...
+├── src/
+│   ├── app/
+│   │   ├── (protected)/              # ルートグループ: 認証必須
+│   │   │   ├── admin/
+│   │   │   │   ├── users/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── posts/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── analytics/
+│   │   │   │       └── page.tsx
+│   │   ├── api/
+│   │   │   └── rpc/
+│   │   │       └── [[...route]]/
+│   │   │           └── route.ts
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components/
+│   │   ├── ui/
+│   │   └── features/
+│   │       └── admin/
+│   │           ├── UserTable.tsx
+│   │           └── PostStatusManager.tsx
+│   ├── lib/
+│   ├── hooks/
+│   └── ...
 ```
 
 **設計ポイント**:
 - **ルートグループ**: `(auth)`, `(dashboard)`, `(protected)` でルートを論理的にグループ化
 - **コロケーション**: 機能別にコンポーネント、フック、ユーティリティを配置
 - **共通コンポーネント**: ui/に再利用可能な基本コンポーネント、features/に機能別コンポーネント
+
+### スキーマ配置の設計方針
+
+スキーマはリクエスト/レスポンスで配置場所を分離します。
+
+| スキーマ種別 | 配置場所 | 用途 |
+|-------------|---------|------|
+| **リクエストスキーマ** | `@repo/server-core/domain/validators/` | APIリクエストのバリデーション（バックエンド） |
+| **レスポンススキーマ** | `apps/web/src/shared/schemas/` | APIレスポンスの型検証（フロントエンド固有） |
+
+**理由**:
+- レスポンス形式はフロントエンドが消費するものなので、フロントエンド側で定義すべき
+- apps間で異なるレスポンス形式を持つ可能性がある
+- フロント固有のバリデーションルール（例: 日付フォーマット）を追加しやすい
+
+**例**:
+
+```typescript
+// リクエストスキーマ（バックエンド）
+// @repo/server-core/domain/validators/user.ts
+export const createUserSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(1).max(100),
+})
+
+// レスポンススキーマ（フロントエンド）
+// apps/web/src/shared/schemas/user.ts
+export const userSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  name: z.string(),
+  createdAt: z.string(), // ISO 8601文字列
+})
+
+export const paginatedUserListSchema = z.object({
+  users: z.array(userSchema),
+  total: z.number(),
+})
+```
 
 ---
 
@@ -153,24 +200,24 @@ apps/admin/
 **Hono Clientの初期化**:
 
 ```typescript
-// apps/web/lib/api-client.ts
+// apps/web/src/lib/api/client.ts
 import { hc } from 'hono/client'
-import type { AppType } from '@/app/api/[[...route]]/route'
+import type { AppType } from '@/app/api/rpc/[[...route]]/route'
 
-export const apiClient = hc<AppType>('/api')
+export const apiClient = hc<AppType>('/')
 ```
 
 **型定義のエクスポート**:
 
 ```typescript
-// apps/web/app/api/[[...route]]/route.ts
+// apps/web/src/app/api/rpc/[[...route]]/route.ts
 import { Hono } from 'hono'
 import { handle } from 'hono/vercel'
-import postRoutes from '@/server/routes/postRoutes'
+import { userRoutes } from '@web/server/presentation/routes/userRoutes'
 
-const app = new Hono().basePath('/api')
+const app = new Hono().basePath('/api/rpc')
 
-app.route('/', postRoutes)
+const routes = app.route('/users', userRoutes)
 
 export const GET = handle(app)
 export const POST = handle(app)
@@ -178,7 +225,7 @@ export const PUT = handle(app)
 export const DELETE = handle(app)
 
 // 型のエクスポート（フロントエンドで使用）
-export type AppType = typeof app
+export type AppType = typeof routes
 ```
 
 ### API呼び出しパターン
@@ -186,49 +233,49 @@ export type AppType = typeof app
 **GET リクエスト**:
 
 ```typescript
-// 投稿一覧取得
-const response = await apiClient.posts.$get({
+// ユーザー一覧取得
+const response = await apiClient.api.rpc.users.$get({
   query: { page: '1', limit: '10' }
 })
-const data = await response.json() // 型推論: { posts: Post[], total: number }
+const data = await response.json() // 型推論: { users: User[], total: number }
 ```
 
 **POST リクエスト**:
 
 ```typescript
-// 投稿作成
-const response = await apiClient.posts.$post({
-  json: { title: 'New Post', content: 'Content' }
+// ユーザー作成
+const response = await apiClient.api.rpc.users.$post({
+  json: { email: 'user@example.com', name: 'User Name' }
 })
-const data = await response.json() // 型推論: { post: Post }
+const data = await response.json() // 型推論: { user: User }
 ```
 
 **GET リクエスト（パスパラメータ）**:
 
 ```typescript
-// 投稿詳細取得
-const response = await apiClient.posts[':id'].$get({
+// ユーザー詳細取得
+const response = await apiClient.api.rpc.users[':id'].$get({
   param: { id: '123' }
 })
-const data = await response.json() // 型推論: { post: Post }
+const data = await response.json() // 型推論: { user: User }
 ```
 
 **PUT リクエスト**:
 
 ```typescript
-// 投稿更新
-const response = await apiClient.posts[':id'].$put({
+// ユーザー更新
+const response = await apiClient.api.rpc.users[':id'].$put({
   param: { id: '123' },
-  json: { title: 'Updated Title' }
+  json: { name: 'Updated Name' }
 })
-const data = await response.json() // 型推論: { post: Post }
+const data = await response.json() // 型推論: { user: User }
 ```
 
 **DELETE リクエスト**:
 
 ```typescript
-// 投稿削除
-const response = await apiClient.posts[':id'].$delete({
+// ユーザー削除
+const response = await apiClient.api.rpc.users[':id'].$delete({
   param: { id: '123' }
 })
 const data = await response.json() // 型推論: { success: true }
@@ -238,6 +285,100 @@ const data = await response.json() // 型推論: { success: true }
 - バックエンドのAPI変更が自動的にフロントエンドに反映
 - 型エラーでAPI仕様の不一致を早期発見
 - IDEの補完機能でAPI仕様を確認可能
+
+### APIレスポンスパース処理
+
+`lib/api/parse-response.ts` は、APIレスポンスのパースとZodスキーマによるバリデーションを行います。
+
+**parseResponse 関数**:
+
+```typescript
+import type { z } from "zod";
+
+export class ApiError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly statusCode: number,
+    public readonly details?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export async function parseResponse<T>(
+  response: Response,
+  schema: z.ZodSchema<T>
+): Promise<T> {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new ApiError(
+      errorData.error?.code || "UNKNOWN_ERROR",
+      errorData.error?.message || "APIエラーが発生しました",
+      response.status,
+      errorData.error?.details
+    );
+  }
+
+  const data = await response.json();
+  const parsed = schema.safeParse(data);
+
+  if (!parsed.success) {
+    throw new ApiError(
+      "VALIDATION_ERROR",
+      "レスポンスの形式が不正です",
+      500,
+      { zodError: parsed.error.flatten() }
+    );
+  }
+
+  return parsed.data;
+}
+```
+
+**カスタムフック内での使用**:
+
+```typescript
+import { useQuery } from "@tanstack/react-query";
+import { parseResponse } from "@/lib/api/parse-response";
+import { paginatedUserListSchema } from "@/shared/schemas/user";
+import { apiClient } from "@/lib/api/client";
+
+export function useUsers(filters: UserFilters = {}) {
+  return useQuery({
+    queryKey: ["users", filters],
+    queryFn: async () => {
+      const response = await apiClient.api.rpc.users.$get({
+        query: { page: String(filters.page || 1), limit: String(filters.limit || 10) },
+      });
+      return parseResponse(response, paginatedUserListSchema);
+    },
+  });
+}
+```
+
+**エラーハンドリング**:
+
+```typescript
+import { ApiError } from "@/lib/api/parse-response";
+
+try {
+  const users = await parseResponse(response, paginatedUserListSchema);
+} catch (error) {
+  if (error instanceof ApiError) {
+    console.error(`API Error [${error.code}]: ${error.message}`);
+    // error.statusCode, error.details も利用可能
+  }
+  throw error;
+}
+```
+
+**メリット**:
+- レスポンス形式の型安全性を保証
+- フロント固有のバリデーションルールを適用可能
+- エラーハンドリングの一元化
+- APIエラーとバリデーションエラーの明確な区別
 
 ---
 
@@ -958,12 +1099,18 @@ export function PostCard({ post }: PostCardProps) {
 - 状態管理ロジックの再利用
 - コンポーネントをシンプルに保つ
 
+**フックの分類**:
+- **API関連フック**: `hooks/api/` に配置（例: `use-posts.ts`, `use-users.ts`）
+- **UI状態フック**: `hooks/` 直下に配置（例: `use-toast.ts`, `use-auth.ts`）
+
 **例**:
 
 ```typescript
-// hooks/use-posts.ts
+// hooks/api/use-posts.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api-client'
+import { parseResponse } from '@/lib/api/parse-response'
+import { paginatedPostListSchema } from '@/shared/schemas/post'
+import { apiClient } from '@/lib/api/client'
 import type { CreatePostInput, UpdatePostInput } from '@repo/server-core/domain/validators/post'
 
 // 投稿一覧取得
@@ -971,10 +1118,10 @@ export function usePostList(page: number, limit: number) {
   return useQuery({
     queryKey: ['posts', page, limit],
     queryFn: async () => {
-      const response = await apiClient.posts.$get({
+      const response = await apiClient.api.posts.$get({
         query: { page: String(page), limit: String(limit) }
       })
-      return response.json()
+      return parseResponse(response, paginatedPostListSchema)
     },
   })
 }
@@ -984,8 +1131,8 @@ export function usePost(id: string) {
   return useQuery({
     queryKey: ['posts', id],
     queryFn: async () => {
-      const response = await apiClient.posts[':id'].$get({ param: { id } })
-      return response.json()
+      const response = await apiClient.api.posts[':id'].$get({ param: { id } })
+      return parseResponse(response, postSchema)
     },
   })
 }
@@ -996,8 +1143,8 @@ export function useCreatePost() {
 
   return useMutation({
     mutationFn: async (data: CreatePostInput) => {
-      const response = await apiClient.posts.$post({ json: data })
-      return response.json()
+      const response = await apiClient.api.posts.$post({ json: data })
+      return parseResponse(response, postSchema)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] })
@@ -1011,11 +1158,11 @@ export function useUpdatePost(id: string) {
 
   return useMutation({
     mutationFn: async (data: UpdatePostInput) => {
-      const response = await apiClient.posts[':id'].$put({
+      const response = await apiClient.api.posts[':id'].$put({
         param: { id },
         json: data
       })
-      return response.json()
+      return parseResponse(response, postSchema)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts', id] })
@@ -1030,8 +1177,8 @@ export function useDeletePost() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient.posts[':id'].$delete({ param: { id } })
-      return response.json()
+      const response = await apiClient.api.posts[':id'].$delete({ param: { id } })
+      return parseResponse(response, deleteResponseSchema)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] })

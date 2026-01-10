@@ -1,6 +1,6 @@
 {
   "name": "@einja/dev-cli",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "description": "Einja CLI - .claude設定とテンプレート同期をnpxでインストール",
   "type": "module",
   "main": "./dist/index.js",
@@ -30,6 +30,7 @@
     "test:watch": "vitest --passWithNoTests"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "fs-extra": "^11.3.0",

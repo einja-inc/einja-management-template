@@ -5,7 +5,7 @@
 import { execSync } from "node:child_process";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resolveConflictWithClaude } from "./conflict-handler";
+import { resolveConflictWithClaude } from "./conflict-handler.js";
 
 /**
  * マージ結果の型

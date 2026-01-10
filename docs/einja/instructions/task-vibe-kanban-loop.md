@@ -454,20 +454,23 @@ sequenceDiagram
 
 ## 実装詳細
 
-スクリプトは `scripts/task-vibe-kanban-loop/` に配置：
+スクリプトは `packages/cli/src/commands/task-loop/` に配置（CLIパッケージに統合）：
 
 ```
-scripts/task-vibe-kanban-loop/
-├── index.ts                    # エントリポイント・メインループ
+packages/cli/src/commands/task-loop/
+├── index.ts                    # エントリポイント（taskLoopCommand関数）
 └── lib/
     ├── types.ts                # 型定義
-    ├── args-parser.ts          # 引数解析
     ├── task-number-utils.ts    # タスク番号比較
     ├── github-client.ts        # GitHub Issue操作
+    ├── gh-setup.ts             # GitHub CLI セットアップ
     ├── branch-manager.ts       # Git ブランチ操作
+    ├── conflict-handler.ts     # コンフリクト処理
     ├── vibe-kanban-client.ts   # MCP経由Vibe-Kanban操作
+    ├── vibe-kanban-rest-client.ts # REST API クライアント
     ├── issue-parser.ts         # Issue Markdownパーサー
     ├── dependency-resolver.ts  # 依存関係解析
+    ├── project-selector.ts     # プロジェクト選択
     └── task-state-manager.ts   # タスク状態管理
 ```
 

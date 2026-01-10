@@ -37,12 +37,9 @@ describe("パフォーマンステスト", () => {
 			expect(hash1).toBe(hash2);
 
 			// キャッシュが存在すること
-			const contentLength = content.length;
 			// privateメンバーのhashCacheに直接アクセス（テスト目的）
 			// biome-ignore lint/complexity/useLiteralKeys: テストでprivateメンバーにアクセス
-			expect(metadataManager["hashCache"].has(filePath, contentLength)).toBe(
-				true,
-			);
+			expect(metadataManager["hashCache"].has(filePath, content)).toBe(true);
 		});
 
 		it("100ファイルのハッシュ計算がキャッシュにより高速化されること", async () => {
@@ -57,9 +54,7 @@ describe("パフォーマンステスト", () => {
 			// すべてのファイルがキャッシュされていること
 			for (const file of files) {
 				// biome-ignore lint/complexity/useLiteralKeys: テストでprivateメンバーにアクセス
-				expect(metadataManager["hashCache"].has(file, content.length)).toBe(
-					true,
-				);
+				expect(metadataManager["hashCache"].has(file, content)).toBe(true);
 			}
 
 			// キャッシュクリア
@@ -68,9 +63,7 @@ describe("パフォーマンステスト", () => {
 			// キャッシュがクリアされたこと
 			for (const file of files) {
 				// biome-ignore lint/complexity/useLiteralKeys: テストでprivateメンバーにアクセス
-				expect(metadataManager["hashCache"].has(file, content.length)).toBe(
-					false,
-				);
+				expect(metadataManager["hashCache"].has(file, content)).toBe(false);
 			}
 
 			// 2回目：再度ハッシュ計算
@@ -81,9 +74,7 @@ describe("パフォーマンステスト", () => {
 			// 再度キャッシュされていること
 			for (const file of files) {
 				// biome-ignore lint/complexity/useLiteralKeys: テストでprivateメンバーにアクセス
-				expect(metadataManager["hashCache"].has(file, content.length)).toBe(
-					true,
-				);
+				expect(metadataManager["hashCache"].has(file, content)).toBe(true);
 			}
 		});
 	});

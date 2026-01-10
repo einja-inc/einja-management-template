@@ -72,7 +72,7 @@ export interface VibeKanbanTask {
   id: string;
   title: string;
   description?: string;
-  status: "todo" | "in-progress" | "done";
+  status: "todo" | "inprogress" | "in-progress" | "done" | "cancelled";
 }
 
 /** Vibe-Kanban タスク実行試行 */

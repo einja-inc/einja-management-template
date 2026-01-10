@@ -1,1 +1,1 @@
-../../../../../docs/einja/steering/development/review-guidelines.md
+../../../../docs/einja/steering/development/review-guidelines.md

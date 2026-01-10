@@ -1,1 +1,1 @@
-../../../../../docs/einja/steering/development/api-development.md
+../../../../docs/einja/steering/development/api-development.md

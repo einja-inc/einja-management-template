@@ -1,1 +1,1 @@
-../../../../../docs/einja/steering/development/frontend-development.md
+../../../../docs/einja/steering/development/frontend-development.md

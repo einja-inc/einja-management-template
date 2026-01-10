@@ -1,1 +1,1 @@
-../../../../../docs/einja/steering/development/backend-architecture.md
+../../../../docs/einja/steering/development/backend-architecture.md

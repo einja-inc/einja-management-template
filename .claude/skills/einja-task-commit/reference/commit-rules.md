@@ -1,1 +1,1 @@
-../../../../../docs/einja/steering/commit-rules.md
+../../../../docs/einja/steering/commit-rules.md

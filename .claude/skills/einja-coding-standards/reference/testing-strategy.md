@@ -1,1 +1,1 @@
-../../../../../docs/einja/steering/development/testing-strategy.md
+../../../../docs/einja/steering/development/testing-strategy.md

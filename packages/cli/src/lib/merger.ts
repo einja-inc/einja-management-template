@@ -185,9 +185,7 @@ export async function createSymlinks(
         const stat = await fs.lstat(linkPath);
         if (stat.isDirectory() && !stat.isSymbolicLink()) {
           // ディレクトリの場合はエラー（手動対応を促す）
-          result.logs.push(
-            `エラー: ${link} にディレクトリが存在します。手動で削除してください。`
-          );
+          result.logs.push(`エラー: ${link} にディレクトリが存在します。手動で削除してください。`);
           result.errors++;
           continue;
         }

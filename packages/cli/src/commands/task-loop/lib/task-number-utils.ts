@@ -40,26 +40,35 @@ export function isLessOrEqual(a: string, b: string): boolean {
 }
 
 /**
- * 比較: a < b
- */
-export function isLess(a: string, b: string): boolean {
-  return isLessOrEqual(a, b) && a !== b;
-}
-
-/**
  * 比較: a == b
+ * 末尾ゼロを考慮した数値的な比較を行う
+ * @example isEqual("1.2", "1.2.0") -> true
+ * @example isEqual("1.2.0", "1.2") -> true
+ * @example isEqual("1.2", "1.3") -> false
  */
 export function isEqual(a: string, b: string): boolean {
   const partsA = parseTaskNumber(a);
   const partsB = parseTaskNumber(b);
 
-  if (partsA.length !== partsB.length) return false;
+  // 各セグメントを数値的に比較（末尾ゼロを考慮）
+  const maxLen = Math.max(partsA.length, partsB.length);
+  for (let i = 0; i < maxLen; i++) {
+    const numA = partsA[i] ?? 0;
+    const numB = partsB[i] ?? 0;
 
-  for (let i = 0; i < partsA.length; i++) {
-    if (partsA[i] !== partsB[i]) return false;
+    if (numA !== numB) return false;
   }
 
   return true;
+}
+
+/**
+ * 比較: a < b
+ * @example isLess("1.2", "1.2.0") -> false (同値なので)
+ * @example isLess("1.2", "1.3") -> true
+ */
+export function isLess(a: string, b: string): boolean {
+  return isLessOrEqual(a, b) && !isEqual(a, b);
 }
 
 /**

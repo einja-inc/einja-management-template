@@ -88,7 +88,7 @@ function mergeWithWorktree(
         success: false,
         conflicted: true,
         error: "マージコンフリクトが発生しました",
-        worktreePath: tempDir
+        worktreePath: tempDir,
       };
     }
 
@@ -463,7 +463,7 @@ function mergeRemoteIntoLocal(branchName: string): void {
     try {
       execSync(`git merge origin/${branchName} --no-edit`, { stdio: "pipe" });
     } catch {
-      execSync(`git merge --abort`, { stdio: "ignore" });
+      execSync("git merge --abort", { stdio: "ignore" });
       throw new Error(
         `ブランチ ${branchName} のリモート同期でコンフリクトが発生しました。手動で解決してください。`
       );
@@ -555,7 +555,10 @@ async function syncIssueBranch(issueBranch: string, issueBranchBase: string): Pr
  * checkout を使用せず、GitHub API または worktree でリモートマージを実行
  * コンフリクトが発生した場合は Claude Code でインタラクティブに解決
  */
-async function mergeBaseBranchIntoIssue(issueBranch: string, issueBranchBase: string): Promise<void> {
+async function mergeBaseBranchIntoIssue(
+  issueBranch: string,
+  issueBranchBase: string
+): Promise<void> {
   // Issue ブランチがベースブランチの変更を既に含んでいるか確認
   const remoteBaseBranch = `origin/${issueBranchBase}`;
   const remoteIssueBranch = `origin/${issueBranch}`;
@@ -590,7 +593,7 @@ async function mergeBaseBranchIntoIssue(issueBranch: string, issueBranchBase: st
         {
           targetBranch: issueBranch,
           sourceBranch: issueBranchBase,
-          operationType: "base"
+          operationType: "base",
         },
         result.worktreePath
       );
@@ -609,7 +612,9 @@ async function mergeBaseBranchIntoIssue(issueBranch: string, issueBranchBase: st
 
       // コンフリクト解消成功 - プッシュしてクリーンアップ
       try {
-        execSync(`git -C "${result.worktreePath}" push origin HEAD:${issueBranch}`, { stdio: "pipe" });
+        execSync(`git -C "${result.worktreePath}" push origin HEAD:${issueBranch}`, {
+          stdio: "pipe",
+        });
         console.log("   ✅ コンフリクト解消後のマージを完了しました");
       } finally {
         execSync(`git worktree remove "${result.worktreePath}" --force`, { stdio: "ignore" });
@@ -692,7 +697,7 @@ export async function mergePhaseBranchIntoIssue(
         {
           targetBranch: issueBranch,
           sourceBranch: phaseBranch,
-          operationType: "phase"
+          operationType: "phase",
         },
         result.worktreePath
       );
@@ -711,7 +716,9 @@ export async function mergePhaseBranchIntoIssue(
 
       // コンフリクト解消成功 - プッシュしてクリーンアップ
       try {
-        execSync(`git -C "${result.worktreePath}" push origin HEAD:${issueBranch}`, { stdio: "pipe" });
+        execSync(`git -C "${result.worktreePath}" push origin HEAD:${issueBranch}`, {
+          stdio: "pipe",
+        });
         console.log(`   ✅ Phase ${phaseNumber} コンフリクト解消後のマージを完了しました`);
       } finally {
         execSync(`git worktree remove "${result.worktreePath}" --force`, { stdio: "ignore" });
@@ -773,7 +780,7 @@ async function mergeIssueBranchIntoPhase(phaseBranch: string, issueBranch: strin
         {
           targetBranch: phaseBranch,
           sourceBranch: issueBranch,
-          operationType: "phase"
+          operationType: "phase",
         },
         result.worktreePath
       );
@@ -792,7 +799,9 @@ async function mergeIssueBranchIntoPhase(phaseBranch: string, issueBranch: strin
 
       // コンフリクト解消成功 - プッシュしてクリーンアップ
       try {
-        execSync(`git -C "${result.worktreePath}" push origin HEAD:${phaseBranch}`, { stdio: "pipe" });
+        execSync(`git -C "${result.worktreePath}" push origin HEAD:${phaseBranch}`, {
+          stdio: "pipe",
+        });
         console.log("   ✅ コンフリクト解消後のマージを完了しました");
       } finally {
         execSync(`git worktree remove "${result.worktreePath}" --force`, { stdio: "ignore" });

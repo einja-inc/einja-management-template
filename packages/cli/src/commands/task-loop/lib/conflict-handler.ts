@@ -1,4 +1,4 @@
-import { spawn, execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 
 interface ConflictInfo {
   targetBranch: string;

@@ -4,17 +4,21 @@ import { z } from "zod";
 import { getScaffoldsPath } from "./file-system.js";
 
 // Zodスキーマ定義
-const McpServerConfigSchema = z.object({
-  type: z.string().optional(),
-  command: z.string().optional(),
-  args: z.array(z.string()).optional(),
-  url: z.string().optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-}).passthrough();
+const McpServerConfigSchema = z
+  .object({
+    type: z.string().optional(),
+    command: z.string().optional(),
+    args: z.array(z.string()).optional(),
+    url: z.string().optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+  })
+  .passthrough();
 
-const McpConfigSchema = z.object({
-  mcpServers: z.record(z.string(), McpServerConfigSchema).optional(),
-}).passthrough();
+const McpConfigSchema = z
+  .object({
+    mcpServers: z.record(z.string(), McpServerConfigSchema).optional(),
+  })
+  .passthrough();
 
 // TypeScript型定義（Zodから推論）
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
@@ -79,7 +83,10 @@ export async function loadExistingMcpConfig(targetDir: string): Promise<LoadMcpC
   }
 }
 
-export function mergeMcpConfigs(existing: McpConfig | null, template: McpConfig): MergeMcpConfigResult {
+export function mergeMcpConfigs(
+  existing: McpConfig | null,
+  template: McpConfig
+): MergeMcpConfigResult {
   const added: string[] = [];
   const overwritten: string[] = [];
   const preserved: string[] = [];

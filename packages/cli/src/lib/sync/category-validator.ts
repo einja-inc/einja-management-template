@@ -17,12 +17,12 @@ export type ValidCategory = (typeof VALID_CATEGORIES)[number];
  * カテゴリバリデーション結果
  */
 export interface CategoryValidationResult {
-	/** バリデーションが成功したか */
-	valid: boolean;
-	/** 有効なカテゴリのリスト */
-	validCategories: string[];
-	/** 無効なカテゴリのリスト */
-	invalidCategories: string[];
+  /** バリデーションが成功したか */
+  valid: boolean;
+  /** 有効なカテゴリのリスト */
+  validCategories: string[];
+  /** 無効なカテゴリのリスト */
+  invalidCategories: string[];
 }
 
 /**
@@ -31,28 +31,28 @@ export interface CategoryValidationResult {
  * @returns バリデーション結果
  */
 export function validateCategories(categoryString: string): CategoryValidationResult {
-	// カンマで分割してトリム
-	const categories = categoryString
-		.split(",")
-		.map((cat) => cat.trim())
-		.filter((cat) => cat !== "");
+  // カンマで分割してトリム
+  const categories = categoryString
+    .split(",")
+    .map((cat) => cat.trim())
+    .filter((cat) => cat !== "");
 
-	const validCategories: string[] = [];
-	const invalidCategories: string[] = [];
+  const validCategories: string[] = [];
+  const invalidCategories: string[] = [];
 
-	for (const category of categories) {
-		if (VALID_CATEGORIES.includes(category as ValidCategory)) {
-			validCategories.push(category);
-		} else {
-			invalidCategories.push(category);
-		}
-	}
+  for (const category of categories) {
+    if (VALID_CATEGORIES.includes(category as ValidCategory)) {
+      validCategories.push(category);
+    } else {
+      invalidCategories.push(category);
+    }
+  }
 
-	return {
-		valid: invalidCategories.length === 0,
-		validCategories,
-		invalidCategories,
-	};
+  return {
+    valid: invalidCategories.length === 0,
+    validCategories,
+    invalidCategories,
+  };
 }
 
 /**
@@ -61,8 +61,8 @@ export function validateCategories(categoryString: string): CategoryValidationRe
  * @returns エラーメッセージ
  */
 export function createValidationErrorMessage(invalidCategories: string[]): string {
-	const invalidList = invalidCategories.join(", ");
-	const validList = VALID_CATEGORIES.join(", ");
+  const invalidList = invalidCategories.join(", ");
+  const validList = VALID_CATEGORIES.join(", ");
 
-	return `無効なカテゴリ: ${invalidList}\n\n有効なカテゴリは以下のいずれかです:\n  - ${validList}`;
+  return `無効なカテゴリ: ${invalidList}\n\n有効なカテゴリは以下のいずれかです:\n  - ${validList}`;
 }

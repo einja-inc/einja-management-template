@@ -4,7 +4,7 @@
  * pnpm task:loop 実行前に GitHub CLI の準備を自動化する
  */
 
-import { execSync, spawnSync, type ExecSyncOptions } from "node:child_process";
+import { type ExecSyncOptions, execSync, spawnSync } from "node:child_process";
 
 // ANSI カラーコード（setup-dev.ts と同じパターン）
 const colors = {
@@ -57,8 +57,7 @@ function getPlatform(): "macos" | "linux" | "windows" | "unknown" {
  */
 function commandExists(cmd: string): boolean {
   try {
-    const checkCmd =
-      process.platform === "win32" ? `where ${cmd}` : `command -v ${cmd}`;
+    const checkCmd = process.platform === "win32" ? `where ${cmd}` : `command -v ${cmd}`;
     const shell = process.platform === "win32" ? "cmd.exe" : "/bin/sh";
     execSync(checkCmd, { stdio: "ignore", shell });
     return true;
@@ -91,8 +90,7 @@ function parseGhAuthStatus(): GhAuthStatus {
     if (scopeMatch) {
       const scopesStr = scopeMatch[1];
       // 'scope1', 'scope2' 形式から抽出
-      const scopes =
-        scopesStr.match(/'([^']+)'/g)?.map((s) => s.slice(1, -1)) ?? [];
+      const scopes = scopesStr.match(/'([^']+)'/g)?.map((s) => s.slice(1, -1)) ?? [];
       return { isAuthenticated: true, scopes };
     }
 
@@ -119,39 +117,25 @@ function ensureGhInstalled(): void {
       const result = spawnSync("brew", ["install", "gh"], { stdio: "inherit" });
       if (result.error || result.status !== 0) {
         fail("GitHub CLI のインストールに失敗しました");
-        console.log(
-          colors.yellow("   手動でインストールしてください: brew install gh")
-        );
+        console.log(colors.yellow("   手動でインストールしてください: brew install gh"));
         process.exit(1);
       }
       succeed("GitHub CLI をインストールしました");
     } else {
       fail("Homebrew がインストールされていません");
-      console.log(
-        colors.yellow("   以下のいずれかの方法でインストールしてください:")
-      );
-      console.log(
-        colors.gray("     1. Homebrew をインストール後: brew install gh")
-      );
-      console.log(
-        colors.gray("     2. 公式インストーラー: https://cli.github.com/")
-      );
+      console.log(colors.yellow("   以下のいずれかの方法でインストールしてください:"));
+      console.log(colors.gray("     1. Homebrew をインストール後: brew install gh"));
+      console.log(colors.gray("     2. 公式インストーラー: https://cli.github.com/"));
       process.exit(1);
     }
   } else if (platform === "linux") {
     fail("GitHub CLI がインストールされていません");
     console.log(colors.yellow("   以下の方法でインストールしてください:"));
-    console.log(
-      colors.gray(
-        "     https://github.com/cli/cli/blob/trunk/docs/install_linux.md"
-      )
-    );
+    console.log(colors.gray("     https://github.com/cli/cli/blob/trunk/docs/install_linux.md"));
     process.exit(1);
   } else {
     fail("GitHub CLI がインストールされていません");
-    console.log(
-      colors.yellow("   https://cli.github.com/ からインストールしてください")
-    );
+    console.log(colors.yellow("   https://cli.github.com/ からインストールしてください"));
     process.exit(1);
   }
 }
@@ -177,9 +161,7 @@ function ensureGhAuthenticated(): void {
 
   if (result.error || result.status !== 0) {
     fail("GitHub CLI の認証に失敗しました");
-    console.log(
-      colors.yellow("   手動で実行してください: gh auth login --web")
-    );
+    console.log(colors.yellow("   手動で実行してください: gh auth login --web"));
     process.exit(1);
   }
 
@@ -199,35 +181,25 @@ function ensureRequiredScopes(): void {
 
   // 必要なスコープ: repo（Issue の読み書きに必要）
   const requiredScopes = ["repo"];
-  const missingScopes = requiredScopes.filter(
-    (s) => !status.scopes.includes(s)
-  );
+  const missingScopes = requiredScopes.filter((s) => !status.scopes.includes(s));
 
   if (missingScopes.length === 0) {
     succeed("必要な権限スコープが設定されています (repo)");
     return;
   }
 
-  console.log(
-    colors.yellow(`   不足している権限スコープ: ${missingScopes.join(", ")}`)
-  );
+  console.log(colors.yellow(`   不足している権限スコープ: ${missingScopes.join(", ")}`));
   console.log("   権限を追加します...");
 
   // gh auth refresh でスコープを追加
-  const result = spawnSync(
-    "gh",
-    ["auth", "refresh", "-s", missingScopes.join(",")],
-    {
-      stdio: "inherit",
-    }
-  );
+  const result = spawnSync("gh", ["auth", "refresh", "-s", missingScopes.join(",")], {
+    stdio: "inherit",
+  });
 
   if (result.error || result.status !== 0) {
     fail("権限スコープの追加に失敗しました");
     console.log(
-      colors.yellow(
-        `   手動で実行してください: gh auth refresh -s ${missingScopes.join(",")}`
-      )
+      colors.yellow(`   手動で実行してください: gh auth refresh -s ${missingScopes.join(",")}`)
     );
     process.exit(1);
   }

@@ -80,7 +80,9 @@ export class TaskStateManager {
     );
 
     // デバッグ: 比較情報を出力
-    console.log(`   🔍 Done検出: 現在Done=${currentDoneIds.size}件, 前回Done=${this.previousDoneTaskIds.size}件`);
+    console.log(
+      `   🔍 Done検出: 現在Done=${currentDoneIds.size}件, 前回Done=${this.previousDoneTaskIds.size}件`
+    );
 
     const newlyCompletedIds: string[] = [];
     for (const id of Array.from(currentDoneIds)) {
@@ -91,7 +93,7 @@ export class TaskStateManager {
     }
 
     if (newlyCompletedIds.length === 0 && currentDoneIds.size > 0) {
-      console.log(`      ℹ️  全てのDoneタスクは既に検出済み`);
+      console.log("      ℹ️  全てのDoneタスクは既に検出済み");
     }
 
     // 状態を更新

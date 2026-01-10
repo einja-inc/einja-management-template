@@ -2,10 +2,10 @@
  * GitHub Issue 操作（gh CLI wrapper）
  */
 
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execSync } from "node:child_process";
 import type { GitHubIssue, RepoInfo } from "./types.js";
 
 /**
@@ -105,10 +105,7 @@ export function markTaskGroupAsCompleted(issueBody: string, taskGroupId: string)
   );
 
   // パターン2: ボールドなし - [ ] X.Y タスク名
-  const plainPattern = new RegExp(
-    `^(\\s*)- \\[ \\] (${escapeRegex(taskGroupId)}\\s)(.*)$`,
-    "gm"
-  );
+  const plainPattern = new RegExp(`^(\\s*)- \\[ \\] (${escapeRegex(taskGroupId)}\\s)(.*)$`, "gm");
 
   let result = issueBody;
 

@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { mergeMcpConfigs, loadExistingMcpConfig, setupMcpConfig } from "./mcp-config.js";
-import type { McpConfig } from "./mcp-config.js";
-import fs from "fs-extra";
-import path from "node:path";
 import os from "node:os";
+import path from "node:path";
+import fs from "fs-extra";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadExistingMcpConfig, mergeMcpConfigs, setupMcpConfig } from "./mcp-config.js";
+import type { McpConfig } from "./mcp-config.js";
 
 // fs-extraのモック
 vi.mock("fs-extra");
@@ -225,7 +225,9 @@ describe("mcp-config", () => {
 
       // Then: customProperty, anotherPropertyが保持される
       expect((result.config as unknown as { customProperty: string }).customProperty).toBe("value");
-      expect((result.config as unknown as { anotherProperty: { nested: boolean } }).anotherProperty).toEqual({ nested: true });
+      expect(
+        (result.config as unknown as { anotherProperty: { nested: boolean } }).anotherProperty
+      ).toEqual({ nested: true });
 
       // mcpServersは正しくマージされる
       expect(result.config.mcpServers).toHaveProperty("server1");

@@ -62,10 +62,7 @@ export class PresetFinder {
    * @param cliPackagePath - packages/cli/ディレクトリの絶対パス
    * @returns プリセット情報（見つからない場合はnull）
    */
-  async getPreset(
-    name: string,
-    cliPackagePath: string
-  ): Promise<Preset | null> {
+  async getPreset(name: string, cliPackagePath: string): Promise<Preset | null> {
     if (!this.validatePresetName(name)) {
       return null;
     }

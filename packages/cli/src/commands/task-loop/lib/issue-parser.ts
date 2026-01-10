@@ -85,11 +85,11 @@ function extractTaskGroups(content: string, phaseNumber: number): TaskGroup[] {
 
   for (const line of lines) {
     // タスクグループ行のマッチ
-    // ボールドあり: - [ ] **1.1 名前**
-    // ボールドなし: - [ ] 1.1 名前
+    // ボールドあり: - [ ] **1.1 名前** または - [ ] **1.1 名前** <!-- コメント -->
+    // ボールドなし: - [ ] 1.1 名前 または - [ ] 1.1 名前 <!-- コメント -->
     const taskGroupMatch =
-      line.match(/^(\s*)-\s*\[([ xX])\]\s*\*\*(\d+\.\d+)\s+(.+?)\*\*\s*$/) ||
-      line.match(/^(\s*)-\s*\[([ xX])\]\s*(\d+\.\d+)\s+(.+)$/);
+      line.match(/^(\s*)-\s*\[([ xX])\]\s*\*\*(\d+\.\d+)\s+(.+?)\*\*(?:\s*<!--.*?-->)?\s*$/) ||
+      line.match(/^(\s*)-\s*\[([ xX])\]\s*(\d+\.\d+)\s+(.+?)(?:\s*<!--.*?-->)?\s*$/);
 
     if (taskGroupMatch) {
       // 前のタスクグループを保存

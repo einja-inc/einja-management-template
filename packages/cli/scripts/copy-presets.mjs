@@ -127,6 +127,13 @@ function copyDir(src, dest, filter = () => true, basePath = "") {
 			const linkTarget = fs.readlinkSync(srcPath);
 			// 相対パス（../../../../../docs/...）をルートからの相対パス（docs/...）に変換
 			const absoluteTarget = path.resolve(path.dirname(srcPath), linkTarget);
+
+			// リンク切れ検出
+			if (!fs.existsSync(absoluteTarget)) {
+				console.error(`❌ リンク切れ: ${relativePath} → ${linkTarget}`);
+				process.exit(1);
+			}
+
 			const targetFromRoot = path.relative(projectRoot, absoluteTarget);
 			symlinkMap.push({
 				link: relativePath,

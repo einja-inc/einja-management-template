@@ -104,25 +104,17 @@ describe("PresetFinder", () => {
 
       expect(preset).not.toBeNull();
       expect(preset?.name).toBe("minimal");
-      expect(preset?.path).toBe(
-        join(cliPackagePath, "presets", "minimal")
-      );
+      expect(preset?.path).toBe(join(cliPackagePath, "presets", "minimal"));
     });
 
     it("存在しないプリセットの場合、nullが返ること", async () => {
-      const preset = await finder.getPreset(
-        "non-existent",
-        cliPackagePath
-      );
+      const preset = await finder.getPreset("non-existent", cliPackagePath);
 
       expect(preset).toBeNull();
     });
 
     it("無効なプリセット名の場合、nullが返ること", async () => {
-      const preset = await finder.getPreset(
-        "invalid name!",
-        cliPackagePath
-      );
+      const preset = await finder.getPreset("invalid name!", cliPackagePath);
 
       expect(preset).toBeNull();
     });

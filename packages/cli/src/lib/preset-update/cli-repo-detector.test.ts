@@ -56,10 +56,7 @@ describe("CLIRepoDetector", () => {
         name: "@wrong/package",
         version: "1.0.0",
       };
-      writeFileSync(
-        join(cliDir, "package.json"),
-        JSON.stringify(packageJson, null, 2)
-      );
+      writeFileSync(join(cliDir, "package.json"), JSON.stringify(packageJson, null, 2));
 
       const result = await detector.validateRepository(testDir);
 
@@ -94,10 +91,7 @@ describe("CLIRepoDetector", () => {
         name: "@einja/cli",
         version: "1.0.0",
       };
-      writeFileSync(
-        join(cliDir, "package.json"),
-        JSON.stringify(packageJson, null, 2)
-      );
+      writeFileSync(join(cliDir, "package.json"), JSON.stringify(packageJson, null, 2));
 
       const result = await detector.validateRepository(testDir);
 
@@ -123,10 +117,7 @@ describe("CLIRepoDetector", () => {
         name: "@einja/cli",
         version: "1.0.0",
       };
-      writeFileSync(
-        join(cliDir, "package.json"),
-        JSON.stringify(packageJson, null, 2)
-      );
+      writeFileSync(join(cliDir, "package.json"), JSON.stringify(packageJson, null, 2));
 
       const result = await detector.isCliRepository(testDir);
 
@@ -150,10 +141,7 @@ describe("CLIRepoDetector", () => {
         name: "@einja/cli",
         version: "1.0.0",
       };
-      writeFileSync(
-        join(cliDir, "package.json"),
-        JSON.stringify(packageJson, null, 2)
-      );
+      writeFileSync(join(cliDir, "package.json"), JSON.stringify(packageJson, null, 2));
 
       const result = await detector.getCliPackagePath(testDir);
 

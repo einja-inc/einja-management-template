@@ -1,10 +1,4 @@
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  statSync,
-} from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import type {
   CopiedFile,
@@ -113,10 +107,7 @@ export class FileCopier {
         }
 
         // コピー先パスを計算
-        const destinationPath = this.calculateDestinationPath(
-          sourceFile,
-          preset
-        );
+        const destinationPath = this.calculateDestinationPath(sourceFile, preset);
 
         // ドライランモードでない場合のみコピー実行
         if (!dryRun) {
@@ -202,10 +193,7 @@ export class FileCopier {
    * @param projectRoot - プロジェクトルートの絶対パス
    * @returns ファイル一覧
    */
-  private scanDirectory(
-    dir: string,
-    projectRoot: string
-  ): Omit<SourceFile, "category">[] {
+  private scanDirectory(dir: string, projectRoot: string): Omit<SourceFile, "category">[] {
     const files: Omit<SourceFile, "category">[] = [];
 
     try {
@@ -276,26 +264,18 @@ export class FileCopier {
    * @param preset - プリセット情報
    * @returns コピー先の絶対パス
    */
-  private calculateDestinationPath(
-    sourceFile: SourceFile,
-    preset: Preset
-  ): string {
+  private calculateDestinationPath(sourceFile: SourceFile, preset: Preset): string {
     // 適用すべきマッピングを探す
     const mapping = this.directoryMappings.find((m) =>
       sourceFile.relativePath.startsWith(m.source)
     );
 
     if (!mapping) {
-      throw new Error(
-        `マッピングが見つかりません: ${sourceFile.relativePath}`
-      );
+      throw new Error(`マッピングが見つかりません: ${sourceFile.relativePath}`);
     }
 
     // ソースディレクトリからの相対パスを計算
-    const relativeFromSource = relative(
-      mapping.source,
-      sourceFile.relativePath
-    );
+    const relativeFromSource = relative(mapping.source, sourceFile.relativePath);
 
     // コピー先パス = プリセットパス + マッピング先 + 相対パス
     return join(preset.path, mapping.destination, relativeFromSource);

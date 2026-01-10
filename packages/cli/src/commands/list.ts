@@ -24,5 +24,5 @@ export async function listCommand(): Promise<void> {
   }
 
   console.log(chalk.gray("使用例:"));
-  console.log(chalk.cyan(`  npx @repo/claude-cli init --preset ${presets[0]?.name ?? "minimal"}`));
+  console.log(chalk.cyan(`  npx @repo/claude-cli init --preset ${presets[0]?.name ?? "default"}`));
 }

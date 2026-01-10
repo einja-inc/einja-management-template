@@ -11,7 +11,7 @@ import chalk from "chalk";
  * テンプレート更新スクリプト
  *
  * ルートディレクトリからファイルを収集し、プレースホルダー変数に変換して
- * templates/turborepo-pandacss/ にコピーします。
+ * templates/default/ にコピーします。
  *
  * 使い方:
  * - pnpm template:update - 実際にファイルをコピー
@@ -24,7 +24,7 @@ const PROJECT_ROOT = path.resolve(import.meta.dirname, "../../..");
 // テンプレート出力ディレクトリ
 const TEMPLATE_DIR = path.join(
   import.meta.dirname,
-  "../templates/turborepo-pandacss"
+  "../templates/default"
 );
 
 // .templateignore ファイルのパス

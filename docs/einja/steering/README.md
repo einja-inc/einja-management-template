@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # Steering仕様書
 
 ## 概要
@@ -149,6 +150,37 @@
 
 ---
 
+## 🔄 ドキュメント同期について
+
+このディレクトリのドキュメントは`@einja/dev-cli`で管理されています。
+
+### マーカーの種類
+
+各ファイルには同期動作を制御するマーカーがあります：
+
+| マーカー | 説明 |
+|---------|------|
+| `@einja:managed` | CLIの更新時に自動で最新化される共通ルール部分 |
+| `@einja:seed` | 初回のみ追加され、以降は編集内容が保持されるプロジェクト固有部分 |
+
+### プロジェクト固有の追記
+
+各ファイルの末尾にある`@einja:seed`セクションに、プロジェクト固有のルールや設定を追記できます。このセクションは`einja sync`実行時も上書きされません。
+
+詳細な仕様は [CLIのマーカー仕様書](https://github.com/einja-inc/einja-management-template/blob/main/packages/cli/docs/MARKER_SPECIFICATION.md) を参照してください。
+
+### 同期コマンド
+
+```bash
+# テンプレートから最新の共通ルールを取得
+pnpm einja:sync
+
+# プレビュー（実際の変更なし）
+pnpm einja:sync --dry-run
+```
+
+---
+
 ## ⚠️ 重要な原則
 
 ### CLAUDE.mdの原則を遵守
@@ -168,3 +200,13 @@
 ドキュメントに関する質問や改善提案がある場合は、チームリーダーに連絡してください。
 
 より良いドキュメントを一緒に作りましょう！
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="steering-readme-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # 環境変数設計方針
 
 ## 概要
@@ -296,3 +297,13 @@ dotenvx採用により、GitHub Secretsは**環境ごとに1つの秘密鍵の�
 - [デプロイメント・CI/CD設計方針](./deployment.md)
 - [環境変数セットアップ手順](../../instructions/environment-setup.md)
 - [デプロイセットアップ手順](../../instructions/deployment-setup.md)
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="environment-variables-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

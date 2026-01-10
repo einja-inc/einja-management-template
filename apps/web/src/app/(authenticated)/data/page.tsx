@@ -1,11 +1,18 @@
-import { userUseCases } from "@/application/use-cases/UserUseCases";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserTable } from "./_components/UserTable";
+import { prefetchUsers } from "@/hooks/use-users";
+import { UserTableContainer } from "./_components/UserTableContainer";
 
 export default async function DataPage() {
-  const result = await userUseCases.list({}, { page: 1, limit: 100 });
+  let initialData;
+  let error;
 
-  if (!result.isSuccess) {
+  try {
+    initialData = await prefetchUsers({ page: 1, limit: 100 });
+  } catch (e) {
+    error = e instanceof Error ? e.message : "データの取得に失敗しました";
+  }
+
+  if (error) {
     return (
       <div className="container mx-auto p-6">
         <div className="space-y-6">
@@ -22,15 +29,13 @@ export default async function DataPage() {
               <CardDescription>データの取得中にエラーが発生しました。</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-destructive">{result.error.message}</p>
+              <p className="text-destructive">{error}</p>
             </CardContent>
           </Card>
         </div>
       </div>
     );
   }
-
-  const { items: users } = result.value;
 
   return (
     <div className="container mx-auto p-6">
@@ -48,7 +53,7 @@ export default async function DataPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <UserTable users={users} />
+            <UserTableContainer initialData={initialData} />
           </CardContent>
         </Card>
       </div>

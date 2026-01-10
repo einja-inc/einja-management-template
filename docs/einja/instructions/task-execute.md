@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # 開発ワークフロー
 
 このドキュメントでは、`/spec-create`と`/task-exec`コマンドを使用したATDD（受け入れテスト駆動開発）に基づく開発ワークフローについて説明します。
@@ -636,3 +637,13 @@ sequenceDiagram
 3. **繰り返し**: 全タスクグループが完了するまで`/task-exec`を繰り返す
 
 開発を始める際は、まず`/spec-create`で仕様書を作成し、その後`/task-exec`でタスクグループを順次実行していきます。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="task-execute-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

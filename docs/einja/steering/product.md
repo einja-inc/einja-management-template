@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # 製品ビジョン
 
 TODO
@@ -538,3 +539,13 @@ describe('UserRepository', () => {
 - ✅ 開発者満足度: **4.5/5以上**
 
 すべての開発活動は、このビジョンと原則に従って実施してください。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="product-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

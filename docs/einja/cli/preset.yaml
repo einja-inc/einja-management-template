@@ -1,4 +1,4 @@
-name: minimal
+name: default
 displayName: "Einja ATDD Workflow"
 description: "ATDDワークフロー構成（Next.js、Vibe-Kanban統合）"
 version: "1.0.0"

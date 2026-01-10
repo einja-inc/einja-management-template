@@ -38,13 +38,13 @@ describe("PresetFinder", () => {
       // プリセットディレクトリを作成
       const presetsDir = join(cliPackagePath, "presets");
       mkdirSync(presetsDir, { recursive: true });
-      mkdirSync(join(presetsDir, "minimal"));
+      mkdirSync(join(presetsDir, "default"));
       mkdirSync(join(presetsDir, "turborepo-pandacss"));
 
       const presets = await finder.findPresets(cliPackagePath);
 
       expect(presets).toHaveLength(2);
-      expect(presets.map((p) => p.name)).toContain("minimal");
+      expect(presets.map((p) => p.name)).toContain("default");
       expect(presets.map((p) => p.name)).toContain("turborepo-pandacss");
       expect(presets[0].path).toBeDefined();
     });
@@ -53,13 +53,13 @@ describe("PresetFinder", () => {
       // プリセットディレクトリを作成
       const presetsDir = join(cliPackagePath, "presets");
       mkdirSync(presetsDir, { recursive: true });
-      mkdirSync(join(presetsDir, "minimal"));
+      mkdirSync(join(presetsDir, "default"));
       mkdirSync(join(presetsDir, ".hidden"));
 
       const presets = await finder.findPresets(cliPackagePath);
 
       expect(presets).toHaveLength(1);
-      expect(presets[0].name).toBe("minimal");
+      expect(presets[0].name).toBe("default");
     });
 
     it("無効な文字を含むディレクトリ名は除外されること", async () => {
@@ -80,13 +80,13 @@ describe("PresetFinder", () => {
       // プリセットディレクトリを作成
       const presetsDir = join(cliPackagePath, "presets");
       mkdirSync(presetsDir, { recursive: true });
-      mkdirSync(join(presetsDir, "minimal"));
+      mkdirSync(join(presetsDir, "default"));
       writeFileSync(join(presetsDir, "README.md"), "# Presets");
 
       const presets = await finder.findPresets(cliPackagePath);
 
       expect(presets).toHaveLength(1);
-      expect(presets[0].name).toBe("minimal");
+      expect(presets[0].name).toBe("default");
     });
   });
 
@@ -95,16 +95,16 @@ describe("PresetFinder", () => {
       // プリセットディレクトリを作成
       const presetsDir = join(cliPackagePath, "presets");
       mkdirSync(presetsDir, { recursive: true });
-      mkdirSync(join(presetsDir, "minimal"));
+      mkdirSync(join(presetsDir, "default"));
       mkdirSync(join(presetsDir, "turborepo-pandacss"));
     });
 
     it("存在するプリセットの場合、プリセット情報が返ること", async () => {
-      const preset = await finder.getPreset("minimal", cliPackagePath);
+      const preset = await finder.getPreset("default", cliPackagePath);
 
       expect(preset).not.toBeNull();
-      expect(preset?.name).toBe("minimal");
-      expect(preset?.path).toBe(join(cliPackagePath, "presets", "minimal"));
+      expect(preset?.name).toBe("default");
+      expect(preset?.path).toBe(join(cliPackagePath, "presets", "default"));
     });
 
     it("存在しないプリセットの場合、nullが返ること", async () => {
@@ -144,7 +144,7 @@ describe("PresetFinder", () => {
     });
 
     it("英数字、ハイフン、アンダースコアのみの場合、trueが返ること", () => {
-      expect(finder.validatePresetName("minimal")).toBe(true);
+      expect(finder.validatePresetName("default")).toBe(true);
       expect(finder.validatePresetName("turborepo-pandacss")).toBe(true);
       expect(finder.validatePresetName("preset_123")).toBe(true);
       expect(finder.validatePresetName("MyPreset")).toBe(true);

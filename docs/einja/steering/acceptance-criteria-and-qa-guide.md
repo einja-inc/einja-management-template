@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # 価値あるテストを生む要件定義とテスト設計ガイド
 
 ## 1. 受け入れ基準の原則
@@ -413,3 +414,13 @@ QAテスト仕様書では、以下の表形式で手順を記述します：
 - 手順は自然言語で簡潔に記述
 - mcp__playwright などのコマンドは記載しない
 - 「-」は手順のみで確認項目がない場合に使用
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="acceptance-criteria-and-qa-guide-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

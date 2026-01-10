@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # API開発ガイド
 
 ## 概要
@@ -41,8 +42,8 @@ apps/admin/app/api/[[...route]]/route.ts # Admin API
 
 **ルート定義の配置**:
 ```
-apps/web/server/routes/          # Webアプリ用ルート定義
-apps/admin/server/routes/        # 管理画面用ルート定義
+apps/web/server/presentation/routes/   # Webアプリ用ルート定義（Presentation層）
+apps/admin/server/presentation/routes/ # 管理画面用ルート定義（Presentation層）
 ```
 
 ### メソッドチェーンパターン
@@ -102,7 +103,7 @@ apiClient.posts.$get()      // ❌ NG（型エラー）
 **使用例**:
 
 ```typescript
-// apps/web/server/routes/postRoutes.ts
+// apps/web/server/presentation/routes/postRoutes.ts
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { createPostSchema } from '@repo/server-core/domain/validators/post'
@@ -701,7 +702,7 @@ Worktreeごとに異なるポートを使用するため、MD5ハッシュベー
 **ルート定義**:
 
 ```typescript
-// apps/web/server/routes/postRoutes.ts
+// apps/web/server/presentation/routes/postRoutes.ts
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { createPostSchema } from '@repo/server-core/domain/validators/post'
@@ -781,3 +782,13 @@ export type AppType = typeof app
 4. **柔軟性**: Server ActionsとHono Client + Tanstack Queryの使い分け
 
 すべてのAPI実装は、このガイドラインに従って実装してください。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="api-development-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # テスト戦略
 
 ## 概要
@@ -891,3 +892,13 @@ describe('UserUseCase', () => {
 5. **効率性**: Vitestによる高速なテスト実行
 
 すべてのテストは、このガイドラインに従って実装してください。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="testing-strategy-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

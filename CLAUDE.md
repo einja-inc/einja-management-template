@@ -403,11 +403,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 
 | 原本 | コピー先 | 備考 |
 |-----|---------|------|
-| `.claude/agents/einja/` | `presets/minimal/.claude/agents/einja/` | 単純コピー |
-| `.claude/commands/einja/` | `presets/minimal/.claude/commands/einja/` | 単純コピー |
-| `.claude/skills/einja-*/` | `presets/minimal/.claude/skills/einja-*/` | 単純コピー |
-| `.claude/hooks/einja/` | `presets/minimal/.claude/hooks/einja/` | 単純コピー |
-| `.claude/settings.json` | `presets/minimal/.claude/settings.json` | 単純コピー |
+| `.claude/agents/einja/` | `presets/default/.claude/agents/einja/` | 単純コピー |
+| `.claude/commands/einja/` | `presets/default/.claude/commands/einja/` | 単純コピー |
+| `.claude/skills/einja-*/` | `presets/default/.claude/skills/einja-*/` | 単純コピー |
+| `.claude/hooks/einja/` | `presets/default/.claude/hooks/einja/` | 単純コピー |
+| `.claude/settings.json` | `presets/default/.claude/settings.json` | 単純コピー |
 | `docs/einja/steering/` | `scaffolds/steering/` | 単純コピー |
 | `CLAUDE.md` | `scaffolds/CLAUDE.md.template` | **変換生成** |
 

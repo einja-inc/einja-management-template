@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Conflict } from "../../types/sync.js";
 import { ConflictReporter } from "./conflict-reporter.js";
 import { DiffEngine } from "./diff-engine.js";
+import { MarkerProcessor } from "./marker-processor.js";
+import { SeedSynchronizer } from "./seed-synchronizer.js";
 
 /**
  * タスクグループ1.3: 3方向マージエンジンとコンフリクト検出の統合テスト
@@ -378,6 +380,338 @@ Line 3`;
       // Then: フォーマット済みレポートでコンフリクトなしメッセージ
       const formattedReport = conflictReporter.formatReport(report);
       expect(formattedReport).toBe("コンフリクトは検出されませんでした。");
+    });
+  });
+});
+
+/**
+ * MarkerProcessor と SeedSynchronizer の統合テスト
+ *
+ * 検証シナリオ:
+ * - 初回sync → seedセクションが追加される
+ * - 2回目sync → seedセクションが保持される（上書きされない）
+ * - seedセクション削除後のsync → 空のテンプレートが再追加される
+ * - seedセクション内を編集後のsync → 編集内容が保持される
+ */
+describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
+  const markerProcessor = new MarkerProcessor();
+  const seedSynchronizer = new SeedSynchronizer();
+
+  describe("sync フロー全体のテスト", () => {
+    it("初回sync: ローカルにseedがない場合、テンプレートのseedが追加される", () => {
+      // Given: ローカルファイル（seedなし）
+      const localContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール
+
+これは共通ルールです。
+<!-- @einja:managed:end -->
+
+## ローカル固有のセクション
+
+ローカル固有の内容です。`;
+
+      // Given: テンプレートファイル（managedとseedあり）
+      const templateContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール
+
+これは更新された共通ルールです。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="project-settings" -->
+## プロジェクト固有の設定
+
+<!-- ここにプロジェクト固有の内容を追加 -->
+<!-- @einja:seed:end -->`;
+
+      // When: managed同期を実行
+      const localSections = markerProcessor.parseMarkers(localContent);
+      const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
+
+      // When: seed同期を実行
+      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+
+      // Then: managedセクションはテンプレートで更新される
+      expect(result).toContain("これは更新された共通ルールです。");
+      expect(result).not.toContain("これは共通ルールです。");
+
+      // Then: ローカル固有セクションは保持される
+      expect(result).toContain("## ローカル固有のセクション");
+      expect(result).toContain("ローカル固有の内容です。");
+
+      // Then: seedセクションが追加される
+      expect(result).toContain('<!-- @einja:seed:start id="project-settings" -->');
+      expect(result).toContain("## プロジェクト固有の設定");
+      expect(result).toContain("<!-- @einja:seed:end -->");
+    });
+
+    it("2回目sync: 既存のseedセクションは上書きされない", () => {
+      // Given: ローカルファイル（編集済みseedあり）
+      const localContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール
+
+これは共通ルールです。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="project-settings" -->
+## プロジェクト固有の設定
+
+このプロジェクトではXXXを使用します。
+カスタム設定が追加されています。
+<!-- @einja:seed:end -->`;
+
+      // Given: テンプレートファイル（空のseedテンプレート）
+      const templateContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール
+
+これは更新された共通ルールです（新機能追加）。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="project-settings" -->
+## プロジェクト固有の設定
+
+<!-- ここにプロジェクト固有の内容を追加 -->
+<!-- @einja:seed:end -->`;
+
+      // When: managed同期を実行
+      const localSections = markerProcessor.parseMarkers(localContent);
+      const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
+
+      // When: seed同期を実行
+      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+
+      // Then: managedセクションは更新される
+      expect(result).toContain("これは更新された共通ルールです（新機能追加）。");
+
+      // Then: seedセクションのローカル編集内容は保持される
+      expect(result).toContain("このプロジェクトではXXXを使用します。");
+      expect(result).toContain("カスタム設定が追加されています。");
+      expect(result).not.toContain("<!-- ここにプロジェクト固有の内容を追加 -->");
+    });
+
+    it("seedセクション削除後のsync: 空のテンプレートが再追加される", () => {
+      // Given: ローカルファイル（seedを削除した状態）
+      const localContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール
+
+これは共通ルールです。
+<!-- @einja:managed:end -->
+
+## ユーザーが追加したセクション
+
+ユーザーの独自コンテンツ`;
+
+      // Given: テンプレートファイル（seedあり）
+      const templateContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール
+
+これは共通ルールです。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="project-settings" -->
+## プロジェクト固有の設定
+
+<!-- ここにプロジェクト固有の内容を追加 -->
+<!-- @einja:seed:end -->`;
+
+      // When: managed同期を実行
+      const localSections = markerProcessor.parseMarkers(localContent);
+      const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
+
+      // When: seed同期を実行
+      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+
+      // Then: ユーザーが追加したセクションは保持される
+      expect(result).toContain("## ユーザーが追加したセクション");
+      expect(result).toContain("ユーザーの独自コンテンツ");
+
+      // Then: 空のseedテンプレートが再追加される
+      expect(result).toContain('<!-- @einja:seed:start id="project-settings" -->');
+      expect(result).toContain("## プロジェクト固有の設定");
+      expect(result).toContain("<!-- ここにプロジェクト固有の内容を追加 -->");
+      expect(result).toContain("<!-- @einja:seed:end -->");
+    });
+
+    it("新しいseedセクションがテンプレートに追加された場合、既存seedは保持しつつ新seedが追加される", () => {
+      // Given: ローカルファイル（seed-1のみ、編集済み）
+      const localContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール
+<!-- @einja:managed:end -->
+
+<!-- @einja:seed:start id="seed-1" -->
+## 設定1
+
+ローカルで編集された設定1
+<!-- @einja:seed:end -->`;
+
+      // Given: テンプレートファイル（seed-1とseed-2）
+      const templateContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール（更新）
+<!-- @einja:managed:end -->
+
+<!-- @einja:seed:start id="seed-1" -->
+## 設定1
+
+テンプレートの設定1
+<!-- @einja:seed:end -->
+
+<!-- @einja:seed:start id="seed-2" -->
+## 設定2（新規）
+
+新しいseedセクション
+<!-- @einja:seed:end -->`;
+
+      // When: managed同期を実行
+      const localSections = markerProcessor.parseMarkers(localContent);
+      const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
+
+      // When: seed同期を実行
+      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+
+      // Then: managedは更新される
+      expect(result).toContain("## 共通ルール（更新）");
+
+      // Then: 既存のseed-1はローカル編集内容が保持される
+      expect(result).toContain("ローカルで編集された設定1");
+      expect(result).not.toContain("テンプレートの設定1");
+
+      // Then: 新しいseed-2は追加される
+      expect(result).toContain('<!-- @einja:seed:start id="seed-2" -->');
+      expect(result).toContain("## 設定2（新規）");
+      expect(result).toContain("新しいseedセクション");
+    });
+  });
+
+  describe("バリデーションとsync連携", () => {
+    it("バリデーション成功 → sync実行の流れ", () => {
+      // Given: 正しいマーカー構造のファイル
+      const localContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+共通部分
+<!-- @einja:managed:end -->
+
+<!-- @einja:seed:start id="custom" -->
+カスタム部分
+<!-- @einja:seed:end -->`;
+
+      const templateContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+共通部分（更新）
+<!-- @einja:managed:end -->
+
+<!-- @einja:seed:start id="custom" -->
+カスタム部分テンプレート
+<!-- @einja:seed:end -->`;
+
+      // When: バリデーションを実行
+      const localValidation = markerProcessor.validateMarkers(localContent);
+      const templateValidation = markerProcessor.validateMarkers(templateContent);
+
+      // Then: 両方ともバリデーション成功
+      expect(localValidation.valid).toBe(true);
+      expect(templateValidation.valid).toBe(true);
+
+      // When: sync実行
+      const localSections = markerProcessor.parseMarkers(localContent);
+      const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
+      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+
+      // Then: 正しく同期される
+      expect(result).toContain("共通部分（更新）");
+      expect(result).toContain("カスタム部分");
+      expect(result).not.toContain("カスタム部分テンプレート");
+    });
+
+    it("バリデーションエラー時はsyncを実行しない", () => {
+      // Given: 不正なマーカー構造のファイル（seedにIDなし）
+      const invalidContent = `# ドキュメント
+
+<!-- @einja:seed:start -->
+カスタム部分
+<!-- @einja:seed:end -->`;
+
+      // When: バリデーションを実行
+      const validation = markerProcessor.validateMarkers(invalidContent);
+
+      // Then: バリデーション失敗
+      expect(validation.valid).toBe(false);
+      expect(validation.errors.some((e) => e.type === "seed_without_id")).toBe(true);
+
+      // syncは実行しない（呼び出さない）
+    });
+
+    it("ネストエラーの検出", () => {
+      // Given: managed内にseedがネストされている不正な構造
+      const invalidContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+共通部分
+<!-- @einja:seed:start id="nested" -->
+ネストされたseed
+<!-- @einja:seed:end -->
+<!-- @einja:managed:end -->`;
+
+      // When: バリデーションを実行
+      const validation = markerProcessor.validateMarkers(invalidContent);
+
+      // Then: ネストエラーが検出される
+      expect(validation.valid).toBe(false);
+      expect(validation.errors.some((e) => e.type === "nested")).toBe(true);
+    });
+  });
+
+  describe("マーカーなしファイルの処理", () => {
+    it("ローカルにファイルが存在しない場合、テンプレート内容が使用される", () => {
+      // Given: ローカルにファイルが存在しない
+      const localExists = false;
+      const templateContent = `# 新しいドキュメント
+
+共通ルールです。`;
+
+      // When: マーカーなしファイルの同期
+      const result = seedSynchronizer.syncUnmarkedFile(localExists, templateContent);
+
+      // Then: テンプレート内容が返される
+      expect(result).toBe(templateContent);
+    });
+
+    it("ローカルにファイルが存在する場合、何もしない（nullが返る）", () => {
+      // Given: ローカルにファイルが存在する
+      const localExists = true;
+      const templateContent = `# 新しいドキュメント
+
+共通ルールです。`;
+
+      // When: マーカーなしファイルの同期
+      const result = seedSynchronizer.syncUnmarkedFile(localExists, templateContent);
+
+      // Then: nullが返される（ローカルをそのまま保持）
+      expect(result).toBeNull();
     });
   });
 });

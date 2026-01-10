@@ -18,9 +18,7 @@ describe("promptProjectConfig", () => {
     const mockAnswers = {
       projectName: "my-project",
       packageScope: "@repo",
-      template: "turborepo-pandacss",
-      authMethod: "google",
-      tools: ["direnv", "dotenvx", "volta"],
+      authMethod: "default",
       setupEinjaCli: true,
       customizeWorktree: false,
     };
@@ -30,12 +28,12 @@ describe("promptProjectConfig", () => {
     // When: プロンプト実行
     const result: ProjectConfig = await promptProjectConfig();
 
-    // Then: ProjectConfigが返される
+    // Then: ProjectConfigが返される（template/toolsは固定値）
     expect(result).toEqual({
       projectName: "my-project",
       packageScope: "@repo",
-      template: "turborepo-pandacss",
-      authMethod: "google",
+      template: "default",
+      authMethod: "default",
       tools: {
         direnv: true,
         dotenvx: true,
@@ -53,9 +51,7 @@ describe("promptProjectConfig", () => {
     const mockAnswers = {
       projectName: "custom-project",
       packageScope: "@custom",
-      template: "minimal",
-      authMethod: "credentials",
-      tools: ["direnv"],
+      authMethod: "default",
       setupEinjaCli: false,
       customizeWorktree: false,
     };
@@ -65,14 +61,15 @@ describe("promptProjectConfig", () => {
     // When: プロンプト実行
     const result: ProjectConfig = await promptProjectConfig("custom-project");
 
-    // Then: カスタム設定が返される
+    // Then: カスタム設定が返される（template/toolsは固定値）
     expect(result.projectName).toBe("custom-project");
     expect(result.packageScope).toBe("@custom");
-    expect(result.template).toBe("minimal");
-    expect(result.authMethod).toBe("credentials");
+    expect(result.template).toBe("default");
+    expect(result.authMethod).toBe("default");
+    // ツールは常に全て有効
     expect(result.tools.direnv).toBe(true);
-    expect(result.tools.dotenvx).toBe(false);
-    expect(result.tools.volta).toBe(false);
+    expect(result.tools.dotenvx).toBe(true);
+    expect(result.tools.volta).toBe(true);
     expect(result.tools.biome).toBe(true);
     expect(result.tools.husky).toBe(true);
     expect(result.setupEinjaCli).toBe(false);
@@ -83,9 +80,7 @@ describe("promptProjectConfig", () => {
     const mockAnswers = {
       projectName: "no-auth-project",
       packageScope: "@repo",
-      template: "turborepo-pandacss",
       authMethod: "none",
-      tools: [],
       setupEinjaCli: true,
       customizeWorktree: false,
     };
@@ -97,9 +92,10 @@ describe("promptProjectConfig", () => {
 
     // Then: authMethodがnoneになる
     expect(result.authMethod).toBe("none");
-    expect(result.tools.direnv).toBe(false);
-    expect(result.tools.dotenvx).toBe(false);
-    expect(result.tools.volta).toBe(false);
+    // ツールは常に全て有効（認証選択に関わらず）
+    expect(result.tools.direnv).toBe(true);
+    expect(result.tools.dotenvx).toBe(true);
+    expect(result.tools.volta).toBe(true);
   });
 
   it("Worktree設定をカスタマイズする場合、worktreeConfigが設定される", async () => {
@@ -107,9 +103,7 @@ describe("promptProjectConfig", () => {
     const mockAnswers = {
       projectName: "worktree-project",
       packageScope: "@repo",
-      template: "turborepo-pandacss",
-      authMethod: "google",
-      tools: ["direnv", "dotenvx", "volta"],
+      authMethod: "default",
       setupEinjaCli: true,
       customizeWorktree: true,
     };
@@ -139,26 +133,5 @@ describe("promptProjectConfig", () => {
     expect(result.worktreeConfig?.apps?.[0]?.id).toBe("web");
     expect(result.worktreeConfig?.apps?.[0]?.portRangeStart).toBe(3000);
     expect(result.worktreeConfig?.apps?.[0]?.rangeSize).toBe(1000);
-  });
-
-  it("GitHub OAuth認証を選択した場合、authMethodがgithubになる", async () => {
-    // Given: GitHub OAuth認証の設定
-    const mockAnswers = {
-      projectName: "github-auth-project",
-      packageScope: "@repo",
-      template: "turborepo-pandacss",
-      authMethod: "github",
-      tools: ["direnv", "dotenvx", "volta"],
-      setupEinjaCli: true,
-      customizeWorktree: false,
-    };
-
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce(mockAnswers);
-
-    // When: プロンプト実行
-    const result: ProjectConfig = await promptProjectConfig();
-
-    // Then: authMethodがgithubになる
-    expect(result.authMethod).toBe("github");
   });
 });

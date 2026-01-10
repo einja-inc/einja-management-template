@@ -160,7 +160,7 @@ describe("MarkerProcessor", () => {
       expect(result.errors).toHaveLength(2);
       expect(result.errors[0].type).toBe("nested");
       expect(result.errors[0].line).toBe(4);
-      expect(result.errors[0].message).toBe("@einja:managedマーカーのネストは許可されていません");
+      expect(result.errors[0].message).toBe("@einja:managedマーカー内に@einja:managedマーカーをネストすることは許可されていません");
       expect(result.errors[1].type).toBe("unpaired_end");
       expect(result.errors[1].line).toBe(7);
     });
@@ -294,6 +294,168 @@ describe("MarkerProcessor", () => {
       expect(result).toContain("ローカル管理セクション");
       expect(result).toContain("ローカル行1");
       expect(result).toContain("ローカル行2");
+    });
+  });
+
+  describe("parseMarkers - seed対応", () => {
+    it("seedマーカーで囲まれたセクションをseedとして認識し、IDを抽出すること", () => {
+      const content = `行1
+<!-- @einja:seed:start id="test-seed" -->
+シードセクション
+<!-- @einja:seed:end -->
+行2`;
+
+      const sections = processor.parseMarkers(content);
+
+      expect(sections).toHaveLength(3);
+      expect(sections[0].type).toBe("unmanaged");
+      expect(sections[1].type).toBe("seed");
+      expect(sections[1].id).toBe("test-seed");
+      expect(sections[1].content).toBe(
+        '<!-- @einja:seed:start id="test-seed" -->\nシードセクション\n<!-- @einja:seed:end -->'
+      );
+      expect(sections[2].type).toBe("unmanaged");
+    });
+
+    it("managedマーカーにID属性がある場合、IDを抽出すること", () => {
+      const content = `行1
+<!-- @einja:managed:start id="managed-with-id" -->
+管理セクション
+<!-- @einja:managed:end -->
+行2`;
+
+      const sections = processor.parseMarkers(content);
+
+      expect(sections).toHaveLength(3);
+      expect(sections[1].type).toBe("managed");
+      expect(sections[1].id).toBe("managed-with-id");
+    });
+
+    it("managedとseedが混在する場合、正しく分離されること", () => {
+      const content = `行1
+<!-- @einja:managed:start -->
+管理セクション1
+<!-- @einja:managed:end -->
+行2
+<!-- @einja:seed:start id="seed-1" -->
+シードセクション1
+<!-- @einja:seed:end -->
+行3`;
+
+      const sections = processor.parseMarkers(content);
+
+      expect(sections).toHaveLength(5);
+      expect(sections[0].type).toBe("unmanaged");
+      expect(sections[1].type).toBe("managed");
+      expect(sections[2].type).toBe("unmanaged");
+      expect(sections[3].type).toBe("seed");
+      expect(sections[3].id).toBe("seed-1");
+      expect(sections[4].type).toBe("unmanaged");
+    });
+  });
+
+  describe("validateMarkers - seed対応", () => {
+    it("seedマーカーのペアが正しい場合、validがtrueであること", () => {
+      const content = `行1
+<!-- @einja:seed:start id="test-seed" -->
+シードセクション
+<!-- @einja:seed:end -->
+行2`;
+
+      const result = processor.validateMarkers(content);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("seedマーカーにID属性がない場合、seed_without_idエラーを返すこと", () => {
+      const content = `行1
+<!-- @einja:seed:start -->
+シードセクション
+<!-- @einja:seed:end -->
+行2`;
+
+      const result = processor.validateMarkers(content);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].type).toBe("seed_without_id");
+      expect(result.errors[0].line).toBe(2);
+      expect(result.errors[0].message).toBe("@einja:seedマーカーにはid属性が必須です");
+    });
+
+    it("ID属性が重複している場合、duplicate_idエラーを返すこと", () => {
+      const content = `行1
+<!-- @einja:seed:start id="duplicate" -->
+シードセクション1
+<!-- @einja:seed:end -->
+行2
+<!-- @einja:seed:start id="duplicate" -->
+シードセクション2
+<!-- @einja:seed:end -->
+行3`;
+
+      const result = processor.validateMarkers(content);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].type).toBe("duplicate_id");
+      expect(result.errors[0].line).toBe(6);
+      expect(result.errors[0].message).toBe('ID "duplicate" が重複しています');
+    });
+
+    it("managed内にseedマーカーがネストされている場合、nestedエラーを返すこと", () => {
+      const content = `行1
+<!-- @einja:managed:start -->
+外側
+<!-- @einja:seed:start id="nested-seed" -->
+内側
+<!-- @einja:seed:end -->
+<!-- @einja:managed:end -->
+行2`;
+
+      const result = processor.validateMarkers(content);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      const nestedError = result.errors.find((e) => e.type === "nested");
+      expect(nestedError).toBeDefined();
+      expect(nestedError?.line).toBe(4);
+      expect(nestedError?.message).toContain("ネスト");
+    });
+
+    it("seed内にmanagedマーカーがネストされている場合、nestedエラーを返すこと", () => {
+      const content = `行1
+<!-- @einja:seed:start id="outer-seed" -->
+外側
+<!-- @einja:managed:start -->
+内側
+<!-- @einja:managed:end -->
+<!-- @einja:seed:end -->
+行2`;
+
+      const result = processor.validateMarkers(content);
+
+      expect(result.valid).toBe(false);
+      const nestedError = result.errors.find((e) => e.type === "nested");
+      expect(nestedError).toBeDefined();
+      expect(nestedError?.line).toBe(4);
+      expect(nestedError?.message).toContain("ネスト");
+    });
+
+    it("seedの開始と終了の型が一致しない場合、unpaired_endエラーを返すこと", () => {
+      const content = `行1
+<!-- @einja:seed:start id="test-seed" -->
+シードセクション
+<!-- @einja:managed:end -->
+行2`;
+
+      const result = processor.validateMarkers(content);
+
+      expect(result.valid).toBe(false);
+      const unpairedError = result.errors.find((e) => e.type === "unpaired_end");
+      expect(unpairedError).toBeDefined();
+      expect(unpairedError?.line).toBe(4);
     });
   });
 });

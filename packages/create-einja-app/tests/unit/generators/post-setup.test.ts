@@ -45,8 +45,8 @@ describe("post-setup generator", () => {
     mockConfig = {
       projectName: "test-project",
       packageScope: "@test",
-      template: "turborepo-pandacss",
-      authMethod: "google",
+      template: "default",
+      authMethod: "default",
       tools: {
         direnv: false,
         dotenvx: false,

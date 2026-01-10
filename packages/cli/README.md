@@ -84,6 +84,14 @@ npx @einja/dev-cli sync --only hooks
 - `hooks` - Git Hooks
 - `docs` - ステアリングドキュメント
 
+**マーカーによる部分同期:**
+
+`docs/einja/`配下のドキュメントには、同期動作を制御するマーカーがあります：
+- `@einja:managed` - 常にテンプレート版で上書き（共通ルール）
+- `@einja:seed` - 初回のみ追加、以降はローカル編集を保持（プロジェクト固有設定）
+
+詳細は [マーカー仕様書](docs/MARKER_SPECIFICATION.md) を参照してください。
+
 ### `task:loop`
 
 GitHub Issueのタスクを自動実行します（Claude Code経由）。
@@ -167,6 +175,26 @@ pnpm test
 
 # 型チェック
 pnpm typecheck
+```
+
+## 前提となるコマンド
+
+サブエージェント（task-qa、task-commit、task-reviewer等）が以下のコマンドの存在を前提としています。
+
+| コマンド | 使用者 | 用途 |
+|---------|--------|------|
+| `prepush` | task-commit | コミット前の品質チェック |
+| `test` | task-qa, task-reviewer | ユニットテスト実行 |
+| `lint` | task-qa, task-reviewer | Biome lintチェック |
+| `typecheck` | task-qa, task-reviewer | TypeScript型チェック |
+| `build` | task-qa, task-reviewer | ビルド確認 |
+| `dev` | CLAUDE.md | 開発サーバー起動 |
+| `dev:bg` | CLAUDE.md | バックグラウンド開発サーバー |
+
+**推奨**: これらのコマンドがすべて含まれる `create-einja-app` でプロジェクトを作成してください。
+
+```bash
+npx create-einja-app my-project
 ```
 
 ## 要件

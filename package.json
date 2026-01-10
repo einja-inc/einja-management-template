@@ -45,12 +45,12 @@
 		"dotenvx": "dotenvx",
 		"env:encrypt": "dotenvx encrypt",
 		"env:show": "tsx scripts/env-show.ts",
-		"task:loop": "einja task:loop"
+		"task:loop": "npx @einja/dev-cli task:loop",
+		"einja:sync": "npx @einja/dev-cli sync"
 	},
 	"devDependencies": {
 		"@clack/prompts": "^0.11.0",
 		"@dotenvx/dotenvx": "^1.51.4",
-		"@einja/dev-cli": "workspace:*",
 		"@types/node": "^25.0.3",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.1.0",
@@ -60,5 +60,10 @@
 	"volta": {
 		"node": "22.16.0",
 		"pnpm": "10.14.0"
+	},
+	"dependencies": {
+		"@hono/zod-validator": "^0.7.6",
+		"hono": "^4.11.3",
+		"zod": "^4.3.5"
 	}
 }

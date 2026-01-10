@@ -20,8 +20,8 @@ export type ToolConfig = {
 export type ProjectConfig = {
   projectName: string;
   packageScope: string;
-  template: "turborepo-pandacss" | "minimal";
-  authMethod: "google" | "credentials" | "github" | "none";
+  template: "default";
+  authMethod: "default" | "none";
   tools: ToolConfig;
   setupEinjaCli: boolean;
   worktreeConfig?: WorktreeConfig;

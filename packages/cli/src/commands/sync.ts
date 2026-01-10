@@ -13,9 +13,47 @@ import {
 import { ConflictReporter } from "../lib/sync/conflict-reporter.js";
 import { DiffEngine } from "../lib/sync/diff-engine.js";
 import { FileFilter } from "../lib/sync/file-filter.js";
+import { MarkerProcessor } from "../lib/sync/marker-processor.js";
 import { MetadataManager } from "../lib/sync/metadata-manager.js";
+import { SeedSynchronizer } from "../lib/sync/seed-synchronizer.js";
 import type { SyncOptions } from "../types/index.js";
 import type { JsonFileInfo, JsonOutput, SyncTarget } from "../types/sync.js";
+
+/**
+ * ファイル内容にマーカーが含まれているかチェック
+ */
+function hasMarkers(content: string): boolean {
+  return (
+    content.includes("@einja:managed:start") || content.includes("@einja:seed:start")
+  );
+}
+
+/**
+ * マーカーベースのマージを実行する
+ *
+ * @param localContent - ローカルファイルの内容
+ * @param templateContent - テンプレートファイルの内容
+ * @param markerProcessor - MarkerProcessorインスタンス
+ * @param seedSynchronizer - SeedSynchronizerインスタンス
+ * @returns マージ後の内容
+ */
+function mergeWithMarkers(
+  localContent: string,
+  templateContent: string,
+  markerProcessor: MarkerProcessor,
+  seedSynchronizer: SeedSynchronizer
+): string {
+  // 1. ローカルのセクションをパース
+  const localSections = markerProcessor.parseMarkers(localContent);
+
+  // 2. managedセクションをテンプレート版で置換
+  const afterManaged = markerProcessor.replaceManaged(localSections, templateContent);
+
+  // 3. seedセクションを同期（ローカルに存在しないseedを追加）
+  const finalContent = seedSynchronizer.syncSeeds(afterManaged, templateContent);
+
+  return finalContent;
+}
 
 /**
  * ログ出力用のユーティリティ関数
@@ -42,7 +80,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   const packageRoot = path.resolve(__dirname, "../..");
-  const templateRoot = path.join(packageRoot, "presets", "minimal");
+  const templateRoot = path.join(packageRoot, "presets", "default");
 
   log(chalk.blue("\n🔄 テンプレート同期を開始...\n"), options);
 
@@ -70,6 +108,8 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   const conflictReporter = new ConflictReporter();
   const backupManager = new BackupManager(cwd);
   const batchProcessor = new BatchProcessor(10); // バッチサイズ: 10ファイル
+  const markerProcessor = new MarkerProcessor();
+  const seedSynchronizer = new SeedSynchronizer();
 
   // 3. メタデータ読み込み
   spinner.start("メタデータを読み込み中...");
@@ -243,8 +283,56 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       };
     }
 
-    // 既存ファイル：3方向マージ
+    // 既存ファイルの内容を読み込み
     const localContent = await fs.readFile(projectPath, "utf-8");
+
+    // マーカーの有無をチェック（テンプレートまたはローカルにマーカーがある場合）
+    const templateHasMarkers = hasMarkers(templateContent);
+    const localHasMarkers = hasMarkers(localContent);
+
+    if (templateHasMarkers || localHasMarkers) {
+      // マーカーベースのマージ
+      // 1. マーカーバリデーション
+      const templateValidation = markerProcessor.validateMarkers(templateContent);
+      const localValidation = markerProcessor.validateMarkers(localContent);
+
+      if (!templateValidation.valid || !localValidation.valid) {
+        // バリデーションエラーがある場合は3方向マージにフォールバック
+        const fileMetadata = metadata.files[target.path];
+        const baseContent = fileMetadata
+          ? (await metadataManager.getBaseContent(target.templatePath)).content
+          : "";
+        const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+
+        return {
+          target,
+          templateContent,
+          mergeContent: mergeResult.content,
+          success: mergeResult.success,
+          conflicts: mergeResult.conflicts,
+          action: "merged" as const,
+        };
+      }
+
+      // 2. マーカーベースのマージを実行
+      const mergedContent = mergeWithMarkers(
+        localContent,
+        templateContent,
+        markerProcessor,
+        seedSynchronizer
+      );
+
+      return {
+        target,
+        templateContent,
+        mergeContent: mergedContent,
+        success: true,
+        conflicts: [],
+        action: "merged" as const,
+      };
+    }
+
+    // マーカーなしファイル：従来の3方向マージ
     const fileMetadata = metadata.files[target.path];
     const baseContent = fileMetadata
       ? (await metadataManager.getBaseContent(target.templatePath)).content

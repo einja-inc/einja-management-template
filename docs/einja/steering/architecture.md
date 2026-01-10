@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # システムアーキテクチャ概要
 
 ## 概要
@@ -479,3 +480,13 @@ export function calculatePorts(branchName: string): WorktreePorts {
 - **[API開発ガイド](development/api-development.md)** - Hono API実装
 - **[フロントエンド開発ガイド](development/frontend-development.md)** - React、Tanstack Query
 - **[CI/CDパイプライン](infrastructure/ci-cd.md)** - ビルド・デプロイ自動化
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="architecture-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

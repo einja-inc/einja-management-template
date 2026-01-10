@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # 環境変数セットアップ手順
 
 開発環境およびデプロイ環境の環境変数設定手順をまとめたドキュメントです。
@@ -496,3 +497,13 @@ dotenvx run -f .env -f .env.local -- <command>
 - [dotenvx公式ドキュメント](https://dotenvx.com/docs)
 - [dotenvx暗号化の仕組み](https://dotenvx.com/encryption)
 - [direnv公式ドキュメント](https://direnv.net/)
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="environment-setup-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

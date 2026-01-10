@@ -42,50 +42,13 @@ export async function promptProjectConfig(
     },
     {
       type: "list",
-      name: "template",
-      message: "テンプレート:",
-      choices: [
-        {
-          name: "turborepo-pandacss (フルスタック管理画面)",
-          value: "turborepo-pandacss",
-        },
-        { name: "minimal (最小構成)", value: "minimal" },
-      ],
-      default: "turborepo-pandacss",
-    },
-    {
-      type: "list",
       name: "authMethod",
-      message: "認証方式:",
+      message: "認証機能:",
       choices: [
-        { name: "NextAuth.js (Google OAuth)", value: "google" },
-        { name: "NextAuth.js (Credentials)", value: "credentials" },
-        { name: "NextAuth.js (GitHub OAuth)", value: "github" },
-        { name: "なし", value: "none" },
+        { name: "NextAuth.js を使用", value: "default" },
+        { name: "なし（認証ファイルを除外）", value: "none" },
       ],
-      default: "google",
-    },
-    {
-      type: "checkbox",
-      name: "tools",
-      message: "環境ツールを選択（複数選択可）:",
-      choices: [
-        {
-          name: "direnv（ディレクトリごとの環境変数管理）",
-          value: "direnv",
-          checked: true,
-        },
-        {
-          name: "dotenvx（.env暗号化）",
-          value: "dotenvx",
-          checked: true,
-        },
-        {
-          name: "Volta（Node.jsバージョン管理）",
-          value: "volta",
-          checked: true,
-        },
-      ],
+      default: "default",
     },
     {
       type: "confirm",
@@ -101,12 +64,11 @@ export async function promptProjectConfig(
     },
   ]);
 
-  // ツール選択を boolean フラグに変換
-  const toolsArray = answers.tools as string[];
+  // ツールは全て有効（固定）
   const tools = {
-    direnv: toolsArray.includes("direnv"),
-    dotenvx: toolsArray.includes("dotenvx"),
-    volta: toolsArray.includes("volta"),
+    direnv: true,
+    dotenvx: true,
+    volta: true,
     biome: true,
     husky: true,
   };
@@ -187,7 +149,7 @@ export async function promptProjectConfig(
   return {
     projectName: answers.projectName,
     packageScope: answers.packageScope,
-    template: answers.template,
+    template: "default" as const,
     authMethod: answers.authMethod,
     tools,
     setupEinjaCli: answers.setupEinjaCli,

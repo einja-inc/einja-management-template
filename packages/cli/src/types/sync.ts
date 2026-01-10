@@ -88,12 +88,17 @@ export interface MergeResult {
 /**
  * マーカーセクションの種別
  */
-export type MarkerSectionType = "managed" | "unmanaged";
+export type MarkerSectionType = "managed" | "unmanaged" | "seed";
 
 /**
  * マーカーエラーの種別
  */
-export type MarkerErrorType = "unpaired_start" | "unpaired_end" | "nested";
+export type MarkerErrorType =
+  | "unpaired_start"
+  | "unpaired_end"
+  | "nested"
+  | "seed_without_id"
+  | "duplicate_id";
 
 /**
  * マーカーセクションの型定義
@@ -107,6 +112,8 @@ export interface MarkerSection {
   endLine: number;
   /** セクション内容 */
   content: string;
+  /** セクションID（managedまたはseedマーカーにID属性がある場合） */
+  id?: string;
 }
 
 /**

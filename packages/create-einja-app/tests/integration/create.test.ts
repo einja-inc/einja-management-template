@@ -51,7 +51,6 @@ describe("create command integration test", () => {
       // Given: デフォルト設定とプロジェクト名
       const projectName = "test-project";
       const options = {
-        template: "turborepo-pandacss",
         skipGit: true,
         skipInstall: true,
         yes: true,

@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # `pnpm task:loop` コマンド
 
 ## 概要
@@ -482,3 +483,13 @@ packages/cli/src/commands/task-loop/
 - [タスク管理ガイドライン](../steering/task-management.md)
 - [仕様書作成ワークフロー](./spec-create.md)
 - [ブランチ運用戦略](../steering/branch-strategy.md) - ブランチ命名規則、同期フロー、ワークフロー図
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="task-vibe-kanban-loop-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

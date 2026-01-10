@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # バックエンドアーキテクチャ
 
 ## タスク: Turborepo Next.js モノレポ構築 (20251104)
@@ -729,3 +730,13 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 ✅ **index.ts不使用**: シンプルで拡張しやすいモジュール管理
 
 すべての開発者は、この設計原則に従ってバックエンド開発を行ってください。
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="backend-architecture-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

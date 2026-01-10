@@ -43,50 +43,13 @@ async function promptProjectConfig(defaultProjectName) {
     },
     {
       type: "list",
-      name: "template",
-      message: "\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8:",
-      choices: [
-        {
-          name: "turborepo-pandacss (\u30D5\u30EB\u30B9\u30BF\u30C3\u30AF\u7BA1\u7406\u753B\u9762)",
-          value: "turborepo-pandacss"
-        },
-        { name: "minimal (\u6700\u5C0F\u69CB\u6210)", value: "minimal" }
-      ],
-      default: "turborepo-pandacss"
-    },
-    {
-      type: "list",
       name: "authMethod",
-      message: "\u8A8D\u8A3C\u65B9\u5F0F:",
+      message: "\u8A8D\u8A3C\u6A5F\u80FD:",
       choices: [
-        { name: "NextAuth.js (Google OAuth)", value: "google" },
-        { name: "NextAuth.js (Credentials)", value: "credentials" },
-        { name: "NextAuth.js (GitHub OAuth)", value: "github" },
-        { name: "\u306A\u3057", value: "none" }
+        { name: "NextAuth.js \u3092\u4F7F\u7528", value: "default" },
+        { name: "\u306A\u3057\uFF08\u8A8D\u8A3C\u30D5\u30A1\u30A4\u30EB\u3092\u9664\u5916\uFF09", value: "none" }
       ],
-      default: "google"
-    },
-    {
-      type: "checkbox",
-      name: "tools",
-      message: "\u74B0\u5883\u30C4\u30FC\u30EB\u3092\u9078\u629E\uFF08\u8907\u6570\u9078\u629E\u53EF\uFF09:",
-      choices: [
-        {
-          name: "direnv\uFF08\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u3054\u3068\u306E\u74B0\u5883\u5909\u6570\u7BA1\u7406\uFF09",
-          value: "direnv",
-          checked: true
-        },
-        {
-          name: "dotenvx\uFF08.env\u6697\u53F7\u5316\uFF09",
-          value: "dotenvx",
-          checked: true
-        },
-        {
-          name: "Volta\uFF08Node.js\u30D0\u30FC\u30B8\u30E7\u30F3\u7BA1\u7406\uFF09",
-          value: "volta",
-          checked: true
-        }
-      ]
+      default: "default"
     },
     {
       type: "confirm",
@@ -101,11 +64,10 @@ async function promptProjectConfig(defaultProjectName) {
       default: false
     }
   ]);
-  const toolsArray = answers.tools;
   const tools = {
-    direnv: toolsArray.includes("direnv"),
-    dotenvx: toolsArray.includes("dotenvx"),
-    volta: toolsArray.includes("volta"),
+    direnv: true,
+    dotenvx: true,
+    volta: true,
     biome: true,
     husky: true
   };
@@ -181,7 +143,7 @@ async function promptProjectConfig(defaultProjectName) {
   return {
     projectName: answers.projectName,
     packageScope: answers.packageScope,
-    template: answers.template,
+    template: "default",
     authMethod: answers.authMethod,
     tools,
     setupEinjaCli: answers.setupEinjaCli,
@@ -530,8 +492,8 @@ async function createCommand(projectName, options) {
       config = {
         projectName,
         packageScope: "@repo",
-        template: options.template || "turborepo-pandacss",
-        authMethod: "google",
+        template: "default",
+        authMethod: "default",
         tools: {
           direnv: true,
           dotenvx: true,
@@ -1029,7 +991,7 @@ var packageJsonPath = join10(__dirname2, "../package.json");
 var packageJson = JSON.parse(readFileSync4(packageJsonPath, "utf-8"));
 var program = new Command();
 program.name("create-einja-app").description("CLI tool to create new projects with Einja Management Template").version(packageJson.version);
-program.argument("[project-name]", "Project name").option("--template <template>", "Template to use", "turborepo-pandacss").option("--skip-git", "Skip git initialization").option("--skip-install", "Skip package installation").option("-y, --yes", "Skip interactive prompts").action(
+program.argument("[project-name]", "Project name").option("--skip-git", "Skip git initialization").option("--skip-install", "Skip package installation").option("-y, --yes", "Skip interactive prompts").action(
   async (projectName, options) => {
     await createCommand(projectName, options);
   }

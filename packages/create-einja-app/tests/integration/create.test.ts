@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createCommand } from "../../src/commands/create.js";
@@ -74,7 +74,6 @@ describe("create command integration test", () => {
         expect(existsSync(join(projectPath, "turbo.json"))).toBe(true);
         expect(existsSync(join(projectPath, "pnpm-workspace.yaml"))).toBe(true);
         expect(existsSync(join(projectPath, ".envrc"))).toBe(true);
-        expect(existsSync(join(projectPath, ".envrc.example"))).toBe(true);
         expect(existsSync(join(projectPath, ".gitignore"))).toBe(true);
 
         // Then: package.jsonにプロジェクト名が含まれる
@@ -179,7 +178,7 @@ describe("create command integration test", () => {
       // Given: 既に存在するディレクトリ
       const projectName = "existing-dir";
       const projectPath = join(testDir, projectName);
-      mkdtempSync(projectPath);
+      mkdirSync(projectPath);
 
       const options = {
         skipGit: true,

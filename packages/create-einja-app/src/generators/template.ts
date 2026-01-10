@@ -194,6 +194,7 @@ export async function generateTemplate(
         "node_modules",
         ".git",
         ".next",
+        ".turbo",
         "out",
         "dist",
         "logs",

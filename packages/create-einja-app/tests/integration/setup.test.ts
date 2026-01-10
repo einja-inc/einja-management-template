@@ -12,7 +12,7 @@ vi.mock("inquirer", async (importOriginal) => {
     ...actual,
     default: {
       ...actual.default,
-      prompt: vi.fn().mockImplementation(async (questions: unknown[]) => {
+      prompt: vi.fn().mockImplementation(async (questions: unknown) => {
         // promptSetupConfigで使用されるプロンプトはモック対象外
         // direnv allowプロンプトのみスキップ
         if (Array.isArray(questions) && questions.length === 1) {
@@ -22,7 +22,8 @@ vi.mock("inquirer", async (importOriginal) => {
           }
         }
         // 他のプロンプトは元の実装を使用
-        return actual.default.prompt(questions);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return actual.default.prompt(questions as Parameters<typeof actual.default.prompt>[0]);
       }),
     },
   };

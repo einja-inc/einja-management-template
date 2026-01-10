@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { generateTemplate } from "../../../src/generators/template.js";
 import type { ProjectConfig } from "../../../src/prompts/project.js";
@@ -19,6 +19,13 @@ describe("generateTemplate", { concurrent: false }, () => {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         if (existsSync(dirPath)) {
+          // 権限問題を回避するため、削除前に書き込み権限を付与
+          try {
+            const { execSync } = require("node:child_process");
+            execSync(`chmod -R u+w "${dirPath}"`, { stdio: "ignore" });
+          } catch {
+            // chmod失敗は無視
+          }
           rmSync(dirPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
         }
         return; // 成功したら終了
@@ -71,6 +78,21 @@ describe("generateTemplate", { concurrent: false }, () => {
     // モックテンプレートディレクトリのクリーンアップ
     const mockTemplatesRoot = join(process.cwd(), "test-temp-templates");
     removeDirWithRetry(mockTemplatesRoot);
+
+    // 実テンプレートディレクトリの test- プレフィックスファイルを削除（前回テストの残骸）
+    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    if (existsSync(realTemplatePath)) {
+      for (const entry of readdirSync(realTemplatePath)) {
+        if (entry.startsWith("test-")) {
+          const filePath = join(realTemplatePath, entry);
+          try {
+            rmSync(filePath, { force: true, recursive: true });
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
 
     // テストファイルリストをリセット
     testFilesToCleanup.length = 0;

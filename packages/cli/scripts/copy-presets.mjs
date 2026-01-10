@@ -125,6 +125,7 @@ const mappings = [
 		src: path.join(projectRoot, "docs/einja"),
 		dest: path.join(cliDir, "scaffolds"),
 		basePath: null, // シンボリックリンク記録対象外
+		exclude: ["memory"], // プロジェクト固有のメモリはコピーしない
 	},
 ];
 
@@ -222,7 +223,7 @@ function copyPresets() {
 
 	// ディレクトリのコピー
 	console.log("ディレクトリ:");
-	for (const { src, dest, basePath, cleanParent } of mappings) {
+	for (const { src, dest, basePath, cleanParent, exclude = [] } of mappings) {
 		// コピー先をクリア（cleanParent=trueの場合は親ディレクトリを削除）
 		if (cleanParent) {
 			const parentDir = path.dirname(dest);
@@ -237,9 +238,13 @@ function copyPresets() {
 				src,
 				dest,
 				(srcPath) => {
-					// _ プレフィックスで始まるファイルをスキップ
 					const basename = path.basename(srcPath);
+					// _ プレフィックスで始まるファイルをスキップ
 					if (basename.startsWith("_")) {
+						return false;
+					}
+					// 除外リストに含まれるディレクトリをスキップ
+					if (exclude.includes(basename)) {
 						return false;
 					}
 					return true;

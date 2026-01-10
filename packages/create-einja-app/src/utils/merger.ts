@@ -55,10 +55,11 @@ export function mergeTextWithMarkers(
         const match = templateManagedById.get(localSection.id)!;
         processedTemplateIds.add(localSection.id);
         result.push(match.content);
-      } else {
-        // IDなし or マッチなし → ローカル内容を保持（安全策）
+      } else if (!localSection.id) {
+        // IDなし → ローカル内容を保持（安全策）
         result.push(localSection.content);
       }
+      // ID付きでテンプレートにマッチなし → 削除（resultに追加しない）
     } else if (localSection.type === "seed") {
       // seed: ローカル優先
       if (localSection.id) {
@@ -87,6 +88,10 @@ export function mergeTextWithMarkers(
     }
   }
 
+  // Then: ファイル先頭の空セクションのみ除去（セクション間の空行は保持）
+  if (result.length > 0 && result[0].length === 0) {
+    result.shift();
+  }
   return result.join("\n");
 }
 

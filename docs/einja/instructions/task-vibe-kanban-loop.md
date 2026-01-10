@@ -83,7 +83,7 @@ main (デフォルト)
 
 ### 事前準備チェックリスト
 
-- [ ] `npx @einja/cli init` 実行済み（`pnpm task:loop` コマンドが使用可能）
+- [ ] `npx @einja/dev-cli init` 実行済み（`pnpm task:loop` コマンドが使用可能）
 - [ ] Docker が起動している
 - [ ] `pnpm install` 済み
 - [ ] Vibe-Kanban にプロジェクトが登録されている（後述）

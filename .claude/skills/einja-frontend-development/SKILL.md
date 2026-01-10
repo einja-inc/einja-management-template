@@ -1,9 +1,9 @@
-# フロントエンド開発ガイド Skill
-
-name: "frontend-development"
+---
+name: frontend-development
 description: "Next.js + React + Tanstack Queryを使用したフロントエンド実装のガイドライン"
-invocation: "agent-requested"
-version: "1.0.0"
+---
+
+# フロントエンド開発ガイド Skill
 
 ## 概要
 

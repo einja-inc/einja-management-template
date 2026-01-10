@@ -1,6 +1,7 @@
 ---
 name: create-einja-app-release
-description: "create-einja-app パッケージをビルド・テストし、NPMに公開するSkill"
+description: "create-einja-app パッケージをビルド・テストし、NPMに公開するSkill。create-einja-appの公開、リリース、publishが必要な場合に使用。"
+user-invocable: true
 allowed-tools:
   - Bash
   - Read

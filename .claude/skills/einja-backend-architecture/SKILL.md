@@ -1,9 +1,9 @@
-# バックエンドアーキテクチャ Skill
-
-name: "backend-architecture"
+---
+name: backend-architecture
 description: "4層レイヤードアーキテクチャ、Repositoryパターン、Result型パターンのガイドライン"
-invocation: "agent-requested"
-version: "1.0.0"
+---
+
+# バックエンドアーキテクチャ Skill
 
 ## 概要
 

@@ -1,9 +1,9 @@
-# API開発ガイド Skill
-
-name: "api-development"
+---
+name: api-development
 description: "Hono + Zodを使用したAPI実装のガイドライン"
-invocation: "agent-requested"
-version: "1.0.0"
+---
+
+# API開発ガイド Skill
 
 ## 概要
 

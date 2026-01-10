@@ -7,7 +7,7 @@ color: pink
 
 ## ✅ 最重要: 出力形式
 
-**@.claude/skills/einja/output-format/SKILL.md の「design-engineer」テンプレートに従って報告すること。この形式から逸脱しないこと。**
+**@.claude/skills/einja-output-format/SKILL.md の「design-engineer」テンプレートに従って報告すること。この形式から逸脱しないこと。**
 
 ---
 

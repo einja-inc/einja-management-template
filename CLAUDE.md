@@ -394,7 +394,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 
 | キーワード | 使用するSkill |
 |-----------|--------------|
-| `einja cli` `@einja/dev-cli` `公開` `リリース` `publish` `release` | `.claude/skills/cli/release/SKILL.md` |
+| `einja cli` `@einja/dev-cli` `公開` `リリース` `publish` `release` | `.claude/skills/dev-cli-release/SKILL.md` |
 | `create-einja-app` | `.claude/skills/create-einja-app-release/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止

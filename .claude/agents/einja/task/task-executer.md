@@ -103,17 +103,17 @@ Skill: general-context-loader
 
 | 実装種別 | 読み込むSkill |
 |---------|--------------|
-| **API実装** | `.claude/skills/einja/api-development/SKILL.md` |
-| **フロントエンド実装** | `.claude/skills/einja/frontend-development/SKILL.md` |
-| **バックエンド実装** | `.claude/skills/einja/backend-architecture/SKILL.md` |
-| **コード全般** | `.claude/skills/einja/coding-standards/SKILL.md` |
-| **コンポーネント設計** | `.claude/skills/einja/component-design/SKILL.md` |
+| **API実装** | `.claude/skills/einja-api-development/SKILL.md` |
+| **フロントエンド実装** | `.claude/skills/einja-frontend-development/SKILL.md` |
+| **バックエンド実装** | `.claude/skills/einja-backend-architecture/SKILL.md` |
+| **コード全般** | `.claude/skills/einja-coding-standards/SKILL.md` |
+| **コンポーネント設計** | `.claude/skills/einja-component-design/SKILL.md` |
 
 **詳細規約が必要な場合**:
-- 命名規則: `.claude/skills/einja/coding-standards/reference/naming-conventions.md`
-- 禁止パターン: `.claude/skills/einja/coding-standards/reference/prohibited-patterns.md`
-- TypeScript規約: `.claude/skills/einja/coding-standards/reference/typescript-rules.md`
-- スタイリング: `.claude/skills/einja/component-design/reference/styling-guide.md`
+- 命名規則: `.claude/skills/einja-coding-standards/reference/naming-conventions.md`
+- 禁止パターン: `.claude/skills/einja-coding-standards/reference/prohibited-patterns.md`
+- TypeScript規約: `.claude/skills/einja-coding-standards/reference/typescript-rules.md`
+- スタイリング: `.claude/skills/einja-component-design/reference/styling-guide.md`
 
 ### 2. 実装方針の策定
 

@@ -5,8 +5,8 @@
  * 原本（プロジェクト内）:
  * - .claude/agents/einja/
  * - .claude/commands/einja/
- * - .claude/skills/einja/
- * - .claude/hooks/
+ * - .claude/skills/einja-*/ (einja-プレフィックスのスキルのみ)
+ * - .claude/hooks/einja/
  * - .claude/settings.json
  * - .mcp.json
  * - docs/einja/steering/

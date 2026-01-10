@@ -1,9 +1,9 @@
-# サブエージェント出力形式 Skill
-
-name: "output-format"
+---
+name: output-format
 description: "サブエージェントの統一出力形式を定義"
-invocation: "agent-requested"
-version: "1.0.0"
+---
+
+# サブエージェント出力形式 Skill
 
 ## 概要
 

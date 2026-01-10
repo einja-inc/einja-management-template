@@ -1,9 +1,9 @@
-# Component Design Skill
-
-name: "component-design"
+---
+name: component-design
 description: "Reactコンポーネントの設計原則と実装ガイドライン"
-invocation: "agent-requested"
-version: "1.0.0"
+---
+
+# Component Design Skill
 
 ## 概要
 
@@ -98,7 +98,7 @@ interface ButtonProps {
 
 ## 関連Skill・ドキュメント
 
-- [coding-standards](../coding-standards/SKILL.md) - コーディング規約
+- [coding-standards](../einja-coding-standards/SKILL.md) - コーディング規約
 - `docs/einja/steering/development/testing-strategy.md` - テスト戦略
 - `docs/einja/steering/development/frontend-development.md` - フロントエンド開発ガイド
 

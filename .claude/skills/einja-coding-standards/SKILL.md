@@ -1,9 +1,9 @@
-# Coding Standards Skill
-
-name: "coding-standards"
+---
+name: coding-standards
 description: "TypeScript/React/Next.jsのコーディング規約とベストプラクティス"
-invocation: "agent-requested"
-version: "1.0.0"
+---
+
+# Coding Standards Skill
 
 ## 概要
 
@@ -114,7 +114,7 @@ const customStyles = css({
 
 ## 関連Skill・ドキュメント
 
-- [component-design](../component-design/SKILL.md) - コンポーネント設計ガイドライン
+- [component-design](../einja-component-design/SKILL.md) - コンポーネント設計ガイドライン
 - `docs/einja/steering/development/testing-strategy.md` - テスト戦略
 - `docs/einja/steering/development/review-guidelines.md` - コードレビューガイドライン
 - `docs/einja/steering/commit-rules.md` - コミットルール

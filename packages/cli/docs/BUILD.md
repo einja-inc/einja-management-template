@@ -20,8 +20,8 @@ prebuild → build → postbuild
 |------------------------|-------------------|
 | `.claude/agents/einja/` | `presets/minimal/.claude/agents/einja/` |
 | `.claude/commands/einja/` | `presets/minimal/.claude/commands/einja/` |
-| `.claude/skills/einja/` | `presets/minimal/.claude/skills/einja/` |
-| `.claude/hooks/` | `presets/minimal/.claude/hooks/` |
+| `.claude/skills/einja-*/` | `presets/minimal/.claude/skills/einja-*/` |
+| `.claude/hooks/einja/` | `presets/minimal/.claude/hooks/einja/` |
 | `docs/einja/steering/` | `scaffolds/steering/` |
 
 **フィルター**: `_` で始まるファイルはスキップされます（プレースホルダー用）
@@ -70,8 +70,8 @@ packages/cli/
 │   └── ...
 ├── presets/minimal/.claude/       # ビルド時に自動生成（git管理外）
 │   ├── agents/einja/
-│   ├── commands/einja/
-│   ├── skills/einja/
+│   ├── commands/einja-*/
+│   ├── skills/einja-*/
 │   └── hooks/
 └── scaffolds/steering/            # ビルド時に自動生成（git管理外）
 ```

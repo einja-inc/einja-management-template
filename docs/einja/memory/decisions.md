@@ -1,4 +1,4 @@
-<!-- @einja:managed:start -->
+<!-- @einja:seed:start id="decisions" -->
 # 意思決定記録（Decisions）
 
 このファイルには、プロジェクトにおける重要な意思決定（Why）を記録します。
@@ -23,13 +23,4 @@
 ## 記録
 
 <!-- ここに意思決定を追加 -->
-<!-- @einja:managed:end -->
-
----
-
-<!-- @einja:seed:start id="decisions-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
 <!-- @einja:seed:end -->

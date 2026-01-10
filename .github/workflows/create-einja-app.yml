@@ -1,39 +1,47 @@
-name: create-einja-app CI/CD
+name: Release create-einja-app
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - "packages/create-einja-app/**"
-      - "apps/**"
-      - "packages/**"
-      - "!packages/cli/**"
-  pull_request:
-    paths:
-      - "packages/create-einja-app/**"
+    tags:
+      - 'create-einja-app-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (skip actual publish)'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
-  test:
-    name: Test
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # npm provenance用
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      # pnpm/action-setup@v4.1.0
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
         with:
-          version: 9
+          version: 10.14.0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      # actions/setup-node@v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: "22"
-          cache: "pnpm"
+          node-version: '22.16.0'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm -F create-einja-app build
+
+      - name: Run tests
+        run: pnpm -F create-einja-app test
 
       - name: Type check
         run: pnpm -F create-einja-app typecheck
@@ -41,74 +49,47 @@ jobs:
       - name: Lint
         run: pnpm -F create-einja-app lint
 
-      - name: Run tests
-        run: pnpm -F create-einja-app test
+      - name: Get version info
+        id: version
+        run: |
+          PKG_VERSION=$(node -p "require('./packages/create-einja-app/package.json').version")
+          echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG_VERSION="${{ github.ref_name }}"
+            TAG_VERSION="${TAG_VERSION#create-einja-app-v}"
+            echo "tag_version=$TAG_VERSION" >> $GITHUB_OUTPUT
+            echo "source=tag" >> $GITHUB_OUTPUT
+          else
+            echo "source=manual" >> $GITHUB_OUTPUT
+          fi
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Verify version (tag trigger)
+        if: ${{ steps.version.outputs.source == 'tag' }}
+        run: |
+          if [[ "${{ steps.version.outputs.pkg_version }}" != "${{ steps.version.outputs.tag_version }}" ]]; then
+            echo "::error::Version mismatch: package.json=${{ steps.version.outputs.pkg_version }}, tag=${{ steps.version.outputs.tag_version }}"
+            exit 1
+          fi
+          echo "✅ Version verified: ${{ steps.version.outputs.pkg_version }}"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+      - name: Show release info
+        run: |
+          echo "📦 Package: create-einja-app"
+          echo "📌 Version: ${{ steps.version.outputs.pkg_version }}"
+          echo "🎯 Trigger: ${{ steps.version.outputs.source }}"
+          echo "🧪 Dry run: ${{ github.event.inputs.dry_run || 'false' }}"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "pnpm"
+      - name: Verify package contents
+        run: |
+          cd packages/create-einja-app
+          npm pack --dry-run
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build package (prebuild runs template:update automatically)
-        run: pnpm -F create-einja-app build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts
-          path: |
-            packages/create-einja-app/dist
-            packages/create-einja-app/templates
-          retention-days: 7
-
-  publish:
-    name: Publish to npm
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "pnpm"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: packages/create-einja-app
+      - name: Publish to npm (dry-run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: pnpm -F create-einja-app publish --no-git-checks --access public --dry-run
 
       - name: Publish to npm
-        run: pnpm -F create-einja-app publish --no-git-checks
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: pnpm -F create-einja-app publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

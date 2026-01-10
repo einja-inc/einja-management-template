@@ -9,7 +9,7 @@ export class JsonProcessor {
    * JSONをマージする
    * - managed パス: テンプレート値で上書き
    * - seed パス: ローカル優先（キーが存在しない場合のみコピー）
-   * - その他: ローカル優先
+   * - その他: ディープマージ（テンプレートの新規キーも追加）
    *
    * @param templateJson - テンプレート版のJSON
    * @param localJson - ローカル版のJSON（nullの場合はテンプレート版をそのまま返す）
@@ -25,34 +25,11 @@ export class JsonProcessor {
   ): Record<string, unknown> {
     // ローカルファイルが存在しない場合はテンプレート版をそのまま返す
     if (!localJson) {
-      return templateJson;
+      return this.deepClone(templateJson);
     }
 
-    // マージ結果の初期化（ローカル版をベースに開始）
-    const result = this.deepClone(localJson);
-
-    // managedパスの処理: テンプレート値で上書き
-    const managedPaths = jsonPaths.managed[filePath] || [];
-    for (const path of managedPaths) {
-      const templateValue = this.getValueAtPath(templateJson, path);
-      if (templateValue !== undefined) {
-        this.setValueAtPath(result, path, templateValue);
-      }
-    }
-
-    // seedパスの処理: ローカルに存在しない場合のみテンプレート値をコピー
-    const seedPaths = jsonPaths.seed[filePath] || [];
-    for (const path of seedPaths) {
-      const localValue = this.getValueAtPath(result, path);
-      if (localValue === undefined) {
-        const templateValue = this.getValueAtPath(templateJson, path);
-        if (templateValue !== undefined) {
-          this.setValueAtPath(result, path, templateValue);
-        }
-      }
-    }
-
-    return result;
+    // ディープマージ（パス設定を考慮）
+    return this.deepMergeWithPaths(templateJson, localJson, jsonPaths, filePath, "");
   }
 
   /**
@@ -127,28 +104,101 @@ export class JsonProcessor {
   }
 
   /**
+   * パス設定を考慮したディープマージ
+   *
+   * @param template - テンプレートオブジェクト
+   * @param existing - 既存オブジェクト
+   * @param jsonPaths - JSONパス設定
+   * @param filePath - ファイルパス
+   * @param currentPath - 現在のパス（再帰用）
+   * @returns マージ後のオブジェクト
+   */
+  private deepMergeWithPaths(
+    template: Record<string, unknown>,
+    existing: Record<string, unknown>,
+    jsonPaths: JsonPathsConfig,
+    filePath: string,
+    currentPath: string
+  ): Record<string, unknown> {
+    const result = this.deepClone(existing);
+
+    for (const [key, templateValue] of Object.entries(template)) {
+      const keyPath = currentPath ? `${currentPath}.${key}` : key;
+
+      if (this.isPathManaged(filePath, keyPath, jsonPaths)) {
+        // managed: テンプレートで上書き
+        result[key] = this.deepClone(templateValue);
+      } else if (this.isPathSeed(filePath, keyPath, jsonPaths)) {
+        // seed: オブジェクトの場合はディープマージ（既存にないキーのみ追加）
+        if (this.isObject(templateValue) && this.isObject(existing[key])) {
+          // seedパス内でもディープマージ（既存にないキーのみ追加）
+          result[key] = this.deepMergeWithPaths(
+            templateValue as Record<string, unknown>,
+            existing[key] as Record<string, unknown>,
+            jsonPaths,
+            filePath,
+            keyPath
+          );
+        } else if (!(key in existing)) {
+          // seedパスはローカル優先（キーが存在しない場合のみ追加）
+          result[key] = this.deepClone(templateValue);
+        }
+        // 既存値がある場合は何もしない（既存値を保持）
+      } else if (this.isObject(templateValue) && this.isObject(existing[key])) {
+        // 両方オブジェクト: 再帰的にマージ
+        result[key] = this.deepMergeWithPaths(
+          templateValue as Record<string, unknown>,
+          existing[key] as Record<string, unknown>,
+          jsonPaths,
+          filePath,
+          keyPath
+        );
+      } else if (!(key in existing)) {
+        // 既存にないキー: 追加（これが重要！）
+        result[key] = this.deepClone(templateValue);
+      }
+      // 既存にあるキー: 保持（何もしない）
+    }
+
+    return result;
+  }
+
+  /**
    * パスがmanagedかどうか判定
    *
    * @param filePath - ファイルパス
-   * @param path - JSONパス
+   * @param keyPath - JSONパス
    * @param jsonPaths - JSONパス設定
    * @returns managedの場合true
    */
-  private isManagedPath(filePath: string, path: string, jsonPaths: JsonPathsConfig): boolean {
-    const managedPaths = jsonPaths.managed[filePath];
-    return managedPaths ? managedPaths.includes(path) : false;
+  private isPathManaged(filePath: string, keyPath: string, jsonPaths: JsonPathsConfig): boolean {
+    const managedPaths = jsonPaths.managed[filePath] || [];
+    // keyPath が managedPaths のいずれかで始まるかチェック
+    // 例: keyPath="scripts.dev" が managedPaths=["scripts"] にマッチ
+    return managedPaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
   }
 
   /**
    * パスがseedかどうか判定
    *
    * @param filePath - ファイルパス
-   * @param path - JSONパス
+   * @param keyPath - JSONパス
    * @param jsonPaths - JSONパス設定
    * @returns seedの場合true
    */
-  private isSeedPath(filePath: string, path: string, jsonPaths: JsonPathsConfig): boolean {
-    const seedPaths = jsonPaths.seed[filePath];
-    return seedPaths ? seedPaths.includes(path) : false;
+  private isPathSeed(filePath: string, keyPath: string, jsonPaths: JsonPathsConfig): boolean {
+    const seedPaths = jsonPaths.seed[filePath] || [];
+    // keyPath が seedPaths のいずれかで始まるかチェック
+    return seedPaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
+  }
+
+  /**
+   * オブジェクトかどうか判定
+   *
+   * @param value - 判定対象
+   * @returns オブジェクトの場合true
+   */
+  private isObject(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
   }
 }

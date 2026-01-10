@@ -200,7 +200,9 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
               seed: {},
             };
 
-            jsonProcessor.mergeJson(templateJson, localJson, jsonPaths, target.path);
+            // ファイル名のみを抽出（create-einja-appの登録形式に合わせる）
+            const fileName = target.path.split("/").pop() || target.path;
+            jsonProcessor.mergeJson(templateJson, localJson, jsonPaths, fileName);
 
             // JSONマージは基本的に成功扱い
             dryRunStats.updated++;
@@ -339,11 +341,13 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
           seed: {},
         };
 
+        // ファイル名のみを抽出（create-einja-appの登録形式に合わせる）
+        const fileName = target.path.split("/").pop() || target.path;
         const mergedJson = jsonProcessor.mergeJson(
           templateJson,
           localJson,
           jsonPaths,
-          target.path
+          fileName
         );
 
         const mergedContent = `${JSON.stringify(mergedJson, null, 2)}\n`;

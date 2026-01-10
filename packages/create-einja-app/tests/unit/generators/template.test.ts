@@ -7,7 +7,7 @@ import type { ProjectConfig } from "../../../src/prompts/project.js";
 describe("generateTemplate", { concurrent: false }, () => {
   const testDir = join(process.cwd(), "test-temp");
   const targetPath = join(testDir, "test-project");
-  const mockTemplatePath = join(process.cwd(), "test-temp-templates/turborepo-pandacss");
+  const mockTemplatePath = join(process.cwd(), "test-temp-templates/default");
 
   // 実テンプレートに追加したテストファイルのパスを記録
   const testFilesToCleanup: string[] = [];
@@ -80,7 +80,7 @@ describe("generateTemplate", { concurrent: false }, () => {
     removeDirWithRetry(mockTemplatesRoot);
 
     // 実テンプレートディレクトリの test- プレフィックスファイルを削除（前回テストの残骸）
-    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    const realTemplatePath = join(process.cwd(), "templates/default");
     if (existsSync(realTemplatePath)) {
       for (const entry of readdirSync(realTemplatePath)) {
         if (entry.startsWith("test-")) {
@@ -122,8 +122,8 @@ describe("generateTemplate", { concurrent: false }, () => {
     const config: ProjectConfig = {
       projectName: "test-project",
       packageScope: "@test",
-      template: "turborepo-pandacss",
-      authMethod: "google",
+      template: "default",
+      authMethod: "default",
       tools: {
         direnv: true,
         dotenvx: true,
@@ -135,7 +135,7 @@ describe("generateTemplate", { concurrent: false }, () => {
     };
 
     // 実際のテンプレートがあるのでそれを使用
-    const templatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    const templatePath = join(process.cwd(), "templates/default");
 
     // テンプレートが存在する場合のみテスト実行
     if (!existsSync(templatePath)) {
@@ -165,8 +165,8 @@ describe("generateTemplate", { concurrent: false }, () => {
     const config: ProjectConfig = {
       projectName: "my-awesome-app",
       packageScope: "@my-company",
-      template: "turborepo-pandacss",
-      authMethod: "google",
+      template: "default",
+      authMethod: "default",
       tools: {
         direnv: true,
         dotenvx: true,
@@ -178,7 +178,7 @@ describe("generateTemplate", { concurrent: false }, () => {
     };
 
     // モックテンプレートをテンプレートディレクトリにコピー
-    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    const realTemplatePath = join(process.cwd(), "templates/default");
     if (existsSync(realTemplatePath)) {
       // 実際のテンプレートが存在する場合、テスト用ファイルを追加
       const testFilePath = join(realTemplatePath, "test-placeholder.txt");
@@ -198,13 +198,13 @@ describe("generateTemplate", { concurrent: false }, () => {
 
   it("パッケージスコープが@repo/から指定スコープに置換される", async () => {
     // Given: テンプレートディレクトリ
-    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    const realTemplatePath = join(process.cwd(), "templates/default");
 
     const config: ProjectConfig = {
       projectName: "test-app",
       packageScope: "@custom",
-      template: "turborepo-pandacss",
-      authMethod: "credentials",
+      template: "default",
+      authMethod: "default",
       tools: {
         direnv: false,
         dotenvx: false,
@@ -242,7 +242,7 @@ describe("generateTemplate", { concurrent: false }, () => {
     const config: ProjectConfig = {
       projectName: "no-auth-app",
       packageScope: "@test",
-      template: "turborepo-pandacss",
+      template: "default",
       authMethod: "none",
       tools: {
         direnv: true,
@@ -254,7 +254,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       setupEinjaCli: false,
     };
 
-    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    const realTemplatePath = join(process.cwd(), "templates/default");
 
     if (existsSync(realTemplatePath)) {
       // 認証関連ファイルを作成（除外パターンにマッチするパス）
@@ -283,13 +283,13 @@ describe("generateTemplate", { concurrent: false }, () => {
 
   it("{{packageName}}/パターンが正しく置換される", async () => {
     // Given: テンプレートディレクトリ
-    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    const realTemplatePath = join(process.cwd(), "templates/default");
 
     const config: ProjectConfig = {
       projectName: "test-app",
       packageScope: "@custom",
-      template: "turborepo-pandacss",
-      authMethod: "credentials",
+      template: "default",
+      authMethod: "default",
       tools: {
         direnv: false,
         dotenvx: false,
@@ -327,13 +327,13 @@ describe("generateTemplate", { concurrent: false }, () => {
 
   it("除外パターンに部分一致するファイル名（logout-button.tsx等）が正しくコピーされる", async () => {
     // Given: テンプレートディレクトリ
-    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    const realTemplatePath = join(process.cwd(), "templates/default");
 
     const config: ProjectConfig = {
       projectName: "test-app",
       packageScope: "@test",
-      template: "turborepo-pandacss",
-      authMethod: "google",
+      template: "default",
+      authMethod: "default",
       tools: {
         direnv: false,
         dotenvx: false,
@@ -372,13 +372,13 @@ describe("generateTemplate", { concurrent: false }, () => {
 
   it("除外パターンのディレクトリ（out/, dist/, logs/等）は正しく除外される", async () => {
     // Given: テンプレートディレクトリ
-    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    const realTemplatePath = join(process.cwd(), "templates/default");
 
     const config: ProjectConfig = {
       projectName: "test-app",
       packageScope: "@test",
-      template: "turborepo-pandacss",
-      authMethod: "google",
+      template: "default",
+      authMethod: "default",
       tools: {
         direnv: false,
         dotenvx: false,
@@ -415,13 +415,13 @@ describe("generateTemplate", { concurrent: false }, () => {
 
   it(".logファイルは除外されるが、blog.tsxは除外されない", async () => {
     // Given: テンプレートディレクトリ
-    const realTemplatePath = join(process.cwd(), "templates/turborepo-pandacss");
+    const realTemplatePath = join(process.cwd(), "templates/default");
 
     const config: ProjectConfig = {
       projectName: "test-app",
       packageScope: "@test",
-      template: "turborepo-pandacss",
-      authMethod: "google",
+      template: "default",
+      authMethod: "default",
       tools: {
         direnv: false,
         dotenvx: false,

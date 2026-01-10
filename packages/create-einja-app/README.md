@@ -11,7 +11,7 @@ Einja Management Templateを使用したプロジェクトを素早く作成す�
 - 🚀 **新規プロジェクト作成**: `npx create-einja-app my-project` で即座にプロジェクトを作成
 - 🛠️ **既存プロジェクトセットアップ**: `--setup` オプションで既存プロジェクトにツールを追加
 - 🔧 **環境ツール統合**: direnv, dotenvx, Volta, Biome, Huskyなどのツールを自動セットアップ
-- 🔐 **認証方式選択**: Google OAuth, Credentials, GitHub OAuth, 認証なしから選択可能
+- 🔐 **認証方式選択**: NextAuth.js を使用するか選択可能
 - 🔄 **対話式プロンプト**: わかりやすいプロンプトで設定を選択
 
 ---
@@ -29,9 +29,8 @@ npx create-einja-app my-project
 対話式プロンプトが表示され、以下の設定を選択できます：
 
 - プロジェクト名
-- テンプレート（turborepo-pandacss, minimal）
-- 認証方式（Google OAuth, Credentials, GitHub OAuth, なし）
-- 環境ツール（direnv, dotenvx, Volta）
+- パッケージスコープ
+- 認証機能（NextAuth.js を使用 / なし）
 - @einja/cli自動セットアップ
 - Worktree設定カスタマイズ
 
@@ -47,8 +46,6 @@ npx create-einja-app my-project --skip-git
 # 依存関係インストールをスキップ
 npx create-einja-app my-project --skip-install
 
-# テンプレート指定
-npx create-einja-app my-project --template turborepo-pandacss
 ```
 
 ### 2. 既存プロジェクトへのツール追加
@@ -80,7 +77,6 @@ npx create-einja-app --setup
 
 | オプション | 説明 | デフォルト |
 |----------|------|----------|
-| `--template <name>` | テンプレート名 | `turborepo-pandacss` |
 | `--skip-git` | Git初期化をスキップ | false |
 | `--skip-install` | 依存関係インストールをスキップ | false |
 | `-y, --yes` | 対話プロンプトをスキップ（デフォルト値使用） | false |

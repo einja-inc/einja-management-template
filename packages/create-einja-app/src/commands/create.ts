@@ -11,7 +11,6 @@ import * as logger from "../utils/logger.js";
  * createコマンドのオプション
  */
 interface CreateOptions {
-  template?: string;
   skipGit?: boolean;
   skipInstall?: boolean;
   yes?: boolean;
@@ -64,8 +63,8 @@ export async function createCommand(
       config = {
         projectName,
         packageScope: "@repo",
-        template: (options.template as "turborepo-pandacss" | "minimal") || "turborepo-pandacss",
-        authMethod: "google",
+        template: "default",
+        authMethod: "default",
         tools: {
           direnv: true,
           dotenvx: true,

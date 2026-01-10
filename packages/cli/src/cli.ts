@@ -3,7 +3,7 @@ import chalk from "chalk";
 import { initCommand } from "./commands/init.js";
 import { listCommand } from "./commands/list.js";
 import { syncCommand } from "./commands/sync.js";
-import { taskLoopCommand } from "./commands/task-loop.js";
+import { taskLoopCommand } from "./commands/task-loop/index.js";
 
 const program = new Command();
 
@@ -19,7 +19,7 @@ if (isLegacyPackageName) {
 }
 
 program
-	.name("@einja/dev-cli")
+	.name("einja")
 	.description("Einja CLI - .claude設定とテンプレート同期をnpxでインストール")
 	.version("0.1.0");
 
@@ -50,7 +50,7 @@ program
 
 program
 	.command("task:loop [issue]")
-	.description("GitHub Issueのタスクを自動実行（Claude Code経由）")
+	.description("GitHub Issueのタスクを自動実行")
 	.option("-m, --max-group <number>", "最大タスクグループ番号")
 	.option("-b, --branch <name>", "ベースブランチ")
 	.action(taskLoopCommand);

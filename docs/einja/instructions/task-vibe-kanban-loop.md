@@ -454,11 +454,11 @@ sequenceDiagram
 
 ## 実装詳細
 
-スクリプトは `scripts/task-vibe-kanban-loop/` に配置：
+スクリプトは `packages/cli/src/commands/task-loop/` に配置（CLIパッケージに統合）：
 
 ```
-scripts/task-vibe-kanban-loop/
-├── index.ts                    # エントリポイント・メインループ
+packages/cli/src/commands/task-loop/
+├── index.ts                    # エントリポイント（taskLoopCommand関数）
 └── lib/
     ├── types.ts                # 型定義
     ├── args-parser.ts          # 引数解析

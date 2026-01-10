@@ -193,7 +193,7 @@ After seed`;
 
     it("ローカルにのみ存在するseedセクションが保持される", () => {
       // Given: ローカル独自のseedセクション
-      const templateContent = `Template content`;
+      const templateContent = "Template content";
 
       const existingContent = `Existing content
 <!-- @einja:seed:start id="local-only" -->
@@ -274,6 +274,185 @@ Local existing (should be overwritten)
       // Then: "new"セクションは末尾に追加
       expect(result).toContain("New section");
       expect(result).toContain("<!-- @einja:managed:start id=\"new\" -->");
+    });
+
+    it("ローカルにのみ存在するID付きmanagedセクションは削除される", () => {
+      // Given: ローカルにのみ存在するID付きmanagedセクション（テンプレート削除済み）
+      const templateContent = `Header
+<!-- @einja:managed:start id="current-section" -->
+Current managed content
+<!-- @einja:managed:end -->
+Footer`;
+
+      const existingContent = `Header
+<!-- @einja:managed:start id="current-section" -->
+Current managed content
+<!-- @einja:managed:end -->
+Middle
+<!-- @einja:managed:start id="removed-section" -->
+Old managed content (should be removed)
+<!-- @einja:managed:end -->
+Footer`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: テンプレートにないmanagedセクションは削除される
+      expect(result).not.toContain("removed-section");
+      expect(result).not.toContain("Old managed content (should be removed)");
+      // Then: テンプレートにあるmanagedセクションは上書きされる
+      expect(result).toContain("Current managed content");
+      // Then: unmanagedセクションは保持される
+      expect(result).toContain("Header");
+      expect(result).toContain("Middle");
+      expect(result).toContain("Footer");
+    });
+  });
+
+  describe("セクション間の空行保持", () => {
+    it("2つのmanagedブロック間の空行が保持される", () => {
+      // Given: 2つのmanagedブロックが空行で区切られている
+      const templateContent = `<!-- @einja:managed:start id="section1" -->
+Section 1
+<!-- @einja:managed:end -->
+
+<!-- @einja:managed:start id="section2" -->
+Section 2
+<!-- @einja:managed:end -->`;
+
+      const existingContent = `<!-- @einja:managed:start id="section1" -->
+Old Section 1
+<!-- @einja:managed:end -->
+
+<!-- @einja:managed:start id="section2" -->
+Old Section 2
+<!-- @einja:managed:end -->`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: セクション間の空行が保持される
+      expect(result).toContain("<!-- @einja:managed:end -->\n\n<!-- @einja:managed:start");
+      expect(result).toContain("Section 1");
+      expect(result).toContain("Section 2");
+    });
+
+    it("managedとseedブロック間の空行が保持される", () => {
+      // Given: managedとseedブロックが空行で区切られている
+      const templateContent = `<!-- @einja:managed:start id="managed" -->
+Managed content
+<!-- @einja:managed:end -->
+
+<!-- @einja:seed:start id="seed" -->
+Seed content
+<!-- @einja:seed:end -->`;
+
+      const existingContent = `<!-- @einja:managed:start id="managed" -->
+Old managed
+<!-- @einja:managed:end -->
+
+<!-- @einja:seed:start id="seed" -->
+User seed
+<!-- @einja:seed:end -->`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: セクション間の空行が保持される
+      expect(result).toContain("<!-- @einja:managed:end -->\n\n<!-- @einja:seed:start");
+    });
+
+    it("複数の空行が正しく保持される", () => {
+      // Given: 複数の空行で区切られている
+      const templateContent = `<!-- @einja:managed:start id="section1" -->
+Section 1
+<!-- @einja:managed:end -->
+
+
+<!-- @einja:managed:start id="section2" -->
+Section 2
+<!-- @einja:managed:end -->`;
+
+      const existingContent = `<!-- @einja:managed:start id="section1" -->
+Old Section 1
+<!-- @einja:managed:end -->
+
+
+<!-- @einja:managed:start id="section2" -->
+Old Section 2
+<!-- @einja:managed:end -->`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: 複数の空行が保持される
+      expect(result).toContain("<!-- @einja:managed:end -->\n\n\n<!-- @einja:managed:start");
+    });
+  });
+
+  describe("ファイル先頭マーカーのケース", () => {
+    it("ファイルが先頭マーカーで始まる場合、先頭に空行が追加されない", () => {
+      // Given: ファイルが先頭マーカーで始まる
+      const templateContent = `<!-- @einja:managed:start id="main" -->
+Managed content
+<!-- @einja:managed:end -->`;
+
+      const existingContent = `<!-- @einja:managed:start id="main" -->
+Old content
+<!-- @einja:managed:end -->`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: 先頭に空行が追加されない
+      expect(result.startsWith("\n")).toBe(false);
+      expect(result).toBe(templateContent);
+    });
+
+    it("ファイルが先頭seedマーカーで始まる場合、先頭に空行が追加されない", () => {
+      // Given: ファイルが先頭seedマーカーで始まる
+      const templateContent = `<!-- @einja:seed:start id="config" -->
+Seed content
+<!-- @einja:seed:end -->`;
+
+      const existingContent = `<!-- @einja:seed:start id="config" -->
+User content
+<!-- @einja:seed:end -->`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: 先頭に空行が追加されない
+      expect(result.startsWith("\n")).toBe(false);
+      expect(result).toContain("User content");
+    });
+
+    it("ファイルが先頭マーカーで始まり、複数セクションがある場合でも空行が追加されない", () => {
+      // Given: 先頭マーカーと複数セクション
+      const templateContent = `<!-- @einja:managed:start id="section1" -->
+Section 1 template
+<!-- @einja:managed:end -->
+Middle unmanaged
+<!-- @einja:seed:start id="section2" -->
+Section 2 template
+<!-- @einja:seed:end -->`;
+
+      const existingContent = `<!-- @einja:managed:start id="section1" -->
+Section 1 old
+<!-- @einja:managed:end -->
+Middle user
+<!-- @einja:seed:start id="section2" -->
+Section 2 user
+<!-- @einja:seed:end -->`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: 先頭に空行が追加されない
+      expect(result.startsWith("\n")).toBe(false);
+      expect(result).toContain("Section 1 template");
+      expect(result).toContain("Middle user");
+      expect(result).toContain("Section 2 user");
     });
   });
 

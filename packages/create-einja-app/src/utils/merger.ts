@@ -50,9 +50,9 @@ export function mergeTextWithMarkers(
 
   for (const localSection of localSections) {
     if (localSection.type === "managed") {
-      if (localSection.id && templateManagedById.has(localSection.id)) {
+      const match = localSection.id ? templateManagedById.get(localSection.id) : undefined;
+      if (localSection.id && match) {
         // IDマッチ → テンプレートで上書き
-        const match = templateManagedById.get(localSection.id)!;
         processedTemplateIds.add(localSection.id);
         result.push(match.content);
       } else if (!localSection.id) {

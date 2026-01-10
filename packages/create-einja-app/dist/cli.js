@@ -487,7 +487,7 @@ async function execPostSetup(config, targetPath, options) {
   if (config.setupEinjaCli) {
     const einjaSpinner = ora("@einja/dev-cli \u3092\u521D\u671F\u5316\u4E2D...").start();
     try {
-      await execa("npx", ["@einja/dev-cli", "init", "--force"], { cwd: targetPath });
+      await execa("npx", ["@einja/dev-cli", "init", "--force", "--no-backup"], { cwd: targetPath });
       einjaSpinner.succeed("@einja/dev-cli \u3092\u521D\u671F\u5316\u3057\u307E\u3057\u305F");
     } catch (error2) {
       einjaSpinner.fail("@einja/dev-cli \u306E\u521D\u671F\u5316\u306B\u5931\u6557\u3057\u307E\u3057\u305F");

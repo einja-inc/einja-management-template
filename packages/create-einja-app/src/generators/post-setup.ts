@@ -143,7 +143,7 @@ export async function execPostSetup(
   if (config.setupEinjaCli) {
     const einjaSpinner = ora("@einja/dev-cli を初期化中...").start();
     try {
-      await execa("npx", ["@einja/dev-cli", "init", "--force"], { cwd: targetPath });
+      await execa("npx", ["@einja/dev-cli", "init", "--force", "--no-backup"], { cwd: targetPath });
       einjaSpinner.succeed("@einja/dev-cli を初期化しました");
     } catch (error) {
       einjaSpinner.fail("@einja/dev-cli の初期化に失敗しました");

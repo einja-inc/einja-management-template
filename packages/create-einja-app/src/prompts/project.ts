@@ -59,7 +59,7 @@ export async function promptProjectConfig(
     {
       type: "confirm",
       name: "setupEinjaCli",
-      message: "@einja/cli を自動セットアップしますか？",
+      message: "@einja/dev-cli を自動セットアップしますか？",
       default: true,
     },
     {

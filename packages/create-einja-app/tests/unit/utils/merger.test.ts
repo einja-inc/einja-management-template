@@ -30,16 +30,16 @@ describe("mergeTextWithMarkers", () => {
   });
 
   describe("@einja:managedマーカー", () => {
-    it("managedマーカー内はテンプレートで上書きされる", () => {
-      // Given: managedマーカー内にテンプレート更新がある
+    it("ID付きmanagedマーカー内はテンプレートで上書きされる", () => {
+      // Given: ID付きmanagedマーカー内にテンプレート更新がある
       const templateContent = `Before managed
-<!-- @einja:managed:start -->
+<!-- @einja:managed:start id="test-section" -->
 Template managed content
 <!-- @einja:managed:end -->
 After managed`;
 
       const existingContent = `Before managed
-<!-- @einja:managed:start -->
+<!-- @einja:managed:start id="test-section" -->
 Existing managed content
 <!-- @einja:managed:end -->
 After managed`;
@@ -55,15 +55,15 @@ After managed`;
     });
 
     it("managedマーカー外のunmanagedセクションは既存が優先される", () => {
-      // Given: managedマーカー外にユーザー変更がある
+      // Given: ID付きmanagedマーカー外にユーザー変更がある
       const templateContent = `Template header
-<!-- @einja:managed:start -->
+<!-- @einja:managed:start id="test-section" -->
 Managed content
 <!-- @einja:managed:end -->
 Template footer`;
 
       const existingContent = `User header
-<!-- @einja:managed:start -->
+<!-- @einja:managed:start id="test-section" -->
 Old managed content
 <!-- @einja:managed:end -->
 User footer`;
@@ -71,7 +71,7 @@ User footer`;
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: unmanaged部分は既存が優先される
+      // Then: unmanaged部分は既存が優先され、ID付きmanagedはテンプレートで上書き
       expect(result).toContain("User header");
       expect(result).toContain("User footer");
       expect(result).toContain("Managed content");
@@ -112,7 +112,7 @@ Footer`;
       expect(result).not.toContain("Old section 2");
     });
 
-    it("IDなし複数のmanagedマーカーが順序でマッチする", () => {
+    it("IDなし複数のmanagedマーカーはローカル内容を保持する（安全策）", () => {
       // Given: IDなし複数のmanagedセクション
       const templateContent = `Header
 <!-- @einja:managed:start -->
@@ -137,11 +137,11 @@ Footer`;
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: 順序でマッチして上書きされる
-      expect(result).toContain("Template section 1");
-      expect(result).toContain("Template section 2");
-      expect(result).not.toContain("Old section 1");
-      expect(result).not.toContain("Old section 2");
+      // Then: IDなしセクションはローカル内容を保持（インデックスマッチングは行わない）
+      expect(result).toContain("Old section 1");
+      expect(result).toContain("Old section 2");
+      expect(result).not.toContain("Template section 1");
+      expect(result).not.toContain("Template section 2");
     });
   });
 
@@ -170,7 +170,7 @@ After seed`;
       expect(result).toContain("After seed");
     });
 
-    it("テンプレートにのみseedセクションが存在する場合はローカル内容を保持", () => {
+    it("テンプレートにのみseedセクションが存在する場合は末尾に追加される", () => {
       // Given: テンプレートにseedがあるがローカルにはない
       const templateContent = `Before seed
 <!-- @einja:seed:start id="new-section" -->
@@ -184,8 +184,11 @@ After seed`;
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: ローカルのunmanaged構造が優先される（seedセクションは追加されない）
-      expect(result).toBe(existingContent);
+      // Then: テンプレートのseedセクションが末尾に追加される
+      expect(result).toContain("Before seed");
+      expect(result).toContain("After seed");
+      expect(result).toContain("New seed content");
+      expect(result).toContain("<!-- @einja:seed:start id=\"new-section\" -->");
     });
 
     it("ローカルにのみ存在するseedセクションが保持される", () => {
@@ -205,13 +208,80 @@ Local custom content
       expect(result).toContain("Local custom content");
       expect(result).toContain("<!-- @einja:seed:start id=\"local-only\" -->");
     });
+
+    it("テンプレートにのみmanagedセクションが存在する場合は末尾に追加される", () => {
+      // Given: テンプレートにmanagedがあるがローカルにはない
+      const templateContent = `Before managed
+<!-- @einja:managed:start id="new-managed" -->
+New managed content
+<!-- @einja:managed:end -->
+After managed`;
+
+      const existingContent = `Before managed
+After managed`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: テンプレートのmanagedセクションが末尾に追加される
+      expect(result).toContain("Before managed");
+      expect(result).toContain("After managed");
+      expect(result).toContain("New managed content");
+      expect(result).toContain("<!-- @einja:managed:start id=\"new-managed\" -->");
+    });
+
+    it("ID付きmanagedセクションは正しくマッチングされる", () => {
+      // Given: ID付きmanagedセクション（テンプレートとローカルで同じID）
+      const templateContent = `Header
+<!-- @einja:managed:start id="section-a" -->
+Template section A
+<!-- @einja:managed:end -->
+Footer`;
+
+      const existingContent = `Header
+<!-- @einja:managed:start id="section-a" -->
+Old section A
+<!-- @einja:managed:end -->
+Footer`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: IDでマッチして上書きされる
+      expect(result).toContain("Template section A");
+      expect(result).not.toContain("Old section A");
+    });
+
+    it("既存のmanagedセクションはテンプレート新規追加で破壊されない", () => {
+      // Given: テンプレートに新規managedセクションと既存managedセクション
+      const templateContent = `<!-- @einja:managed:start id="new" -->
+New section
+<!-- @einja:managed:end -->
+<!-- @einja:managed:start id="existing" -->
+Template existing
+<!-- @einja:managed:end -->`;
+
+      const existingContent = `<!-- @einja:managed:start id="existing" -->
+Local existing (should be overwritten)
+<!-- @einja:managed:end -->`;
+
+      // When: マージ実行
+      const result = mergeTextWithMarkers(templateContent, existingContent);
+
+      // Then: "existing"セクションはテンプレートで上書き
+      expect(result).toContain("Template existing");
+      expect(result).not.toContain("Local existing (should be overwritten)");
+      // Then: "new"セクションは末尾に追加
+      expect(result).toContain("New section");
+      expect(result).toContain("<!-- @einja:managed:start id=\"new\" -->");
+    });
   });
 
   describe("managedとseedの混在", () => {
     it("managedとseedマーカーが混在している場合、それぞれ正しく処理される", () => {
       // Given: managedとseedが混在
       const templateContent = `Header
-<!-- @einja:managed:start -->
+<!-- @einja:managed:start id="main-content" -->
 Template managed
 <!-- @einja:managed:end -->
 Middle
@@ -221,7 +291,7 @@ Template seed
 Footer`;
 
       const existingContent = `User header
-<!-- @einja:managed:start -->
+<!-- @einja:managed:start id="main-content" -->
 Old managed
 <!-- @einja:managed:end -->
 User middle
@@ -233,7 +303,7 @@ User footer`;
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: managedは上書き、seedとunmanagedはローカル優先
+      // Then: ID付きmanagedは上書き、seedとunmanagedはローカル優先
       expect(result).toContain("Template managed");
       expect(result).toContain("User seed");
       expect(result).toContain("User header");
@@ -249,15 +319,15 @@ User footer`;
 
   describe("YAMLコメント形式のマーカー", () => {
     it("YAMLコメント形式のmanagedマーカーが正しく処理される", () => {
-      // Given: YAMLコメント形式のマーカー
+      // Given: YAMLコメント形式のマーカー（ID付き）
       const templateContent = `key: value
-# @einja:managed:start
+# @einja:managed:start id="managed-config"
 managed_key: template_value
 # @einja:managed:end
 other_key: value`;
 
       const existingContent = `key: user_value
-# @einja:managed:start
+# @einja:managed:start id="managed-config"
 managed_key: old_value
 # @einja:managed:end
 other_key: user_other_value`;
@@ -265,7 +335,7 @@ other_key: user_other_value`;
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: managed内が上書きされ、unmanaged部分はローカル優先
+      // Then: ID付きmanaged内が上書きされ、unmanaged部分はローカル優先
       expect(result).toContain("managed_key: template_value");
       expect(result).not.toContain("managed_key: old_value");
       expect(result).toContain("key: user_value");

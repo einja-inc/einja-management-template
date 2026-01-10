@@ -1,5 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import type { AddOptions, SyncMetadata } from "../../types/index.js";
 import { mergeAndWriteFile } from "../../utils/merger.js";
 import * as logger from "../../utils/logger.js";
@@ -41,6 +41,7 @@ export async function addConfigFiles(
   await copyConfigDirectory(
     templateDir,
     targetDir,
+    templateDir, // rootDir として templateDir を渡す
     { added, skipped, merged },
     config.dryRun,
     excludedPaths,
@@ -84,6 +85,7 @@ async function loadGitignorePatterns(templateDir: string): Promise<Set<string>> 
 async function copyConfigDirectory(
   srcDir: string,
   destDir: string,
+  rootDir: string, // テンプレートルートディレクトリ
   result: { added: string[]; skipped: string[]; merged: string[] },
   dryRun: boolean,
   excludedPaths: Set<string>,
@@ -95,7 +97,10 @@ async function copyConfigDirectory(
   for (const entry of entries) {
     const srcPath = join(srcDir, entry.name);
     const destPath = join(destDir, entry.name);
-    const relativePath = relative(srcDir, srcPath);
+    // rootDir からの相対パスを計算（一貫性を保つ）
+    const rawRelativePath = relative(rootDir, srcPath);
+    // Windows対応: パス区切り文字をPOSIX形式（/）に正規化
+    const relativePath = rawRelativePath.split(sep).join("/");
 
     // 除外パターンに一致するかチェック
     if (shouldExclude(relativePath, excludedPaths, gitignorePatterns)) {
@@ -106,6 +111,7 @@ async function copyConfigDirectory(
       await copyConfigDirectory(
         srcPath,
         destPath,
+        rootDir, // rootDir を引き継ぐ
         result,
         dryRun,
         excludedPaths,

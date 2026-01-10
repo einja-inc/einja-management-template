@@ -122,7 +122,7 @@ describe("post-setup generator", () => {
       expect(execa).not.toHaveBeenCalledWith("pnpm", ["db:generate"], { cwd: testDir });
     });
 
-    it("setupEinjaCliが有効な場合、@einja/cli initが実行される", async () => {
+    it("setupEinjaCliが有効な場合、@einja/dev-cli initが実行される", async () => {
       // Given: setupEinjaCli = true
       const { execa } = await import("execa");
       const configWithEinja = { ...mockConfig, setupEinjaCli: true };
@@ -130,19 +130,19 @@ describe("post-setup generator", () => {
       // When: execPostSetup実行
       await execPostSetup(configWithEinja, testDir, {});
 
-      // Then: npx @einja/cli initが実行される
-      expect(execa).toHaveBeenCalledWith("npx", ["@einja/cli", "init"], { cwd: testDir });
+      // Then: npx @einja/dev-cli init --forceが実行される
+      expect(execa).toHaveBeenCalledWith("npx", ["@einja/dev-cli", "init", "--force"], { cwd: testDir });
     });
 
-    it("setupEinjaCliが無効な場合、@einja/cli initが実行されない", async () => {
+    it("setupEinjaCliが無効な場合、@einja/dev-cli initが実行されない", async () => {
       // Given: setupEinjaCli = false
       const { execa } = await import("execa");
 
       // When: execPostSetup実行
       await execPostSetup(mockConfig, testDir, {});
 
-      // Then: npx @einja/cli initが実行されない
-      expect(execa).not.toHaveBeenCalledWith("npx", ["@einja/cli", "init"], {
+      // Then: npx @einja/dev-cli init --forceが実行されない
+      expect(execa).not.toHaveBeenCalledWith("npx", ["@einja/dev-cli", "init", "--force"], {
         cwd: testDir,
       });
     });
@@ -221,8 +221,8 @@ describe("post-setup generator", () => {
       await expect(execPostSetup(mockConfig, testDir, {})).resolves.toBeUndefined();
     });
 
-    it("@einja/cli initに失敗した場合、エラーハンドリングされる", async () => {
-      // Given: npx @einja/cli initが失敗する
+    it("@einja/dev-cli initに失敗した場合、エラーハンドリングされる", async () => {
+      // Given: npx @einja/dev-cli initが失敗する
       const { execa } = await import("execa");
       const configWithEinja = { ...mockConfig, setupEinjaCli: true };
 
@@ -233,7 +233,7 @@ describe("post-setup generator", () => {
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git commit成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm install成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm db:generate成功
-        .mockRejectedValueOnce(new Error("@einja/cli init failed")); // @einja/cli init失敗
+        .mockRejectedValueOnce(new Error("@einja/dev-cli init failed")); // @einja/dev-cli init失敗
 
       // When: execPostSetup実行
       // Then: エラーが投げられずに処理が継続される

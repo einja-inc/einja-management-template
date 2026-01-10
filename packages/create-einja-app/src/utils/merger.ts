@@ -32,24 +32,58 @@ export function mergeTextWithMarkers(
     return existingContent;
   }
 
-  // When: セクションをマージ
+  // When: ID付きmanagedセクションとseedセクションをMapで管理
+  const templateManagedById = new Map<string, MarkerSection>();
+  const templateSeedById = new Map<string, MarkerSection>();
+  const processedTemplateIds = new Set<string>();
+
+  for (const section of templateSections) {
+    if (section.type === "managed" && section.id) {
+      templateManagedById.set(section.id, section);
+    } else if (section.type === "seed" && section.id) {
+      templateSeedById.set(section.id, section);
+    }
+  }
+
+  // When: ローカルセクションを処理（ローカル側の順序を基準にする）
   const result: string[] = [];
-  let managedIndex = 0;
 
   for (const localSection of localSections) {
     if (localSection.type === "managed") {
-      // managed: テンプレートで上書き
-      const templateManaged = templateSections.filter(
-        (s) => s.type === "managed"
-      );
-      const match = localSection.id
-        ? templateManaged.find((s) => s.id === localSection.id)
-        : templateManaged[managedIndex];
-      result.push(match ? match.content : localSection.content);
-      managedIndex++;
-    } else {
-      // seed/unmanaged: ローカル優先
+      if (localSection.id && templateManagedById.has(localSection.id)) {
+        // IDマッチ → テンプレートで上書き
+        const match = templateManagedById.get(localSection.id)!;
+        processedTemplateIds.add(localSection.id);
+        result.push(match.content);
+      } else {
+        // IDなし or マッチなし → ローカル内容を保持（安全策）
+        result.push(localSection.content);
+      }
+    } else if (localSection.type === "seed") {
+      // seed: ローカル優先
+      if (localSection.id) {
+        processedTemplateIds.add(localSection.id);
+      }
       result.push(localSection.content);
+    } else {
+      // unmanaged: ローカル優先
+      result.push(localSection.content);
+    }
+  }
+
+  // When: テンプレートにのみ存在するID付きmanagedセクションを末尾に追加
+  for (const [id, section] of templateManagedById) {
+    if (!processedTemplateIds.has(id)) {
+      // テンプレートにのみ存在するID付きmanagedセクションを追加
+      result.push(section.content);
+    }
+  }
+
+  // When: テンプレートにのみ存在するID付きseedセクションを末尾に追加
+  for (const [id, section] of templateSeedById) {
+    if (!processedTemplateIds.has(id)) {
+      // テンプレートにのみ存在するID付きseedセクションを追加
+      result.push(section.content);
     }
   }
 

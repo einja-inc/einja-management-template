@@ -16,9 +16,9 @@ function isDirectoryEmpty(dirPath: string): boolean {
     return true;
   }
   const files = readdirSync(dirPath);
-  // .git, .DS_Store などの隠しファイルは無視
+  // .git, .DS_Store などの隠しファイルは無視（空のGitリポジトリは空とみなす）
   const significantFiles = files.filter(
-    (f) => !f.startsWith(".") || f === ".git"
+    (f) => !f.startsWith(".")
   );
   return significantFiles.length === 0;
 }

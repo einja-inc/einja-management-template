@@ -364,6 +364,7 @@ async function generateTemplate(config, targetPath) {
         "node_modules",
         ".git",
         ".next",
+        ".turbo",
         "out",
         "dist",
         "logs",

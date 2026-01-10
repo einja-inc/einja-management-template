@@ -4,7 +4,7 @@
  * pnpm task:loop 実行前に GitHub CLI の準備を自動化する
  */
 
-import { execSync, spawnSync } from "node:child_process";
+import { execSync, spawnSync, type ExecSyncOptions } from "node:child_process";
 
 // ANSI カラーコード（setup-dev.ts と同じパターン）
 const colors = {
@@ -59,7 +59,8 @@ function commandExists(cmd: string): boolean {
   try {
     const checkCmd =
       process.platform === "win32" ? `where ${cmd}` : `command -v ${cmd}`;
-    execSync(checkCmd, { stdio: "ignore", shell: true });
+    const shell = process.platform === "win32" ? "cmd.exe" : "/bin/sh";
+    execSync(checkCmd, { stdio: "ignore", shell });
     return true;
   } catch {
     return false;
@@ -78,9 +79,10 @@ function parseGhAuthStatus(): GhAuthStatus {
   try {
     // gh auth status は認証済みの場合 exit code 0 を返す
     // stderr に出力されるため 2>&1 でリダイレクト
+    const shell = process.platform === "win32" ? "cmd.exe" : "/bin/sh";
     const output = execSync("gh auth status 2>&1", {
       encoding: "utf-8",
-      shell: true,
+      shell,
     });
 
     // Token scopes を解析

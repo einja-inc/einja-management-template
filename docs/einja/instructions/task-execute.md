@@ -315,7 +315,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 
 ---
 
-### 3. `/task-vibe-kanban-loop` コマンド
+### 3. `pnpm task:loop` コマンド
 
 **役割**: 複数タスクの自動連続実行とVibe-Kanbanによる進捗追跡
 
@@ -327,7 +327,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 | コマンド | 用途 | 品質保証 | 推奨シーン |
 |---------|------|---------|----------|
 | **`/task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
-| **`/task-vibe-kanban-loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、並行開発 |
+| **`pnpm task:loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、並行開発 |
 
 **詳細な使い分け基準**: [task-vibe-kanban-loop.md](./task-vibe-kanban-loop.md#task-execとの使い分け)
 

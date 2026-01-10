@@ -44,8 +44,8 @@ npx @einja/dev-cli init
 ```json
 {
   "scripts": {
-    "task:loop": "@einja/dev-cli task:loop",
-    "einja:sync": "@einja/dev-cli sync"
+    "task:loop": "npx @einja/dev-cli task:loop",
+    "einja:sync": "npx @einja/dev-cli sync"
   }
 }
 ```
@@ -105,9 +105,8 @@ npx @einja/dev-cli task:loop 123
 | `-b, --branch <name>` | ベースブランチ |
 
 **前提条件:**
-- Claude Code がインストール済み（`npm install -g @anthropic-ai/claude-code`）
-- Claude Code で認証済み（`claude /login`）
-- `npx @einja/dev-cli init` 実行済み（`/task-vibe-kanban-loop` コマンドがインストールされている）
+- `gh` CLI がインストール済み（GitHub Issue操作に必要）
+- Vibe-Kanbanが起動している（`npx vibe-kanban`）
 
 ## 配布内容
 

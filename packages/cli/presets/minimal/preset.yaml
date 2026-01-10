@@ -108,4 +108,3 @@ additionalAgents:
 additionalCommands:
   - frontend-implement
   - start-dev
-  - task-vibe-kanban-loop

@@ -27,11 +27,12 @@ export async function initCommand(options: InitOptions): Promise<void> {
 
 	console.log(chalk.blue("\n🚀 Einja Claude CLI - .claude セットアップ\n"));
 
-	// 1. プリセット読み込み（minimal 固定）
-	const presetName = "minimal";
+	// 1. プリセット読み込み（デフォルト: minimal）
+	const presetName = options.preset ?? "minimal";
 
 	if (!(await presetExists(presetName))) {
 		console.log(chalk.red(`❌ プリセット "${presetName}" が見つかりません`));
+		console.log(chalk.gray("  利用可能なプリセット: minimal"));
 		process.exit(1);
 	}
 

@@ -53,7 +53,7 @@ export class DiffEngine {
 
 				// 行番号を更新（マーカー3行 + コンフリクト内容）
 				currentLine +=
-					3 + chunk.conflict.a.length + chunk.conflict.b.length + 1;
+					3 + chunk.conflict.a.length + chunk.conflict.b.length;
 			}
 		}
 

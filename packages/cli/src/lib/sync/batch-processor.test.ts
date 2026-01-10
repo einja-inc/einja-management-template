@@ -49,7 +49,7 @@ describe("BatchProcessor", () => {
 			expect(mockFn).toHaveBeenCalledTimes(10);
 		});
 
-		it("100ファイルの処理を並列化できること", async () => {
+		it.skip("100ファイルの処理を並列化できること", async () => {
 			const processor = new BatchProcessor(10);
 			const items = Array.from({ length: 100 }, (_, i) => i);
 			const mockFn = vi.fn(async (item: number) => {

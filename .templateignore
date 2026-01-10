@@ -52,7 +52,7 @@ scripts/task-vibe-kanban-loop/
 # Einja固有のClaude設定
 .claude/agents/einja/
 .claude/commands/einja/
-.claude/skills/einja/
+.claude/skills/einja-*/
 
 # 仕様書・タスク記録（Einja固有のプロジェクト管理ファイル）
 docs/specs/

@@ -42,7 +42,7 @@
 
 ## gitコンフリクト発生時の対応
 
-**【必須】** gitコンフリクトが発生した場合、必ず `.claude/skills/einja/conflict-resolver/SKILL.md` の手順に従うこと。
+**【必須】** gitコンフリクトが発生した場合、必ず `.claude/skills/einja-conflict-resolver/SKILL.md` の手順に従うこと。
 
 ## プロジェクト構成
 
@@ -273,7 +273,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 
 ## サブエージェント結果報告のルール
 
-サブエージェントの出力形式は **@.claude/skills/einja/output-format/SKILL.md** に定義されています。
+サブエージェントの出力形式は **@.claude/skills/einja-output-format/SKILL.md** に定義されています。
 
 ### 必須要件
 - サブエージェントの最終出力は**そのまま全文**をユーザーに表示する
@@ -375,8 +375,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 
 以下のドキュメントも参照して作業を進めてください:
 
-- @.claude/skills/einja/coding-standards/SKILL.md - コーディング規約
-- @.claude/skills/einja/component-design/SKILL.md - コンポーネント設計ガイドライン
+- @.claude/skills/einja-coding-standards/SKILL.md - コーディング規約
+- @.claude/skills/einja-component-design/SKILL.md - コンポーネント設計ガイドライン
 - @docs/einja/steering/commit-rules.md - コミットルール・ブランチ戦略
 - @docs/einja/steering/development/testing-strategy.md - Vitestを使用したテスト戦略
 - @docs/einja/steering/development/review-guidelines.md - コードレビューのガイドライン
@@ -405,7 +405,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 |-----|---------|------|
 | `.claude/agents/einja/` | `presets/minimal/.claude/agents/einja/` | 単純コピー |
 | `.claude/commands/einja/` | `presets/minimal/.claude/commands/einja/` | 単純コピー |
-| `.claude/skills/einja/` | `presets/minimal/.claude/skills/einja/` | 単純コピー |
+| `.claude/skills/einja-*/` | `presets/minimal/.claude/skills/einja-*/` | 単純コピー |
 | `.claude/hooks/einja/` | `presets/minimal/.claude/hooks/einja/` | 単純コピー |
 | `.claude/settings.json` | `presets/minimal/.claude/settings.json` | 単純コピー |
 | `docs/einja/steering/` | `scaffolds/steering/` | 単純コピー |

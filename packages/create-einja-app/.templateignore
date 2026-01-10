@@ -27,7 +27,7 @@ worktree.config.json
 # Einja固有ファイル
 .claude/agents/einja/
 .claude/commands/einja/
-.claude/skills/einja/
+.claude/skills/einja-*/
 scripts/task-vibe-kanban-loop/
 docs/specs/
 docs/einja/

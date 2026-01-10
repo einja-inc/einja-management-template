@@ -122,9 +122,9 @@ Einja ATDDワークフロー構成（Next.js、Vibe-Kanban統合）を配布し�
 ├── commands/
 │   ├── spec-create.md
 │   ├── task-exec.md
-│   └── einja/           # Einja固有コマンド
+│   └── einja-*/         # Einja固有コマンド
 ├── skills/
-│   └── einja/           # コーディング規約、設計ガイド
+│   └── einja-*/         # コーディング規約、設計ガイド
 └── hooks/               # Git Hooks (9個)
     ├── biome-format.sh
     ├── typecheck.sh

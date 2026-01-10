@@ -2,6 +2,9 @@
  * GitHub Issue 操作（gh CLI wrapper）
  */
 
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { execSync } from "node:child_process";
 import type { GitHubIssue, RepoInfo } from "./types.js";
 
@@ -36,10 +39,6 @@ export function getIssue(issueNumber: number): GitHubIssue {
 export function updateIssueBody(issueNumber: number, newBody: string): void {
   try {
     // 本文をファイルに書き出してから gh コマンドで更新（長い本文対策）
-    const fs = require("node:fs");
-    const os = require("node:os");
-    const path = require("node:path");
-
     const tempFile = path.join(os.tmpdir(), `issue-body-${issueNumber}.md`);
     fs.writeFileSync(tempFile, newBody, "utf-8");
 

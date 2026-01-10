@@ -27,12 +27,12 @@ export async function initCommand(options: InitOptions): Promise<void> {
 
   console.log(chalk.blue("\n🚀 Einja Claude CLI - .claude セットアップ\n"));
 
-  // 1. プリセット読み込み（デフォルト: minimal）
-  const presetName = options.preset ?? "minimal";
+  // 1. プリセット読み込み（デフォルト: default）
+  const presetName = options.preset ?? "default";
 
   if (!(await presetExists(presetName))) {
     console.log(chalk.red(`❌ プリセット "${presetName}" が見つかりません`));
-    console.log(chalk.gray("  利用可能なプリセット: minimal"));
+    console.log(chalk.gray("  利用可能なプリセット: default"));
     process.exit(1);
   }
 
@@ -270,4 +270,10 @@ export async function initCommand(options: InitOptions): Promise<void> {
   console.log("  1. CLAUDE.md をプロジェクトに合わせてカスタマイズ");
   console.log("  2. settings.local.json を必要に応じて作成");
   console.log("  3. claude code で開発を開始");
+
+  console.log(chalk.yellow("\n⚠️  前提となるコマンド:"));
+  console.log("  サブエージェントは以下のコマンドを使用します:");
+  console.log("  prepush, test, lint, typecheck, build, dev, dev:bg");
+  console.log(chalk.gray("  これらがない場合は create-einja-app でプロジェクトを作成してください:"));
+  console.log(chalk.cyan("  npx create-einja-app my-project"));
 }

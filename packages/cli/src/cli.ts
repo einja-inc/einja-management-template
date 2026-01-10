@@ -26,7 +26,7 @@ program
 program
   .command("init")
   .description(".claudeディレクトリをセットアップ")
-  .option("-p, --preset <preset>", "使用するプリセット (デフォルト: minimal)", "minimal")
+  .option("-p, --preset <preset>", "使用するプリセット (デフォルト: default)", "default")
   .option("-f, --force", "既存の.claudeを強制上書き")
   .option("--no-backup", "バックアップを作成しない")
   .option("--dry-run", "実行内容を表示するだけで実際には変更しない")

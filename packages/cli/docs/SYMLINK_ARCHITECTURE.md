@@ -37,8 +37,8 @@ CLIでターゲットリポジトリにファイルをインストールする�
 │ CLIパッケージ（配布物）                                           │
 ├─────────────────────────────────────────────────────────────────┤
 │ scaffolds/steering/commit-rules.md          ← 実体コピー         │
-│ presets/minimal/.claude/skills/...          ← 実体コピー         │
-│ presets/minimal/symlinks.json               ← リンク情報         │
+│ presets/default/.claude/skills/...          ← 実体コピー         │
+│ presets/default/symlinks.json               ← リンク情報         │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               │ npx @einja/cli init
@@ -111,7 +111,7 @@ function copyDir(src, dest, filter, basePath = '') {
 
 // 最後にメタデータ出力
 fs.writeFileSync(
-  'presets/minimal/symlinks.json',
+  'presets/default/symlinks.json',
   JSON.stringify({ version: 1, symlinks: symlinkMap }, null, 2)
 );
 ```
@@ -215,4 +215,4 @@ try {
 
 - `packages/cli/scripts/copy-presets.mjs` - ビルド時のコピー処理
 - `packages/cli/src/commands/init.ts` - インストールコマンド
-- `packages/cli/presets/minimal/symlinks.json` - 生成されるメタデータ
+- `packages/cli/presets/default/symlinks.json` - 生成されるメタデータ

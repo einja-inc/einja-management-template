@@ -58,7 +58,7 @@ export class PresetFinder {
   /**
    * 指定名のプリセットを取得
    *
-   * @param name - プリセット名（例: "minimal", "turborepo-pandacss"）
+   * @param name - プリセット名（例: "default", "turborepo-pandacss"）
    * @param cliPackagePath - packages/cli/ディレクトリの絶対パス
    * @returns プリセット情報（見つからない場合はnull）
    */

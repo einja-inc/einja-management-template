@@ -15,7 +15,7 @@
 | ディレクトリ | 内容 |
 |-------------|------|
 | `dist/` | コンパイル済みTypeScript |
-| `presets/` | プリセット定義（minimal） |
+| `presets/` | プリセット定義（default） |
 | `templates/` | CLAUDE.mdテンプレート |
 | `scaffolds/` | ステアリングドキュメント |
 

@@ -18,10 +18,10 @@ prebuild → build → postbuild
 
 | ソース（プロジェクト本体） | コピー先（CLI配布用） |
 |------------------------|-------------------|
-| `.claude/agents/einja/` | `presets/minimal/.claude/agents/einja/` |
-| `.claude/commands/einja/` | `presets/minimal/.claude/commands/einja/` |
-| `.claude/skills/einja-*/` | `presets/minimal/.claude/skills/einja-*/` |
-| `.claude/hooks/einja/` | `presets/minimal/.claude/hooks/einja/` |
+| `.claude/agents/einja/` | `presets/default/.claude/agents/einja/` |
+| `.claude/commands/einja/` | `presets/default/.claude/commands/einja/` |
+| `.claude/skills/einja-*/` | `presets/default/.claude/skills/einja-*/` |
+| `.claude/hooks/einja/` | `presets/default/.claude/hooks/einja/` |
 | `docs/einja/steering/` | `scaffolds/steering/` |
 
 **フィルター**: `_` で始まるファイルはスキップされます（プレースホルダー用）
@@ -68,7 +68,7 @@ packages/cli/
 │   ├── cli.js                     # エントリーポイント（実行可能）
 │   ├── index.js
 │   └── ...
-├── presets/minimal/.claude/       # ビルド時に自動生成（git管理外）
+├── presets/default/.claude/       # ビルド時に自動生成（git管理外）
 │   ├── agents/einja/
 │   ├── commands/einja-*/
 │   ├── skills/einja-*/
@@ -93,6 +93,6 @@ packages/cli/
 # packages/cli/.gitignore
 dist/
 tsconfig.tsbuildinfo
-presets/minimal/.claude/
+presets/default/.claude/
 scaffolds/steering/
 ```

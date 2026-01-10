@@ -5,22 +5,29 @@
  * 原本（プロジェクト内）:
  * - .claude/agents/einja/
  * - .claude/commands/einja/
- * - .claude/skills/einja-*/ (einja-プレフィックスのスキルのみ)
+ * - .claude/skills/einja-* (einja-プレフィックスのスキルのみ)
  * - .claude/hooks/einja/
  * - .claude/settings.json
  * - .mcp.json
  * - docs/einja/steering/
+ * - docs/einja/templates/
  *
  * コピー先（CLI配布用）:
- * - packages/cli/presets/minimal/.claude/
+ * - packages/cli/presets/default/.claude/
  * - packages/cli/scaffolds/steering/
  * - packages/cli/scaffolds/.mcp.json
+ * - packages/cli/templates/
  *
  * シンボリックリンク:
  * - プロジェクト原本のシンボリックリンクは symlinks.json に記録される
  * - CLI インストール時に symlinks.json を元にリンクを再作成する
+ *
+ * マーカーバリデーション:
+ * - コピー前にdocs/einja/配下のマーカーをバリデーション
+ * - エラーがある場合はビルドを中断
  */
 
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,26 +47,76 @@ const mappings = [
 	// エージェント
 	{
 		src: path.join(projectRoot, ".claude/agents/einja"),
-		dest: path.join(cliDir, "presets/minimal/.claude/agents/einja"),
+		dest: path.join(cliDir, "presets/default/.claude/agents/einja"),
 		// シンボリックリンク記録用のベースパス（リポジトリルートからの相対）
 		basePath: ".claude/agents/einja",
 	},
 	// コマンド
 	{
 		src: path.join(projectRoot, ".claude/commands/einja"),
-		dest: path.join(cliDir, "presets/minimal/.claude/commands/einja"),
+		dest: path.join(cliDir, "presets/default/.claude/commands/einja"),
 		basePath: ".claude/commands/einja",
 	},
-	// スキル
+	// スキル（einja-* パターン）
 	{
-		src: path.join(projectRoot, ".claude/skills/einja"),
-		dest: path.join(cliDir, "presets/minimal/.claude/skills/einja"),
-		basePath: ".claude/skills/einja",
+		src: path.join(projectRoot, ".claude/skills/einja-api-development"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-api-development"),
+		basePath: ".claude/skills/einja-api-development",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-backend-architecture"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-backend-architecture"),
+		basePath: ".claude/skills/einja-backend-architecture",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-coding-standards"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-coding-standards"),
+		basePath: ".claude/skills/einja-coding-standards",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-component-design"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-component-design"),
+		basePath: ".claude/skills/einja-component-design",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-conflict-resolver"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-conflict-resolver"),
+		basePath: ".claude/skills/einja-conflict-resolver",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-frontend-development"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-frontend-development"),
+		basePath: ".claude/skills/einja-frontend-development",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-general-context-loader"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-general-context-loader"),
+		basePath: ".claude/skills/einja-general-context-loader",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-output-format"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-output-format"),
+		basePath: ".claude/skills/einja-output-format",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-spec-context-loader"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-spec-context-loader"),
+		basePath: ".claude/skills/einja-spec-context-loader",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-task-commit"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-task-commit"),
+		basePath: ".claude/skills/einja-task-commit",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-task-qa"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-task-qa"),
+		basePath: ".claude/skills/einja-task-qa",
 	},
 	// フック（hooks/ディレクトリ全体をクリーンアップしてから再コピー）
 	{
 		src: path.join(projectRoot, ".claude/hooks/einja"),
-		dest: path.join(cliDir, "presets/minimal/.claude/hooks/einja"),
+		dest: path.join(cliDir, "presets/default/.claude/hooks/einja"),
 		basePath: ".claude/hooks/einja",
 		cleanParent: true, // hooks/ディレクトリ全体をクリーンアップ
 	},
@@ -69,6 +126,12 @@ const mappings = [
 		dest: path.join(cliDir, "scaffolds/steering"),
 		basePath: null, // シンボリックリンク記録対象外
 	},
+	// テンプレート（シンボリックリンク非対象）
+	{
+		src: path.join(projectRoot, "docs/einja/templates"),
+		dest: path.join(cliDir, "templates"),
+		basePath: null, // シンボリックリンク記録対象外
+	},
 ];
 
 // 単一ファイルのコピー設定
@@ -76,12 +139,17 @@ const fileMappings = [
 	// settings.json
 	{
 		src: path.join(projectRoot, ".claude/settings.json"),
-		dest: path.join(cliDir, "presets/minimal/.claude/settings.json"),
+		dest: path.join(cliDir, "presets/default/.claude/settings.json"),
 	},
 	// .mcp.json
 	{
 		src: path.join(projectRoot, ".mcp.json"),
 		dest: path.join(cliDir, "scaffolds/.mcp.json"),
+	},
+	// preset.yaml（プリセット定義）
+	{
+		src: path.join(projectRoot, "docs/einja/cli/preset.yaml"),
+		dest: path.join(cliDir, "presets/default/preset.yaml"),
 	},
 ];
 
@@ -101,7 +169,7 @@ function removeDir(dirPath) {
  * @param {string} src - コピー元ディレクトリ
  * @param {string} dest - コピー先ディレクトリ
  * @param {(path: string) => boolean} filter - フィルター関数
- * @param {string} basePath - 相対パス計算用のベースパス（presets/minimal からの相対）
+ * @param {string} basePath - 相対パス計算用のベースパス（presets/default からの相対）
  */
 function copyDir(src, dest, filter = () => true, basePath = "") {
 	if (!fs.existsSync(src)) {
@@ -206,7 +274,7 @@ function copyPresets() {
 
 	// シンボリックリンク情報をJSON出力
 	if (symlinkMap.length > 0) {
-		const symlinksPath = path.join(cliDir, "presets/minimal/symlinks.json");
+		const symlinksPath = path.join(cliDir, "presets/default/symlinks.json");
 		const symlinksData = {
 			version: 1,
 			symlinks: symlinkMap,
@@ -220,7 +288,30 @@ function copyPresets() {
 	console.log("\n✅ コピー完了");
 }
 
+/**
+ * マーカーバリデーションを実行
+ */
+function validateMarkers() {
+	console.log("🔍 マーカーバリデーションを実行中...\n");
+
+	try {
+		const validateScript = path.join(__dirname, "validate-markers.mjs");
+		execSync(`node "${validateScript}"`, {
+			stdio: "inherit",
+			cwd: projectRoot,
+		});
+	} catch (error) {
+		console.error("\n❌ マーカーバリデーションに失敗しました");
+		console.error("   エラーを修正してから再度ビルドしてください\n");
+		process.exit(1);
+	}
+}
+
 try {
+	// 1. マーカーバリデーション
+	validateMarkers();
+
+	// 2. ファイルコピー
 	copyPresets();
 } catch (error) {
 	console.error("❌ エラー:", error);

@@ -27,7 +27,7 @@ export interface ValidationResult {
  */
 export interface Preset {
   /**
-   * プリセット名（例: "minimal", "turborepo-pandacss"）
+   * プリセット名（例: "default", "turborepo-pandacss"）
    */
   name: string;
 

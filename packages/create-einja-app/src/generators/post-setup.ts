@@ -70,10 +70,16 @@ function printCompletionMessage(config: ProjectConfig): void {
   console.log(chalk.bold("次のステップ:"));
   console.log();
   console.log(chalk.cyan(`  cd ${config.projectName}`));
+  console.log(chalk.cyan("  pnpm env:update          # 環境変数を設定"));
   console.log(chalk.cyan("  docker-compose up -d postgres"));
   console.log(chalk.cyan("  pnpm dev"));
   console.log();
-  console.log(chalk.gray("開発サーバー: http://localhost:3000"));
+  console.log(chalk.gray("開発サーバー: ターミナルに表示されるURLを確認"));
+  console.log();
+  console.log(
+    chalk.yellow("⚠ 重要: ") +
+      chalk.gray("pnpm env:update で環境変数を自分のプロジェクト用に再設定してください")
+  );
   console.log();
   console.log(chalk.gray("詳細は README.md をご確認ください。"));
   console.log();

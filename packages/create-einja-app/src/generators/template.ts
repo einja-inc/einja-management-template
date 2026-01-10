@@ -137,6 +137,28 @@ function renameTemplateFiles(targetPath: string): void {
 }
 
 /**
+ * gitignoreファイルをリネーム処理（gitignore → .gitignore）
+ * @param targetPath - ターゲットディレクトリパス
+ */
+function renameSpecialFiles(targetPath: string): void {
+  const gitignoreFiles = glob.sync("**/gitignore", {
+    cwd: targetPath,
+    absolute: true,
+    dot: true,
+  });
+
+  for (const file of gitignoreFiles) {
+    const dir = dirname(file);
+    const newPath = join(dir, ".gitignore");
+
+    if (existsSync(file)) {
+      copySync(file, newPath);
+      removeSync(file);
+    }
+  }
+}
+
+/**
  * 認証方式に応じたファイル除外処理
  * @param targetPath - ターゲットディレクトリパス
  * @param authMethod - 認証方式
@@ -190,6 +212,7 @@ export async function generateTemplate(
       const relativePath = relative(templatePath, src);
 
       // 除外パターン（ディレクトリ名やファイル名として完全一致するもの）
+      // 注意: .env.*ファイルはテンプレートに含め、pnpm env:updateで再設定する
       const excludePatterns = [
         "node_modules",
         ".git",
@@ -198,8 +221,7 @@ export async function generateTemplate(
         "out",
         "dist",
         "logs",
-        ".env",
-        ".env.local",
+        ".env", // フェイルセーフ（暗号化キーファイル）
         ".DS_Store",
         "Thumbs.db",
         "coverage",
@@ -232,6 +254,9 @@ export async function generateTemplate(
 
   // .templateファイルのリネーム
   renameTemplateFiles(targetPath);
+
+  // gitignore → .gitignore リネーム
+  renameSpecialFiles(targetPath);
 
   // 変数置換
   logger.info("プレースホルダー変数を置換中...");

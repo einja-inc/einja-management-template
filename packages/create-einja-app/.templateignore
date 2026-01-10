@@ -2,7 +2,9 @@ packages/cli/
 packages/create-einja-app/
 node_modules/
 .git/
-.github/
+.github/workflows/create-einja-app.yml
+.github/workflows/release-cli.yml
+.github/ISSUE_TEMPLATE/
 .next/
 out/
 dist/
@@ -10,11 +12,7 @@ build/
 *.log
 logs/
 .env
-.env.local
 .env.*.local
-.env.production
-.env.staging
-.env.development
 .idea/
 .vscode/settings.json
 .DS_Store
@@ -22,7 +20,6 @@ Thumbs.db
 coverage/
 packages/server-core/prisma/migrations/
 styled-system/
-worktree.config.json
 
 # Einja固有ファイル
 .claude/agents/einja/

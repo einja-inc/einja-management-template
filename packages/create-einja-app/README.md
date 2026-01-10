@@ -208,6 +208,9 @@ my-project/
 # プロジェクトディレクトリに移動
 cd my-project
 
+# 環境変数を設定（重要！）
+pnpm env:update
+
 # PostgreSQLを起動
 docker-compose up -d postgres
 
@@ -215,7 +218,11 @@ docker-compose up -d postgres
 pnpm dev
 ```
 
-開発サーバーが起動したら、ブラウザで http://localhost:3000 にアクセスしてください。
+> ⚠️ **重要**: テンプレートにはサンプルの環境変数ファイルが含まれています。
+> `pnpm env:update` を実行して、自分のプロジェクト用に環境変数を再設定してください。
+
+開発サーバーが起動したら、ターミナルに表示されるURLにアクセスしてください。
+（ポート番号はワークツリーのブランチ名から自動計算されます）
 
 ---
 

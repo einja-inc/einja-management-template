@@ -173,7 +173,14 @@ async function updateTemplate(options: TemplateUpdateOptions): Promise<void> {
 
   for (const file of filesToCopy) {
     const srcPath = path.join(PROJECT_ROOT, file);
-    const destPath = path.join(TEMPLATE_DIR, file);
+
+    // .gitignore → gitignore にリネーム
+    let destFile = file;
+    if (file.endsWith('.gitignore')) {
+      destFile = file.replace(/\.gitignore$/, 'gitignore');
+    }
+
+    const destPath = path.join(TEMPLATE_DIR, destFile);
 
     try {
       // ディレクトリを作成

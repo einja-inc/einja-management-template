@@ -114,7 +114,7 @@ describe("backup utilities", () => {
       const testFile = "test.txt";
       writeFileSync(join(testDir, testFile), "content");
       await createBackup(testDir, [testFile]);
-      await new Promise((resolve) => setTimeout(resolve, 100)); // タイムスタンプを変えるため待機
+      await new Promise((resolve) => setTimeout(resolve, 1100)); // タイムスタンプを変えるため待機（秒単位なので1秒以上必要）
       await createBackup(testDir, [testFile]);
 
       // When: バックアップ一覧を取得
@@ -142,7 +142,7 @@ describe("backup utilities", () => {
       const testFile = "test.txt";
       writeFileSync(join(testDir, testFile), "content");
       await createBackup(testDir, [testFile]);
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 1100)); // タイムスタンプを変えるため待機（秒単位なので1秒以上必要）
       const latestBackupDir = await createBackup(testDir, [testFile]);
 
       // When: 最新のバックアップを取得

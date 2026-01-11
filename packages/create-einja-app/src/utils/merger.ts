@@ -93,8 +93,8 @@ export function mergeTextWithMarkers(
   }
 
   // When: テンプレートにのみ存在するIDなしmanagedセクションを末尾に追加
-  for (let i = managedWithoutIdIndex; i < templateManagedWithoutId.length; i += 1) {
-    result.push(templateManagedWithoutId[i].content);
+  for (const section of templateManagedWithoutId.slice(managedWithoutIdIndex)) {
+    result.push(section.content);
   }
 
   // When: テンプレートにのみ存在するID付きseedセクションを末尾に追加

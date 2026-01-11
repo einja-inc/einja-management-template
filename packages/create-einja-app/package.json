@@ -1,6 +1,6 @@
 {
   "name": "create-einja-app",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "description": "CLI tool to create new projects with Einja Management Template",
   "type": "module",
   "bin": {

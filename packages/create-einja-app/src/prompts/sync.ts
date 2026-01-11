@@ -66,6 +66,12 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
     patterns: ["package.json", "tsconfig.json"],
     defaultChecked: false,
   },
+  scripts: {
+    name: "スクリプト",
+    description: "scripts/ 配下",
+    patterns: ["scripts/**"],
+    defaultChecked: false,
+  },
   apps: {
     name: "アプリケーション",
     description: "apps/ 配下（次の画面で個別選択）",

@@ -133,6 +133,7 @@ export type SyncCategory =
   | "docker" // Dockerfile*, docker-compose.yml, .dockerignore
   | "monorepo" // turbo.json, pnpm-workspace.yaml
   | "root-config" // package.json, tsconfig.json
+  | "scripts" // scripts/**
   | "apps" // apps/** （詳細選択あり）
   | "packages" // packages/** （詳細選択あり）
   | "docs"; // README.md, docs/**

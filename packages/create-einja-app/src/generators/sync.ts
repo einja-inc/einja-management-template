@@ -15,6 +15,7 @@ const CATEGORY_PATTERNS: Record<SyncCategory, string[]> = {
   docker: ["Dockerfile*", "docker-compose*.yml", ".dockerignore"],
   monorepo: ["turbo.json", "pnpm-workspace.yaml"],
   "root-config": ["package.json", "tsconfig.json"],
+  scripts: ["scripts/**"],
   apps: ["apps/**"],
   packages: ["packages/**"],
   docs: ["README.md", "docs/**"],

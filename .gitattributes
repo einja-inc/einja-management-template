@@ -1,5 +1,19 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 
+# Binary files - prevent CRLF conversion
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+
 # Symlink handling for Windows compatibility
 docs/templates symlink=auto

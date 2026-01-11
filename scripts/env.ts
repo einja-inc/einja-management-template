@@ -9,6 +9,13 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
+import {
+	type EnvironmentConfig,
+	ENVIRONMENTS,
+	parseEnvFile,
+	getPrivateKey,
+	ENV_KEYS_PATH,
+} from "./lib/env-common.js";
 
 const cwd = process.cwd();
 
@@ -17,79 +24,6 @@ const ENV_PATH = path.join(cwd, ".env");
 const ENV_LOCAL_PATH = path.join(cwd, ".env.local");
 const ENV_PERSONAL_PATH = path.join(cwd, ".env.personal");
 const ENV_PERSONAL_EXAMPLE_PATH = path.join(cwd, ".env.personal.example");
-const ENV_KEYS_PATH = path.join(cwd, ".env.keys");
-
-// 環境定義
-interface EnvironmentConfig {
-	name: string;
-	file: string;
-	privateKeyEnv: string;
-	description: string;
-}
-
-const ENVIRONMENTS: EnvironmentConfig[] = [
-	{
-		name: "local",
-		file: ".env.local",
-		privateKeyEnv: "DOTENV_PRIVATE_KEY_LOCAL",
-		description: "ローカル開発環境",
-	},
-	{
-		name: "development",
-		file: ".env.development",
-		privateKeyEnv: "DOTENV_PRIVATE_KEY_DEVELOPMENT",
-		description: "開発環境",
-	},
-	{
-		name: "staging",
-		file: ".env.staging",
-		privateKeyEnv: "DOTENV_PRIVATE_KEY_STAGING",
-		description: "ステージング環境",
-	},
-	{
-		name: "production",
-		file: ".env.production",
-		privateKeyEnv: "DOTENV_PRIVATE_KEY_PRODUCTION",
-		description: "本番環境",
-	},
-	{
-		name: "ci",
-		file: ".env.ci",
-		privateKeyEnv: "DOTENV_PRIVATE_KEY_CI",
-		description: "CI環境",
-	},
-];
-
-/**
- * 環境変数ファイルを読み込んでパース
- */
-function parseEnvFile(filePath: string): Record<string, string> {
-	if (!fs.existsSync(filePath)) {
-		return {};
-	}
-	const content = fs.readFileSync(filePath, "utf-8");
-	const result: Record<string, string> = {};
-
-	for (const line of content.split("\n")) {
-		const trimmed = line.trim();
-		if (!trimmed || trimmed.startsWith("#")) continue;
-
-		const match = trimmed.match(/^([^=]+)=(.*)$/);
-		if (match) {
-			const key = match[1].trim();
-			let value = match[2].trim();
-			// クォートを除去
-			if (
-				(value.startsWith('"') && value.endsWith('"')) ||
-				(value.startsWith("'") && value.endsWith("'"))
-			) {
-				value = value.slice(1, -1);
-			}
-			result[key] = value;
-		}
-	}
-	return result;
-}
 
 /**
  * 環境変数ファイルに値を設定
@@ -253,16 +187,6 @@ async function setupPersonalTokens(): Promise<void> {
 	);
 }
 
-/**
- * .env.keysから指定された環境の秘密鍵を取得
- */
-function getPrivateKey(privateKeyEnv: string): string | null {
-	if (!fs.existsSync(ENV_KEYS_PATH)) {
-		return null;
-	}
-	const keys = parseEnvFile(ENV_KEYS_PATH);
-	return keys[privateKeyEnv] || null;
-}
 
 /**
  * 環境設定を変更（汎用）

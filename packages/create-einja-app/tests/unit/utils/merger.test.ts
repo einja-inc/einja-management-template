@@ -112,7 +112,7 @@ Footer`;
       expect(result).not.toContain("Old section 2");
     });
 
-    it("IDなし複数のmanagedマーカーはローカル内容を保持する（安全策）", () => {
+    it("IDなし複数のmanagedマーカーはテンプレート内容で上書きされる", () => {
       // Given: IDなし複数のmanagedセクション
       const templateContent = `Header
 <!-- @einja:managed:start -->
@@ -137,11 +137,11 @@ Footer`;
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: IDなしセクションはローカル内容を保持（インデックスマッチングは行わない）
-      expect(result).toContain("Old section 1");
-      expect(result).toContain("Old section 2");
-      expect(result).not.toContain("Template section 1");
-      expect(result).not.toContain("Template section 2");
+      // Then: IDなしセクションはテンプレート内容で上書きされる
+      expect(result).toContain("Template section 1");
+      expect(result).toContain("Template section 2");
+      expect(result).not.toContain("Old section 1");
+      expect(result).not.toContain("Old section 2");
     });
   });
 

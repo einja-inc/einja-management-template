@@ -34,14 +34,17 @@ export function mergeTextWithMarkers(
     return existingContent;
   }
 
-  // When: ID付きmanagedセクションとseedセクションをMapで管理
+  // When: ID付きmanaged/seedセクションをMapで管理
   const templateManagedById = new Map<string, MarkerSection>();
   const templateSeedById = new Map<string, MarkerSection>();
+  const templateManagedWithoutId: MarkerSection[] = [];
   const processedTemplateIds = new Set<string>();
 
   for (const section of templateSections) {
     if (section.type === "managed" && section.id) {
       templateManagedById.set(section.id, section);
+    } else if (section.type === "managed") {
+      templateManagedWithoutId.push(section);
     } else if (section.type === "seed" && section.id) {
       templateSeedById.set(section.id, section);
     }
@@ -49,6 +52,7 @@ export function mergeTextWithMarkers(
 
   // When: ローカルセクションを処理（ローカル側の順序を基準にする）
   const result: string[] = [];
+  let managedWithoutIdIndex = 0;
 
   for (const localSection of localSections) {
     if (localSection.type === "managed") {
@@ -58,8 +62,14 @@ export function mergeTextWithMarkers(
         processedTemplateIds.add(localSection.id);
         result.push(match.content);
       } else if (!localSection.id) {
-        // IDなし → ローカル内容を保持（安全策）
-        result.push(localSection.content);
+        // IDなし → テンプレートの順序で上書き（残りがあれば使用）
+        const noIdMatch = templateManagedWithoutId[managedWithoutIdIndex];
+        if (noIdMatch) {
+          result.push(noIdMatch.content);
+          managedWithoutIdIndex += 1;
+        } else {
+          result.push(localSection.content);
+        }
       }
       // ID付きでテンプレートにマッチなし → 削除（resultに追加しない）
     } else if (localSection.type === "seed") {
@@ -80,6 +90,11 @@ export function mergeTextWithMarkers(
       // テンプレートにのみ存在するID付きmanagedセクションを追加
       result.push(section.content);
     }
+  }
+
+  // When: テンプレートにのみ存在するIDなしmanagedセクションを末尾に追加
+  for (let i = managedWithoutIdIndex; i < templateManagedWithoutId.length; i += 1) {
+    result.push(templateManagedWithoutId[i].content);
   }
 
   // When: テンプレートにのみ存在するID付きseedセクションを末尾に追加

@@ -46,6 +46,9 @@
 - Day-to-day dev flow and checkpoints: `docs/einja/steering/development-workflow.md`.
 - System overview and major boundaries: `docs/einja/steering/architecture.md`.
 - Environment variable policy and storage: `docs/einja/steering/infrastructure/environment-variables.md`.
+- Publishing guidance:
+  - `create-einja-app`: `packages/create-einja-app/RELEASING.md`.
+  - `dev-cli`: `packages/cli/RELEASING.md` and `packages/cli/docs/PUBLISHING.md`.
 
 ## Security & Configuration Tips
 - Manage env files via `pnpm env:update`; encrypted secrets require `.env.keys`.

@@ -251,5 +251,56 @@ describe("FileFilter", () => {
       // Then: nullが返される
       expect(category).toBe(null);
     });
+
+    it(".envrcはenvカテゴリとして判定されること", () => {
+      // Given: .envrcパス
+      const envrcPath = ".envrc";
+
+      // When: カテゴリ推測
+      const category = fileFilter.getCategoryFromPath(envrcPath);
+
+      // Then: envカテゴリが返される
+      expect(category).toBe("env");
+    });
+
+    it(".envrc以外のルートファイルはnullを返すこと", () => {
+      // Given: .envrc以外のルートファイル
+      const otherPath = ".gitignore";
+
+      // When: カテゴリ推測
+      const category = fileFilter.getCategoryFromPath(otherPath);
+
+      // Then: nullが返される
+      expect(category).toBe(null);
+    });
+  });
+
+  describe("scanSyncTargets - envカテゴリ", () => {
+    it("envカテゴリで.envrcファイルのみをスキャンすること", async () => {
+      // Given: テンプレートに.envrcを作成
+      await fs.writeFile(path.join(templateDir, ".envrc"), "# test envrc");
+      await fs.writeFile(path.join(templateDir, ".gitignore"), "node_modules");
+
+      // When: envカテゴリのみをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["env"] });
+
+      // Then: .envrcのみが検出される
+      expect(targets.length).toBe(1);
+      expect(targets[0].path).toBe(".envrc");
+      expect(targets[0].category).toBe("env");
+    });
+
+    it("envカテゴリでローカルに.envrcが存在する場合、exists=trueになること", async () => {
+      // Given: テンプレートとプロジェクトの両方に.envrcを作成
+      await fs.writeFile(path.join(templateDir, ".envrc"), "# template");
+      await fs.writeFile(path.join(projectDir, ".envrc"), "# local");
+
+      // When: envカテゴリをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["env"] });
+
+      // Then: exists=trueになる
+      expect(targets.length).toBe(1);
+      expect(targets[0].exists).toBe(true);
+    });
   });
 });

@@ -86,7 +86,7 @@ describe("category-validator", () => {
 
       expect(message).toContain("無効なカテゴリ: invalid-category");
       expect(message).toContain("有効なカテゴリは以下のいずれかです:");
-      expect(message).toContain("commands, agents, skills, hooks, docs");
+      expect(message).toContain("commands, agents, skills, hooks, docs, env");
     });
 
     it("複数の無効なカテゴリのエラーメッセージを生成する", () => {
@@ -94,13 +94,13 @@ describe("category-validator", () => {
 
       expect(message).toContain("無効なカテゴリ: invalid1, invalid2, invalid3");
       expect(message).toContain("有効なカテゴリは以下のいずれかです:");
-      expect(message).toContain("commands, agents, skills, hooks, docs");
+      expect(message).toContain("commands, agents, skills, hooks, docs, env");
     });
   });
 
   describe("VALID_CATEGORIES", () => {
     it("全ての有効なカテゴリが定義されている", () => {
-      expect(VALID_CATEGORIES).toEqual(["commands", "agents", "skills", "hooks", "docs"]);
+      expect(VALID_CATEGORIES).toEqual(["commands", "agents", "skills", "hooks", "docs", "env"]);
     });
   });
 });

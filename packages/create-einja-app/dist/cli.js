@@ -440,11 +440,14 @@ function printCompletionMessage(config) {
   console.log(chalk2.cyan("  docker-compose up -d postgres"));
   console.log(chalk2.cyan("  pnpm dev"));
   console.log();
-  console.log(chalk2.gray("\u958B\u767A\u30B5\u30FC\u30D0\u30FC: \u30BF\u30FC\u30DF\u30CA\u30EB\u306B\u8868\u793A\u3055\u308C\u308BURL\u3092\u78BA\u8A8D"));
-  console.log();
   console.log(
-    chalk2.yellow("\u26A0 \u91CD\u8981: ") + chalk2.gray("pnpm env:update \u3067\u74B0\u5883\u5909\u6570\u3092\u81EA\u5206\u306E\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u7528\u306B\u518D\u8A2D\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044")
+    chalk2.yellow("\u26A0 \u30BB\u30AD\u30E5\u30EA\u30C6\u30A3: \u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u306E\u79D8\u5BC6\u9375\u3092\u305D\u306E\u307E\u307E\u4F7F\u7528\u3057\u306A\u3044\u3067\u304F\u3060\u3055\u3044")
   );
+  console.log(
+    chalk2.gray("  pnpm env:rotate-secrets  # \u79D8\u5BC6\u9375\u3092\u81EA\u5206\u306E\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u7528\u306B\u518D\u751F\u6210")
+  );
+  console.log();
+  console.log(chalk2.gray("\u958B\u767A\u30B5\u30FC\u30D0\u30FC: \u30BF\u30FC\u30DF\u30CA\u30EB\u306B\u8868\u793A\u3055\u308C\u308BURL\u3092\u78BA\u8A8D"));
   console.log();
   console.log(chalk2.gray("\u8A73\u7D30\u306F README.md \u3092\u3054\u78BA\u8A8D\u304F\u3060\u3055\u3044\u3002"));
   console.log();

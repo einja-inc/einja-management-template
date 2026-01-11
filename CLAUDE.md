@@ -410,7 +410,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - @docs/einja/memory/decisions.md - 過去の意思決定記録（セッション跨ぎで継承）
 - @docs/einja/memory/patterns.md - 再利用可能なパターン（セッション跨ぎで継承）
 
-<!-- @einja:template-exclude:start -->
+<!-- @einja:excluded:start -->
 ## このリポジトリ限定の設定
 
 このセクションはテンプレート生成時に除外され、CLIで他リポジトリにコピーされません。
@@ -439,4 +439,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 | `CLAUDE.md` | `scaffolds/CLAUDE.md.template` | **変換生成** |
 
 **コピー先のファイルは直接編集禁止**（ビルド時に上書きされる）
-<!-- @einja:template-exclude:end -->
+<!-- @einja:excluded:end -->

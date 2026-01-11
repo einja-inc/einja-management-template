@@ -4,7 +4,7 @@
  *
  * 処理:
  * 1. CLAUDE.mdを読み込み
- * 2. <!-- @einja:template-exclude:start --> 〜 <!-- @einja:template-exclude:end --> マーカー内を除外
+ * 2. <!-- @einja:excluded:start --> 〜 <!-- @einja:excluded:end --> マーカー内を除外
  * 3. プロジェクト固有値をプレースホルダーに変換
  * 4. scaffolds/CLAUDE.md.templateに出力
  */
@@ -51,7 +51,7 @@ function generateTemplate() {
 
 	// マーカー除外
 	const excludePattern =
-		/<!-- @einja:template-exclude:start -->[\s\S]*?<!-- @einja:template-exclude:end -->/g;
+		/<!-- @einja:excluded:start -->[\s\S]*?<!-- @einja:excluded:end -->/g;
 	const originalLength = content.length;
 	content = content.replace(excludePattern, "");
 	const removedLength = originalLength - content.length;

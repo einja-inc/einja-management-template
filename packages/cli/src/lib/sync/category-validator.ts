@@ -6,7 +6,7 @@
 /**
  * 有効なカテゴリのリスト
  */
-export const VALID_CATEGORIES = ["commands", "agents", "skills", "hooks", "docs"] as const;
+export const VALID_CATEGORIES = ["commands", "agents", "skills", "hooks", "docs", "env"] as const;
 
 /**
  * カテゴリの型定義

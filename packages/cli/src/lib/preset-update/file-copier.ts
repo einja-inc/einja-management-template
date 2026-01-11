@@ -85,6 +85,19 @@ export class FileCopier {
   ];
 
   /**
+   * 単一ファイルマッピング
+   *
+   * ディレクトリではなく個別ファイルのマッピング
+   */
+  private readonly singleFileMappings: { source: string; destination: string; category: string }[] = [
+    {
+      source: ".envrc",
+      destination: ".envrc",
+      category: "env",
+    },
+  ];
+
+  /**
    * プリセットへファイルをコピー
    *
    * @param options - コピーオプション
@@ -163,6 +176,7 @@ export class FileCopier {
   async scanSourceFiles(projectRoot: string): Promise<SourceFile[]> {
     const sourceFiles: SourceFile[] = [];
 
+    // ディレクトリマッピングの処理
     for (const mapping of this.directoryMappings) {
       const sourceDir = join(projectRoot, mapping.source);
 
@@ -184,6 +198,22 @@ export class FileCopier {
           category: mapping.category,
         });
       }
+    }
+
+    // 単一ファイルマッピングの処理
+    for (const mapping of this.singleFileMappings) {
+      const sourcePath = join(projectRoot, mapping.source);
+
+      // ソースファイルが存在しない場合はスキップ
+      if (!existsSync(sourcePath)) {
+        continue;
+      }
+
+      sourceFiles.push({
+        relativePath: mapping.source,
+        absolutePath: sourcePath,
+        category: mapping.category,
+      });
     }
 
     return sourceFiles;
@@ -243,7 +273,7 @@ export class FileCopier {
    *
    * 以下の条件でスキップします:
    * - _プレフィックスで始まるファイル
-   * - .DS_Store等の隠しファイル
+   * - .DS_Store等の隠しファイル（ただし単一ファイルマッピングで定義されたファイルは除く）
    *
    * @param filePath - ファイルパス（相対パス）
    * @returns スキップする場合true
@@ -254,6 +284,11 @@ export class FileCopier {
     // _プレフィックスで始まるファイルはスキップ
     if (fileName.startsWith("_")) {
       return true;
+    }
+
+    // 単一ファイルマッピングで定義されたファイルはスキップしない
+    if (this.singleFileMappings.some((m) => m.source === filePath)) {
+      return false;
     }
 
     // .で始まるファイル（隠しファイル）はスキップ
@@ -275,7 +310,15 @@ export class FileCopier {
    * @returns コピー先の絶対パス
    */
   private calculateDestinationPath(sourceFile: SourceFile, preset: Preset): string {
-    // 適用すべきマッピングを探す
+    // 単一ファイルマッピングをチェック
+    const singleFileMapping = this.singleFileMappings.find(
+      (m) => m.source === sourceFile.relativePath
+    );
+    if (singleFileMapping) {
+      return join(preset.path, singleFileMapping.destination);
+    }
+
+    // ディレクトリマッピングを探す
     const mapping = this.directoryMappings.find((m) =>
       sourceFile.relativePath.startsWith(m.source)
     );

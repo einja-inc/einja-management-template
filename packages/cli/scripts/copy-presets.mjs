@@ -149,6 +149,12 @@ const fileMappings = [
 		dest: path.join(cliDir, "presets/default/preset.yaml"),
 		required: true,
 	},
+	// .envrc
+	{
+		src: path.join(projectRoot, ".envrc"),
+		dest: path.join(cliDir, "presets/default/.envrc"),
+		required: true,
+	},
 ];
 
 /**

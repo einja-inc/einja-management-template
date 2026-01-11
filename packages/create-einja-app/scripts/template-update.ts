@@ -50,11 +50,11 @@ function loadIgnorePatterns(): ReturnType<typeof ignore> {
 }
 
 /**
- * @einja:template-exclude マーカーを除去し、除外後の空行・水平線をクリーンアップ
+ * @einja:excluded マーカーを除去し、除外後の空行・水平線をクリーンアップ
  */
 function removeExcludeMarkers(content: string): string {
   const excludePattern =
-    /<!-- @einja:template-exclude:start -->[\s\S]*?<!-- @einja:template-exclude:end -->/g;
+    /<!-- @einja:excluded:start -->[\s\S]*?<!-- @einja:excluded:end -->/g;
   let result = content.replace(excludePattern, "");
 
   // 連続する水平線を1つに
@@ -72,12 +72,12 @@ function removeExcludeMarkers(content: string): string {
  * - package.json: name, description を変換
  * - tsconfig.json: paths 内の @repo/* を {{packageName}}/* に変換
  * - import文: @repo/ を {{packageName}}/ に変換
- * - README.md（ルートのみ）: @einja:template-exclude マーカー除去
+ * - README.md（ルートのみ）: @einja:excluded マーカー除去
  */
 function transformContent(filePath: string, content: string): string {
   const fileName = path.basename(filePath);
 
-  // ルートREADME.mdの変換（@einja:template-exclude マーカー除去）
+  // ルートREADME.mdの変換（@einja:excluded マーカー除去）
   if (filePath === "README.md") {
     return removeExcludeMarkers(content);
   }

@@ -168,11 +168,11 @@ function transformImports(content: string): string {
 }
 
 /**
- * @einja:template-exclude マーカーを除去し、除外後の空行・水平線をクリーンアップ
+ * @einja:excluded マーカーを除去し、除外後の空行・水平線をクリーンアップ
  */
 function removeExcludeMarkers(content: string): string {
   const excludePattern =
-    /<!-- @einja:template-exclude:start -->[\s\S]*?<!-- @einja:template-exclude:end -->/g;
+    /<!-- @einja:excluded:start -->[\s\S]*?<!-- @einja:excluded:end -->/g;
   let result = content.replace(excludePattern, "");
 
   // 連続する水平線を1つに
@@ -190,7 +190,7 @@ function removeExcludeMarkers(content: string): string {
 function transformFileContent(filePath: string, content: string): string {
   const fileName = filePath.split("/").pop() || "";
 
-  // ルートREADME.mdの変換（@einja:template-exclude マーカー除去）
+  // ルートREADME.mdの変換（@einja:excluded マーカー除去）
   if (filePath === "README.md") {
     return removeExcludeMarkers(content);
   }

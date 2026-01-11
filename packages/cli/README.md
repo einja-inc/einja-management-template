@@ -83,12 +83,14 @@ npx @einja/dev-cli sync --only hooks
 - `skills` - スキル定義
 - `hooks` - Git Hooks
 - `docs` - ステアリングドキュメント
+- `env` - 環境設定ファイル（`.envrc`）
 
 **マーカーによる部分同期:**
 
-`docs/einja/`配下のドキュメントには、同期動作を制御するマーカーがあります：
+ファイルには、同期動作を制御するマーカーがあります：
 - `@einja:managed` - 常にテンプレート版で上書き（共通ルール）
 - `@einja:seed` - 初回のみ追加、以降はローカル編集を保持（プロジェクト固有設定）
+- `@einja:excluded` - テンプレートのみに存在し、syncでコピーされない（テンプレート専用設定）
 
 詳細は [マーカー仕様書](docs/MARKER_SPECIFICATION.md) を参照してください。
 

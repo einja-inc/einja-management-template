@@ -13,6 +13,7 @@ const CATEGORY_MAPPING: Record<string, string> = {
   skills: ".claude/skills",
   hooks: ".claude/hooks",
   docs: "docs/einja",
+  env: ".",
 };
 
 /**
@@ -49,6 +50,24 @@ export class FileFilter {
     for (const category of categories) {
       const categoryPath = CATEGORY_MAPPING[category];
       if (!categoryPath) {
+        continue;
+      }
+
+      // envカテゴリは.envrcファイルのみを対象とする特別処理
+      if (category === "env") {
+        const envrcPath = ".envrc";
+        const templatePath = path.join(this.templateRoot, envrcPath);
+        const projectPath = path.join(this.projectRoot, envrcPath);
+
+        if (await fs.pathExists(templatePath)) {
+          const exists = await fs.pathExists(projectPath);
+          targets.push({
+            path: envrcPath,
+            category,
+            templatePath,
+            exists,
+          });
+        }
         continue;
       }
 
@@ -141,6 +160,14 @@ export class FileFilter {
    */
   getCategoryFromPath(filePath: string): string | null {
     for (const [category, categoryPath] of Object.entries(CATEGORY_MAPPING)) {
+      // envカテゴリは.envrcファイルのみを対象とする特別処理
+      if (category === "env") {
+        if (filePath === ".envrc") {
+          return category;
+        }
+        continue;
+      }
+
       if (filePath.startsWith(categoryPath)) {
         // einja-プレフィックスフィルタリングが必要なカテゴリの場合
         if (EINJA_PREFIX_CATEGORIES.includes(category)) {

@@ -46,6 +46,12 @@ export const ENVIRONMENTS: EnvironmentConfig[] = [
     description: "ステージング環境",
   },
   {
+    name: "preview",
+    file: ".env.preview",
+    privateKeyEnv: "DOTENV_PRIVATE_KEY_PREVIEW",
+    description: "プレビュー環境",
+  },
+  {
     name: "production",
     file: ".env.production",
     privateKeyEnv: "DOTENV_PRIVATE_KEY_PRODUCTION",

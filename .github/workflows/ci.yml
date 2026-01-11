@@ -95,7 +95,7 @@ jobs:
             echo "vercel_args=" >> "$GITHUB_OUTPUT"
           else
             echo "vercel_env=preview" >> "$GITHUB_OUTPUT"
-            echo "dotenv_file=../../.env.development" >> "$GITHUB_OUTPUT"
+            echo "dotenv_file=../../.env.preview" >> "$GITHUB_OUTPUT"
             echo "vercel_args=" >> "$GITHUB_OUTPUT"
           fi
 
@@ -114,6 +114,7 @@ jobs:
           DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
           DOTENV_PRIVATE_KEY_DEVELOPMENT: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOPMENT }}
           DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+          DOTENV_PRIVATE_KEY_PREVIEW: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
           DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
 
       - name: Deploy to Vercel

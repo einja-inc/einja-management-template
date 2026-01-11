@@ -25,6 +25,7 @@ const ENVIRONMENTS: EnvironmentConfig[] = [
   { name: "local", file: ".env.local", privateKeyEnv: "DOTENV_PRIVATE_KEY_LOCAL" },
   { name: "development", file: ".env.development", privateKeyEnv: "DOTENV_PRIVATE_KEY_DEVELOPMENT" },
   { name: "staging", file: ".env.staging", privateKeyEnv: "DOTENV_PRIVATE_KEY_STAGING" },
+  { name: "preview", file: ".env.preview", privateKeyEnv: "DOTENV_PRIVATE_KEY_PREVIEW" },
   { name: "production", file: ".env.production", privateKeyEnv: "DOTENV_PRIVATE_KEY_PRODUCTION" },
   { name: "ci", file: ".env.ci", privateKeyEnv: "DOTENV_PRIVATE_KEY_CI" },
 ];

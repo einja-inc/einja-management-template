@@ -30,6 +30,7 @@
 | 変数名 | 説明 | 用途 | GitHub Actions | Vercel |
 |--------|------|------|:--------------:|:------:|
 | `DOTENV_PRIVATE_KEY_CI` | CI環境用復号鍵 | CI/CD | ◯ | - |
+| `DOTENV_PRIVATE_KEY_PREVIEW` | Preview環境用復号鍵 | Previewビルド | ◯ | - |
 | `DOTENV_PRIVATE_KEY_PRODUCTION` | 本番環境用復号鍵 | ビルド | ◯ | ◯ |
 | `TURBO_TOKEN` | Turborepo Remote Cacheトークン | ビルド高速化 | ◯ | - |
 | `TURBO_TEAM` | VercelチームID | ビルド高速化 | ◯ | - |
@@ -40,7 +41,7 @@
 |--------|------|------|:--------------:|:------:|
 | `VERCEL_TOKEN` | Vercelデプロイトークン | Vercel CLIデプロイ | `.env.ci` に格納 | - |
 | `VERCEL_ORG_ID` | Vercel組織ID | Vercel CLIデプロイ | `.env.ci` に格納 | - |
-| `VERCEL_WEB_PROJECT_ID` | webプロジェクトID | Vercel CLIデプロイ | `.env.ci` に格納 | - |
+| `VERCEL_PROJECT_ID_WEB` | webプロジェクトID | Vercel CLIデプロイ | `.env.ci` に格納 | - |
 | `RAILWAY_TOKEN` | Railway APIトークン | Railwayデプロイ | ◯ | - |
 | `RAILWAY_SERVICE_ID` | RailwayサービスID | Railwayデプロイ | ◯ | - |
 
@@ -134,7 +135,15 @@ GitHub Actions では `.env.ci` に Vercel CLI の認証情報を保持します
 # .env.ci に追加（dotenvxで暗号化されます）
 VERCEL_TOKEN=xxxxxxxxxxxxxxxxxxxx
 VERCEL_ORG_ID=team_xxxxxxxxxxxxx
-VERCEL_WEB_PROJECT_ID=prj_xxxxxxxxxxxxx
+VERCEL_PROJECT_ID_WEB=prj_xxxxxxxxxxxxx
+```
+
+#### 取得方法
+
+```bash
+# VERCEL_TOKEN: Vercel Dashboard > Account Settings > Tokens > Create Token
+# VERCEL_ORG_ID: Vercel Dashboard > Team Settings > General > Team ID
+# VERCEL_PROJECT_ID_WEB: Vercel Dashboard > Project Settings > General > Project ID
 ```
 
 `.env.ci` を更新する場合は以下を使用してください：
@@ -274,7 +283,7 @@ gh secret set TURBO_TEAM --body "team_xxxxxxxxx"
 # オプション（手動デプロイ用）
 gh secret set VERCEL_TOKEN --body "取得したトークン"
 gh secret set VERCEL_ORG_ID --body "team_xxxxxxxxx"
-gh secret set VERCEL_WEB_PROJECT_ID --body "prj_xxxxxxxxx"
+gh secret set VERCEL_PROJECT_ID_WEB --body "prj_xxxxxxxxx"
 ```
 
 ### 登録確認

@@ -79,7 +79,7 @@ function transformContent(filePath: string, content: string): string {
 
   // ルートREADME.mdの変換（@einja:template-exclude マーカー除去）
   if (filePath === "README.md") {
-    content = removeExcludeMarkers(content);
+    return removeExcludeMarkers(content);
   }
 
   // package.json の変換

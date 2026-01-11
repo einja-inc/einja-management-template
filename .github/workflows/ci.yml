@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -50,3 +49,75 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+  deploy-web:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Resolve deploy environment
+        id: deploy_env
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "main" ]; then
+            echo "vercel_env=production" >> "$GITHUB_OUTPUT"
+            echo "dotenv_file=../../.env.production" >> "$GITHUB_OUTPUT"
+            echo "vercel_args=--prod" >> "$GITHUB_OUTPUT"
+          elif [ "$BRANCH" = "staging" ]; then
+            echo "vercel_env=preview" >> "$GITHUB_OUTPUT"
+            echo "dotenv_file=../../.env.staging" >> "$GITHUB_OUTPUT"
+            echo "vercel_args=" >> "$GITHUB_OUTPUT"
+          elif [ "$BRANCH" = "develop" ]; then
+            echo "vercel_env=preview" >> "$GITHUB_OUTPUT"
+            echo "dotenv_file=../../.env.development" >> "$GITHUB_OUTPUT"
+            echo "vercel_args=" >> "$GITHUB_OUTPUT"
+          else
+            echo "vercel_env=preview" >> "$GITHUB_OUTPUT"
+            echo "dotenv_file=../../.env.development" >> "$GITHUB_OUTPUT"
+            echo "vercel_args=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pull Vercel Environment Information
+        run: |
+          npx dotenvx run -f ../../.env.ci -- \
+            vercel pull --yes --environment=${{ steps.deploy_env.outputs.vercel_env }}
+        working-directory: apps/web
+
+      - name: Build Project Artifacts
+        run: |
+          npx dotenvx run -f ../../.env.ci -f ${{ steps.deploy_env.outputs.dotenv_file }} -- \
+            vercel build ${{ steps.deploy_env.outputs.vercel_args }}
+        working-directory: apps/web
+        env:
+          DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
+          DOTENV_PRIVATE_KEY_DEVELOPMENT: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOPMENT }}
+          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+          DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+
+      - name: Deploy to Vercel
+        run: |
+          npx dotenvx run -f ../../.env.ci -- \
+            vercel deploy --prebuilt ${{ steps.deploy_env.outputs.vercel_args }}
+        working-directory: apps/web

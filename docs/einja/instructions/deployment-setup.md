@@ -38,9 +38,9 @@
 
 | 変数名 | 説明 | 用途 | GitHub Actions | Vercel |
 |--------|------|------|:--------------:|:------:|
-| `VERCEL_TOKEN` | Vercelデプロイトークン | 手動デプロイ | ◯ | - |
-| `VERCEL_ORG_ID` | Vercel組織ID | 手動デプロイ | ◯ | - |
-| `VERCEL_WEB_PROJECT_ID` | webプロジェクトID | 手動デプロイ | ◯ | - |
+| `VERCEL_TOKEN` | Vercelデプロイトークン | Vercel CLIデプロイ | `.env.ci` に格納 | - |
+| `VERCEL_ORG_ID` | Vercel組織ID | Vercel CLIデプロイ | `.env.ci` に格納 | - |
+| `VERCEL_WEB_PROJECT_ID` | webプロジェクトID | Vercel CLIデプロイ | `.env.ci` に格納 | - |
 | `RAILWAY_TOKEN` | Railway APIトークン | Railwayデプロイ | ◯ | - |
 | `RAILWAY_SERVICE_ID` | RailwayサービスID | Railwayデプロイ | ◯ | - |
 
@@ -124,6 +124,24 @@ vercel
 
 # 本番デプロイ
 vercel --prod
+```
+
+### GitHub Actions での Vercel CLI デプロイ
+
+GitHub Actions では `.env.ci` に Vercel CLI の認証情報を保持します。
+
+```bash
+# .env.ci に追加（dotenvxで暗号化されます）
+VERCEL_TOKEN=xxxxxxxxxxxxxxxxxxxx
+VERCEL_ORG_ID=team_xxxxxxxxxxxxx
+VERCEL_WEB_PROJECT_ID=prj_xxxxxxxxxxxxx
+```
+
+`.env.ci` を更新する場合は以下を使用してください：
+
+```bash
+pnpm env:update
+# → 「環境設定を変更」→「CI環境」
 ```
 
 ---

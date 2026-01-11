@@ -9,7 +9,7 @@ Einja Management Templateを使用したプロジェクトを素早く作成す�
 ### 主な機能
 
 - 🚀 **新規プロジェクト作成**: `npx create-einja-app my-project` で即座にプロジェクトを作成
-- 🛠️ **既存プロジェクトセットアップ**: `--setup` オプションで既存プロジェクトにツールを追加
+- 🛠️ **既存プロジェクトセットアップ**: `setup` サブコマンドで既存プロジェクトにツールを追加
 - 🔧 **環境ツール統合**: direnv, dotenvx, Volta, Biome, Huskyなどのツールを自動セットアップ
 - 🔐 **認証方式選択**: NextAuth.js を使用するか選択可能
 - 🔄 **対話式プロンプト**: わかりやすいプロンプトで設定を選択
@@ -31,7 +31,7 @@ npx create-einja-app my-project
 - プロジェクト名
 - パッケージスコープ
 - 認証機能（NextAuth.js を使用 / なし）
-- @einja/cli自動セットアップ
+- @einja/dev-cli自動セットアップ
 - Worktree設定カスタマイズ
 
 #### オプション付き実行
@@ -50,7 +50,7 @@ npx create-einja-app my-project --skip-install
 ```bash
 # 現在のディレクトリにツールを追加
 cd existing-project
-npx create-einja-app --setup
+npx create-einja-app setup
 ```
 
 対話式プロンプトが表示され、以下を選択できます：
@@ -83,7 +83,7 @@ npx create-einja-app --setup
 npx create-einja-app my-project --skip-git
 ```
 
-### `create-einja-app --setup`
+### `create-einja-app setup`
 
 既存プロジェクトにツールを追加します。
 
@@ -91,7 +91,7 @@ npx create-einja-app my-project --skip-git
 
 ```bash
 cd existing-project
-npx create-einja-app --setup
+npx create-einja-app setup
 ```
 
 ### `create-einja-app add [options]`

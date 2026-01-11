@@ -1,6 +1,11 @@
 import { baseAuthOptions, mergeAuthOptions } from "@repo/front-core/auth";
 import NextAuth from "next-auth";
 
+if (!process.env.NEXTAUTH_URL && process.env.VERCEL_URL) {
+  // Preview deployments use branch-specific URLs on Vercel.
+  process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+}
+
 /**
  * アプリ固有のNextAuth設定
  * baseAuthOptionsを拡張してアプリ固有の設定を追加

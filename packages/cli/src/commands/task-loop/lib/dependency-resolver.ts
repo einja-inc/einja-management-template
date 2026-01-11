@@ -21,6 +21,14 @@ export function isDependencySatisfied(
     // Phase 依存: "Phase X" / "フェーズX" / "Phase X完了" / "フェーズX完了" パターン
     // 先頭・末尾アンカーで完全一致のみ受け入れる（例: "Phase 2A" や "Subphase 2" は除外）
     const trimmedDep = dep.trim();
+    const allPhasesMatch = trimmedDep.match(/^(?:全|全ての)\s*(?:Phase|フェーズ)\s*完了$/i);
+    if (allPhasesMatch) {
+      if (!areAllPhasesCompleted(phases, completedGroups)) {
+        return false;
+      }
+      continue;
+    }
+
     const phaseDepMatch = trimmedDep.match(/^(?:Phase|フェーズ)\s*(\d+)(?:\s*完了)?$/i);
     if (phaseDepMatch) {
       const phaseNumber = Number.parseInt(phaseDepMatch[1], 10);
@@ -79,6 +87,16 @@ export function isPhaseCompleted(
 
   // Phase 内のすべてのタスクグループが完了しているか
   return phase.taskGroups.every((tg) => completedGroups.has(tg.id));
+}
+
+/**
+ * 全 Phase が完了しているかチェック
+ */
+function areAllPhasesCompleted(phases: Phase[], completedGroups: Set<string>): boolean {
+  if (phases.length === 0) {
+    return false;
+  }
+  return phases.every((phase) => phase.taskGroups.every((tg) => completedGroups.has(tg.id)));
 }
 
 /**

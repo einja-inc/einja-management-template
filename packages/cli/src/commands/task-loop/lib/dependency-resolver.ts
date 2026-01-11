@@ -18,8 +18,10 @@ export function isDependencySatisfied(
   phases: Phase[]
 ): boolean {
   for (const dep of taskGroup.dependencies) {
-    // Phase 依存: "Phase X完了" パターン
-    const phaseDepMatch = dep.match(/Phase\s*(\d+)\s*完了/i);
+    // Phase 依存: "Phase X" / "フェーズX" / "Phase X完了" / "フェーズX完了" パターン
+    // 先頭・末尾アンカーで完全一致のみ受け入れる（例: "Phase 2A" や "Subphase 2" は除外）
+    const trimmedDep = dep.trim();
+    const phaseDepMatch = trimmedDep.match(/^(?:Phase|フェーズ)\s*(\d+)(?:\s*完了)?$/i);
     if (phaseDepMatch) {
       const phaseNumber = Number.parseInt(phaseDepMatch[1], 10);
       if (!isPhaseCompleted(phases, phaseNumber, completedGroups)) {

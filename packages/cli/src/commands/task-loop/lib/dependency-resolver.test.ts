@@ -181,6 +181,542 @@ describe("dependency-resolver", () => {
       expect(result).toBe(false);
     });
 
+    it("Phase依存'Phase 2'（完了なし）の場合、Phase完了で依存が満たされる", () => {
+      // Given: 'Phase 2'に依存するタスク（Phase 2は完了済み）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["Phase 2"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1", "2.2"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+            {
+              id: "2.2",
+              name: "タスク2.2",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る
+      expect(result).toBe(true);
+    });
+
+    it("Phase依存'フェーズ2'（日本語）の場合、Phase完了で依存が満たされる", () => {
+      // Given: 'フェーズ2'に依存するタスク（Phase 2は完了済み）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["フェーズ2"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る
+      expect(result).toBe(true);
+    });
+
+    it("Phase依存'Phase2'（スペースなし）の場合、Phase完了で依存が満たされる", () => {
+      // Given: 'Phase2'に依存するタスク（Phase 2は完了済み）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["Phase2"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る
+      expect(result).toBe(true);
+    });
+
+    it("Phase依存'フェーズ 2 完了'（日本語＋スペース＋完了）の場合、Phase完了で依存が満たされる", () => {
+      // Given: 'フェーズ 2 完了'に依存するタスク（Phase 2は完了済み）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["フェーズ 2 完了"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る
+      expect(result).toBe(true);
+    });
+
+    it("Phase依存'Phase 2'が未完了の場合、falseを返す", () => {
+      // Given: 'Phase 2'に依存するタスク（Phase 2は未完了）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["Phase 2"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+            {
+              id: "2.2",
+              name: "タスク2.2",
+              phaseNumber: 2,
+              status: "pending",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: falseが返る（2.2が未完了）
+      expect(result).toBe(false);
+    });
+
+    it("Phase依存'フェーズ 2'（日本語＋スペース・完了なし）の場合、Phase完了で依存が満たされる", () => {
+      // Given: 'フェーズ 2'に依存するタスク（Phase 2は完了済み）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["フェーズ 2"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る
+      expect(result).toBe(true);
+    });
+
+    it("Phase依存'Phase 2完了'（英語・完了あり）の場合、Phase完了で依存が満たされる", () => {
+      // Given: 'Phase 2完了'に依存するタスク（Phase 2は完了済み）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["Phase 2完了"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る
+      expect(result).toBe(true);
+    });
+
+    it("Phase依存'フェーズ2完了'（日本語・スペースなし・完了あり）の場合、Phase完了で依存が満たされる", () => {
+      // Given: 'フェーズ2完了'に依存するタスク（Phase 2は完了済み）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["フェーズ2完了"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る
+      expect(result).toBe(true);
+    });
+
+    it("Phase依存'PHASE 2'（大文字）の場合、Phase完了で依存が満たされる", () => {
+      // Given: 'PHASE 2'に依存するタスク（Phase 2は完了済み）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["PHASE 2"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る（大文字小文字を区別しない）
+      expect(result).toBe(true);
+    });
+
+    it("Phase依存'phase 2'（小文字）の場合、Phase完了で依存が満たされる", () => {
+      // Given: 'phase 2'に依存するタスク（Phase 2は完了済み）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["phase 2"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る（大文字小文字を区別しない）
+      expect(result).toBe(true);
+    });
+
+    it("Phase依存に似た文字列'Phase 2A'（後ろに文字）は、Phase依存として認識されない", () => {
+      // Given: 'Phase 2A'に依存するタスク（タスクグループIDとして扱われるべき）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["Phase 2A"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>();
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: falseが返る（Phase 2Aはタスクグループとして扱われ、未完了扱い）
+      expect(result).toBe(false);
+    });
+
+    it("Phase依存に似た文字列'Subphase 2'（前にテキスト）は、Phase依存として認識されない", () => {
+      // Given: 'Subphase 2'に依存するタスク（タスクグループIDとして扱われるべき）
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["Subphase 2"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>();
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: falseが返る（Subphase 2はタスクグループとして扱われ、未完了扱い）
+      expect(result).toBe(false);
+    });
+
+    it("Phase依存に似た文字列'フェーズ2 完了済'（後ろに余分な文字）は、Phase依存として認識されない", () => {
+      // Given: 'フェーズ2 完了済'に依存するタスク
+      const taskGroup: TaskGroup = {
+        id: "3.1",
+        name: "タスク3.1",
+        phaseNumber: 3,
+        status: "pending",
+        dependencies: ["フェーズ2 完了済"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>();
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: falseが返る（フェーズ2 完了済はタスクグループとして扱われ、未完了扱い）
+      expect(result).toBe(false);
+    });
+
+    it("タスクグループID'2.1'は、Phase依存として認識されない", () => {
+      // Given: '2.1'に依存するタスク（タスクグループIDとして扱われるべき）
+      const taskGroup: TaskGroup = {
+        id: "2.2",
+        name: "タスク2.2",
+        phaseNumber: 2,
+        status: "pending",
+        dependencies: ["2.1"],
+        completionCriteria: "完了",
+        tasks: [],
+      };
+      const completedGroups = new Set<string>(["2.1"]);
+      const phases: Phase[] = [
+        {
+          number: 2,
+          name: "Phase 2",
+          taskGroups: [
+            {
+              id: "2.1",
+              name: "タスク2.1",
+              phaseNumber: 2,
+              status: "completed",
+              dependencies: [],
+              completionCriteria: "完了",
+              tasks: [],
+            },
+          ],
+        },
+      ];
+
+      // When: 依存関係チェック
+      const result = isDependencySatisfied(taskGroup, completedGroups, phases);
+
+      // Then: trueが返る（2.1はタスクグループIDとして正しく処理される）
+      expect(result).toBe(true);
+    });
+
     it("Issue依存'#123'の場合、同期チェックではtrueを返す", () => {
       // Given: Issue #123に依存するタスク
       const taskGroup: TaskGroup = {

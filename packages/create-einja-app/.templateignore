@@ -4,7 +4,6 @@ node_modules/
 .git/
 .github/workflows/create-einja-app.yml
 .github/workflows/release-cli.yml
-.github/ISSUE_TEMPLATE/
 .next/
 out/
 dist/

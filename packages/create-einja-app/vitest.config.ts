@@ -10,6 +10,8 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     exclude: ["templates/**", "node_modules/**"],
+    // テストファイル間の並列実行を無効化（template.test.tsが実テンプレートを変更するため）
+    fileParallelism: false,
     // ルート設定ファイルを無視
     root: __dirname,
     coverage: {

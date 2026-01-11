@@ -201,7 +201,7 @@ function parseMetadata(
 
   for (const line of lines) {
     // 依存関係: **依存関係**: ...
-    const depMatch = line.match(/\*\*依存関係\*\*:\s*(.+)$/);
+    const depMatch = line.match(/^\s*(?:[-*]\s*)?\*\*依存関係\*\*:\s*(.+)$/);
     if (depMatch) {
       const depText = depMatch[1].trim();
       if (depText === "なし" || depText === "-" || depText === "") {
@@ -226,7 +226,7 @@ function parseMetadata(
     }
 
     // 完了条件: **完了条件**: ...
-    const criteriaMatch = line.match(/\*\*完了条件\*\*:\s*(.+)$/);
+    const criteriaMatch = line.match(/^\s*(?:[-*]\s*)?\*\*完了条件\*\*:\s*(.+)$/);
     if (criteriaMatch) {
       completionCriteria = criteriaMatch[1].trim();
     }

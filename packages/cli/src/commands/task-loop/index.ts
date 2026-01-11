@@ -239,7 +239,10 @@ export async function taskLoopCommand(
       console.log(`   📊 Done: ${doneTasks.length}件 (対象Issue) / ${totalDoneTasks}件 (全体)`);
 
       // Done 増加を検知
-      const newlyCompletedVibeTaskIds = stateManager.detectNewlyCompletedTasks(currentTasks);
+      const newlyCompletedVibeTaskIds = stateManager.detectNewlyCompletedTasks(
+        currentTasks,
+        descriptionCache
+      );
 
       if (newlyCompletedVibeTaskIds.length > 0) {
         console.log(`✅ 新たに完了したタスク: ${newlyCompletedVibeTaskIds.length} 件`);

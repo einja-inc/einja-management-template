@@ -1027,7 +1027,7 @@ describe("dependency-resolver", () => {
       expect(result).toBe(false);
     });
 
-    it("タスクグループが存在しない場合、trueを返す", () => {
+    it("タスクグループが存在しない場合、falseを返す", () => {
       // Given: タスクグループが空のIssue
       const parsedIssue: ParsedIssue = {
         issueNumber: 1,
@@ -1039,8 +1039,8 @@ describe("dependency-resolver", () => {
       // When: 全タスク完了チェック
       const result = isAllTasksCompleted(parsedIssue);
 
-      // Then: trueが返る（タスクが存在しない=全て完了と見なす）
-      expect(result).toBe(true);
+      // Then: falseが返る（タスクが存在しない場合は未完了と見なす）
+      expect(result).toBe(false);
     });
   });
 

@@ -154,18 +154,22 @@ export async function selectNextTaskGroup(
 export function isAllTasksCompleted(parsedIssue: ParsedIssue, maxTaskNumber?: string): boolean {
   const allTaskGroups = getAllTaskGroups(parsedIssue);
 
+  let checkedCount = 0;
+
   for (const taskGroup of allTaskGroups) {
     // 最大タスク番号の範囲内のタスクのみチェック
     if (!isWithinRange(taskGroup.id, maxTaskNumber)) {
       continue;
     }
+    checkedCount++;
 
     if (taskGroup.status !== "completed") {
       return false;
     }
   }
 
-  return true;
+  // タスクグループが0件の場合はfalseを返す
+  return checkedCount > 0;
 }
 
 /**

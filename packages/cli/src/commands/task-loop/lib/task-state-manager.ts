@@ -17,6 +17,29 @@ export class TaskStateManager {
   private previousDoneTaskIds: Set<string> = new Set();
   /** Vibe-Kanban タスク ID -> タスクグループ ID のマッピング */
   private vibeTaskToGroupMap: Map<string, string> = new Map();
+  /** 対象Issue番号（フィルタリング用） */
+  private targetIssueNumber: number | null = null;
+
+  /**
+   * タスクが対象Issueに属するかチェック
+   */
+  private isTaskForTargetIssue(
+    task: VibeKanbanTask,
+    descriptionCache?: Map<string, string | null>
+  ): boolean {
+    if (this.targetIssueNumber === null) return true;
+
+    // 新形式: タイトルからIssue番号を抽出
+    const titleIssueNum = extractIssueNumberFromTitle(task.title);
+    if (titleIssueNum === this.targetIssueNumber) return true;
+
+    // 旧形式: descriptionで判定
+    if (descriptionCache) {
+      const desc = descriptionCache.get(task.id);
+      if (desc?.includes(`GitHub Issue #${this.targetIssueNumber}`)) return true;
+    }
+    return false;
+  }
 
   /**
    * Vibe-Kanban タスク ID とタスクグループ ID のマッピングを登録
@@ -29,7 +52,7 @@ export class TaskStateManager {
   /**
    * 現在の Done タスク ID 一覧を設定（初期化用）
    * @param tasks 全タスク一覧
-   * @param issueNumber 対象Issue番号（ログ出力のフィルタリング用、省略時は全件表示）
+   * @param issueNumber 対象Issue番号（フィルタリング用、省略時は全件対象）
    * @param descriptionCache タスクID -> description のキャッシュ（旧形式タスクのIssue判定用）
    */
   initializeDoneTaskIds(
@@ -37,33 +60,23 @@ export class TaskStateManager {
     issueNumber?: number,
     descriptionCache?: Map<string, string | null>
   ): void {
-    const doneTasks = tasks.filter((t) => t.status === "done");
-    this.previousDoneTaskIds = new Set(doneTasks.map((t) => t.id));
-
-    // ログ出力：対象Issueに関連するタスクのみ表示
-    if (!issueNumber) {
-      console.log(`🔧 初期化: previousDoneTaskIds に ${doneTasks.length} 件を登録`);
-      return;
+    // Issue番号を保持
+    if (issueNumber !== undefined) {
+      this.targetIssueNumber = issueNumber;
     }
 
-    const issuePatternInDesc = `GitHub Issue #${issueNumber}`;
-    const relevantDoneTasks = doneTasks.filter((t) => {
-      // 新形式: タイトルからIssue番号を抽出
-      const titleIssueNum = extractIssueNumberFromTitle(t.title);
-      if (titleIssueNum === issueNumber) return true;
+    // フィルタリング適用（対象Issue番号がある場合のみ）
+    const doneTasks = tasks
+      .filter((t) => t.status === "done")
+      .filter((t) => this.isTaskForTargetIssue(t, descriptionCache));
 
-      // 旧形式: descriptionで判定
-      if (descriptionCache) {
-        const desc = descriptionCache.get(t.id);
-        if (desc?.includes(issuePatternInDesc)) return true;
-      }
-      return false;
-    });
+    this.previousDoneTaskIds = new Set(doneTasks.map((t) => t.id));
 
+    // ログ出力
     console.log(`🔧 初期化: previousDoneTaskIds に ${doneTasks.length} 件を登録`);
-    if (relevantDoneTasks.length > 0) {
-      console.log(`   (Issue #${issueNumber} 関連: ${relevantDoneTasks.length} 件)`);
-      for (const task of relevantDoneTasks) {
+    if (issueNumber !== undefined && doneTasks.length > 0) {
+      console.log(`   (Issue #${issueNumber} 関連: ${doneTasks.length} 件)`);
+      for (const task of doneTasks) {
         const taskGroupId = extractTaskGroupIdFromTitle(task.title);
         console.log(`   - ${taskGroupId || task.title}`);
       }
@@ -72,11 +85,21 @@ export class TaskStateManager {
 
   /**
    * Done 状態の変化を検出
+   * @param currentTasks 現在のタスク一覧
+   * @param descriptionCache タスクID -> description のキャッシュ（旧形式タスクのIssue判定用）
    * @returns 新たに Done になったタスクの ID 一覧
    */
-  detectNewlyCompletedTasks(currentTasks: VibeKanbanTask[]): string[] {
+  detectNewlyCompletedTasks(
+    currentTasks: VibeKanbanTask[],
+    descriptionCache?: Map<string, string | null>
+  ): string[] {
+    // 対象Issueに関連するタスクのみフィルタリング
+    const relevantTasks = currentTasks.filter((t) =>
+      this.isTaskForTargetIssue(t, descriptionCache)
+    );
+
     const currentDoneIds = new Set(
-      currentTasks.filter((t) => t.status === "done").map((t) => t.id)
+      relevantTasks.filter((t) => t.status === "done").map((t) => t.id)
     );
 
     // デバッグ: 比較情報を出力

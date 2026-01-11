@@ -13,6 +13,7 @@ import {
   mergePhaseBranchIntoIssue,
   syncPhaseBranch,
 } from "./lib/branch-manager.js";
+import { selectBaseBranch } from "./lib/branch-selector.js";
 import {
   detectCircularDependencies,
   getCompletedPhaseNumbers,
@@ -33,6 +34,7 @@ import {
 } from "./lib/task-state-manager.js";
 import type { ParsedIssue } from "./lib/types.js";
 import { VibeKanbanClient } from "./lib/vibe-kanban-client.js";
+import { getWorktreePathByAttemptId, runDirenvAllow } from "./lib/worktree-utils.js";
 
 export interface TaskLoopOptions {
   maxGroup?: string;
@@ -88,7 +90,7 @@ export async function taskLoopCommand(
   }
 
   const maxTaskNumber = options.maxGroup;
-  const baseBranch = options.branch ?? "main";
+  const baseBranch = await selectBaseBranch(options.branch);
 
   // GitHub CLI セットアップ確認
   ensureGhSetup();
@@ -417,6 +419,19 @@ async function startExecutableTasks(
       console.log(
         `   ▶️  タスク開始: ${taskGroup.id} (base: ${phaseBranch}, attempt: ${attempt?.id ?? "unknown"})`
       );
+
+      // direnv allow 自動実行
+      if (attempt?.id) {
+        const worktreePath = await getWorktreePathByAttemptId(attempt.id);
+        if (worktreePath) {
+          const result = runDirenvAllow(worktreePath);
+          if (result.success) {
+            console.log(`   ✅ direnv allow 完了: ${worktreePath}`);
+          } else {
+            console.warn(`   ⚠️ direnv allow 失敗: ${result.error}`);
+          }
+        }
+      }
     } catch (error) {
       console.error(`   ❌ Attempt開始失敗: ${taskGroup.id}`, error);
     }

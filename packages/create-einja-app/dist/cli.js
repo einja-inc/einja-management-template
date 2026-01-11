@@ -1970,7 +1970,7 @@ async function addCommand(options) {
 // src/commands/sync.ts
 import { dirname as dirname6, join as join16 } from "path";
 import { fileURLToPath as fileURLToPath3 } from "url";
-import { existsSync as existsSync8 } from "fs-extra";
+import fsExtra3 from "fs-extra";
 import inquirer8 from "inquirer";
 
 // src/generators/sync.ts
@@ -2272,8 +2272,9 @@ async function promptSyncCategories(templateDir) {
 }
 
 // src/utils/backup.ts
-import { copy, ensureDir as ensureDir2, readdir as readdir4, remove, pathExists } from "fs-extra";
+import fsExtra2 from "fs-extra";
 import { join as join15, dirname as dirname5, relative as relative3 } from "path";
+var { copy, ensureDir: ensureDir2, readdir: readdir4, remove, pathExists } = fsExtra2;
 function getTimestamp() {
   const now = /* @__PURE__ */ new Date();
   const year = now.getFullYear();
@@ -2490,6 +2491,7 @@ async function handleInterrupt() {
 function getTemplatePath3() {
   const __filename3 = fileURLToPath3(import.meta.url);
   const __dirname3 = dirname6(__filename3);
+  const { existsSync: existsSync8 } = fsExtra3;
   const distPath = join16(__dirname3, "../templates/default");
   const srcPath = join16(__dirname3, "../../templates/default");
   if (existsSync8(distPath)) {
@@ -2501,6 +2503,7 @@ function getTemplatePath3() {
   throw new Error("\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093");
 }
 async function syncCommand(options) {
+  const { existsSync: existsSync8 } = fsExtra3;
   const sigintHandler = () => {
     handleInterrupt().catch((error2) => {
       error(`\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u4E2D\u306B\u30A8\u30E9\u30FC: ${error2}`);

@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "fs-extra";
+import fsExtra from "fs-extra";
 import inquirer from "inquirer";
 import { collectSyncFiles } from "../generators/sync.js";
 import { promptSyncCategories } from "../prompts/sync.js";
@@ -63,6 +63,7 @@ async function handleInterrupt(): Promise<void> {
 function getTemplatePath(): string {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
+  const { existsSync } = fsExtra;
 
   // dist/cli.js → ../templates/default (1階層上)
   // src/commands/sync.ts → ../../templates/default (2階層上)
@@ -83,6 +84,7 @@ function getTemplatePath(): string {
  * sync コマンドのメイン関数
  */
 export async function syncCommand(options: SyncOptions): Promise<void> {
+  const { existsSync } = fsExtra;
   // Ctrl+C (SIGINT) ハンドラーを登録
   const sigintHandler = () => {
     handleInterrupt().catch((error) => {

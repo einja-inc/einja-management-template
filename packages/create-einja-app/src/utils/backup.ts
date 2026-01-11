@@ -1,4 +1,4 @@
-import { copy, ensureDir, readdir, stat, remove, pathExists } from "fs-extra";
+import fsExtra from "fs-extra";
 import { join, dirname, relative } from "node:path";
 import * as logger from "./logger.js";
 
@@ -13,6 +13,8 @@ export interface BackupInfo {
   /** 作成日時 */
   timestamp: Date;
 }
+
+const { copy, ensureDir, readdir, remove, pathExists } = fsExtra;
 
 /**
  * 現在のタイムスタンプを取得（YYYY-MM-DD_HH-mm-ss形式）

@@ -50,14 +50,37 @@ function loadIgnorePatterns(): ReturnType<typeof ignore> {
 }
 
 /**
+ * @einja:template-exclude マーカーを除去し、除外後の空行・水平線をクリーンアップ
+ */
+function removeExcludeMarkers(content: string): string {
+  const excludePattern =
+    /<!-- @einja:template-exclude:start -->[\s\S]*?<!-- @einja:template-exclude:end -->/g;
+  let result = content.replace(excludePattern, "");
+
+  // 連続する水平線を1つに
+  result = result.replace(/(\n---\s*){2,}/g, "\n---\n");
+
+  // 3行以上の空行を2行に圧縮
+  result = result.replace(/\n{3,}/g, "\n\n");
+
+  return result;
+}
+
+/**
  * プレースホルダー変数に変換
  *
  * - package.json: name, description を変換
  * - tsconfig.json: paths 内の @repo/* を {{packageName}}/* に変換
  * - import文: @repo/ を {{packageName}}/ に変換
+ * - README.md（ルートのみ）: @einja:template-exclude マーカー除去
  */
 function transformContent(filePath: string, content: string): string {
   const fileName = path.basename(filePath);
+
+  // ルートREADME.mdの変換（@einja:template-exclude マーカー除去）
+  if (filePath === "README.md") {
+    content = removeExcludeMarkers(content);
+  }
 
   // package.json の変換
   if (fileName === "package.json") {

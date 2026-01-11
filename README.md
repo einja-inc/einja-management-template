@@ -4,6 +4,7 @@ Turborepo + Next.js 15 + Auth.js + Prisma 構成のプロジェクトテンプ�
 
 ---
 
+<!-- @einja:template-exclude:start -->
 ## パッケージ利用者向け
 
 ### create-einja-app - 新規プロジェクト作成
@@ -95,6 +96,7 @@ npx @einja/dev-cli sync --only commands,agents
 | 新規プロジェクトを作成したい | `npx create-einja-app my-project` |
 | 既存プロジェクトにClaude設定を追加したい | `npx @einja/dev-cli init` |
 | Claude設定を最新に更新したい | `npx @einja/dev-cli sync` |
+<!-- @einja:template-exclude:end -->
 
 ---
 
@@ -318,6 +320,7 @@ pnpm db:studio
 - **@repo/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
 - **@repo/ui**: 共通UIコンポーネント（shadcn/ui）
 
+<!-- @einja:template-exclude:start -->
 ### CLIパッケージの開発
 
 #### @einja/dev-cli
@@ -339,6 +342,7 @@ pnpm build      # ビルド（テンプレート更新含む）
 pnpm test       # テスト
 pnpm typecheck  # 型チェック
 ```
+<!-- @einja:template-exclude:end -->
 
 ### 開発ワークフロー
 

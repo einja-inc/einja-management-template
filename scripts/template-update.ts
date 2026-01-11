@@ -12,9 +12,11 @@
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -166,10 +168,32 @@ function transformImports(content: string): string {
 }
 
 /**
+ * @einja:template-exclude マーカーを除去し、除外後の空行・水平線をクリーンアップ
+ */
+function removeExcludeMarkers(content: string): string {
+  const excludePattern =
+    /<!-- @einja:template-exclude:start -->[\s\S]*?<!-- @einja:template-exclude:end -->/g;
+  let result = content.replace(excludePattern, "");
+
+  // 連続する水平線を1つに
+  result = result.replace(/(\n---\s*){2,}/g, "\n---\n");
+
+  // 3行以上の空行を2行に圧縮
+  result = result.replace(/\n{3,}/g, "\n\n");
+
+  return result;
+}
+
+/**
  * ファイル内容を変換
  */
 function transformFileContent(filePath: string, content: string): string {
   const fileName = filePath.split("/").pop() || "";
+
+  // ルートREADME.mdの変換（@einja:template-exclude マーカー除去）
+  if (filePath === "README.md") {
+    return removeExcludeMarkers(content);
+  }
 
   // package.json の変換
   if (fileName === "package.json") {
@@ -201,7 +225,7 @@ async function main(): Promise<void> {
     "packages",
     "create-einja-app",
     "templates",
-    "turborepo-pandacss"
+    "default"
   );
 
   console.log("\n🔄 テンプレート更新を開始...\n");
@@ -250,6 +274,22 @@ async function main(): Promise<void> {
   for (const file of filesToCopy) {
     const sourcePath = join(rootDir, file);
     const destPath = join(templateDir, file);
+
+    // ファイルの存在確認
+    if (!existsSync(sourcePath)) {
+      continue;
+    }
+
+    // シンボリックリンクの場合はスキップ
+    const stats = lstatSync(sourcePath);
+    if (stats.isSymbolicLink()) {
+      continue;
+    }
+
+    // ディレクトリの場合はスキップ（念のため）
+    if (stats.isDirectory()) {
+      continue;
+    }
 
     // ディレクトリを作成
     const destDir = dirname(destPath);

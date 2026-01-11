@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mergeTextWithMarkers } from "../../src/utils/merger.js";
 
 describe("mergeTextWithMarkers - ID安全性テスト", () => {
-  it("テンプレートの先頭に新しいID付きmanagedセクションが追加されても、ローカルの既存IDなしセクションは保持される", () => {
+  it("テンプレートの先頭に新しいID付きmanagedセクションが追加された場合、IDなしセクションはテンプレートで上書きされる", () => {
     // Given: ローカルにIDなしmanagedセクションが1つ存在
     const localContent = `# ドキュメント
 
@@ -28,14 +28,14 @@ describe("mergeTextWithMarkers - ID安全性テスト", () => {
     // When: マージを実行
     const result = mergeTextWithMarkers(templateContent, localContent);
 
-    // Then: ローカルの既存IDなしセクションは保持される（テンプレートのIDなしセクションで上書きされない）
-    expect(result).toContain("既存のローカル内容");
-    expect(result).not.toContain("テンプレートの内容（IDなし）");
+    // Then: IDなしセクションはテンプレート内容で上書きされる
+    expect(result).toContain("テンプレートの内容（IDなし）");
+    expect(result).not.toContain("既存のローカル内容");
 
     // Then: 新しいID付きセクションは末尾に追加される
     expect(result).toContain("新しいセクション（ID付き）");
     const newSectionIndex = result.indexOf("新しいセクション（ID付き）");
-    const existingContentIndex = result.indexOf("既存のローカル内容");
+    const existingContentIndex = result.indexOf("テンプレートの内容（IDなし）");
     expect(newSectionIndex).toBeGreaterThan(existingContentIndex);
   });
 
@@ -113,7 +113,7 @@ describe("mergeTextWithMarkers - ID安全性テスト", () => {
     expect(sectionCIndex).toBeGreaterThan(sectionBIndex);
   });
 
-  it("IDなしmanagedセクションが複数ある場合、すべてローカル内容を保持する", () => {
+  it("IDなしmanagedセクションが複数ある場合、テンプレート内容で上書きされる", () => {
     // Given: ローカルに複数のIDなしmanagedセクションが存在
     const localContent = `# ドキュメント
 
@@ -143,11 +143,11 @@ describe("mergeTextWithMarkers - ID安全性テスト", () => {
     // When: マージを実行
     const result = mergeTextWithMarkers(templateContent, localContent);
 
-    // Then: すべてのIDなしセクションはローカル内容を保持する（インデックスマッチングは行わない）
-    expect(result).toContain("ローカルセクション1");
-    expect(result).toContain("ローカルセクション2");
-    expect(result).not.toContain("テンプレートセクション1");
-    expect(result).not.toContain("テンプレートセクション2");
+    // Then: すべてのIDなしセクションはテンプレート内容で上書きされる
+    expect(result).toContain("テンプレートセクション1");
+    expect(result).toContain("テンプレートセクション2");
+    expect(result).not.toContain("ローカルセクション1");
+    expect(result).not.toContain("ローカルセクション2");
   });
 
   it("混在ケース: ID付きとIDなしのmanagedセクションが両方存在する", () => {
@@ -192,9 +192,9 @@ describe("mergeTextWithMarkers - ID安全性テスト", () => {
     expect(result).toContain("テンプレートのセクションA（更新済み）");
     expect(result).toContain("テンプレートのセクションC（更新済み）");
 
-    // Then: IDなしセクションはローカルを保持
-    expect(result).toContain("ローカルのセクションB（IDなし）");
-    expect(result).not.toContain("テンプレートのセクションB（IDなし・更新済み）");
+    // Then: IDなしセクションはテンプレートで上書き
+    expect(result).toContain("テンプレートのセクションB（IDなし・更新済み）");
+    expect(result).not.toContain("ローカルのセクションB（IDなし）");
 
     // Then: 新規ID付きセクションは末尾に追加
     expect(result).toContain("テンプレートのセクションD（新規・ID付き）");

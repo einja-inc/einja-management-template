@@ -1,7 +1,9 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, basename } from "node:path";
 import type { SyncMetadata, JsonPathsConfig } from "../types/index.js";
 import { ensureDir } from "./fs.js";
+import { mergePackageJsonDependencies } from "./package-json-merger.js";
+import * as logger from "./logger.js";
 
 /**
  * マーカーベースのテキストマージを行う
@@ -262,17 +264,88 @@ export async function saveSyncMetadata(
 }
 
 /**
+ * package.json の特殊マージ処理
+ *
+ * @param existingContent - 既存の package.json の内容
+ * @param templateContent - テンプレートの package.json の内容
+ * @param packageJsonSections - 同期対象のセクション（指定がない場合は全セクション）
+ * @returns マージ後の package.json の内容
+ */
+async function mergePackageJson(
+  existingContent: string,
+  templateContent: string,
+  packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">
+): Promise<string> {
+  // Given: JSON をパース
+  const existingPkg = JSON.parse(existingContent) as Record<string, unknown>;
+  const templatePkg = JSON.parse(templateContent) as Record<string, unknown>;
+
+  // When: 既存の内容をベースにする
+  const result = { ...existingPkg };
+
+  // When: scripts をマージ（セクション指定がない、またはscriptsが含まれる場合のみ）
+  if ((!packageJsonSections || packageJsonSections.includes("scripts")) && templatePkg.scripts && typeof templatePkg.scripts === "object") {
+    result.scripts = {
+      ...(existingPkg.scripts && typeof existingPkg.scripts === "object"
+        ? existingPkg.scripts
+        : {}),
+      ...templatePkg.scripts,
+    };
+  }
+
+  // When: dependencies をバージョン競合処理付きでマージ（セクション指定がない、またはdependenciesが含まれる場合のみ）
+  if ((!packageJsonSections || packageJsonSections.includes("dependencies")) && templatePkg.dependencies && typeof templatePkg.dependencies === "object") {
+    result.dependencies = await mergePackageJsonDependencies(
+      (existingPkg.dependencies && typeof existingPkg.dependencies === "object"
+        ? existingPkg.dependencies
+        : {}) as Record<string, string>,
+      templatePkg.dependencies as Record<string, string>,
+      false
+    );
+  }
+
+  // When: devDependencies をバージョン競合処理付きでマージ（セクション指定がない、またはdevDependenciesが含まれる場合のみ）
+  if ((!packageJsonSections || packageJsonSections.includes("devDependencies")) && templatePkg.devDependencies && typeof templatePkg.devDependencies === "object") {
+    result.devDependencies = await mergePackageJsonDependencies(
+      (existingPkg.devDependencies && typeof existingPkg.devDependencies === "object"
+        ? existingPkg.devDependencies
+        : {}) as Record<string, string>,
+      templatePkg.devDependencies as Record<string, string>,
+      false
+    );
+  }
+
+  // When: engines を完全置換（セクション指定がない、またはenginesが含まれる場合のみ）
+  if ((!packageJsonSections || packageJsonSections.includes("engines")) && templatePkg.engines && typeof templatePkg.engines === "object") {
+    if (
+      existingPkg.engines &&
+      JSON.stringify(existingPkg.engines) !== JSON.stringify(templatePkg.engines)
+    ) {
+      logger.warn("⚠️ engines を置換します:");
+      logger.warn(`  既存: ${JSON.stringify(existingPkg.engines)}`);
+      logger.warn(`  新規: ${JSON.stringify(templatePkg.engines)}`);
+    }
+    result.engines = templatePkg.engines;
+  }
+
+  // Then: JSON 文字列として返す
+  return `${JSON.stringify(result, null, 2)}\n`;
+}
+
+/**
  * ファイルマージの実行（テキスト/JSON自動判定）
  *
  * @param templatePath - テンプレートファイルのパス
  * @param targetPath - ターゲットファイルのパス
  * @param syncMetadata - 同期メタデータ
+ * @param packageJsonSections - 同期対象のpackage.jsonセクション（指定がない場合は全セクション）
  * @returns マージ結果
  */
 export async function mergeAndWriteFile(
   templatePath: string,
   targetPath: string,
-  syncMetadata: SyncMetadata
+  syncMetadata: SyncMetadata,
+  packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">
 ): Promise<{
   action: "created" | "merged" | "skipped" | "overwritten";
   path: string;
@@ -283,6 +356,7 @@ export async function mergeAndWriteFile(
 
   // Given: ファイルがJSONかどうか判定
   const isJsonFile = targetPath.endsWith(".json");
+  const isPackageJson = basename(targetPath) === "package.json";
 
   let mergedContent: string;
   let action: "created" | "merged" | "skipped" | "overwritten";
@@ -291,6 +365,16 @@ export async function mergeAndWriteFile(
     // When: ファイルが存在しない場合は新規作成
     mergedContent = templateContent;
     action = "created";
+  } else if (isPackageJson && existingContent) {
+    // When: package.json の特殊処理
+    try {
+      mergedContent = await mergePackageJson(existingContent, templateContent, packageJsonSections);
+      action = "merged";
+    } catch {
+      // Then: パースエラーの場合はテンプレートで上書き
+      mergedContent = templateContent;
+      action = "overwritten";
+    }
   } else if (isJsonFile) {
     // When: JSONファイルの場合はディープマージ
     try {

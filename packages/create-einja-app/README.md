@@ -37,9 +37,6 @@ npx create-einja-app my-project
 #### オプション付き実行
 
 ```bash
-# デフォルト値で作成（プロンプトスキップ）
-npx create-einja-app my-project --yes
-
 # Git初期化をスキップ
 npx create-einja-app my-project --skip-git
 
@@ -79,12 +76,11 @@ npx create-einja-app --setup
 |----------|------|----------|
 | `--skip-git` | Git初期化をスキップ | false |
 | `--skip-install` | 依存関係インストールをスキップ | false |
-| `-y, --yes` | 対話プロンプトをスキップ（デフォルト値使用） | false |
 
 **例:**
 
 ```bash
-npx create-einja-app my-project --yes --skip-git
+npx create-einja-app my-project --skip-git
 ```
 
 ### `create-einja-app --setup`
@@ -106,8 +102,7 @@ npx create-einja-app --setup
 
 | オプション | 説明 | デフォルト |
 |----------|------|----------|
-| `-y, --yes` | 対話プロンプトをスキップ（全コンポーネント選択） | false |
-| `--all` | `-y`と同義 | false |
+| `--all` | 全コンポーネントを選択 | false |
 | `--dry-run` | 変更をプレビュー（実際のファイル操作なし） | false |
 
 **対話式フロー:**
@@ -223,6 +218,16 @@ pnpm dev
 
 開発サーバーが起動したら、ターミナルに表示されるURLにアクセスしてください。
 （ポート番号はワークツリーのブランチ名から自動計算されます）
+
+---
+
+### デプロイ
+
+本番環境へのデプロイ手順については、プロジェクト内の以下のドキュメントを参照してください：
+
+📘 **[README.md](./README.md)** - プロジェクト全体の概要とクイックスタート
+
+📘 **[docs/einja/instructions/deployment-setup.md](./docs/einja/instructions/deployment-setup.md)** - 詳細なデプロイ手順
 
 ---
 

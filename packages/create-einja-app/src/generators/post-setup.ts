@@ -74,12 +74,14 @@ function printCompletionMessage(config: ProjectConfig): void {
   console.log(chalk.cyan("  docker-compose up -d postgres"));
   console.log(chalk.cyan("  pnpm dev"));
   console.log();
-  console.log(chalk.gray("開発サーバー: ターミナルに表示されるURLを確認"));
-  console.log();
   console.log(
-    chalk.yellow("⚠ 重要: ") +
-      chalk.gray("pnpm env:update で環境変数を自分のプロジェクト用に再設定してください")
+    chalk.yellow("⚠ セキュリティ: テンプレートの秘密鍵をそのまま使用しないでください")
   );
+  console.log(
+    chalk.gray("  pnpm env:rotate-secrets  # 秘密鍵を自分のプロジェクト用に再生成")
+  );
+  console.log();
+  console.log(chalk.gray("開発サーバー: ターミナルに表示されるURLを確認"));
   console.log();
   console.log(chalk.gray("詳細は README.md をご確認ください。"));
   console.log();

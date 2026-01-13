@@ -11,11 +11,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
-import {
-	type AppConfig,
-	type WorktreeConfig,
-	loadWorktreeConfig,
-} from "@repo/config";
+import type { AppConfig, WorktreeConfig } from "../../packages/config/src/worktree-config.js";
+import { loadWorktreeConfig } from "../../packages/config/src/worktree-config-loader.js";
 
 /** 設定を保持するグローバル変数 */
 let config: WorktreeConfig;
@@ -597,6 +594,9 @@ export function runMigration(databaseName: string): void {
 	}
 }
 
+/**
+ * Panda CSS のコード生成を実行
+ */
 /**
  * 開発サーバーを起動（turbo経由）
  *

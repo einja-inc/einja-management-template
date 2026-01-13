@@ -27,8 +27,7 @@ npx create-einja-app my-project
 
 ```bash
 cd my-project
-docker-compose up -d postgres  # PostgreSQL起動
-pnpm dev                       # 開発サーバー起動
+pnpm dev                       # PostgreSQL起動 + 開発サーバー起動
 ```
 
 ブラウザで http://localhost:3000 にアクセス

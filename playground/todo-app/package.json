@@ -1,0 +1,17 @@
+{
+	"name": "playground-todo-app",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"db:generate": "prisma generate",
+		"db:push": "prisma db push",
+		"db:migrate": "prisma migrate dev",
+		"db:studio": "prisma studio"
+	},
+	"dependencies": {
+		"@prisma/client": "^6.10.1"
+	},
+	"devDependencies": {
+		"prisma": "^6.10.1"
+	}
+}

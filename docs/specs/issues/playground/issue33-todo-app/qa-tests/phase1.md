@@ -89,23 +89,26 @@ pnpm typecheck
 
 | No | 手順 | 確認項目 | 期待値 | 結果 | 備考 |
 |----|------|---------|--------|------|------|
-| 1 | pnpm db:push 実行 | マイグレーション実行 | 成功メッセージが表示される | ✅ PASS | dev.dbファイルが存在 |
-| 2 | - | todoテーブル作成 | "Todo" table created | ✅ PASS | todosテーブル確認済み |
-| 3 | sqlite3 prisma/dev.db "PRAGMA table_info(todos);" | テーブル構造確認 | スキーマが取得できる | ✅ PASS | 5カラム確認 |
-| 4 | - | idカラム | String型、主キー、CUID生成 | ✅ PASS | TEXT, PRIMARY KEY |
-| 5 | - | titleカラム | String型、NOT NULL | ✅ PASS | TEXT, NOT NULL |
-| 6 | - | completedカラム | Boolean型、デフォルトfalse | ✅ PASS | BOOLEAN, DEFAULT false |
-| 7 | - | createdAtカラム | DateTime型、デフォルトnow() | ✅ PASS | DATETIME, DEFAULT CURRENT_TIMESTAMP |
-| 8 | - | updatedAtカラム | DateTime型、自動更新 | ✅ PASS | DATETIME, NOT NULL |
+| 1 | docker compose up -d postgres | PostgreSQL起動 | コンテナ起動成功 | ✅ PASS | einja-postgres |
+| 2 | pnpm db:push 実行 | マイグレーション実行 | 成功メッセージが表示される | ✅ PASS | PostgreSQL接続成功 |
+| 3 | docker exec einja-postgres psql -U postgres -d einja_management -c "\\d todos" | テーブル構造確認 | スキーマが取得できる | ✅ PASS | 5カラム確認 |
+| 4 | - | idカラム | text型、主キー | ✅ PASS | text, PRIMARY KEY |
+| 5 | - | titleカラム | character varying(255)型、NOT NULL | ✅ PASS | varchar(255), NOT NULL |
+| 6 | - | completedカラム | boolean型、デフォルトfalse | ✅ PASS | boolean, DEFAULT false |
+| 7 | - | createdAtカラム | timestamp(3)型、デフォルトnow() | ✅ PASS | timestamp(3), DEFAULT CURRENT_TIMESTAMP |
+| 8 | - | updatedAtカラム | timestamp(3)型、NOT NULL | ✅ PASS | timestamp(3), NOT NULL |
 | 9 | prisma validate実行 | スキーマ検証 | バリデーション成功 | ✅ PASS | Schema is valid |
 
 **実行例**:
 ```bash
+# PostgreSQLコンテナ起動
+docker compose up -d postgres
+
 # マイグレーション実行
 pnpm db:push
 
 # テーブル構造確認
-pnpm exec prisma db pull
+docker exec einja-postgres psql -U postgres -d einja_management -c "\\d todos"
 
 # Prisma Studio起動
 pnpm exec prisma studio
@@ -115,10 +118,10 @@ pnpm exec prisma studio
 
 | No | 手順 | 確認項目 | 期待値 | 結果 | 備考 |
 |----|------|---------|--------|------|------|
-| 1 | pnpm db:generate 実行 | クライアント生成 | 成功メッセージが表示される | ✅ PASS | Prisma Client v6.18.0生成 |
+| 1 | pnpm db:generate 実行 | クライアント生成 | 成功メッセージが表示される | ✅ PASS | Prisma Client v6.19.2生成 |
 | 2 | - | @prisma/clientパッケージ | node_modules/.prisma/clientが生成される | ✅ PASS | 生成確認済み |
-| 3 | TypeScriptファイルでimport確認 | インポート可能 | import { PrismaClient } from '@prisma/client' がエラーなし | ✅ PASS | test-prisma-client.tsで確認 |
-| 4 | - | prisma.todo型定義 | prisma.todoの型補完が効く | ✅ PASS | prisma.todo.findMany()実行成功 |
+| 3 | TypeScriptファイルでimport確認 | インポート可能 | import { PrismaClient } from '@prisma/client' がエラーなし | ✅ PASS | インポート成功 |
+| 4 | - | prisma.todo型定義 | prisma.todoの型補完が効く | ✅ PASS | prisma.todo.findMany()利用可能 |
 | 5 | - | Todo型定義 | Todo型が利用可能 | ✅ PASS | Todo型をインポートして使用可能 |
 | 6 | pnpm typecheck 実行 | 型チェック成功 | エラーなし | ✅ PASS | 全パッケージで型チェック成功 |
 
@@ -156,10 +159,10 @@ async function test() {
 - 再度、型チェックとビルドを実行して全て成功
 
 #### エビデンス
-- ✅ `playground/todo-app/prisma/dev.db` - SQLiteデータベースファイル
+- ✅ PostgreSQLデータベース `einja_management` に接続成功
 - ✅ `todos`テーブル - 5カラム（id, title, completed, createdAt, updatedAt）すべて正しく作成
 - ✅ Prismaスキーマバリデーション成功
-- ✅ Prismaクライアント生成成功（v6.18.0）
+- ✅ Prismaクライアント生成成功（v6.19.2）
 - ✅ TypeScript型チェック成功
 - ✅ Next.jsビルド成功
 

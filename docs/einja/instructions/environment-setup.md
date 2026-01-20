@@ -137,7 +137,7 @@ dotenvx decrypt -f .env.production
   "scripts": {
     "build": "dotenvx run -f .env.production -- turbo run build",
     "build:staging": "dotenvx run -f .env.staging -- turbo run build",
-    "build:dev": "dotenvx run -f .env.development -- turbo run build",
+    "build:dev": "dotenvx run -f .env.develop -- turbo run build",
     "build:local": "turbo run build"
   }
 }
@@ -154,7 +154,7 @@ dotenvx decrypt -f .env.production
 ├── .env.example            # .envの参考テンプレート（Git追跡）
 ├── .env.personal.example   # 個人用トークンのテンプレート（Git追跡）
 ├── .env.local              # ローカル開発用（暗号化・Git追跡）★
-├── .env.development        # dev検証サーバー用（暗号化・Git追跡）
+├── .env.develop        # dev検証サーバー用（暗号化・Git追跡）
 ├── .env.staging            # ステージング用（暗号化・Git追跡）
 ├── .env.production         # 本番環境用（暗号化・Git追跡）
 ├── .env.ci                 # CI/CD用（暗号化・Git追跡）
@@ -182,7 +182,7 @@ GITHUB_TOKEN=
 
 ```bash
 # 開発サーバー用
-cat > .env.development << 'EOF'
+cat > .env.develop << 'EOF'
 # Development Environment
 DATABASE_URL="postgresql://user:pass@dev-db:5432/einja_dev"
 NEXTAUTH_SECRET="dev-secret-key"
@@ -226,7 +226,7 @@ EOF
 
 ```bash
 # 各環境ファイルを暗号化
-dotenvx encrypt -f .env.development
+dotenvx encrypt -f .env.develop
 dotenvx encrypt -f .env.staging
 dotenvx encrypt -f .env.production
 dotenvx encrypt -f .env.ci
@@ -258,7 +258,7 @@ NODE_ENV=encrypted:BDqRRvYcNnJ5rYo4c8Zhu/lThghcW8b6+7u4+M...
 cat .env.keys
 
 # 出力例:
-# DOTENV_PRIVATE_KEY_DEVELOPMENT=8afef18fa6e433593a5116cc406c83a44c4385b3f4f7d4cc25750e39f2baa320
+# DOTENV_PRIVATE_KEY_DEVELOP=8afef18fa6e433593a5116cc406c83a44c4385b3f4f7d4cc25750e39f2baa320
 # DOTENV_PRIVATE_KEY_STAGING=548887285654af264275d8c58e87c82dd7958ac6e99760fb5aa5eca8e1efb35d
 # DOTENV_PRIVATE_KEY_PREVIEW=bdb34e98e0312b3e06d10475901a841d9da69590993416d5e4141fd4d96b62ba
 # DOTENV_PRIVATE_KEY_PRODUCTION=73890d5288241cb6738b7172d5ee1bf2dd4aac8319442d951e31d123304f180d
@@ -269,7 +269,7 @@ cat .env.keys
 
 ```bash
 # 暗号化されたファイルをコミット
-git add .env.development .env.staging .env.production .env.ci
+git add .env.develop .env.staging .env.production .env.ci
 git commit -m "chore: 環境変数ファイルを暗号化"
 ```
 

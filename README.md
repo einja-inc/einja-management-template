@@ -27,8 +27,7 @@ npx create-einja-app my-project
 
 ```bash
 cd my-project
-docker-compose up -d postgres  # PostgreSQL起動
-pnpm dev                       # 開発サーバー起動
+pnpm dev                       # PostgreSQL起動 + 開発サーバー起動
 ```
 
 ブラウザで http://localhost:3000 にアクセス
@@ -227,7 +226,7 @@ pnpm env:update
 | 環境 | ファイル | 用途 |
 |------|----------|------|
 | ローカル開発 | `.env.local` | ローカル開発環境 |
-| 開発 | `.env.development` | 開発環境 |
+| 開発 | `.env.develop` | 開発環境 |
 | ステージング | `.env.staging` | ステージング環境 |
 | 本番 | `.env.production` | 本番環境 |
 | CI | `.env.ci` | CI環境 |

@@ -437,8 +437,7 @@ function printCompletionMessage(config) {
   console.log();
   console.log(chalk2.cyan(`  cd ${config.projectName}`));
   console.log(chalk2.cyan("  pnpm env:update          # \u74B0\u5883\u5909\u6570\u3092\u8A2D\u5B9A"));
-  console.log(chalk2.cyan("  docker-compose up -d postgres"));
-  console.log(chalk2.cyan("  pnpm dev"));
+  console.log(chalk2.cyan("  pnpm dev                 # PostgreSQL\u8D77\u52D5 + \u958B\u767A\u30B5\u30FC\u30D0\u30FC\u8D77\u52D5"));
   console.log();
   console.log(
     chalk2.yellow("\u26A0 \u30BB\u30AD\u30E5\u30EA\u30C6\u30A3: \u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u306E\u79D8\u5BC6\u9375\u3092\u305D\u306E\u307E\u307E\u4F7F\u7528\u3057\u306A\u3044\u3067\u304F\u3060\u3055\u3044")
@@ -1272,15 +1271,19 @@ function mergeTextWithMarkers(templateContent, existingContent) {
   }
   const templateManagedById = /* @__PURE__ */ new Map();
   const templateSeedById = /* @__PURE__ */ new Map();
+  const templateManagedWithoutId = [];
   const processedTemplateIds = /* @__PURE__ */ new Set();
   for (const section of templateSections) {
     if (section.type === "managed" && section.id) {
       templateManagedById.set(section.id, section);
+    } else if (section.type === "managed") {
+      templateManagedWithoutId.push(section);
     } else if (section.type === "seed" && section.id) {
       templateSeedById.set(section.id, section);
     }
   }
   const result = [];
+  let managedWithoutIdIndex = 0;
   for (const localSection of localSections) {
     if (localSection.type === "managed") {
       const match = localSection.id ? templateManagedById.get(localSection.id) : void 0;
@@ -1288,7 +1291,13 @@ function mergeTextWithMarkers(templateContent, existingContent) {
         processedTemplateIds.add(localSection.id);
         result.push(match.content);
       } else if (!localSection.id) {
-        result.push(localSection.content);
+        const noIdMatch = templateManagedWithoutId[managedWithoutIdIndex];
+        if (noIdMatch) {
+          result.push(noIdMatch.content);
+          managedWithoutIdIndex += 1;
+        } else {
+          result.push(localSection.content);
+        }
       }
     } else if (localSection.type === "seed") {
       if (localSection.id) {
@@ -1303,6 +1312,9 @@ function mergeTextWithMarkers(templateContent, existingContent) {
     if (!processedTemplateIds.has(id)) {
       result.push(section.content);
     }
+  }
+  for (const section of templateManagedWithoutId.slice(managedWithoutIdIndex)) {
+    result.push(section.content);
   }
   for (const [id, section] of templateSeedById) {
     if (!processedTemplateIds.has(id)) {
@@ -1984,6 +1996,7 @@ var CATEGORY_PATTERNS = {
   docker: ["Dockerfile*", "docker-compose*.yml", ".dockerignore"],
   monorepo: ["turbo.json", "pnpm-workspace.yaml"],
   "root-config": ["package.json", "tsconfig.json"],
+  scripts: ["scripts/**"],
   apps: ["apps/**"],
   packages: ["packages/**"],
   docs: ["README.md", "docs/**"]
@@ -2110,6 +2123,12 @@ var CATEGORY_CONFIGS = {
     name: "\u30EB\u30FC\u30C8\u8A2D\u5B9A",
     description: "package.json, tsconfig.json",
     patterns: ["package.json", "tsconfig.json"],
+    defaultChecked: false
+  },
+  scripts: {
+    name: "\u30B9\u30AF\u30EA\u30D7\u30C8",
+    description: "scripts/ \u914D\u4E0B",
+    patterns: ["scripts/**"],
     defaultChecked: false
   },
   apps: {

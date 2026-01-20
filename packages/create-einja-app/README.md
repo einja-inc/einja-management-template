@@ -206,10 +206,7 @@ cd my-project
 # 環境変数を設定（重要！）
 pnpm env:update
 
-# PostgreSQLを起動
-docker-compose up -d postgres
-
-# 開発サーバーを起動
+# 開発サーバーを起動（PostgreSQLも自動起動）
 pnpm dev
 ```
 

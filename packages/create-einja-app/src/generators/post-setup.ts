@@ -71,8 +71,7 @@ function printCompletionMessage(config: ProjectConfig): void {
   console.log();
   console.log(chalk.cyan(`  cd ${config.projectName}`));
   console.log(chalk.cyan("  pnpm env:update          # 環境変数を設定"));
-  console.log(chalk.cyan("  docker-compose up -d postgres"));
-  console.log(chalk.cyan("  pnpm dev"));
+  console.log(chalk.cyan("  pnpm dev                 # PostgreSQL起動 + 開発サーバー起動"));
   console.log();
   console.log(
     chalk.yellow("⚠ セキュリティ: テンプレートの秘密鍵をそのまま使用しないでください")

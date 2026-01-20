@@ -34,9 +34,9 @@ export const ENVIRONMENTS: EnvironmentConfig[] = [
     description: "ローカル開発環境",
   },
   {
-    name: "development",
-    file: ".env.development",
-    privateKeyEnv: "DOTENV_PRIVATE_KEY_DEVELOPMENT",
+    name: "develop",
+    file: ".env.develop",
+    privateKeyEnv: "DOTENV_PRIVATE_KEY_DEVELOP",
     description: "開発環境",
   },
   {

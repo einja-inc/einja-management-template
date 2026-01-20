@@ -35,7 +35,7 @@
 | 環境 | 管理ファイル | 暗号化 | Git追跡 |
 |------|-------------|--------|--------|
 | ローカル開発 | `.env.local` → `.env` + `.env.personal` | ✅ | `.env.local`のみ |
-| dev検証 | `.env.development` | ✅ | ✅ |
+| dev検証 | `.env.develop` | ✅ | ✅ |
 | ステージング | `.env.staging` | ✅ | ✅ |
 | 本番 | `.env.production` | ✅ | ✅ |
 | CI/CD | `.env.ci` | ✅ | ✅ |
@@ -168,7 +168,7 @@ A: `.env` は毎回再生成されますが、秘密情報は `.env.local`（暗
 | `.env.example` | ✅ | ❌ | `.env`の参考テンプレート |
 | `.env.personal.example` | ✅ | ❌ | 個人用トークンのテンプレート |
 | `.env.local` | ✅ | ✅ | ローカル開発用（チーム共有） |
-| `.env.development` | ✅ | ✅ | dev検証サーバー用 |
+| `.env.develop` | ✅ | ✅ | dev検証サーバー用 |
 | `.env.staging` | ✅ | ✅ | ステージング用 |
 | `.env.production` | ✅ | ✅ | 本番環境用 |
 | `.env.ci` | ✅ | ✅ | CI/CD用 |
@@ -183,7 +183,7 @@ A: `.env` は毎回再生成されますが、秘密情報は `.env.local`（暗
 ├── .env.example            # 参考テンプレート（Git追跡）
 ├── .env.personal.example   # 個人用トークンテンプレート（Git追跡）
 ├── .env.local              # ローカル開発用・暗号化済み（Git追跡）★
-├── .env.development        # dev検証・暗号化済み（Git追跡）
+├── .env.develop        # dev検証・暗号化済み（Git追跡）
 ├── .env.staging            # ステージング・暗号化済み（Git追跡）
 ├── .env.production         # 本番・暗号化済み（Git追跡）
 ├── .env.ci                 # CI/CD・暗号化済み（Git追跡）
@@ -253,7 +253,7 @@ sequenceDiagram
 | 識別子 | 説明 |
 |--------|------|
 | `_LOCAL` | ローカル開発用 |
-| `_DEVELOPMENT` | dev検証環境用 |
+| `_DEVELOP` | dev検証環境用 |
 | `_STAGING` | ステージング環境用 |
 | `_PRODUCTION` | 本番環境用 |
 | `_CI` | CI/CD環境用 |

@@ -45,7 +45,7 @@ log/*.pid
 # .env.example（テンプレート）
 # .env.personal.example（個人用テンプレート）
 # .env.local（ローカル開発用・暗号化済み）
-# .env.development（dev検証環境・暗号化済み）
+# .env.develop（dev検証環境・暗号化済み）
 # .env.staging（ステージング・暗号化済み）
 # .env.production（本番・暗号化済み）
 # .env.ci（CI/CD・暗号化済み）

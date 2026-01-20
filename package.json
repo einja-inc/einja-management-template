@@ -17,7 +17,7 @@
 		"dev:skip-setup": "turbo run dev",
 		"build": "dotenvx run -f .env.production -- turbo run build",
 		"build:staging": "dotenvx run -f .env.staging -- turbo run build",
-		"build:dev": "dotenvx run -f .env.development -- turbo run build",
+		"build:dev": "dotenvx run -f .env.develop -- turbo run build",
 		"build:local": "turbo run build",
 		"start": "turbo run start",
 		"lint": "turbo run lint",

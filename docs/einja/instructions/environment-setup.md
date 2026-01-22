@@ -136,7 +136,6 @@ dotenvx decrypt -f .env.production
 {
   "scripts": {
     "build": "dotenvx run -f .env.production -- turbo run build",
-    "build:staging": "dotenvx run -f .env.staging -- turbo run build",
     "build:dev": "dotenvx run -f .env.develop -- turbo run build",
     "build:local": "turbo run build"
   }
@@ -154,8 +153,7 @@ dotenvx decrypt -f .env.production
 ├── .env.example            # .envの参考テンプレート（Git追跡）
 ├── .env.personal.example   # 個人用トークンのテンプレート（Git追跡）
 ├── .env.local              # ローカル開発用（暗号化・Git追跡）★
-├── .env.develop        # dev検証サーバー用（暗号化・Git追跡）
-├── .env.staging            # ステージング用（暗号化・Git追跡）
+├── .env.develop            # dev検証サーバー用（暗号化・Git追跡）
 ├── .env.production         # 本番環境用（暗号化・Git追跡）
 ├── .env.ci                 # CI/CD用（暗号化・Git追跡）
 ├── .env.keys               # 秘密鍵（Git除外・1Password等で共有）
@@ -190,15 +188,6 @@ NEXTAUTH_URL="https://dev.example.com"
 NODE_ENV="development"
 EOF
 
-# ステージング用
-cat > .env.staging << 'EOF'
-# Staging Environment
-DATABASE_URL="postgresql://user:pass@staging-db:5432/einja_staging"
-NEXTAUTH_SECRET="staging-secret-key"
-NEXTAUTH_URL="https://staging.example.com"
-NODE_ENV="staging"
-EOF
-
 # 本番環境用
 cat > .env.production << 'EOF'
 # Production Environment
@@ -227,7 +216,6 @@ EOF
 ```bash
 # 各環境ファイルを暗号化
 dotenvx encrypt -f .env.develop
-dotenvx encrypt -f .env.staging
 dotenvx encrypt -f .env.production
 dotenvx encrypt -f .env.ci
 ```
@@ -269,7 +257,7 @@ cat .env.keys
 
 ```bash
 # 暗号化されたファイルをコミット
-git add .env.develop .env.staging .env.production .env.ci
+git add .env.develop .env.production .env.ci
 git commit -m "chore: 環境変数ファイルを暗号化"
 ```
 

@@ -3,11 +3,13 @@ name: design-engineer
 description: Figmaデザインとデザインシステムを完璧に理解し、Panda CSSで高品質なスタイリングを実装する専門エージェント。Figma MCPを駆使してデザイントークン、コンポーネント仕様、レスポンシブレイアウトを抽出し、デザインに100%忠実な実装を行います。<example>Context: FigmaデザインをPanda CSSで実装したい場合。user: "Figmaのダッシュボードデザインを実装して" assistant: "design-engineerエージェントを使用して、Figmaからデザイントークンとコンポーネント仕様を抽出し、Panda CSSで完璧に再現します" <commentary>Figmaデザインの実装が必要なため、design-engineerエージェントを起動してデザインシステムを分析・実装します。</commentary></example> <example>Context: デザインシステムのトークンを更新したい場合。user: "Figmaのデザイントークンをプロジェクトに反映して" assistant: "design-engineerエージェントを起動して、Figmaからカラー、タイポグラフィ、スペーシングのトークンを抽出し、Panda CSS設定に反映します" <commentary>デザインシステムの同期が必要なため、design-engineerエージェントに依頼します。</commentary></example>
 model: sonnet
 color: pink
+skills:
+  - output-format
 ---
 
 ## ✅ 最重要: 出力形式
 
-**@.claude/skills/einja-output-format/SKILL.md の「design-engineer」テンプレートに従って報告すること。この形式から逸脱しないこと。**
+**「design-engineer」テンプレートに従って報告すること。この形式から逸脱しないこと。**
 
 ---
 

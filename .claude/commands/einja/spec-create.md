@@ -32,7 +32,7 @@ TodoWriteツールを使用して全体の進捗を可視化し、ユーザー�
 
 ### 0. 前提確認フェーズ（ワークフロー開始時）
 
-**⚠️ 重要**: 仕様書作成開始前に、以下の2つの質問で前提を確認すること。
+**⚠️ 重要**: 仕様書作成開始前に、以下の3つの質問で前提を確認すること。
 
 #### 0.1 TDD適用判定
 
@@ -86,6 +86,28 @@ AskUserQuestion:
 3. **エラー時**: エラーの場合、ユーザーにどう見せたい？
 4. **暗黙の期待**: 「当たり前」だと思っていることは？
 
+#### 0.3 IssueBranchBaseの選択
+
+**質問3: Issueブランチの作成元を確認**
+
+```yaml
+AskUserQuestion:
+  question: "Issueブランチ（issue/{issue番号}）の作成元（IssueBranchBase）を選択してください"
+  header: "IssueBranchBase選択"
+  options:
+    - label: "デフォルトブランチ（推奨）"
+      description: "gitのデフォルトブランチ（main/developなど）を使用します"
+    - label: "main"
+      description: "mainブランチをIssueBranchBaseとして使用します"
+    - label: "develop"
+      description: "developブランチをIssueBranchBaseとして使用します"
+    - label: "その他（ブランチ名を入力）"
+      description: "例: release/2025-01"
+```
+
+**「その他」選択時の対応**:
+- ブランチ名をユーザーに確認し、IssueBranchBaseとして記録する
+
 ### 1. 外部リソースの確認
 
 **AsanaタスクURL**の場合：
@@ -108,6 +130,12 @@ AskUserQuestion:
    - パス指定あり → 指定ディレクトリを使用
    - パス指定なし → `/docs/specs/issues/{機能カテゴリ名}/issue{issue番号}-{機能名}/` で自動作成
 
+3. **Issueブランチ作成（MCP + ローカル）**
+   - `mcp__github__create_branch` を使用
+   - branch: `issue/{issue番号}`（例: `issue/42`）
+   - from_branch: IssueBranchBase（0.3で選択）
+   - ローカルでも `issue/{issue番号}` にチェックアウトして作業を開始
+
 ### 3. 段階的仕様書作成
 **重要**: 各段階で必ずユーザー承認を得て、コミット＆プッシュしてから次へ進行すること。
 
@@ -119,8 +147,8 @@ AskUserQuestion:
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（要件の過不足、受け入れ基準の明確性など）
 3. **ユーザー承認後、コミット＆プッシュ**
-   - コミットメッセージ: `docs: add requirements for {feature-name}`
-   - ブランチは現在のブランチにプッシュ
+   - コミットメッセージ: `docs: {機能名}の要件を追加`
+   - ブランチは `issue/{issue番号}` にプッシュ
    - 他のメンバーがレビューできるようにする
 4. **承認を得てから次のステップ（design.md）に進む**
 
@@ -133,8 +161,8 @@ AskUserQuestion:
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（アーキテクチャの妥当性、実装方針など）
 3. **ユーザー承認後、コミット＆プッシュ**
-   - コミットメッセージ: `docs: add design for {feature-name}`
-   - ブランチは現在のブランチにプッシュ
+   - コミットメッセージ: `docs: {機能名}の設計を追加`
+   - ブランチは `issue/{issue番号}` にプッシュ
 4. **承認を得てから次のステップ（QAテスト仕様生成）に進む**
 
 #### Phase 3: QAテスト仕様生成（シナリオテスト含む）
@@ -147,33 +175,76 @@ AskUserQuestion:
    - 作成したqa-tests/ディレクトリの構成と概要を提示
    - 確認ポイントを明示（シナリオテストの網羅性、実施タイミングの妥当性など）
 3. **ユーザー承認後、コミット＆プッシュ**
-   - コミットメッセージ: `docs: add qa-test specs for {feature-name}`
-   - ブランチは現在のブランチにプッシュ
+   - コミットメッセージ: `docs: {機能名}のQAテスト仕様を追加`
+   - ブランチは `issue/{issue番号}` にプッシュ
 4. **承認を得てから次のステップ（GitHub Issueへのタスク記述）に進む**
 
 #### Phase 4: GitHub Issueへのタスク記述
-1. spec-tasks-generatorエージェントで作成
+
+##### 4.1 タスク生成・検証ループ
+
+**重要**: タスク生成後は自動的にフォーマット検証を行い、違反があれば差し戻します。
+
+```
+【タスク生成・検証ループ】（最大3回）
+  │
+  ├─ spec-tasks-generator 呼び出し
+  │   └─ タスク一覧を生成（またはエラーフィードバックを元に修正版を生成）
+  │
+  ├─ spec-tasks-validator 呼び出し
+  │   └─ フォーマット検証
+  │
+  └─ 検証結果判定
+      ├─ SUCCESS → ループ終了、ユーザー確認へ
+      └─ FAILURE → spec-tasks-generator に差し戻し
+                   └─ エラーレポート付きで再呼び出し
+                   └─ ループ再開（最大3回）
+
+  ※ 3回失敗 → ユーザーに手動修正を依頼
+```
+
+1. **spec-tasks-generatorエージェントでタスク生成**
    - エージェント内で実装の影響範囲を分析
    - 実装タスクの分解と依存関係
    - requirements.md、design.md、**qa-tests/scenarios.md**の内容を参照
    - 各タスクに**シナリオテスト実施タイミング**を明記
    - **GitHub Issueの説明文にタスク一覧を記述**
-2. **ユーザーに内容確認を依頼**
+
+2. **spec-tasks-validatorエージェントでフォーマット検証**
+   - タスク階層（Phase/タスクグループ/タスク/サブタスク）の形式チェック
+   - メタデータ（要件・依存関係・完了条件・対応設計・シナリオテスト）の必須チェック
+   - 依存関係の書式・参照先の検証
+   - ATDD粒度チェック（Phase数、縦切り/横切り）
+
+3. **検証結果の処理**
+   - **SUCCESS**: ユーザー確認フェーズへ進む
+   - **FAILURE（リトライ可能）**:
+     - エラーレポートを spec-tasks-generator に渡して再生成
+     - ループ再開（現在の試行回数をインクリメント）
+   - **MAX_RETRIES_EXCEEDED（3回失敗）**:
+     - ユーザーに手動修正を依頼
+     - エラー内容を提示し、修正後に続行できるよう案内
+
+##### 4.2 ユーザー確認
+
+4. **ユーザーに内容確認を依頼**
    - 更新したGitHub IssueのURL（#{issue_number}）と概要を提示
    - 確認ポイントを明示（タスク分解の粒度、依存関係の妥当性など）
-3. **ユーザー承認後、以下の処理を実行**
+   - **バリデーション合格済みであることを明記**
 
-   a. **Issueブランチ作成（MCP）**
+5. **ユーザー承認後、以下の処理を実行**
+
+   a. **Issueブランチの存在確認（未作成時のみ作成）**
    - `mcp__github__create_branch` を使用
    - branch: `issue/{issue番号}`（例: `issue/42`）
    - ⚠️ **機能名は含めない**（ディレクトリ名とは異なる。上記「命名規則」参照）
-   - from_branch: デフォルトブランチ（main/masterなど）
+   - from_branch: IssueBranchBase（0.3で選択）
 
    b. **仕様書ファイルをプッシュ（MCP）**
    - `mcp__github__push_files` を使用
    - branch: `issue/{issue番号}`
    - files: requirements.md, design.md, qa-tests/（または分割された各ファイル）
-   - message: `docs: add specs for {feature-name} (Issue #{issue_number})`
+   - message: `docs: {機能名}の仕様書を追加 (Issue #{issue_number})`
 
    c. **PR作成（MCP）**
    - `mcp__github__create_pull_request` を使用
@@ -192,7 +263,7 @@ AskUserQuestion:
      - QAテスト仕様へのリンク（qa-tests/scenarios.md）
      - タスク一覧（Phase別チェックボックス形式、シナリオテスト実施タイミング明記）
 
-4. **全ての仕様書作成が完了したことを報告**
+6. **全ての仕様書作成が完了したことを報告**
    - GitHub Issue URLを明記
    - Spec PR URLを明記
 

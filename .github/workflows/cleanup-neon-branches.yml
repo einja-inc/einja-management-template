@@ -1,0 +1,90 @@
+name: Cleanup Old Neon Branches
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 毎日 0:00 UTC
+  workflow_dispatch:  # 手動実行可能
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Export Neon environment variables
+        run: |
+          npx dotenvx run -f .env.preview -- bash -c 'echo "NEON_API_KEY=$NEON_API_KEY" >> $GITHUB_ENV'
+          npx dotenvx run -f .env.preview -- bash -c 'echo "NEON_PROJECT_ID=$NEON_PROJECT_ID" >> $GITHUB_ENV'
+        env:
+          DOTENV_PRIVATE_KEY_PREVIEW: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
+
+      - name: Cleanup orphaned preview branches
+        run: |
+          # NOTE: Neon APIはページングされる可能性あり。ブランチ数が多い場合は要対応
+          echo "Fetching branches from Neon..."
+          BRANCHES=$(curl -s "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/branches" \
+            -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
+            -H "Accept: application/json")
+
+          # preview/pr-{番号}形式のブランチを抽出
+          echo "$BRANCHES" | jq -r '.branches[] | select(.name | startswith("preview/pr-")) | "\(.id) \(.name)"' | \
+          while read -r BRANCH_ID BRANCH_NAME; do
+            if [ -n "$BRANCH_ID" ]; then
+              # ブランチ名からPR番号を抽出
+              PR_NUMBER=$(echo "$BRANCH_NAME" | sed 's/preview\/pr-//')
+
+              # GitHub APIでPR状態を確認（HTTPステータスも取得）
+              HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER")
+              HTTP_STATUS=$(echo "$HTTP_RESPONSE" | tail -n1)
+              HTTP_BODY=$(echo "$HTTP_RESPONSE" | sed '$d')
+
+              echo "Branch: $BRANCH_NAME, PR #$PR_NUMBER, HTTP status: $HTTP_STATUS"
+
+              # HTTPステータスに応じた処理
+              if [ "$HTTP_STATUS" = "200" ]; then
+                PR_STATE=$(echo "$HTTP_BODY" | jq -r '.state')
+                if [ "$PR_STATE" = "closed" ]; then
+                  echo "Deleting orphaned branch: $BRANCH_NAME (PR is closed)"
+                  curl -X DELETE \
+                    "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/branches/$BRANCH_ID" \
+                    -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
+                    -H "Accept: application/json"
+                else
+                  echo "Skipping active branch: $BRANCH_NAME (PR is $PR_STATE)"
+                fi
+              elif [ "$HTTP_STATUS" = "404" ]; then
+                # PRが見つからない場合は削除
+                echo "Deleting orphaned branch: $BRANCH_NAME (PR not found)"
+                curl -X DELETE \
+                  "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/branches/$BRANCH_ID" \
+                  -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
+                  -H "Accept: application/json"
+              else
+                # 403/429/5xx等のエラー時はスキップ（誤削除防止）
+                echo "Skipping branch: $BRANCH_NAME (GitHub API returned $HTTP_STATUS, skipping to avoid accidental deletion)"
+              fi
+            fi
+          done
+
+          echo "Cleanup completed"

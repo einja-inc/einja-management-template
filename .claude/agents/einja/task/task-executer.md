@@ -111,11 +111,11 @@ Skill: general-context-loader
 
 | 実装種別 | 参照Skill |
 |---------|----------|
-| **API実装** | einja-api-development |
-| **フロントエンド実装** | einja-frontend-development |
-| **バックエンド実装** | einja-backend-architecture |
-| **コード全般** | einja-coding-standards |
-| **コンポーネント設計** | einja-component-design |
+| **API実装** | api-development |
+| **フロントエンド実装** | frontend-development |
+| **バックエンド実装** | backend-architecture |
+| **コード全般** | coding-standards |
+| **コンポーネント設計** | component-design |
 
 **詳細規約が必要な場合**（Readツールで読み込み）:
 - 命名規則: `.claude/skills/einja-coding-standards/reference/naming-conventions.md`

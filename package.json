@@ -36,6 +36,7 @@
 		"db:push": "turbo run db:push",
 		"db:migrate": "turbo run db:migrate",
 		"db:studio": "turbo run db:studio",
+		"db:seed": "turbo run db:seed",
 		"dev:setup": "tsx scripts/setup-dev.ts",
 		"dotenvx": "dotenvx",
 		"env:update": "tsx scripts/env.ts",

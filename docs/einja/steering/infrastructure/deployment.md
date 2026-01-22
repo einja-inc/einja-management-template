@@ -40,21 +40,22 @@ graph TB
 
     subgraph "Railway Platform"
         CronProd[cron-worker - Production]
-        CronStaging[cron-worker - Staging]
     end
 
-    subgraph "Database"
-        DB[(PostgreSQL)]
+    subgraph "Neon Database"
+        DBProd[(Production DB)]
+        DBPreview[(Preview DB - 動的生成)]
     end
 
     Main -->|Auto Deploy| WebProd
     Main -->|Auto Deploy| CronProd
 
     Feature -->|PR Deploy| WebPreview
-    Feature -->|Manual Deploy| CronStaging
+    Feature -->|Create Branch| DBPreview
 
-    WebProd --> DB
-    CronProd --> DB
+    WebProd --> DBProd
+    WebPreview --> DBPreview
+    CronProd --> DBProd
 ```
 
 ### デプロイメント対象
@@ -63,6 +64,7 @@ graph TB
 |----------------|--------------|--------------|------|
 | web | Vercel | main push, PR作成 | Production, Preview |
 | cron-worker | Railway | main push | Production |
+| Database | Neon | main push, PR作成 | Production, Preview（動的生成） |
 
 ---
 
@@ -107,6 +109,7 @@ sequenceDiagram
     participant CI as GitHub Actions
     participant Turbo as Turborepo
     participant Cache as Vercel Cache
+    participant Neon as Neon Database
     participant Vercel as Vercel
     participant Railway as Railway
 
@@ -115,6 +118,12 @@ sequenceDiagram
     CI->>CI: 環境セットアップ
     CI->>Turbo: turbo login
     Turbo->>Cache: キャッシュ認証
+
+    alt PR作成時
+        CI->>Neon: Create branch from main
+        Neon-->>CI: Preview DB URL
+        CI->>CI: Set DATABASE_URL
+    end
 
     CI->>Turbo: turbo run lint
     Turbo->>Cache: キャッシュチェック
@@ -131,8 +140,10 @@ sequenceDiagram
     Turbo-->>CI: テスト完了
 
     alt main ブランチ
-        CI->>Vercel: web デプロイ
+        CI->>Vercel: web デプロイ（Production DB使用）
         CI->>Railway: cron-worker デプロイ
+    else PR作成時
+        CI->>Vercel: web preview デプロイ（Preview DB使用）
     end
 
     CI-->>Dev: ステータス通知

@@ -63,13 +63,53 @@
 # 4. [YOUR-PASSWORD] を設定したパスワードに置換
 ```
 
-### Neon
+### Neon（Preview環境DBブランチ自動作成対応）
+
+#### プロジェクト作成
 
 ```bash
 # 1. https://neon.tech でアカウント作成
+
 # 2. 「Create a project」でプロジェクト作成
+#    - Region: AWS ap-northeast-1 (Tokyo)
+#    - Postgres version: 16（推奨）
+#    - Project name: einja-management（任意）
+
 # 3. Connection Details > Connection string をコピー
+#    例: postgresql://user:pass@ep-xxx-xxx.ap-northeast-1.aws.neon.tech/main
 ```
+
+#### Neon環境変数の設定
+
+Neonの環境変数は `.env.preview` で管理します。GitHub Secretsへの登録は不要です。
+
+```bash
+# pnpm env:update でNeon環境変数を追加
+pnpm env:update
+
+# 対話式ウィザードで以下を選択：
+# 1. 「環境設定を変更」を選択
+# 2. 「preview環境」を選択
+# 3. NEON_API_KEY と NEON_PROJECT_ID を追加
+
+# NEON_API_KEY: Neon Console > Account Settings > API Keys から取得
+# NEON_PROJECT_ID: Neon Console > Project Settings > General > Project ID から取得
+```
+
+#### ブランチ命名規則
+
+Preview環境用のDBブランチは以下のルールで自動作成されます：
+
+| PRブランチ名 | 作成されるDBブランチ名 | 親ブランチ |
+|------------|---------------------|----------|
+| `feature/user-auth` | `preview/feature-user-auth` | `main` |
+| `fix/login-bug` | `preview/fix-login-bug` | `main` |
+| `feat/dashboard` | `preview/feat-dashboard` | `main` |
+
+**重要**:
+- DBブランチ名はGitブランチ名から自動変換（`/`→`-`、小文字化）
+- プレフィックス `preview/` が自動付与
+- PR作成時に自動作成、PRクローズ時に自動削除
 
 ### Vercel Postgres
 
@@ -275,8 +315,9 @@ gh secret set RAILWAY_SERVICE_ID --body "サービスID"
 # 1. GitHub リポジトリ > Settings > Secrets and variables > Actions
 # 2. 「New repository secret」で以下を追加
 
-# 必須
+# 必須Secrets
 gh secret set DOTENV_PRIVATE_KEY_CI --body "$(grep DOTENV_PRIVATE_KEY_CI .env.keys | cut -d= -f2)"
+gh secret set DOTENV_PRIVATE_KEY_PREVIEW --body "$(grep DOTENV_PRIVATE_KEY_PREVIEW .env.keys | cut -d= -f2)"
 gh secret set TURBO_TOKEN --body "取得したトークン"
 gh secret set TURBO_TEAM --body "team_xxxxxxxxx"
 

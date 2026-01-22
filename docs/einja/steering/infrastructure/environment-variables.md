@@ -36,7 +36,7 @@
 |------|-------------|--------|--------|
 | ローカル開発 | `.env.local` → `.env` + `.env.personal` | ✅ | `.env.local`のみ |
 | dev検証 | `.env.develop` | ✅ | ✅ |
-| ステージング | `.env.staging` | ✅ | ✅ |
+| preview | `.env.preview`（Neon環境変数含む） | ✅ | ✅ |
 | 本番 | `.env.production` | ✅ | ✅ |
 | CI/CD | `.env.ci` | ✅ | ✅ |
 
@@ -169,7 +169,7 @@ A: `.env` は毎回再生成されますが、秘密情報は `.env.local`（暗
 | `.env.personal.example` | ✅ | ❌ | 個人用トークンのテンプレート |
 | `.env.local` | ✅ | ✅ | ローカル開発用（チーム共有） |
 | `.env.develop` | ✅ | ✅ | dev検証サーバー用 |
-| `.env.staging` | ✅ | ✅ | ステージング用 |
+| `.env.preview` | ✅ | ✅ | Preview環境用（Neon環境変数含む） |
 | `.env.production` | ✅ | ✅ | 本番環境用 |
 | `.env.ci` | ✅ | ✅ | CI/CD用 |
 | `.env.keys` | ❌ | - | 全環境の秘密鍵（1Password等で共有） |
@@ -183,8 +183,8 @@ A: `.env` は毎回再生成されますが、秘密情報は `.env.local`（暗
 ├── .env.example            # 参考テンプレート（Git追跡）
 ├── .env.personal.example   # 個人用トークンテンプレート（Git追跡）
 ├── .env.local              # ローカル開発用・暗号化済み（Git追跡）★
-├── .env.develop        # dev検証・暗号化済み（Git追跡）
-├── .env.staging            # ステージング・暗号化済み（Git追跡）
+├── .env.develop            # dev検証・暗号化済み（Git追跡）
+├── .env.preview            # Preview環境・暗号化済み（Git追跡・Neon環境変数含む）
 ├── .env.production         # 本番・暗号化済み（Git追跡）
 ├── .env.ci                 # CI/CD・暗号化済み（Git追跡）
 ├── .env.keys               # 秘密鍵（Git除外・1Password等で共有）
@@ -280,9 +280,12 @@ dotenvx採用により、GitHub Secretsは**環境ごとに1つの秘密鍵の�
 | Secret名 | 用途 |
 |---------|------|
 | `DOTENV_PRIVATE_KEY_CI` | CI/CD環境の復号 |
+| `DOTENV_PRIVATE_KEY_PREVIEW` | Preview環境の復号（Neon環境変数含む） |
 | `DOTENV_PRIVATE_KEY_PRODUCTION` | 本番デプロイ時の復号 |
 
-**注**: `DOTENV_PRIVATE_KEY_LOCAL`はローカル開発用なのでGitHub Secretsには不要。`.env.keys`でチーム内共有。
+**注**:
+- `DOTENV_PRIVATE_KEY_LOCAL`はローカル開発用なのでGitHub Secretsには不要。`.env.keys`でチーム内共有。
+- Neon環境変数（`NEON_API_KEY`、`NEON_PROJECT_ID`）は`.env.preview`で管理されるため、GitHub Secretsへの個別登録は不要。
 
 ### ローテーション方針
 

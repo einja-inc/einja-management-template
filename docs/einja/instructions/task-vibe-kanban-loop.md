@@ -15,7 +15,7 @@ GitHub Issue からタスクを自動選定し、Vibe-Kanban に登録して連�
 
 ```bash
 # 1. 仕様書を作成（requirements.md, design.md, GitHub Issue へのタスク記述）
-/spec-create <タスク内容の説明>
+/einja:spec-create <タスク内容の説明>
 
 # 一旦ここまで終わったらDiscordでスレッドを作りチームにレビュー依頼
 
@@ -444,11 +444,11 @@ sequenceDiagram
 
 ---
 
-## `/task-exec` との使い分け
+## `/einja:task-exec` との使い分け
 
 | コマンド | 用途 | 品質保証 | 推奨シーン |
 |---------|------|---------|----------|
-| **`/task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
+| **`/einja:task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
 | **`pnpm task:loop`** | 大量タスクの自動消化 | 並列実行・監視 | 定型作業、並行開発 |
 
 ---
@@ -479,9 +479,9 @@ packages/cli/src/commands/task-loop/
 
 ## 関連ドキュメント
 
-- [タスク実行ワークフロー](./task-execute.md)
+- [タスク実行ワークフロー](./einja:task-execute.md)
 - [タスク管理ガイドライン](../steering/task-management.md)
-- [仕様書作成ワークフロー](./spec-create.md)
+- [仕様書作成ワークフロー](./einja:spec-create.md)
 - [ブランチ運用戦略](../steering/branch-strategy.md) - ブランチ命名規則、同期フロー、ワークフロー図
 <!-- @einja:managed:end -->
 

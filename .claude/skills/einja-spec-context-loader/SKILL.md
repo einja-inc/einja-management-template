@@ -145,7 +145,7 @@ interface Example {
 
 ### エラー内容
 - **原因**: [不足ファイル一覧 or エラー詳細]
-- **推奨アクション**: `/spec-create` を実行して仕様書を完成させてください
+- **推奨アクション**: `/einja:spec-create` を実行して仕様書を完成させてください
 ```
 
 ---
@@ -155,9 +155,9 @@ interface Example {
 | エラー種別 | 原因 | 対処 |
 |-----------|------|------|
 | spec ディレクトリ不在 | 指定パスが存在しない | パスを確認して再実行 |
-| requirements.md 不在 | Phase 1 未完了 | `/spec-create` で Phase 1 を実行 |
-| design.md 不在 | Phase 2 未完了 | `/spec-create` で Phase 2 を実行 |
-| qa-tests/ 不在 | Phase 3 未完了 | `/spec-create` で Phase 3 を実行 |
+| requirements.md 不在 | Phase 1 未完了 | `/einja:spec-create` で Phase 1 を実行 |
+| design.md 不在 | Phase 2 未完了 | `/einja:spec-create` で Phase 2 を実行 |
+| qa-tests/ 不在 | Phase 3 未完了 | `/einja:spec-create` で Phase 3 を実行 |
 
 ---
 

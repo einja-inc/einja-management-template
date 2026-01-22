@@ -1,18 +1,18 @@
 <!-- @einja:managed:start -->
 # 開発ワークフロー
 
-このドキュメントでは、`/spec-create`と`/task-exec`コマンドを使用したATDD（受け入れテスト駆動開発）に基づく開発ワークフローについて説明します。
+このドキュメントでは、`/einja:spec-create`と`/einja:task-exec`コマンドを使用したATDD（受け入れテスト駆動開発）に基づく開発ワークフローについて説明します。
 
 ## 概要
 
 開発プロセスは2つの主要なコマンドで構成されています：
 
-1. **`/spec-create`**: 仕様書の作成（要件定義 → 設計 → GitHub Issueへのタスク記述）
-2. **`/task-exec`**: タスクの実行（選定 → 実装 → レビュー → QA → 完了）
+1. **`/einja:spec-create`**: 仕様書の作成（要件定義 → 設計 → GitHub Issueへのタスク記述）
+2. **`/einja:task-exec`**: タスクの実行（選定 → 実装 → レビュー → QA → 完了）
 
 ## 全体フロー図
 
-### フェーズ1: 仕様書作成 (`/spec-create`)
+### フェーズ1: 仕様書作成 (`/einja:spec-create`)
 
 ```mermaid
 graph TD
@@ -47,7 +47,7 @@ graph TD
     style Q fill:#c8e6c9
 ```
 
-### フェーズ2: タスク実行 (`/task-exec`)
+### フェーズ2: タスク実行 (`/einja:task-exec`)
 
 **注記**: 品質保証ループにより、レビュー/QA失敗時は自動的に実装フェーズに戻ります。複数タスク一括実行も可能です。
 
@@ -91,11 +91,11 @@ graph TD
 
 ```mermaid
 graph LR
-    A[/spec-create] --> B[requirements.md]
+    A[/einja:spec-create] --> B[requirements.md]
     A --> C[design.md]
     A --> D[GitHub Issue]
 
-    D --> E[/task-exec]
+    D --> E[/einja:task-exec]
     B --> E
     C --> E
 
@@ -115,7 +115,7 @@ graph LR
 
 ## コマンド詳細
 
-### 1. `/spec-create` コマンド
+### 1. `/einja:spec-create` コマンド
 
 **役割**: プロダクト開発のシニアテクニカルアーキテクト兼シニアプロダクトエンジニアとして、ATDD形式の仕様書を段階的に作成します。
 
@@ -123,13 +123,13 @@ graph LR
 
 ```bash
 # Asanaタスクから仕様書作成
-/spec-create https://app.asana.com/0/project/task-id
+/einja:spec-create https://app.asana.com/0/project/task-id
 
 # 機能説明から仕様書作成
-/spec-create "ユーザー認証機能の実装：マジックリンク認証とセッション管理"
+/einja:spec-create "ユーザー認証機能の実装：マジックリンク認証とセッション管理"
 
 # 既存仕様書を修正
-/spec-create "認証機能の改善" /docs/specs/issues/auth/20250111-auth-magic-link/
+/einja:spec-create "認証機能の改善" /docs/specs/issues/auth/20250111-auth-magic-link/
 ```
 
 #### 処理フロー詳細
@@ -207,7 +207,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 
 ---
 
-### 2. `/task-exec` コマンド
+### 2. `/einja:task-exec` コマンド
 
 **役割**: タスク実行マネージャーとして、タスクの選定から実装、レビュー、QA、完了までの一連のプロセスを管理します。
 
@@ -220,13 +220,13 @@ Step 4: GitHub Issueにタスク一覧を記述
 
 ```bash
 # Issue番号を指定（自動選定）
-/task-exec #123
+/einja:task-exec #123
 
 # 特定のタスクグループを指定
-/task-exec #123 1.1
+/einja:task-exec #123 1.1
 
 # Issue番号のみ（#なし）
-/task-exec 123
+/einja:task-exec 123
 ```
 
 #### 処理フロー詳細
@@ -323,11 +323,11 @@ Step 4: GitHub Issueにタスク一覧を記述
 詳細については、専用ドキュメントを参照してください：
 **📖 [Vibe-Kanban自動実行ガイド](./task-vibe-kanban-loop.md)**
 
-#### `/task-exec`との使い分け
+#### `/einja:task-exec`との使い分け
 
 | コマンド | 用途 | 品質保証 | 推奨シーン |
 |---------|------|---------|----------|
-| **`/task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
+| **`/einja:task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
 | **`pnpm task:loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、並行開発 |
 
 **詳細な使い分け基準**: [task-vibe-kanban-loop.md](./task-vibe-kanban-loop.md#task-execとの使い分け)
@@ -342,10 +342,10 @@ Step 4: GitHub Issueにタスク一覧を記述
 
 ```bash
 # Asanaタスクから仕様書を作成
-/spec-create https://app.asana.com/0/project/auth-magic-link
+/einja:spec-create https://app.asana.com/0/project/auth-magic-link
 
 # または機能説明から作成
-/spec-create "マジックリンク認証機能：
+/einja:spec-create "マジックリンク認証機能：
   - メールアドレスでログイン
   - ワンタイムトークン生成
   - メール送信
@@ -366,7 +366,7 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 
 ```bash
 # Phase 1-1: トークン生成APIの実装
-/task-exec #123
+/einja:task-exec #123
 
 # 実行内容:
 # 1. task-executer: API実装、バリデーション追加
@@ -379,7 +379,7 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 
 ```bash
 # Phase 1-2: メール送信機能の実装
-/task-exec #123
+/einja:task-exec #123
 
 # 実行内容:
 # 1. task-executer: メールサービス実装
@@ -392,8 +392,8 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 
 ```bash
 # Phase 2, Phase 3 のタスクグループを順次実行
-/task-exec #123
-/task-exec #123
+/einja:task-exec #123
+/einja:task-exec #123
 ...
 
 # 最終的にすべてのタスクグループが [x] 完了状態になる
@@ -451,7 +451,7 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 stateDiagram-v2
     [*] --> 未着手: タスク作成
 
-    未着手 --> 着手中_TaskExec: /task-exec実行
+    未着手 --> 着手中_TaskExec: /einja:task-exec実行
     未着手 --> Vibe登録: /task-vibe-kanban-loop実行
 
     着手中_TaskExec --> 実装中: 実装フェーズ
@@ -545,7 +545,7 @@ graph TD
 # 原因: 依存関係が満たされていない
 # 対処: 先行タスクグループを先に完了させる
 
-/task-exec #123 1.1  # 先行タスクグループを指定して実行
+/einja:task-exec #123 1.1  # 先行タスクグループを指定して実行
 ```
 
 #### 2. レビューで差し戻される
@@ -575,8 +575,8 @@ graph TD
 ```mermaid
 sequenceDiagram
     participant User as ユーザー
-    participant SpecCreate as /spec-create
-    participant TaskExec as /task-exec
+    participant SpecCreate as /einja:spec-create
+    participant TaskExec as /einja:task-exec
     participant Executer as task-executer
     participant Reviewer as task-reviewer
     participant QA as task-qa
@@ -628,15 +628,15 @@ sequenceDiagram
 
 ### 実行の流れ
 
-1. **仕様書作成**: `/spec-create`で要件・設計を作成し、GitHub Issueにタスク一覧を記述
-2. **タスク実行**: `/task-exec`でタスクグループを1つずつ実行
+1. **仕様書作成**: `/einja:spec-create`で要件・設計を作成し、GitHub Issueにタスク一覧を記述
+2. **タスク実行**: `/einja:task-exec`でタスクグループを1つずつ実行
    - task-executerで実装
    - task-reviewerでレビュー
    - task-qaでQA
    - 完了時にタスクグループを完了状態に更新
-3. **繰り返し**: 全タスクグループが完了するまで`/task-exec`を繰り返す
+3. **繰り返し**: 全タスクグループが完了するまで`/einja:task-exec`を繰り返す
 
-開発を始める際は、まず`/spec-create`で仕様書を作成し、その後`/task-exec`でタスクグループを順次実行していきます。
+開発を始める際は、まず`/einja:spec-create`で仕様書を作成し、その後`/einja:task-exec`でタスクグループを順次実行していきます。
 <!-- @einja:managed:end -->
 
 ---

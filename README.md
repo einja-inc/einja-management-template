@@ -57,7 +57,7 @@ npx @einja/dev-cli init
 
 1. `.claude/` ディレクトリが作成される
    - `agents/` - タスク実行、仕様書生成、フロントエンド開発用サブエージェント
-   - `commands/` - `/spec-create`, `/task-exec` などのスラッシュコマンド
+   - `commands/` - `/einja:spec-create`, `/einja:task-exec` などのスラッシュコマンド
    - `skills/` - コーディング規約、コンポーネント設計ガイド
    - `hooks/` - Biomeフォーマット、型チェックなどのGit Hooks
    - `settings.json` - MCPサーバー設定（GitHub, Playwright, Serena等）

@@ -153,7 +153,7 @@ color: purple
 
 このエージェントは以下から呼び出されます：
 - `task-exec` コマンドでPhase 99タスク（`99.*.*`）実行時
-- `/update-docs-by-task-specs` コマンド直接呼び出し時
+- `/einja:update-docs-by-task-specs` コマンド直接呼び出し時
 
 ## 連携エージェント
 

@@ -87,12 +87,12 @@ GitHub Issueのチェックボックスでタスクグループのステータ�
 - [x] 1.1 タスクグループ名
 ```
 
-**注意**: タスクグループの完了時、GitHub Issueのチェックボックス更新はユーザーが明示的に指示した場合のみ行います。`/task-exec`コマンドは自動でIssueを更新しません。
+**注意**: タスクグループの完了時、GitHub Issueのチェックボックス更新はユーザーが明示的に指示した場合のみ行います。`/einja:task-exec`コマンドは自動でIssueを更新しません。
 
 ### Issueのライフサイクル
 
-1. **Issue作成**: `/spec-create`コマンドで仕様書作成時に自動生成
-2. **タスクグループ実行**: `/task-exec #{issue_number} {タスクグループ番号}`でタスクグループを実行
+1. **Issue作成**: `/einja:spec-create`コマンドで仕様書作成時に自動生成
+2. **タスクグループ実行**: `/einja:task-exec #{issue_number} {タスクグループ番号}`でタスクグループを実行
 3. **タスクグループ完了**: 実装・テスト・レビュー完了後、チェックボックスをON（手動更新）
 4. **Issue完了**: すべてのタスクグループが完了したらIssueをClose
 
@@ -375,9 +375,9 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 > **詳細なフロー（仕様書作成からレビュー・マージまで）は[開発ワークフロー](development-workflow.md)を参照してください。**
 
 ### 1. タスクグループを選定・実行
-- `/task-exec #{issue_number} {タスクグループ番号}`コマンドを実行
+- `/einja:task-exec #{issue_number} {タスクグループ番号}`コマンドを実行
 - タスクグループ番号は必須引数（例: `1.1`, `2.3`）
-- **注意**: `pnpm task:loop <issue番号>`が何らかの理由で使えない場合のオプションの単発実行として`/task-exec`を使用
+- **注意**: `pnpm task:loop <issue番号>`が何らかの理由で使えない場合のオプションの単発実行として`/einja:task-exec`を使用
 - executer → reviewer → qa の3段階で実行
 
 ### 2. タスクを順次実装し、コミット
@@ -461,13 +461,13 @@ design.md「Server Core構築」セクション
 
 **仕様書作成とIssue生成**:
 ```bash
-/spec-create [タスク内容の説明]
+/einja:spec-create [タスク内容の説明]
 ```
 - requirements.md、design.mdを作成し、GitHub Issueを自動生成
 
 **タスクグループ実行**:
 ```bash
-/task-exec #{issue_number} {タスクグループ番号}
+/einja:task-exec #{issue_number} {タスクグループ番号}
 ```
 - Issue番号とタスクグループ番号は両方必須
 - executer → reviewer → qa の3段階で実行
@@ -487,7 +487,7 @@ pnpm task:loop <issue番号> --branch <ブランチ> # ベースブランチ指�
 
 **仕様書からドキュメント更新**:
 ```bash
-/update-docs-by-task-specs [タスク仕様書ディレクトリパス]
+/einja:update-docs-by-task-specs [タスク仕様書ディレクトリパス]
 ```
 - タスク仕様書の内容をfeature仕様書とsteering仕様書に反映
 <!-- @einja:managed:end -->

@@ -8,7 +8,7 @@
 本プロジェクトでは、Claude Codeを活用した自動化された開発ワークフローを採用しています。
 
 ```
-仕様書作成（/spec-create）
+仕様書作成（/einja:spec-create）
     ↓
 仕様書レビュー（Discord + Spec PR）
     ↓
@@ -30,15 +30,15 @@
 │ Phase A: 仕様書作成                                                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  /spec-create <タスク内容の説明またはAsanaタスクURL>                          │
+│  /einja:spec-create <タスク内容の説明またはAsanaタスクURL>                          │
 │      │                                                                       │
 │      ├── 1. （AsanaURLの場合）Asanaからタスク情報取得                         │
 │      ├── 2. GitHub Issue作成                                                 │
-│      ├── 3. requirements.md作成 → ユーザー承認 → コミット                      │
-│      ├── 4. design.md作成 → ユーザー承認 → コミット                           │
-│      ├── 5. GitHub Issueにタスク一覧記述 → ユーザー承認                        │
-│      ├── 6. issue/{番号}ブランチ作成                                         │
-│      ├── 7. 仕様書をブランチにプッシュ                                        │
+│      ├── 3. IssueBranchBase選択（AskUserQuestion）                           │
+│      ├── 4. issue/{番号}ブランチ作成（IssueBranchBaseから）                   │
+│      ├── 5. requirements.md作成 → ユーザー承認 → コミット                      │
+│      ├── 6. design.md作成 → ユーザー承認 → コミット                           │
+│      ├── 7. GitHub Issueにタスク一覧記述 → ユーザー承認                        │
 │      └── 8. Spec PR作成                                                     │
 │                                                                              │
 │  成果物:                                                                     │
@@ -126,7 +126,7 @@
 ### コマンド
 
 ```bash
-/spec-create <タスク内容の説明またはAsanaタスクURL>
+/einja:spec-create <タスク内容の説明またはAsanaタスクURL>
 ```
 
 ### ステップ詳細
@@ -135,11 +135,11 @@
 | -------- | --------------------- | ------------------------------------- |
 | 1        | Claude                | タスク情報取得（AsanaURLの場合）      |
 | 2        | Claude                | GitHub Issue作成                      |
-| 3        | Claude → **人間承認** | requirements.md作成 → 確認 → コミット |
-| 4        | Claude → **人間承認** | design.md作成 → 確認 → コミット       |
-| 5        | Claude → **人間承認** | GitHub Issueにタスク一覧記述          |
-| 6        | Claude                | `issue/{番号}`ブランチ作成            |
-| 7        | Claude                | 仕様書をブランチにプッシュ            |
+| 3        | Claude → **人間承認** | IssueBranchBase選択                   |
+| 4        | Claude                | `issue/{番号}`ブランチ作成            |
+| 5        | Claude → **人間承認** | requirements.md作成 → 確認 → コミット |
+| 6        | Claude → **人間承認** | design.md作成 → 確認 → コミット       |
+| 7        | Claude → **人間承認** | GitHub Issueにタスク一覧記述          |
 | 8        | Claude                | **Spec PR作成**                       |
 | 9        | **人間**              | Discordでチームにレビュー依頼         |
 | 10       | **人間**              | Spec PRレビュー・承認・マージ         |
@@ -246,7 +246,7 @@ task-executer → task-reviewer → task-qa → In Review
 
 | PRの種類    | 作成タイミング       | 内容                       | レビュー観点                                   |
 | ----------- | -------------------- | -------------------------- | ---------------------------------------------- |
-| **Spec PR** | `/spec-create`完了時 | requirements.md, design.md | 要件の妥当性、設計の適切さ、スコープの確認     |
+| **Spec PR** | `/einja:spec-create`完了時 | requirements.md, design.md | 要件の妥当性、設計の適切さ、スコープの確認     |
 | **実装PR**  | タスクグループ完了時（Vibe-KanbanでCreate PR） | ソースコード、テスト       | コード品質、設計書との整合性、テストカバレッジ |
 
 ### なぜ2段階でPRを作成するのか
@@ -291,13 +291,13 @@ task-executer → task-reviewer → task-qa → In Review
 
 ```bash
 # タスク内容の説明から仕様書を作成
-/spec-create <タスク内容の説明>
+/einja:spec-create <タスク内容の説明>
 
 # AsanaタスクURLから仕様書を作成
-/spec-create <AsanaタスクURL>
+/einja:spec-create <AsanaタスクURL>
 
 # 既存仕様書のパスを指定して修正
-/spec-create <タスク内容> <既存仕様書パス>
+/einja:spec-create <タスク内容> <既存仕様書パス>
 ```
 
 ### タスク実行
@@ -315,17 +315,17 @@ pnpm task:loop 123 --max-group 4          # Phase 4 まで実行
 pnpm task:loop 123 --max-group 4.2        # タスクグループ 4.2 まで実行
 
 # 単一タスクグループ実行（品質重視・複雑な実装向け）
-/task-exec #<issue_number> <task_group_number>
+/einja:task-exec #<issue_number> <task_group_number>
 
 # 例
-/task-exec #123 1.1                 # Issue #123 のタスクグループ 1.1 を実行
+/einja:task-exec #123 1.1                 # Issue #123 のタスクグループ 1.1 を実行
 ```
 
-### `/task-exec` と `pnpm task:loop` の使い分け
+### `/einja:task-exec` と `pnpm task:loop` の使い分け
 
 | コマンド | 用途 | 品質保証 | 推奨シーン |
 |---------|------|---------|----------|
-| **`/task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
+| **`/einja:task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
 | **`pnpm task:loop`** | 大量タスクの自動消化 | 並列実行・監視 | 定型作業、並行開発 |
 
 ---

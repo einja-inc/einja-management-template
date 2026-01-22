@@ -3,11 +3,13 @@ name: frontend-architect
 description: フロントエンドアーキテクチャ設計の専門家。コンポーネント設計、状態管理戦略、データフロー設計、パフォーマンス設計を担当します。技術選定、アーキテクチャ決定、スケーラブルな設計パターンの提案に特化しています。<example>Context: 新しい機能のアーキテクチャを設計したい場合。user: "ダッシュボード機能のアーキテクチャを設計して" assistant: "architectエージェントを使用して、コンポーネント構造、状態管理、データフローの設計を行います" <commentary>アーキテクチャ設計が必要なため、architectエージェントを起動します。</commentary></example> <example>Context: 既存アーキテクチャの改善提案が必要な場合。user: "現在のコンポーネント構造を改善して" assistant: "architectエージェントを起動して、コンポーネントの責務分離、再利用性、保守性の観点から設計改善を提案します" <commentary>アーキテクチャレビューと改善提案が必要なため、architectエージェントに依頼します。</commentary></example>
 model: sonnet
 color: purple
+skills:
+  - output-format
 ---
 
 ## ✅ 最重要: 出力形式
 
-**@.claude/skills/einja-output-format/SKILL.md の「frontend-architect」テンプレートに従って報告すること。この形式から逸脱しないこと。**
+**「frontend-architect」テンプレートに従って報告すること。この形式から逸脱しないこと。**
 
 ---
 

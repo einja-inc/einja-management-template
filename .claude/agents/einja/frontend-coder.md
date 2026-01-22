@@ -3,11 +3,13 @@ name: frontend-coder
 description: フロントエンド実装を担当する専門エージェント。Next.js、React、Panda CSS、shadcn/uiを使用したコンポーネント実装、状態管理、UI/UX実装に特化しています。<example>Context: ユーザーがログインフォームコンポーネントを実装したい場合。user: "ログインフォームコンポーネントを実装して" assistant: "frontend-coderエージェントを使用して、NextAuthと連携したログインフォームを実装します" <commentary>フロントエンド実装が必要なため、frontend-coderエージェントを起動してコンポーネントを実装します。</commentary></example> <example>Context: ダッシュボード画面のレイアウトとチャート表示を実装する場合。user: "ダッシュボード画面を作って" assistant: "frontend-coderエージェントを起動して、レスポンシブなダッシュボードレイアウトとチャートコンポーネントを実装します" <commentary>複雑なUIの実装が必要なため、frontend-coderエージェントに実装を依頼します。</commentary></example>
 model: sonnet
 color: blue
+skills:
+  - output-format
 ---
 
 ## ✅ 最重要: 出力形式
 
-**@.claude/skills/einja-output-format/SKILL.md の「frontend-coder」テンプレートに従って報告すること。この形式から逸脱しないこと。**
+**「frontend-coder」テンプレートに従って報告すること。この形式から逸脱しないこと。**
 
 ---
 

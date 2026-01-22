@@ -3,11 +3,13 @@ name: backend-architect
 description: バックエンドアーキテクチャ設計の専門家。4層アーキテクチャ、Repository/Mapper/Result型パターン、API設計、DB設計、テスト設計方針を担当します。技術選定、アーキテクチャ決定、スケーラブルな設計パターンの提案に特化しています。<example>Context: バックエンド機能のアーキテクチャを設計したい場合。user: "投稿管理APIのアーキテクチャを設計して" assistant: "backend-architectエージェントを使用して、4層アーキテクチャ、Repository設計、API設計、テスト方針を策定します" <commentary>バックエンドアーキテクチャ設計が必要なため、backend-architectエージェントを起動します。</commentary></example> <example>Context: 既存バックエンドアーキテクチャの改善提案が必要な場合。user: "現在のRepository実装を改善して" assistant: "backend-architectエージェントを起動して、Repository/Mapper設計、Result型パターン、エラーハンドリングの観点から設計改善を提案します" <commentary>アーキテクチャレビューと改善提案が必要なため、backend-architectエージェントに依頼します。</commentary></example>
 model: sonnet
 color: orange
+skills:
+  - output-format
 ---
 
 ## ✅ 最重要: 出力形式
 
-**@.claude/skills/einja-output-format/SKILL.md の「backend-architect」テンプレートに従って報告すること。この形式から逸脱しないこと。**
+**「backend-architect」テンプレートに従って報告すること。この形式から逸脱しないこと。**
 
 ---
 

@@ -102,6 +102,25 @@ export function generatePrBody(parsedIssue: ParsedIssue, issueNumber: number): s
 }
 
 /**
+ * execFileSync のエラーから stderr を取得
+ */
+function getStderrFromError(error: unknown): string {
+  if (error && typeof error === "object" && "stderr" in error) {
+    const stderr = (error as { stderr: unknown }).stderr;
+    if (typeof stderr === "string") {
+      return stderr;
+    }
+    if (Buffer.isBuffer(stderr)) {
+      return stderr.toString("utf-8");
+    }
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
+/**
  * Pull Requestを作成
  */
 export function createPullRequest(
@@ -109,7 +128,7 @@ export function createPullRequest(
   baseBranch: string,
   title: string,
   body: string
-): { success: boolean; url?: string; error?: string } {
+): { success: boolean; url?: string; error?: string; noDiff?: boolean } {
   const tempFile = path.join(os.tmpdir(), `pr-body-${Date.now()}.md`);
 
   try {
@@ -140,13 +159,147 @@ export function createPullRequest(
 
     return { success: true, url };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getStderrFromError(error);
+
+    // 差分がない場合を検出
+    if (
+      errorMessage.includes("no commits between") ||
+      errorMessage.includes("No commits between") ||
+      errorMessage.includes("already exists") ||
+      errorMessage.includes("already up to date")
+    ) {
+      return { success: false, error: errorMessage, noDiff: true };
+    }
+
     return { success: false, error: errorMessage };
   } finally {
     // 一時ファイルを必ず削除
     if (fs.existsSync(tempFile)) {
       fs.unlinkSync(tempFile);
     }
+  }
+}
+
+/**
+ * Pull Requestをマージ
+ */
+export function mergePullRequest(
+  prNumberOrUrl: string,
+  options?: {
+    mergeMethod?: "merge" | "squash" | "rebase";
+    deleteBranch?: boolean;
+  }
+): { success: boolean; error?: string; conflicted?: boolean } {
+  const mergeMethod = options?.mergeMethod ?? "merge";
+  const deleteBranch = options?.deleteBranch ?? true;
+
+  try {
+    const args = ["pr", "merge", prNumberOrUrl, `--${mergeMethod}`];
+
+    if (deleteBranch) {
+      args.push("--delete-branch");
+    }
+
+    execFileSync("gh", args, {
+      encoding: "utf-8",
+      stdio: "pipe",
+    });
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = getStderrFromError(error);
+
+    // コンフリクトかどうかを判定（stderrベース）
+    const isConflict =
+      errorMessage.includes("Merge conflict") ||
+      errorMessage.includes("merge conflict") ||
+      errorMessage.includes("CONFLICT") ||
+      errorMessage.includes("could not be merged");
+
+    return { success: false, error: errorMessage, conflicted: isConflict };
+  }
+}
+
+/**
+ * PRを作成してマージする統合関数
+ * Phase→Issue マージで使用
+ */
+export function createAndMergePullRequest(
+  headBranch: string,
+  baseBranch: string,
+  title: string,
+  body: string,
+  options?: {
+    mergeMethod?: "merge" | "squash" | "rebase";
+    deleteBranch?: boolean;
+  }
+): { success: boolean; prUrl?: string; error?: string; conflicted?: boolean; noDiff?: boolean } {
+  try {
+    // 既存PRをチェック
+    const existing = checkExistingPullRequest(headBranch, baseBranch);
+
+    let prUrl: string;
+
+    if (existing.exists && existing.url) {
+      // 既存PRがある場合
+      if (existing.state === "MERGED") {
+        console.log(`   ✅ PRは既にマージ済み: ${existing.url}`);
+        return { success: true, prUrl: existing.url };
+      }
+      if (existing.state === "CLOSED") {
+        // CLOSEDの場合は新規作成
+        console.log(`   ⚠️ 既存PRはCLOSED状態のため、新規PRを作成: ${existing.url}`);
+        const createResult = createPullRequest(headBranch, baseBranch, title, body);
+
+        if (!createResult.success) {
+          if (createResult.noDiff) {
+            console.log("   ✅ 差分がないためマージ不要");
+            return { success: true, noDiff: true };
+          }
+          return { success: false, error: createResult.error };
+        }
+
+        prUrl = createResult.url!;
+        console.log(`   ✅ PRを作成: ${prUrl}`);
+      } else {
+        // OPEN状態のPRを再利用
+        prUrl = existing.url;
+        console.log(`   📋 既存PRを使用: ${prUrl}`);
+      }
+    } else {
+      // PRを新規作成
+      console.log("   📝 PRを作成中...");
+      const createResult = createPullRequest(headBranch, baseBranch, title, body);
+
+      if (!createResult.success) {
+        if (createResult.noDiff) {
+          console.log("   ✅ 差分がないためマージ不要");
+          return { success: true, noDiff: true };
+        }
+        return { success: false, error: createResult.error };
+      }
+
+      prUrl = createResult.url!;
+      console.log(`   ✅ PRを作成: ${prUrl}`);
+    }
+
+    // PRをマージ
+    console.log("   🔀 PRをマージ中...");
+    const mergeResult = mergePullRequest(prUrl, options);
+
+    if (!mergeResult.success) {
+      // コンフリクトかどうかを判定（mergePullRequestが判定済み）
+      if (mergeResult.conflicted) {
+        return { success: false, prUrl, error: mergeResult.error, conflicted: true };
+      }
+      return { success: false, prUrl, error: mergeResult.error };
+    }
+
+    console.log(`   ✅ PRマージ完了: ${prUrl}`);
+    return { success: true, prUrl };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
   }
 }
 

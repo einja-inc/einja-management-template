@@ -56,5 +56,34 @@
     "formatter": {
       "trailingCommas": "es5"
     }
-  }
+  },
+  "overrides": [
+    {
+      "include": ["apps/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@prisma/client": "@prisma/clientは@repo/server-core経由で使用してください",
+                  "../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
+                  "../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
+                  "../../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
+                  "../../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
+                  "../../../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
+                  "../../../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
+                  "../../../../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
+                  "../../../../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
+                  "../../../../../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
+                  "../../../../../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

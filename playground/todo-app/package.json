@@ -6,12 +6,20 @@
 		"db:generate": "prisma generate",
 		"db:push": "prisma db push",
 		"db:migrate": "prisma migrate dev",
-		"db:studio": "prisma studio"
+		"db:studio": "prisma studio",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"lint": "biome check .",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@prisma/client": "^6.10.1"
+		"@prisma/client": "^6.10.1",
+		"next": "^15.1.6"
 	},
 	"devDependencies": {
-		"prisma": "^6.10.1"
+		"@types/node": "^22.10.5",
+		"prisma": "^6.10.1",
+		"typescript": "^5.7.3",
+		"vitest": "^2.1.8"
 	}
 }

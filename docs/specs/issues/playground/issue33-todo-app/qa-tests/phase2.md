@@ -3,9 +3,9 @@
 ## テスト対象タスク
 - **タスクID**: Story 2～6
 - **タスク名**: API実装（CRUD操作）+ UIコンポーネント実装
-- **実装日**: TBD
-- **テスター**: TBD
-- **最終更新**: -
+- **実装日**: 2026-01-25
+- **テスター**: QA Agent (task-qa)
+- **最終更新**: 2026-01-25
 
 ## テストサマリー
 | ステータス | 件数 |
@@ -37,12 +37,26 @@ pnpm typecheck
 ### 結果
 | テスト項目 | ステータス | 備考 |
 |----------|----------|------|
-| ユニットテスト | - | 未実施 |
-| Lintチェック | - | 未実施 |
-| ビルドチェック | - | 未実施 |
-| 型チェック | - | 未実施 |
+| ユニットテスト | ⚠️ PARTIAL | 20/33テスト成功（13件はDB接続エラー） |
+| 統合テスト | ❌ FAIL | PostgreSQL未起動により実行不可（13件失敗） |
+| Lintチェック | ❌ FAIL | biomeコマンドが playground/todo-app に存在しない |
+| ビルドチェック | ⚠️ SKIP | playground/todo-app に build スクリプトなし |
+| 型チェック | ✅ PASS | TypeScript型定義は正常 |
 
 **重要**: 上記のいずれか1つでも失敗した場合、全体ステータスは**❌ FAIL**となります。
+
+**判定**: ❌ FAIL - 失敗分類: **D（テスト環境の問題）**
+
+### 環境問題の詳細
+1. **PostgreSQLデータベース未起動**: ポート5432でPostgreSQLが動作していない
+2. **Docker未設定**: docker/docker-composeコマンドが利用不可
+3. **Lintツール未設定**: playground/todo-app に @biomejs/biome が devDependencies に含まれていない
+
+### 次のアクション
+環境を調整後、QAテストを再実行する必要があります：
+1. PostgreSQLを起動（docker-compose up -d postgres または別の方法）
+2. playground/todo-app/package.json に biome を追加
+3. 統合テストを再実行
 
 ---
 
@@ -589,7 +603,7 @@ curl -i -X DELETE http://localhost:3000/api/todos/nonexistent
 - [ ] **A: 実装ミス** → task-executerへ差し戻し
 - [ ] **B: 要件齟齬** → requirements.md修正 → task-executerへ差し戻し
 - [ ] **C: 設計不備** → design.md修正 → task-executerへ差し戻し
-- [ ] **D: 環境問題** → qa再実行
+- [x] **D: 環境問題** → qa再実行
 
 ### task-executerへの差し戻し（該当する場合）
 - （失敗時に記載）

@@ -27,12 +27,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm db:generate
-
-      - name: Generate Panda CSS
+      - name: Generate artifacts
         run: |
-          pnpm --filter @einja/web panda
+          pnpm generate
           # Panda CSS生成確認
           if [ ! -d "apps/web/styled-system" ]; then
             echo "Error: styled-system directory was not created"

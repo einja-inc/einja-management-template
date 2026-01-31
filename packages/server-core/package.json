@@ -7,6 +7,7 @@
 		"./testing": "./src/testing/index.ts"
 	},
 	"scripts": {
+		"generate": "prisma generate",
 		"db:generate": "prisma generate",
 		"db:push": "prisma db push",
 		"db:migrate": "prisma migrate dev",

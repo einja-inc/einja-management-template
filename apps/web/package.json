@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "rm -rf .next && next dev --turbopack --port ${PORT_WEB:-3000}",
-    "build": "panda codegen && next build",
+    "build": "next build",
     "start": "next start",
+    "generate": "panda codegen",
     "panda": "panda codegen",
     "lint": "biome check .",
     "lint:fix": "biome check --write",

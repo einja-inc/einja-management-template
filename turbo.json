@@ -3,11 +3,11 @@
 	"globalDependencies": ["**/.env.*local"],
 	"tasks": {
 		"build": {
-			"dependsOn": ["^build"],
+			"dependsOn": ["generate", "^generate", "^build"],
 			"outputs": [".next/**", "!.next/cache/**", "dist/**"]
 		},
 		"dev": {
-			"dependsOn": ["panda"],
+			"dependsOn": ["generate", "^generate"],
 			"cache": false,
 			"persistent": true,
 			"passThroughEnv": ["PORT", "PORT_WEB", "DATABASE_URL", "NEXTAUTH_URL", "AUTH_SECRET"]
@@ -15,6 +15,9 @@
 		"panda": {
 			"cache": false,
 			"outputs": ["styled-system/**"]
+		},
+		"generate": {
+			"cache": false
 		},
 		"lint": {
 			"dependsOn": ["^lint"]
@@ -29,10 +32,10 @@
 			"dependsOn": ["^format:fix"]
 		},
 		"typecheck": {
-			"dependsOn": ["^typecheck"]
+			"dependsOn": ["generate", "^generate", "^typecheck"]
 		},
 		"test": {
-			"dependsOn": ["^build"],
+			"dependsOn": ["generate", "^generate", "^build"],
 			"outputs": ["coverage/**"]
 		},
 		"test:watch": {

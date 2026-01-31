@@ -19,6 +19,7 @@
 		"build:dev": "dotenvx run -f .env.develop -- turbo run build",
 		"build:local": "turbo run build",
 		"start": "turbo run start",
+		"generate": "turbo run generate",
 		"lint": "turbo run lint",
 		"lint:fix": "turbo run lint:fix",
 		"format": "turbo run format",

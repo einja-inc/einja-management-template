@@ -1,5 +1,6 @@
 // playground/todo-app/vitest.setup.ts
 
+import "@testing-library/jest-dom";
 import { beforeEach } from "vitest";
 import { prisma } from "./lib/prisma";
 

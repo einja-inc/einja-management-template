@@ -18,10 +18,10 @@ if [[ "$file_path" =~ \.(ts|tsx|js|jsx|json)$ ]]; then
   cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || exit 0
 
   # biome check（format + lint）を実行、自動修正可能なものは修正
-  npx biome check --write "$file_path" 2>/dev/null || true
+  pnpm exec biome check --write "$file_path" 2>/dev/null || true
 
   # 修正後に残っているlintエラーをチェック（any型など自動修正できないもの）
-  lint_errors=$(npx biome lint "$file_path" 2>&1 | grep -E "lint/|noExplicitAny|error" | head -20)
+  lint_errors=$(pnpm exec biome lint "$file_path" 2>&1 | grep -E "lint/|noExplicitAny|error" | head -20)
 
   if [ -n "$lint_errors" ]; then
     echo "" >&2

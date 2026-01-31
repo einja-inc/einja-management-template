@@ -18,11 +18,16 @@
 
 | 作業 | 委託先 |
 |------|--------|
-| コミット・プッシュ | `task-committer` |
 | コンフリクト解消 | `conflict-resolver` |
 | コード実装 | `task-executer` |
 | 品質検証（QA） | `task-qa` |
 | 実装レビュー | `task-reviewer` |
+
+#### Skill（直接呼び出し）
+
+| 作業 | 使用するSkill |
+|------|--------------|
+| コミット・プッシュ | `einja-task-commit` Skill |
 
 #### ビルトインサブエージェント（探索・計画用）
 

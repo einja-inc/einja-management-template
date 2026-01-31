@@ -36,8 +36,8 @@ $ARGUMENTSから以下を解析：
 
 | Phase番号 | 判定 | 処理フロー |
 |-----------|------|-----------|
-| 1〜98 | 通常タスク | task-executer → task-reviewer → task-qa → task-committer |
-| 99 | ドキュメント反映タスク | docs-updater → task-committer |
+| 1〜98 | 通常タスク | task-executer → task-reviewer → task-qa → einja-task-commit Skill |
+| 99 | ドキュメント反映タスク | docs-updater → einja-task-commit Skill |
 
 ### 通常タスクのフロー（Phase 1〜98）
 
@@ -52,7 +52,7 @@ $ARGUMENTSから以下を解析：
 │                                                         │
 │  QA合格後 ↓                                             │
 │  ┌─────────────────────────────────────────────┐       │
-│  │ task-committer（コミット・プッシュ）          │       │
+│  │ einja-task-commit Skill（コミット・プッシュ） │       │
 │  │ ※ 確認なしで自動実行                         │       │
 │  └─────────────────────────────────────────────┘       │
 │                                                         │
@@ -84,7 +84,7 @@ $ARGUMENTSから以下を解析：
 │       │                                                 │
 │       ↓ 反映完了                                        │
 │  ┌─────────────────────────────────────────────┐       │
-│  │ task-committer（コミット・プッシュ）          │       │
+│  │ einja-task-commit Skill（コミット・プッシュ） │       │
 │  │ ※ 確認なしで自動実行                         │       │
 │  └─────────────────────────────────────────────┘       │
 │                                                         │
@@ -115,8 +115,8 @@ $ARGUMENTSから以下を解析：
 - テスト失敗 → 実装フェーズに戻る
 - 全テスト合格 → コミット・プッシュフェーズへ
 
-### 4. コミット・プッシュフェーズ（task-committer）
-- QA合格後、自動的にコミット・プッシュを実行
+### 4. コミット・プッシュフェーズ（einja-task-commit Skill）
+- QA合格後、Skill toolで `einja-task-commit` Skillを直接呼び出し
 - 変更がある場合のみ実行（変更なしの場合はスキップ）
 - コミット分割案の確認はスキップ（QA合格済みのため自動適用）
 - 品質チェック（lint/typecheck/test/build）はQAで実行済みのためスキップ
@@ -138,7 +138,7 @@ $ARGUMENTSから以下を解析：
      - 対象タスクspecのパス（全Phaseで完了したタスクspec）
 
 3. **コミット・プッシュ**
-   - docs-updater 完了後、task-committer を呼び出し
+   - docs-updater 完了後、Skill toolで `einja-task-commit` Skillを呼び出し
    - ドキュメント変更をコミット・プッシュ
 
 4. **終了**

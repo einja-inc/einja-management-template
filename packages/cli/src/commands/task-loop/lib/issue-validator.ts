@@ -4,7 +4,9 @@
  * タスク管理ガイドラインに基づいてフォーマットを検証
  */
 
-import type { ParsedIssue } from "./types.js";
+import { detectHorizontalSplit } from "./horizontal-split-detector.js";
+import { parseIssueBody } from "./issue-parser.js";
+import type { GitHubIssue, ParsedIssue } from "./types.js";
 
 /** バリデーションエラー種別 */
 export type ValidationErrorType =
@@ -50,16 +52,31 @@ const REQUIRED_METADATA = [
 export function validateIssueBody(body: string): ValidationResult {
   const errors: ValidationError[] = [];
 
-  // Phase検証
+  // 🔴 横切り検出を最優先で実行
+  const dummyIssue: GitHubIssue = { number: 0, title: "", body, state: "open" };
+  const parsedIssue = parseIssueBody(dummyIssue);
+
+  for (const phase of parsedIssue.phases) {
+    const result = detectHorizontalSplit(phase);
+    if (result) {
+      errors.push({
+        type: "horizontal_split_detected",
+        phaseNumber: phase.number,
+        message: result.reason,
+        fixSuggestion: result.suggestion,
+      });
+    }
+  }
+
+  // 横切りエラーがあれば他のチェックをスキップして即座に返却
+  if (errors.some(e => e.type === "horizontal_split_detected")) {
+    return { isValid: false, errors };
+  }
+
+  // 既存のチェック
   errors.push(...validatePhaseStructure(body));
-
-  // インデント検証
   errors.push(...validateIndentation(body));
-
-  // メタデータ検証
   errors.push(...validateMetadata(body));
-
-  // 依存関係検証
   errors.push(...validateDependencies(body));
 
   return {
@@ -75,6 +92,24 @@ export function validateParsedIssue(
   parsedIssue: ParsedIssue
 ): ValidationResult {
   const errors: ValidationError[] = [];
+
+  // 🔴 横切り検出を最優先で実行
+  for (const phase of parsedIssue.phases) {
+    const result = detectHorizontalSplit(phase);
+    if (result) {
+      errors.push({
+        type: "horizontal_split_detected",
+        phaseNumber: phase.number,
+        message: result.reason,
+        fixSuggestion: result.suggestion,
+      });
+    }
+  }
+
+  // 横切りエラーがあれば他のチェックをスキップして即座に返却
+  if (errors.some(e => e.type === "horizontal_split_detected")) {
+    return { isValid: false, errors };
+  }
 
   // Phase番号の連番チェック
   const phaseNumbers = parsedIssue.phases

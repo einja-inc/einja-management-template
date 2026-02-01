@@ -1,8 +1,8 @@
 // playground/todo-app/app/api/todos/route.ts
 
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateCreateTodo } from "@/lib/validation";
+import { NextResponse } from "next/server";
 
 /**
  * GET /api/todos - Todo一覧取得
@@ -31,10 +31,7 @@ export async function POST(request: Request) {
 		const validation = validateCreateTodo(body);
 
 		if (!validation.success) {
-			return NextResponse.json(
-				{ error: validation.error },
-				{ status: 400 },
-			);
+			return NextResponse.json({ error: validation.error }, { status: 400 });
 		}
 
 		const { title, completed } = body as { title: string; completed?: boolean };

@@ -1,10 +1,10 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
-import { TodoItem } from "./TodoItem";
-import { TodoForm } from "./TodoForm";
+import { useEffect, useState } from "react";
 import type { Todo } from "../types/todo";
+import { TodoForm } from "./TodoForm";
+import { TodoItem } from "./TodoItem";
 
 export function TodoList() {
 	const [todos, setTodos] = useState<Todo[]>([]);
@@ -27,6 +27,7 @@ export function TodoList() {
 		}
 	};
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: fetchTodosは初回マウント時のみ実行
 	useEffect(() => {
 		fetchTodos();
 	}, []);
@@ -139,7 +140,7 @@ export function TodoList() {
 			{error && (
 				<div style={errorStyle}>
 					{error}
-					<button onClick={fetchTodos} style={retryButtonStyle}>
+					<button type="button" onClick={fetchTodos} style={retryButtonStyle}>
 						再試行
 					</button>
 				</div>

@@ -1,10 +1,7 @@
 // playground/todo-app/__tests__/validation.test.ts
 
-import { describe, it, expect } from "vitest";
-import {
-	validateCreateTodo,
-	validateUpdateTodo,
-} from "@/lib/validation";
+import { validateCreateTodo, validateUpdateTodo } from "@/lib/validation";
+import { describe, expect, it } from "vitest";
 
 describe("validateCreateTodo", () => {
 	it("有効なデータで成功を返す", () => {

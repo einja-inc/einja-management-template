@@ -67,6 +67,7 @@ export function TodoItem({ todo, onToggle, onDelete }: TodoItemProps) {
 				</span>
 			</label>
 			<button
+				type="button"
 				onClick={() => onDelete(todo.id)}
 				style={deleteButtonStyle}
 				aria-label={`${todo.title}を削除`}

@@ -9,6 +9,7 @@
 		"db:studio": "prisma studio",
 		"test": "vitest run",
 		"test:watch": "vitest",
+		"test:integration": "vitest run --config vitest.integration.config.ts",
 		"lint": "biome check .",
 		"typecheck": "tsc --noEmit"
 	},
@@ -17,8 +18,14 @@
 		"next": "^15.1.6"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@testing-library/jest-dom": "^6.6.3",
+		"@testing-library/react": "^16.1.0",
 		"@types/node": "^22.10.5",
+		"@types/react": "^19.0.6",
+		"jsdom": "^26.0.0",
 		"prisma": "^6.10.1",
+		"react": "^19.0.0",
 		"typescript": "^5.7.3",
 		"vitest": "^2.1.8"
 	}

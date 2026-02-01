@@ -1,4 +1,4 @@
-// playground/todo-app/vitest.config.ts
+// playground/todo-app/vitest.integration.config.ts
 
 import path from "node:path";
 import { defineConfig } from "vitest/config";
@@ -11,11 +11,10 @@ export default defineConfig({
 	},
 	test: {
 		globals: true,
-		environment: "jsdom",
+		environment: "node",
 		setupFiles: ["./vitest.setup.ts"],
-		// 統合テスト（.integration.ts）はデフォルトで除外
-		// DB起動時は `pnpm test:integration` で実行
-		exclude: ["**/*.integration.ts", "**/node_modules/**"],
+		// 統合テストのみ実行
+		include: ["**/*.integration.ts"],
 		env: {
 			DATABASE_URL:
 				process.env.DATABASE_URL ||

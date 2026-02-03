@@ -1,6 +1,6 @@
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { H1, P } from "@/components/ui/typography";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/card";
+import { H1, P } from "@repo/ui/typography";
 import { auth } from "@/lib/auth";
 
 export default async function DashboardPage() {

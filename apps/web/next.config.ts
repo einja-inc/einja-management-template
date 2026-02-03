@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   output: "standalone",
+  transpilePackages: ["@repo/ui"],
 };
 
 export default nextConfig;

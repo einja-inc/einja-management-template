@@ -1,15 +1,15 @@
 "use client";
 
 import type { UserListItem } from "@/application/use-cases/UserUseCases";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { Badge } from "@repo/ui/badge";
+import { Button } from "@repo/ui/button";
+import { DataTable } from "@repo/ui/data-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@repo/ui/dropdown-menu";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown, Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 

@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/card";
 import { prefetchUsers } from "@/hooks/api/prefetch-users";
 import type { PaginatedUserList } from "@/shared/schemas/user";
 import { UserTableContainer } from "./_components/UserTableContainer";

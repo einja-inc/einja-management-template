@@ -30,6 +30,8 @@ program
   .option("-f, --force", "既存の.claudeを強制上書き")
   .option("--no-backup", "バックアップを作成しない")
   .option("--dry-run", "実行内容を表示するだけで実際には変更しない")
+  .option("--skip-deps", "依存関係のチェック・インストールをスキップ")
+  .option("-y, --yes", "確認プロンプトをスキップ")
   .action(initCommand);
 
 program.command("list").description("利用可能なプリセット一覧を表示").action(listCommand);
@@ -43,6 +45,7 @@ program
   .option("-y, --yes", "確認プロンプトをスキップ")
   .option("-j, --json", "JSON形式で結果を出力")
   .option("--no-backup", "変更前にバックアップを作成しない")
+  .option("--skip-deps", "依存関係のチェック・インストールをスキップ")
   .action(syncCommand);
 
 program

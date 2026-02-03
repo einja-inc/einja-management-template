@@ -4,6 +4,9 @@ import chalk from "chalk";
 import fs from "fs-extra";
 import inquirer from "inquirer";
 import ora from "ora";
+import { checkAndInstallDependencies } from "../lib/dependency-checker.js";
+import { detectPackageManager } from "../lib/package-manager.js";
+import { loadPreset } from "../lib/preset.js";
 import { BackupManager } from "../lib/sync/backup-manager.js";
 import { BatchProcessor } from "../lib/sync/batch-processor.js";
 import {
@@ -537,6 +540,29 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     if (conflictReport.hasConflicts) {
       log(conflictReporter.formatReport(conflictReport), options);
       log(conflictReporter.formatHelpMessage(), options);
+    }
+  }
+
+  // 13. 依存関係チェック+インストール
+  if (!options.skipDeps) {
+    const packageJsonPath = path.join(cwd, "package.json");
+    if (await fs.pathExists(packageJsonPath)) {
+      try {
+        const preset = await loadPreset("default");
+        if (preset.config.requirements) {
+          log("", options); // 空行
+          const pm = await detectPackageManager(cwd);
+          await checkAndInstallDependencies(
+            cwd,
+            preset.config.requirements,
+            pm,
+            { yes: options.yes, dryRun: options.dryRun },
+            true // silent: 全て満たされている場合は表示なし
+          );
+        }
+      } catch {
+        // プリセット読み込みエラーは無視
+      }
     }
   }
 }

@@ -8,6 +8,28 @@ Claude Code用の`.claude`設定ディレクトリをnpxでインストールで
 npx @einja/dev-cli init
 ```
 
+## 利用シーン
+
+| プロジェクトの状態 | 使うコマンド | 説明 |
+|-------------------|------------|------|
+| 新規作成（ゼロから） | `npx create-einja-app my-project` | テンプレートから完全なプロジェクトを生成 |
+| 既存プロジェクトに初回導入 | `npx @einja/dev-cli init` | Claude Code設定を追加+不足依存をインストール |
+| 設定を最新版に更新 | `pnpm einja:sync` | テンプレートの更新分をマージ+不足依存をインストール |
+| 設定を再セットアップ | `npx @einja/dev-cli init --force` | .claudeを上書き（バックアップ自動作成） |
+
+### init vs sync vs create-einja-app の違い
+
+| | `create-einja-app` | `dev-cli init` | `dev-cli sync` |
+|--|-------------------|----------------|----------------|
+| 対象 | 新規プロジェクト | 既存（初回導入） | 既存（更新） |
+| .claude/ | 新規生成 | 上書き | マーカーベースでマージ |
+| CLAUDE.md | 新規生成 | 上書き | managedのみ更新 |
+| ユーザーカスタマイズ | — | ⚠️ 上書き | ✅ 保持 |
+| package.json scripts | 全scripts込み | 不足のみ追加 | 不足のみ追加 |
+| devDependencies | 全パッケージ | hooks最小限 | hooks最小限 |
+
+> **ポイント**: 設定を更新したいだけなら`sync`を使ってください。`init --force`はユーザーカスタマイズ（seedセクション）を上書きします。
+
 ## インストール
 
 ```bash
@@ -34,25 +56,14 @@ npx @einja/dev-cli init
 | オプション | 説明 |
 |-----------|------|
 | `-f, --force` | 上書き確認をスキップ |
+| `-y, --yes` | 確認プロンプトをスキップ |
 | `--dry-run` | 実行内容をプレビュー |
 | `--no-backup` | バックアップを作成しない |
+| `--skip-deps` | 依存関係のチェック・インストールをスキップ |
 
-**自動追加されるnpm scripts:**
+**依存関係の自動チェック:**
 
-`init` 実行時に `package.json` の `scripts` に以下が自動追加されます：
-
-```json
-{
-  "scripts": {
-    "task:loop": "npx @einja/dev-cli task:loop",
-    "einja:sync": "npx @einja/dev-cli sync"
-  }
-}
-```
-
-これにより、以下のコマンドが使用可能になります：
-- `pnpm task:loop 123` - タスクループ実行
-- `pnpm einja:sync` - テンプレート同期
+`init` 実行時に `preset.yaml` の `requirements` に基づいて不足依存を検出し、インストールを提案します。`package.json` に不足している scripts も自動追加されます。
 
 ### `sync`
 
@@ -76,6 +87,7 @@ npx @einja/dev-cli sync --only hooks
 | `-f, --force` | ローカル変更を無視してテンプレートで上書き |
 | `-y, --yes` | 確認プロンプトをスキップ |
 | `--no-backup` | 変更前にバックアップを作成しない |
+| `--skip-deps` | 依存関係のチェック・インストールをスキップ |
 
 **同期可能なカテゴリ:**
 - `commands` - Claude Code コマンド
@@ -206,25 +218,37 @@ pnpm test
 pnpm typecheck
 ```
 
-## 前提となるコマンド
+## 前提となる依存関係
 
-サブエージェント（task-qa、task-commit、task-reviewer等）が以下のコマンドの存在を前提としています。
+`init`および`sync`コマンドは以下を自動チェックし、不足分のインストールを提案します。
 
-| コマンド | 使用者 | 用途 |
-|---------|--------|------|
-| `prepush` | task-commit | コミット前の品質チェック |
-| `test` | task-qa, task-reviewer | ユニットテスト実行 |
-| `lint` | task-qa, task-reviewer | Biome lintチェック |
-| `typecheck` | task-qa, task-reviewer | TypeScript型チェック |
-| `build` | task-qa, task-reviewer | ビルド確認 |
-| `dev` | CLAUDE.md | 開発サーバー起動 |
-| `dev:bg` | CLAUDE.md | バックグラウンド開発サーバー |
+### npmパッケージ（自動インストール）
 
-**推奨**: これらのコマンドがすべて含まれる `create-einja-app` でプロジェクトを作成してください。
+| パッケージ | 用途 |
+|-----------|------|
+| `@biomejs/biome` | フォーマット・lint（biome-format.sh） |
+| `typescript` | 型チェック（typecheck.sh） |
 
-```bash
-npx create-einja-app my-project
-```
+### npm scripts（自動追加）
+
+| スクリプト | デフォルト値 |
+|-----------|------------|
+| `lint` | `biome check .` |
+| `lint:fix` | `biome check --write .` |
+| `format` | `biome format .` |
+| `format:fix` | `biome format --write .` |
+| `typecheck` | `tsc --noEmit` |
+| `prepush` | `{pm} run lint && {pm} run typecheck` |
+| `task:loop` | `npx @einja/dev-cli task:loop` |
+| `einja:sync` | `npx @einja/dev-cli sync` |
+
+※ 既存scriptsは上書きされません。`--skip-deps`でスキップ可能。
+
+### システムコマンド（手順表示のみ）
+
+| コマンド | 用途 | macOS |
+|---------|------|-------|
+| `jq` | hooks JSON入力パース | `brew install jq` |
 
 ## 要件
 

@@ -108,3 +108,30 @@ additionalAgents:
 additionalCommands:
   - frontend-implement
   - start-dev
+
+# 依存関係チェック（init/sync時に自動チェック+インストール）
+requirements:
+  # hooksが動作するために必要なnpmパッケージ
+  devDependencies:
+    "@biomejs/biome": "^1.9.4"
+    "typescript": "^5"
+
+  # 不足時に追加するnpm scripts（キーが存在しない場合のみ追加）
+  scripts:
+    lint: "biome check ."
+    "lint:fix": "biome check --write ."
+    format: "biome format ."
+    "format:fix": "biome format --write ."
+    typecheck: "tsc --noEmit"
+    prepush: "{pm} run lint && {pm} run typecheck"
+    "task:loop": "npx @einja/dev-cli task:loop"
+    "einja:sync": "npx @einja/dev-cli sync"
+
+  # システムコマンド（警告表示のみ、自動インストールしない）
+  systemCommands:
+    - command: jq
+      description: "JSON processor（全hooksで使用）"
+      install:
+        darwin: "brew install jq"
+        linux: "sudo apt-get install jq"
+        win32: "choco install jq"

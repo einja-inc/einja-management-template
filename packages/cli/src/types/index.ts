@@ -8,6 +8,7 @@ export interface PresetConfig {
   additionalPermissions: string[];
   additionalAgents: string[];
   additionalCommands: string[];
+  requirements?: RequirementsConfig;
 }
 
 export interface Preset {
@@ -22,6 +23,8 @@ export interface InitOptions {
   force?: boolean;
   backup?: boolean;
   dryRun?: boolean;
+  skipDeps?: boolean;
+  yes?: boolean;
 }
 
 export interface CoreSettings {
@@ -41,6 +44,7 @@ export interface SyncOptions {
   yes?: boolean;
   json?: boolean;
   backup?: boolean;
+  skipDeps?: boolean;
 }
 
 /**
@@ -61,4 +65,22 @@ export interface SymlinksConfig {
   version: number;
   /** シンボリックリンクの配列 */
   symlinks: SymlinkEntry[];
+}
+
+/**
+ * 依存関係の要件定義
+ */
+export interface RequirementsConfig {
+  devDependencies?: Record<string, string>;
+  scripts?: Record<string, string>;
+  systemCommands?: SystemCommandRequirement[];
+}
+
+/**
+ * システムコマンドの要件
+ */
+export interface SystemCommandRequirement {
+  command: string;
+  description: string;
+  install: Partial<Record<"darwin" | "linux" | "win32", string>>;
 }

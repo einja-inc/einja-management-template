@@ -3,6 +3,7 @@ import chalk from "chalk";
 import fs from "fs-extra";
 import inquirer from "inquirer";
 import ora from "ora";
+import { checkAndInstallDependencies } from "../lib/dependency-checker.js";
 import { backupDirectory } from "../lib/file-system.js";
 import { setupMcpConfig } from "../lib/mcp-config.js";
 import {
@@ -12,6 +13,7 @@ import {
   generateClaudeDirectory,
   generateClaudeMd,
 } from "../lib/merger.js";
+import { detectPackageManager } from "../lib/package-manager.js";
 import { loadPreset, presetExists } from "../lib/preset.js";
 import type { InitOptions } from "../types/index.js";
 
@@ -52,6 +54,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
     console.log("  - シンボリックリンクを作成（symlinks.json に基づく）");
     console.log("    リンク先パスはインストール時に自動計算");
     console.log("  - .mcp.json をセットアップ（既存設定とマージ）");
+    console.log("  - 依存関係をチェック・インストール");
     return;
   }
 
@@ -210,47 +213,14 @@ export async function initCommand(options: InitOptions): Promise<void> {
     console.error(chalk.red(error instanceof Error ? error.message : String(error)));
   }
 
-  // 10. package.json に scripts を追加
+  // 10. 依存関係チェック+インストール
   const packageJsonPath = path.join(cwd, "package.json");
-  if (await fs.pathExists(packageJsonPath)) {
-    spinner.start("package.json に scripts を追加中...");
-
-    try {
-      const packageJson = await fs.readJson(packageJsonPath);
-      const scriptsToAdd = {
-        "task:loop": "npx @einja/dev-cli task:loop",
-        "einja:sync": "npx @einja/dev-cli sync",
-      };
-
-      let added = 0;
-      let skipped = 0;
-
-      if (!packageJson.scripts) {
-        packageJson.scripts = {};
-      }
-
-      for (const [key, value] of Object.entries(scriptsToAdd)) {
-        if (packageJson.scripts[key]) {
-          skipped++;
-        } else {
-          packageJson.scripts[key] = value;
-          added++;
-        }
-      }
-
-      if (added > 0) {
-        await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
-        spinner.succeed(`package.json: ${added} 件の scripts を追加`);
-        if (skipped > 0) {
-          console.log(chalk.yellow(`    ⚠ ${skipped} 件は既に存在するためスキップ`));
-        }
-      } else {
-        spinner.info("package.json: scripts は既に設定済み");
-      }
-    } catch (error) {
-      spinner.warn("package.json への scripts 追加をスキップ");
-      console.log(chalk.yellow(`    ${error instanceof Error ? error.message : String(error)}`));
-    }
+  if (!options.skipDeps && (await fs.pathExists(packageJsonPath)) && preset.config.requirements) {
+    const pm = await detectPackageManager(cwd);
+    await checkAndInstallDependencies(cwd, preset.config.requirements, pm, {
+      yes: options.yes,
+      dryRun: options.dryRun,
+    });
   }
 
   // 11. 完了メッセージ
@@ -263,17 +233,8 @@ export async function initCommand(options: InitOptions): Promise<void> {
   if (mcpSetupSuccess) {
     console.log("  - .mcp.json          MCPサーバー設定");
   }
-  console.log(chalk.gray("\n追加された scripts:"));
-  console.log("  - pnpm task:loop <issue>   タスクループ実行");
-  console.log("  - pnpm einja:sync          テンプレート同期");
   console.log(chalk.gray("\n次のステップ:"));
   console.log("  1. CLAUDE.md をプロジェクトに合わせてカスタマイズ");
   console.log("  2. settings.local.json を必要に応じて作成");
   console.log("  3. claude code で開発を開始");
-
-  console.log(chalk.yellow("\n⚠️  前提となるコマンド:"));
-  console.log("  サブエージェントは以下のコマンドを使用します:");
-  console.log("  prepush, test, lint, typecheck, build, dev, dev:bg");
-  console.log(chalk.gray("  これらがない場合は create-einja-app でプロジェクトを作成してください:"));
-  console.log(chalk.cyan("  npx create-einja-app my-project"));
 }

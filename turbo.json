@@ -12,10 +12,6 @@
 			"persistent": true,
 			"passThroughEnv": ["PORT", "PORT_WEB", "DATABASE_URL", "NEXTAUTH_URL", "AUTH_SECRET"]
 		},
-		"panda": {
-			"cache": false,
-			"outputs": ["styled-system/**"]
-		},
 		"generate": {
 			"cache": false
 		},

@@ -34,7 +34,7 @@ description: "Reactコンポーネントの設計原則と実装ガイドライ�
 
 - [ディレクトリ構造](./reference/directory-structure.md) - ファイル配置とディレクトリ設計
 - [Props設計パターン](./reference/props-patterns.md) - Props設計とイベントハンドリング
-- [スタイリングガイド](./reference/styling-guide.md) - Panda CSSを使用したスタイリング規約
+- [スタイリングガイド](./reference/styling-guide.md) - Tailwind CSSを使用したスタイリング規約
 
 ## クイックリファレンス
 
@@ -70,7 +70,7 @@ src/
 ```
 ComponentName/
 ├── index.tsx           # コンポーネント本体
-└── styles.ts          # Panda CSS スタイル定義（必要に応じて）
+└── variants.ts        # cvaバリアント定義（必要に応じて）
 ```
 
 ### 基本的な型定義
@@ -91,7 +91,7 @@ interface ButtonProps {
 
 - [ ] 適切なディレクトリに配置されている
 - [ ] TypeScript の型定義が完全
-- [ ] Panda CSS でスタイリングされている
+- [ ] Tailwind CSS でスタイリングされている
 - [ ] プロパティのデフォルト値が設定されている
 - [ ] アクセシビリティが考慮されている
 - [ ] 単体テストが実装されている
@@ -106,4 +106,4 @@ interface ButtonProps {
 
 - [React 公式ドキュメント](https://react.dev)
 - [TypeScript 公式ドキュメント](https://www.typescriptlang.org)
-- [Panda CSS ドキュメント](https://panda-css.com)
+- [Tailwind CSS ドキュメント](https://tailwindcss.com)

@@ -17,7 +17,6 @@
       "**/coverage",
       "**/.vercel",
       "**/.pnpm-store",
-      "**/styled-system",
       "**/test-results",
       "**/playwright-report",
       "**/.claude"

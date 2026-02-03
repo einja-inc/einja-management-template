@@ -8,8 +8,6 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { css } from "../../../styled-system/css";
-import { center, vstack } from "../../../styled-system/patterns";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -53,106 +51,28 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className={css({
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, {colors.blue.50} 0%, {colors.purple.50} 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem 1rem",
-      })}
-    >
-      <div
-        className={css({
-          width: "100%",
-          maxWidth: "md",
-          display: "flex",
-          flexDirection: "column",
-          gap: "2rem",
-        })}
-      >
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md flex flex-col gap-8">
         {/* ロゴ・ヘッダー部分 */}
-        <div className={center({ flexDirection: "column", gap: "1rem" })}>
-          <div
-            className={css({
-              width: "4rem",
-              height: "4rem",
-              background: "linear-gradient(135deg, {colors.blue.600}, {colors.purple.600})",
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "lg",
-            })}
-          >
-            <span
-              className={css({
-                fontSize: "1.5rem",
-                fontWeight: "bold",
-                color: "white",
-              })}
-            >
-              E
-            </span>
+        <div className="flex flex-col items-center justify-center gap-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+            <span className="text-2xl font-bold text-white">E</span>
           </div>
-          <h1
-            className={css({
-              fontSize: "2xl",
-              fontWeight: "bold",
-              color: "{colors.gray.800}",
-              textAlign: "center",
-            })}
-          >
-            Einja Management
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-800 text-center">Einja Management</h1>
         </div>
 
         {/* ログインカード */}
-        <Card
-          className={css({
-            boxShadow: "2xl",
-            border: "none",
-            background: "white/90",
-            backdropFilter: "blur(10px)",
-          })}
-        >
-          <CardHeader
-            className={vstack({
-              gap: "0.5rem",
-              alignItems: "center",
-              padding: "1.5rem",
-            })}
-          >
-            <CardTitle
-              className={css({
-                fontSize: "1.5rem",
-                fontWeight: "semibold",
-                color: "{colors.gray.800}",
-              })}
-            >
-              ログイン
-            </CardTitle>
-            <CardDescription
-              className={css({
-                color: "{colors.gray.600}",
-                textAlign: "center",
-              })}
-            >
+        <Card className="shadow-2xl border-none bg-white/90 backdrop-blur">
+          <CardHeader className="flex flex-col gap-2 items-center p-6">
+            <CardTitle className="text-2xl font-semibold text-gray-800">ログイン</CardTitle>
+            <CardDescription className="text-gray-600 text-center">
               アカウントにログインしてください
             </CardDescription>
           </CardHeader>
-          <CardContent className={css({ padding: "1.5rem", paddingTop: "0" })}>
-            <form onSubmit={handleSubmit} className={vstack({ gap: "1.5rem" })}>
-              <div className={vstack({ gap: "0.5rem", width: "100%" })}>
-                <Label
-                  htmlFor="email"
-                  className={css({
-                    fontSize: "sm",
-                    fontWeight: "medium",
-                    color: "{colors.gray.700}",
-                  })}
-                >
+          <CardContent className="p-6 pt-0">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2 w-full">
+                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
                   メールアドレス
                 </Label>
                 <Input
@@ -163,30 +83,11 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
-                  className={css({
-                    height: "2.75rem",
-                    fontSize: "sm",
-                    border: "2px solid {colors.gray.200}",
-                    _focus: {
-                      borderColor: "{colors.blue.500}",
-                      boxShadow: "0 0 0 3px {colors.blue.100}",
-                    },
-                    _disabled: {
-                      opacity: 0.6,
-                      cursor: "not-allowed",
-                    },
-                  })}
+                  className="h-11 text-sm border-2 border-gray-200 focus:border-blue-500 focus:ring-3 focus:ring-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
-              <div className={vstack({ gap: "0.5rem", width: "100%" })}>
-                <Label
-                  htmlFor="password"
-                  className={css({
-                    fontSize: "sm",
-                    fontWeight: "medium",
-                    color: "{colors.gray.700}",
-                  })}
-                >
+              <div className="flex flex-col gap-2 w-full">
+                <Label htmlFor="password" className="text-sm font-medium text-gray-700">
                   パスワード
                 </Label>
                 <Input
@@ -197,93 +98,28 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className={css({
-                    height: "2.75rem",
-                    fontSize: "sm",
-                    border: "2px solid {colors.gray.200}",
-                    _focus: {
-                      borderColor: "{colors.blue.500}",
-                      boxShadow: "0 0 0 3px {colors.blue.100}",
-                    },
-                    _disabled: {
-                      opacity: 0.6,
-                      cursor: "not-allowed",
-                    },
-                  })}
+                  className="h-11 text-sm border-2 border-gray-200 focus:border-blue-500 focus:ring-3 focus:ring-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
               {error && (
-                <div
-                  className={css({
-                    padding: "0.75rem",
-                    background: "{colors.red.50}",
-                    border: "1px solid {colors.red.200}",
-                    borderRadius: "md",
-                    fontSize: "sm",
-                    color: "{colors.red.700}",
-                    textAlign: "center",
-                    width: "100%",
-                  })}
-                >
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700 text-center w-full">
                   {error}
                 </div>
               )}
               <Button
                 type="submit"
                 disabled={isLoading}
-                className={css({
-                  width: "100%",
-                  height: "2.75rem",
-                  background: "linear-gradient(135deg, {colors.blue.600}, {colors.purple.600})",
-                  border: "none",
-                  borderRadius: "md",
-                  color: "white",
-                  fontSize: "sm",
-                  fontWeight: "medium",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  _hover: {
-                    transform: "translateY(-1px)",
-                    boxShadow: "lg",
-                  },
-                  _active: {
-                    transform: "translateY(0)",
-                  },
-                  _disabled: {
-                    opacity: 0.6,
-                    cursor: "not-allowed",
-                    transform: "none",
-                  },
-                })}
+                className="w-full h-11 bg-gradient-to-br from-blue-600 to-purple-600 border-none rounded-md text-white text-sm font-medium cursor-pointer transition-all duration-200 hover:-translate-y-px hover:shadow-lg active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isLoading ? "ログイン中..." : "ログイン"}
               </Button>
             </form>
 
             {/* サインアップリンク */}
-            <div
-              className={css({
-                marginTop: "1.5rem",
-                textAlign: "center",
-              })}
-            >
-              <p
-                className={css({
-                  fontSize: "sm",
-                  color: "{colors.gray.600}",
-                })}
-              >
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
                 アカウントをお持ちでない方は{" "}
-                <Link
-                  href="/signup"
-                  className={css({
-                    color: "{colors.blue.600}",
-                    fontWeight: "medium",
-                    _hover: {
-                      textDecoration: "underline",
-                    },
-                  })}
-                >
+                <Link href="/signup" className="text-blue-600 font-medium hover:underline">
                   アカウント作成
                 </Link>
               </p>

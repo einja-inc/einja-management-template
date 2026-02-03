@@ -1,117 +1,39 @@
 import { UserAvatar } from "@/components/auth/user-avatar";
 import Link from "next/link";
 import React from "react";
-import { css } from "../../styled-system/css";
 
 export default function Home() {
   return (
     <main
-      className={css({
-        minHeight: "screen",
-        padding: { base: "4", md: "8" },
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        color: "white",
-      })}
+      className="min-h-screen p-4 md:p-8 text-white"
+      style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
     >
-      <header
-        className={css({
-          marginBottom: { base: "6", md: "12" },
-        })}
-      >
-        <nav
-          className={css({
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: { base: "4", md: "6" },
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            borderRadius: "lg",
-            backdropFilter: "blur(10px)",
-          })}
-        >
-          <h1
-            className={css({
-              fontSize: { base: "xl", md: "2xl" },
-              fontWeight: "bold",
-            })}
-          >
-            Einja Management Template
-          </h1>
+      <header className="mb-6 md:mb-12">
+        <nav className="flex justify-between items-center p-4 md:p-6 bg-white/10 rounded-lg backdrop-blur">
+          <h1 className="text-xl md:text-2xl font-bold">Einja Management Template</h1>
           <UserAvatar />
         </nav>
       </header>
 
-      <div
-        className={css({
-          maxWidth: "4xl",
-          margin: "0 auto",
-          padding: { base: "4", md: "8" },
-        })}
-      >
-        <section
-          className={css({
-            textAlign: "center",
-            marginBottom: { base: "8", md: "12" },
-          })}
-        >
-          <h2
-            className={css({
-              fontSize: { base: "2xl", md: "4xl" },
-              fontWeight: "bold",
-              marginBottom: "4",
-              textShadow: "0 2px 4px rgba(0,0,0,0.3)",
-            })}
-          >
+      <div className="max-w-4xl mx-auto p-4 md:p-8">
+        <section className="text-center mb-8 md:mb-12">
+          <h2 className="text-2xl md:text-4xl font-bold mb-4" style={{ textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}>
             管理画面テンプレート
           </h2>
-          <p
-            className={css({
-              fontSize: { base: "lg", md: "xl" },
-              opacity: "0.9",
-              lineHeight: "relaxed",
-            })}
-          >
-            Next.js 15 + TypeScript + PandaCSS + NextAuth を使用した
+          <p className="text-lg md:text-xl opacity-90 leading-relaxed">
+            Next.js 15 + TypeScript + Tailwind CSS + NextAuth を使用した
             <br />
             モダンな管理画面テンプレートです
           </p>
         </section>
 
-        <div
-          className={css({
-            display: "grid",
-            gridTemplateColumns: { base: "1fr", md: "repeat(2, 1fr)" },
-            gap: { base: "4", md: "8" },
-            marginBottom: { base: "8", md: "12" },
-          })}
-        >
-          <div
-            className={css({
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              padding: { base: "4", md: "6" },
-              borderRadius: "lg",
-              backdropFilter: "blur(10px)",
-            })}
-          >
-            <h3
-              className={css({
-                fontSize: { base: "lg", md: "xl" },
-                fontWeight: "semibold",
-                marginBottom: "3",
-              })}
-            >
-              🚀 技術スタック
-            </h3>
-            <ul
-              className={css({
-                fontSize: "sm",
-                lineHeight: "relaxed",
-                opacity: "0.9",
-              })}
-            >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mb-8 md:mb-12">
+          <div className="bg-white/10 p-4 md:p-6 rounded-lg backdrop-blur">
+            <h3 className="text-lg md:text-xl font-semibold mb-3">🚀 技術スタック</h3>
+            <ul className="text-sm leading-relaxed opacity-90">
               <li>• Next.js 15 (App Router)</li>
               <li>• TypeScript (Strict Mode)</li>
-              <li>• PandaCSS (CSS-in-JS)</li>
+              <li>• Tailwind CSS</li>
               <li>• NextAuth v5 (認証)</li>
               <li>• Prisma ORM + PostgreSQL</li>
               <li>• shadcn/ui コンポーネント</li>
@@ -119,30 +41,9 @@ export default function Home() {
             </ul>
           </div>
 
-          <div
-            className={css({
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-              padding: { base: "4", md: "6" },
-              borderRadius: "lg",
-              backdropFilter: "blur(10px)",
-            })}
-          >
-            <h3
-              className={css({
-                fontSize: { base: "lg", md: "xl" },
-                fontWeight: "semibold",
-                marginBottom: "3",
-              })}
-            >
-              ✨ 主な機能
-            </h3>
-            <ul
-              className={css({
-                fontSize: "sm",
-                lineHeight: "relaxed",
-                opacity: "0.9",
-              })}
-            >
+          <div className="bg-white/10 p-4 md:p-6 rounded-lg backdrop-blur">
+            <h3 className="text-lg md:text-xl font-semibold mb-3">✨ 主な機能</h3>
+            <ul className="text-sm leading-relaxed opacity-90">
               <li>• メール・パスワード認証</li>
               <li>• ユーザー登録・ログイン</li>
               <li>• 認証保護されたダッシュボード</li>
@@ -154,40 +55,10 @@ export default function Home() {
           </div>
         </div>
 
-        <section
-          className={css({
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            padding: { base: "4", md: "6" },
-            borderRadius: "lg",
-            backdropFilter: "blur(10px)",
-            marginBottom: { base: "6", md: "8" },
-          })}
-        >
-          <h3
-            className={css({
-              fontSize: { base: "lg", md: "xl" },
-              fontWeight: "semibold",
-              marginBottom: "4",
-            })}
-          >
-            🔧 セットアップ手順
-          </h3>
-          <div
-            className={css({
-              fontSize: "sm",
-              lineHeight: "relaxed",
-              opacity: "0.9",
-            })}
-          >
-            <ol
-              className={css({
-                listStyleType: "decimal",
-                paddingLeft: "4",
-                gap: "2",
-                display: "flex",
-                flexDirection: "column",
-              })}
-            >
+        <section className="bg-white/10 p-4 md:p-6 rounded-lg backdrop-blur mb-6 md:mb-8">
+          <h3 className="text-lg md:text-xl font-semibold mb-4">🔧 セットアップ手順</h3>
+          <div className="text-sm leading-relaxed opacity-90">
+            <ol className="list-decimal pl-4 flex flex-col gap-2">
               <li>
                 <strong>依存関係のインストール:</strong> <code>npm install</code>
               </li>
@@ -195,8 +66,7 @@ export default function Home() {
                 <strong>データベース起動:</strong> <code>docker-compose up postgres -d</code>
               </li>
               <li>
-                <strong>環境変数設定:</strong> <code>.env.example</code> を <code>.env</code>{" "}
-                にコピー
+                <strong>環境変数設定:</strong> <code>.env.example</code> を <code>.env</code> にコピー
               </li>
               <li>
                 <strong>データベースセットアップ:</strong> <code>npm run db:push</code>
@@ -208,72 +78,22 @@ export default function Home() {
           </div>
         </section>
 
-        <div
-          className={css({
-            display: "flex",
-            justifyContent: "center",
-            gap: "4",
-            flexWrap: "wrap",
-          })}
-        >
+        <div className="flex justify-center gap-4 flex-wrap">
           <Link
             href="/signup"
-            className={css({
-              backgroundColor: "white",
-              color: "#667eea",
-              padding: { base: "3 6", md: "4 8" },
-              borderRadius: "lg",
-              fontWeight: "semibold",
-              fontSize: { base: "sm", md: "base" },
-              textDecoration: "none",
-              transition: "all 0.2s",
-              boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-              _hover: {
-                transform: "translateY(-2px)",
-                boxShadow: "0 6px 12px rgba(0,0,0,0.15)",
-              },
-            })}
+            className="bg-white text-[#667eea] px-6 py-3 md:px-8 md:py-4 rounded-lg font-semibold text-sm md:text-base no-underline transition-all duration-200 shadow-md hover:-translate-y-0.5 hover:shadow-lg"
           >
             新規登録
           </Link>
           <Link
             href="/signin"
-            className={css({
-              backgroundColor: "transparent",
-              color: "white",
-              padding: { base: "3 6", md: "4 8" },
-              borderRadius: "lg",
-              fontWeight: "semibold",
-              fontSize: { base: "sm", md: "base" },
-              textDecoration: "none",
-              border: "2px solid white",
-              transition: "all 0.2s",
-              _hover: {
-                backgroundColor: "white",
-                color: "#667eea",
-                transform: "translateY(-2px)",
-              },
-            })}
+            className="bg-transparent text-white px-6 py-3 md:px-8 md:py-4 rounded-lg font-semibold text-sm md:text-base no-underline border-2 border-white transition-all duration-200 hover:bg-white hover:text-[#667eea] hover:-translate-y-0.5"
           >
             ログイン
           </Link>
           <Link
             href="/dashboard"
-            className={css({
-              backgroundColor: "rgba(255, 255, 255, 0.2)",
-              color: "white",
-              padding: { base: "3 6", md: "4 8" },
-              borderRadius: "lg",
-              fontWeight: "semibold",
-              fontSize: { base: "sm", md: "base" },
-              textDecoration: "none",
-              border: "1px solid rgba(255, 255, 255, 0.3)",
-              transition: "all 0.2s",
-              _hover: {
-                backgroundColor: "rgba(255, 255, 255, 0.3)",
-                transform: "translateY(-2px)",
-              },
-            })}
+            className="bg-white/20 text-white px-6 py-3 md:px-8 md:py-4 rounded-lg font-semibold text-sm md:text-base no-underline border border-white/30 transition-all duration-200 hover:bg-white/30 hover:-translate-y-0.5"
           >
             デモを見る
           </Link>

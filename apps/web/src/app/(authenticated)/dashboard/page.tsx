@@ -2,29 +2,13 @@ import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { H1, P } from "@/components/ui/typography";
 import { auth } from "@/lib/auth";
-import { css } from "../../../../styled-system/css";
 
 export default async function DashboardPage() {
   const session = await auth();
 
   return (
-    <div
-      className={css({
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, {colors.gray.50} 0%, {colors.blue.50} 100%)",
-      })}
-    >
-      <main
-        className={css({
-          maxWidth: "7xl",
-          margin: "0 auto",
-          padding: {
-            base: "1.5rem 1rem",
-            md: "2rem 1.5rem",
-            lg: "2.5rem 2rem",
-          },
-        })}
-      >
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      <main className="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-8 lg:px-8 lg:py-10">
         <div className="space-y-8">
           {/* ページタイトル */}
           <div className="space-y-2">

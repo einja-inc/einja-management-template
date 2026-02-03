@@ -8,7 +8,6 @@
 	"exports": {
 		"./biome": "./biome.json",
 		"./typescript": "./tsconfig.json",
-		"./panda": "./panda.config.ts",
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
@@ -34,7 +33,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"@pandacss/dev": "^0.53.7",
 		"@types/node": "^22",
 		"typescript": "^5"
 	}

@@ -93,7 +93,7 @@ einja-management-template/
 │       ├── package.json
 │       └── tsconfig.json
 ├── packages/
-│   ├── config/                   # 共通設定（Biome, TypeScript, Panda CSS）
+│   ├── config/                   # 共通設定（Biome, TypeScript）
 │   ├── front-core/               # フロントエンド共通層
 │   │   └── src/
 │   │       ├── auth/             # NextAuth共通設定・型定義
@@ -211,16 +211,16 @@ pnpm env:prepare
 - ワークスペース間の依存関係管理
 
 ### パッケージ構成:
-- `@repo/config` - 共通設定（Biome, TypeScript, Panda CSS）
+- `@repo/config` - 共通設定（Biome, TypeScript）
 - `@repo/front-core` - フロントエンド共通層（認証共通設定、hooks、utils、context）
 - `@repo/server-core` - バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
 - `@repo/ui` - 共通UIコンポーネント（shadcn/ui）
 - `@repo/web` - メイン管理画面アプリケーション
 
 ### スタイリングシステム:
-- **Panda CSS** でデザイントークンとレシピを使用したスタイリング
-- タイプセーフなスタイル生成によるCSS-in-JS
-- スタイルコンポーネントは `apps/web/src/styled-system/` ディレクトリに出力
+- **Tailwind CSS v4** + shadcn/ui によるユーティリティファーストのスタイリング
+- `globals.css` でCSS変数によるデザイントークンを定義
+- shadcn/ui の `cva` によるコンポーネントバリアント管理
 - カスタムブレークポイント: sm(640px), md(768px), lg(1024px), xl(1280px), 2xl(1440px)
 
 ### コード品質:
@@ -236,7 +236,6 @@ pnpm env:prepare
 - Voltaまたはfnmを使用したNode.jsバージョン管理 (v22.16.0)
 
 ### 特記事項:
-- プロダクションビルド前に必ず`panda codegen`を実行
 - Biomeはスペース2つインデントとダブルクォートを使用
 - ビルド時はESLintを無効化（代わりにBiomeを使用）
 - Turborepoのキャッシュ機能で高速ビルド

@@ -1,112 +1,49 @@
-# スタイリングガイド（Panda CSS）
+# スタイリングガイド（Tailwind CSS）
 
 ## 基本的な使い方
 
-### Panda CSS の使用
-- Panda CSS を使用してスタイルを定義
-- デザイントークンとレシピを活用
-- 型安全なスタイル定義
+### Tailwind CSS の使用
+- Tailwind CSS v4 のユーティリティクラスを使用してスタイルを定義
+- CSS変数（globals.css）でデザイントークンを管理
+- shadcn/ui のコンポーネントを活用
 
 ```typescript
-import { css } from "styled-system/css";
-import { button } from "styled-system/recipes";
-
-const buttonStyles = button({
-  variant: "primary",
-  size: "md",
-});
+// ユーティリティクラスの使用
+<div className="flex items-center gap-4 rounded-lg bg-white p-6 shadow-md">
+  <h2 className="text-xl font-bold text-gray-900">Title</h2>
+</div>
 ```
 
-## レシピの使用
+## cva によるバリアント管理
 
-### 基本的なレシピ
-
-```typescript
-// ✅ Panda CSS レシピの使用
-import { button } from 'styled-system/recipes';
-
-export function Button({ variant, size, children }: ButtonProps) {
-  return (
-    <button className={button({ variant, size })}>
-      {children}
-    </button>
-  );
-}
-```
-
-## css関数の使用
-
-### インラインスタイル
+### 基本的な使用方法
 
 ```typescript
-import { css } from 'styled-system/css';
+import { cva } from "class-variance-authority";
+import { cn } from "@repo/ui/utils";
 
-const customStyles = css({
-  padding: '1rem',
-  backgroundColor: 'blue.500',
-  _hover: {
-    backgroundColor: 'blue.600'
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md font-medium transition-colors",
+  {
+    variants: {
+      variant: {
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        outline: "border border-input bg-transparent hover:bg-accent",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+      },
+      size: {
+        sm: "h-8 px-3 text-sm",
+        md: "h-10 px-4 text-base",
+        lg: "h-12 px-6 text-lg",
+      },
+    },
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+    },
   }
-});
-```
-
-### 複雑なスタイル定義
-
-```typescript
-const cardStyles = css({
-  display: 'flex',
-  flexDirection: 'column',
-  padding: '4',
-  borderRadius: 'lg',
-  boxShadow: 'md',
-  backgroundColor: 'white',
-  _dark: {
-    backgroundColor: 'gray.800',
-  },
-  '& > h2': {
-    fontSize: 'xl',
-    fontWeight: 'bold',
-    marginBottom: '2',
-  },
-});
-```
-
-## スタイルの分離
-
-### 別ファイルへの分離
-
-```typescript
-// styles.ts
-import { css } from 'styled-system/css';
-
-export const containerStyles = css({
-  maxWidth: 'container.lg',
-  marginX: 'auto',
-  paddingX: '4',
-});
-
-export const headerStyles = css({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  height: '16',
-});
-```
-
-```typescript
-// Component.tsx
-import { containerStyles, headerStyles } from './styles';
-
-export function Layout({ children }) {
-  return (
-    <div className={containerStyles}>
-      <header className={headerStyles}>
-        {/* ... */}
-      </header>
-      {children}
-    </div>
-  );
-}
+);
 ```
 
 ## クラス名の結合
@@ -114,11 +51,11 @@ export function Layout({ children }) {
 ### cn（className）ユーティリティの使用
 
 ```typescript
-import { cn } from '@/lib/utils';
+import { cn } from "@repo/ui/utils";
 
 export function Card({ className, children }: CardProps) {
   return (
-    <div className={cn('border rounded-lg p-4', className)}>
+    <div className={cn("border rounded-lg p-4", className)}>
       {children}
     </div>
   );
@@ -128,15 +65,14 @@ export function Card({ className, children }: CardProps) {
 ### 条件付きスタイル
 
 ```typescript
-import { css } from 'styled-system/css';
-import { cn } from '@/lib/utils';
+import { cn } from "@repo/ui/utils";
 
-export function Button({ isActive, className }) {
+export function Button({ isActive, className }: ButtonProps) {
   return (
     <button
       className={cn(
-        css({ padding: '2', borderRadius: 'md' }),
-        isActive && css({ backgroundColor: 'blue.500', color: 'white' }),
+        "px-4 py-2 rounded-md",
+        isActive ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-900",
         className
       )}
     >
@@ -151,18 +87,9 @@ export function Button({ isActive, className }) {
 ### ブレークポイント
 
 ```typescript
-const responsiveStyles = css({
-  fontSize: 'sm',
-  padding: '2',
-  md: {
-    fontSize: 'base',
-    padding: '4',
-  },
-  lg: {
-    fontSize: 'lg',
-    padding: '6',
-  },
-});
+<div className="text-sm p-2 md:text-base md:p-4 lg:text-lg lg:p-6">
+  レスポンシブコンテンツ
+</div>
 ```
 
 ### カスタムブレークポイント
@@ -175,26 +102,21 @@ const responsiveStyles = css({
 ## ダークモード対応
 
 ```typescript
-const themedStyles = css({
-  backgroundColor: 'white',
-  color: 'gray.900',
-  _dark: {
-    backgroundColor: 'gray.900',
-    color: 'gray.100',
-  },
-});
+<div className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  テーマ対応コンテンツ
+</div>
 ```
 
 ## ベストプラクティス
 
 ### 1. デザイントークンの活用
-- 直接の数値ではなくトークンを使用
-- `padding: 4` は `padding: 1rem` に相当
+- `globals.css` で定義されたCSS変数を使用
+- shadcn/ui のカラートークンを活用（`text-primary`, `bg-muted` 等）
 
-### 2. レシピを優先
-- 再利用可能なスタイルはレシピとして定義
-- コンポーネント固有のスタイルのみcss()を使用
+### 2. shadcn/ui コンポーネントを優先
+- 既存の shadcn/ui コンポーネントを優先的に使用
+- カスタムが必要な場合のみ cva で独自バリアントを定義
 
 ### 3. スタイルの一貫性
-- プロジェクト全体で同じトークンを使用
+- プロジェクト全体で同じTailwindユーティリティパターンを使用
 - カラーパレット、スペーシングの統一

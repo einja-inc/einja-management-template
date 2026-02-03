@@ -64,30 +64,41 @@ import './styles.css';
 import { localUtil } from '../utils';
 ```
 
-### スタイリング（Panda CSS）
+### スタイリング（Tailwind CSS）
 
 ```typescript
-// ✅ Panda CSS レシピの使用
-import { button } from 'styled-system/recipes';
-
-export function Button({ variant, size, children }: ButtonProps) {
+// ✅ Tailwind CSSユーティリティクラスの使用
+export function Card({ children }: CardProps) {
   return (
-    <button className={button({ variant, size })}>
+    <div className="rounded-lg bg-white p-6 shadow-md hover:shadow-lg transition-shadow">
       {children}
-    </button>
+    </div>
   );
 }
 
-// ✅ css関数の使用
-import { css } from 'styled-system/css';
+// ✅ cva によるバリアント管理
+import { cva } from "class-variance-authority";
 
-const customStyles = css({
-  padding: '1rem',
-  backgroundColor: 'blue.500',
-  _hover: {
-    backgroundColor: 'blue.600'
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md font-medium transition-colors",
+  {
+    variants: {
+      variant: {
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+      },
+      size: {
+        sm: "h-8 px-3 text-sm",
+        md: "h-10 px-4 text-base",
+        lg: "h-12 px-6 text-lg",
+      },
+    },
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+    },
   }
-});
+);
 ```
 
 ## ツール設定

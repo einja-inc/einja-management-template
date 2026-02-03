@@ -122,7 +122,7 @@ einja-management-template/
 ├── packages/
 │   ├── cli/                      # @einja/dev-cli
 │   ├── create-einja-app/         # create-einja-app
-│   ├── config/                   # 共通設定（Biome, TypeScript, Panda CSS）
+│   ├── config/                   # 共通設定（Biome, TypeScript）
 │   ├── front-core/               # フロントエンド共通層
 │   │   └── src/
 │   │       ├── auth/             # NextAuth共通設定・型定義
@@ -146,7 +146,7 @@ einja-management-template/
 - **モノレポ**: Turborepo + pnpm workspaces
 - **フレームワーク**: Next.js 15 (App Router)
 - **言語**: TypeScript (strict mode)
-- **スタイリング**: Panda CSS
+- **スタイリング**: Tailwind CSS v4
 - **UI**: shadcn/ui + Radix UI
 - **データベース**: PostgreSQL + Prisma
 - **認証**: NextAuth.js v5
@@ -267,7 +267,6 @@ pnpm db:studio        # Prisma Studio起動
 # 特定のワークスペースでコマンド実行
 pnpm --filter @repo/web dev
 pnpm --filter @repo/web build
-pnpm --filter @repo/web panda codegen
 ```
 
 ### データベース設定
@@ -314,7 +313,7 @@ pnpm db:studio
 
 - **@einja/dev-cli**: Claude Code設定配布CLI（[詳細](./packages/cli/README.md)）
 - **create-einja-app**: プロジェクト作成CLI（[詳細](./packages/create-einja-app/README.md)）
-- **@repo/config**: Biome, TypeScript, Panda CSSの共通設定
+- **@repo/config**: Biome, TypeScriptの共通設定
 - **@repo/front-core**: フロントエンド共通層（認証共通設定、hooks、utils、context）
 - **@repo/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
 - **@repo/ui**: 共通UIコンポーネント（shadcn/ui）
@@ -349,9 +348,8 @@ pnpm typecheck  # 型チェック
 2. コードを変更
 3. ホットリロードで即座に反映
 4. データベーススキーマを変更した場合は `pnpm db:push`
-5. Panda CSSのスタイル変更時は自動生成される
-6. コミット前に自動的にlint-stagedが実行される
-7. プルリクエストを作成
+5. コミット前に自動的にlint-stagedが実行される
+6. プルリクエストを作成
 
 ### トラブルシューティング
 
@@ -376,13 +374,6 @@ volta install node@22.16.0 pnpm@10.14.0
 pnpmがインストールされていません：
 ```bash
 volta install pnpm@10.14.0
-```
-
-#### Panda CSS関連エラー
-
-```bash
-# styled-systemを再生成
-pnpm --filter @repo/web panda codegen
 ```
 
 #### Prisma関連エラー

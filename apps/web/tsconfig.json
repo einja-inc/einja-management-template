@@ -8,9 +8,7 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@web/*": ["./src/*", "./*"],
-      "@/styled-system/*": ["./styled-system/*"],
-      "styled-system/*": ["./styled-system/*"]
+      "@web/*": ["./src/*", "./*"]
     }
   },
   "include": [

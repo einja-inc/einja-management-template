@@ -28,15 +28,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate artifacts
-        run: |
-          pnpm generate
-          # Panda CSS生成確認
-          if [ ! -d "apps/web/styled-system" ]; then
-            echo "Error: styled-system directory was not created"
-            exit 1
-          fi
-          echo "Panda CSS generated successfully"
-          ls -la apps/web/styled-system
+        run: pnpm generate
 
       - name: Run TypeScript type check
         run: pnpm typecheck

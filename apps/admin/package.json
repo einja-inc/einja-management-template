@@ -11,7 +11,7 @@
     "format": "biome format .",
     "format:fix": "biome format --write .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage"

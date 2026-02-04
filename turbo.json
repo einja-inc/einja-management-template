@@ -10,7 +10,11 @@
 			"dependsOn": ["generate", "^generate"],
 			"cache": false,
 			"persistent": true,
-			"passThroughEnv": ["PORT", "PORT_WEB", "DATABASE_URL", "NEXTAUTH_URL", "AUTH_SECRET"]
+			"passThroughEnv": ["PORT", "PORT_WEB", "PORT_ADMIN", "DATABASE_URL", "NEXTAUTH_URL", "AUTH_SECRET"]
+		},
+		"catalog": {
+			"cache": false,
+			"persistent": true
 		},
 		"generate": {
 			"cache": false

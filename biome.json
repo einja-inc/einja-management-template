@@ -61,7 +61,7 @@
       "include": ["apps/**"],
       "linter": {
         "rules": {
-          "correctness": {
+          "nursery": {
             "noRestrictedImports": {
               "level": "error",
               "options": {

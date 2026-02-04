@@ -9,6 +9,11 @@
 			"id": "web",
 			"portRangeStart": 3000,
 			"rangeSize": 1000
+		},
+		{
+			"id": "admin",
+			"portRangeStart": 4000,
+			"rangeSize": 1000
 		}
 	]
 }

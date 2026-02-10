@@ -1,0 +1,28 @@
+name: 'Export Neon Environment Variables'
+description: 'Export NEON_API_KEY and NEON_PROJECT_ID from .env.preview via dotenvx'
+inputs:
+  dotenv-private-key-preview:
+    description: 'DOTENV_PRIVATE_KEY_PREVIEW secret'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Export Neon environment variables
+      run: |
+        npx dotenvx run -f .env.preview -- bash -c '
+          echo "NEON_API_KEY=$NEON_API_KEY" >> $GITHUB_ENV
+          echo "NEON_PROJECT_ID=$NEON_PROJECT_ID" >> $GITHUB_ENV
+        '
+      shell: bash
+      env:
+        DOTENV_PRIVATE_KEY_PREVIEW: ${{ inputs.dotenv-private-key-preview }}
+
+    - name: Validate and mask Neon environment variables
+      run: |
+        if [ -z "$NEON_API_KEY" ] || [ -z "$NEON_PROJECT_ID" ]; then
+          echo "::error::Failed to export Neon environment variables. Check DOTENV_PRIVATE_KEY_PREVIEW."
+          exit 1
+        fi
+        echo "::add-mask::$NEON_API_KEY"
+        echo "Neon environment variables exported successfully (project: $NEON_PROJECT_ID)"
+      shell: bash

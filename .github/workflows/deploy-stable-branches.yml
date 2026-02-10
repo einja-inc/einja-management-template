@@ -1,0 +1,271 @@
+name: Deploy Stable Branches
+
+on:
+  push:
+    branches: [main, develop, staging]
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  # 環境変数フィルタ（定常ブランチ用：DATABASE_を含む）
+  ENV_VAR_FILTER: "^(AUTH_|NEXTAUTH_|DATABASE_)"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run CI checks
+        uses: ./.github/actions/ci
+
+  # 変更検知
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/ui/**'
+              - 'packages/front-core/**'
+              - 'packages/server-core/**'
+              - 'packages/config/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'turbo.json'
+              - 'tsconfig.json'
+            admin:
+              - 'apps/admin/**'
+              - 'packages/admin-ui/**'
+              - 'packages/front-core/**'
+              - 'packages/server-core/**'
+              - 'packages/config/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'turbo.json'
+              - 'tsconfig.json'
+
+  migrate:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ブランチ判定 — 環境変数を $GITHUB_ENV に書き出す
+      - name: Determine environment
+        run: |
+          BRANCH="${GITHUB_REF##*/}"
+          case "$BRANCH" in
+            main)
+              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.production" >> $GITHUB_ENV
+              echo "DEPLOY_DOTENV_KEY=DOTENV_PRIVATE_KEY_PRODUCTION" >> $GITHUB_ENV
+              echo "DEPLOY_VERCEL_ENV=production" >> $GITHUB_ENV
+              echo "DEPLOY_PROD_FLAG=--prod" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_MIGRATION=true" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_SEED=false" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_ALIAS=false" >> $GITHUB_ENV
+              ;;
+            develop)
+              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.develop" >> $GITHUB_ENV
+              echo "DEPLOY_DOTENV_KEY=DOTENV_PRIVATE_KEY_DEVELOP" >> $GITHUB_ENV
+              echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
+              echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_MIGRATION=true" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_SEED=true" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
+              ;;
+            staging)
+              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.staging" >> $GITHUB_ENV
+              echo "DEPLOY_DOTENV_KEY=DOTENV_PRIVATE_KEY_STAGING" >> $GITHUB_ENV
+              echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
+              echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_MIGRATION=true" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_SEED=false" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
+              ;;
+          esac
+          echo "Branch: $BRANCH, Environment: $(cat $GITHUB_ENV | grep DEPLOY_VERCEL_ENV)"
+
+      # dotenvx復号キーを $GITHUB_ENV に設定
+      # secrets[<動的キー>] は env: ブロックのキー側では使えないため、
+      # 明示的に各ブランチのキーを設定する
+      - name: Set dotenvx private key
+        run: |
+          if [ "$DEPLOY_DOTENV_KEY" = "DOTENV_PRIVATE_KEY_PRODUCTION" ]; then
+            echo "DOTENV_PRIVATE_KEY_PRODUCTION=${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}" >> $GITHUB_ENV
+          elif [ "$DEPLOY_DOTENV_KEY" = "DOTENV_PRIVATE_KEY_DEVELOP" ]; then
+            echo "DOTENV_PRIVATE_KEY_DEVELOP=${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}" >> $GITHUB_ENV
+          elif [ "$DEPLOY_DOTENV_KEY" = "DOTENV_PRIVATE_KEY_STAGING" ]; then
+            echo "DOTENV_PRIVATE_KEY_STAGING=${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}" >> $GITHUB_ENV
+          fi
+
+      # DB操作（マイグレーション + オプションでシード）
+      - name: Run database migration
+        uses: ./.github/actions/migrate
+        with:
+          dotenv-file: ${{ env.DEPLOY_DOTENV_FILE }}
+          dotenv-private-key: ${{ env.DOTENV_PRIVATE_KEY }}
+          run-seed: ${{ env.DEPLOY_RUN_SEED }}
+
+  # Web/Adminデプロイ（並列実行・変更検知付き）
+  deploy:
+    needs: [ci, migrate, changes]
+    if: always() && needs.ci.result == 'success' && needs.changes.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [web, admin]
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+    steps:
+      # 変更検知によるスキップ判定
+      - name: Check if deploy is needed
+        id: check
+        run: |
+          case "${{ matrix.app }}" in
+            web)   CHANGED="${{ needs.changes.outputs.web }}" ;;
+            admin) CHANGED="${{ needs.changes.outputs.admin }}" ;;
+          esac
+          if [ "$CHANGED" = "true" ]; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "${{ matrix.app }}: changes detected, will deploy"
+          else
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+            echo "${{ matrix.app }}: no changes detected, skipping deploy"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.should_deploy == 'true'
+
+      - name: Setup Environment
+        if: steps.check.outputs.should_deploy == 'true'
+        uses: ./.github/actions/setup
+
+      - name: Resolve Vercel Project ID
+        if: steps.check.outputs.should_deploy == 'true'
+        id: resolve
+        run: |
+          case "${{ matrix.app }}" in
+            web)   echo "project_id=${{ secrets.VERCEL_PROJECT_ID_WEB }}" >> $GITHUB_OUTPUT ;;
+            admin) echo "project_id=${{ secrets.VERCEL_PROJECT_ID_ADMIN }}" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Set VERCEL_PROJECT_ID
+        if: steps.check.outputs.should_deploy == 'true'
+        run: echo "VERCEL_PROJECT_ID=${{ steps.resolve.outputs.project_id }}" >> $GITHUB_ENV
+
+      - name: Install Vercel CLI
+        if: steps.check.outputs.should_deploy == 'true'
+        run: pnpm add -g vercel@latest
+
+      # ブランチ判定 — 環境変数を $GITHUB_ENV に書き出す
+      - name: Determine environment
+        if: steps.check.outputs.should_deploy == 'true'
+        run: |
+          BRANCH="${GITHUB_REF##*/}"
+          case "$BRANCH" in
+            main)
+              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.production" >> $GITHUB_ENV
+              echo "DEPLOY_VERCEL_ENV=production" >> $GITHUB_ENV
+              echo "DEPLOY_PROD_FLAG=--prod" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_ALIAS=false" >> $GITHUB_ENV
+              ;;
+            develop)
+              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.develop" >> $GITHUB_ENV
+              echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
+              echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
+              ;;
+            staging)
+              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.staging" >> $GITHUB_ENV
+              echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
+              echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
+              echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
+              ;;
+          esac
+          echo "Branch: $BRANCH, Environment: $(cat $GITHUB_ENV | grep DEPLOY_VERCEL_ENV)"
+
+      # Extract alias domain（自アプリ分のみ）
+      - name: Extract alias domain
+        if: steps.check.outputs.should_deploy == 'true' && env.DEPLOY_RUN_ALIAS == 'true'
+        run: |
+          case "${{ matrix.app }}" in
+            web)
+              npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
+                echo "VERCEL_ALIAS_DOMAIN=$VERCEL_ALIAS_DOMAIN_WEB" >> "$GITHUB_ENV"
+              '
+              ;;
+            admin)
+              npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
+                echo "VERCEL_ALIAS_DOMAIN=$VERCEL_ALIAS_DOMAIN_ADMIN" >> "$GITHUB_ENV"
+              '
+              ;;
+          esac
+        env:
+          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
+
+      # Vercel pull
+      - name: Pull Vercel Environment
+        if: steps.check.outputs.should_deploy == 'true'
+        run: vercel pull --yes --environment=${{ env.DEPLOY_VERCEL_ENV }}
+
+      # Vercel環境変数の自動同期（dotenvxファイルがSingle Source of Truth）
+      - name: Sync environment variables to Vercel
+        if: steps.check.outputs.should_deploy == 'true'
+        run: |
+          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
+            env | grep -E "${{ env.ENV_VAR_FILTER }}" | while IFS="=" read -r key value; do
+              echo "Syncing $key to Vercel (${{ env.DEPLOY_VERCEL_ENV }})..."
+              echo "$value" | vercel env rm "$key" ${{ env.DEPLOY_VERCEL_ENV }} --yes 2>/dev/null || true
+              echo "$value" | vercel env add "$key" ${{ env.DEPLOY_VERCEL_ENV }}
+            done
+          '
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
+
+      # Vercel build (dotenvxでアプリ環境変数を注入)
+      - name: Build Project
+        if: steps.check.outputs.should_deploy == 'true'
+        run: |
+          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- \
+            vercel build ${{ env.DEPLOY_PROD_FLAG }}
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
+
+      # Vercel deploy
+      - name: Deploy to Vercel
+        if: steps.check.outputs.should_deploy == 'true'
+        id: deploy
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt ${{ env.DEPLOY_PROD_FLAG }})
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $DEPLOY_URL"
+
+      # Alias (develop/stagingのみ)
+      - name: Set Vercel alias
+        if: steps.check.outputs.should_deploy == 'true' && env.DEPLOY_RUN_ALIAS == 'true'
+        run: vercel alias ${{ steps.deploy.outputs.url }} "${{ env.VERCEL_ALIAS_DOMAIN }}"

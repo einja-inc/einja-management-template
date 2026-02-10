@@ -15,37 +15,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.16.0'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup Environment
+        uses: ./.github/actions/setup
 
       - name: Export Neon environment variables
-        run: |
-          npx dotenvx run -f .env.preview -- bash -c 'echo "NEON_API_KEY=$NEON_API_KEY" >> $GITHUB_ENV'
-          npx dotenvx run -f .env.preview -- bash -c 'echo "NEON_PROJECT_ID=$NEON_PROJECT_ID" >> $GITHUB_ENV'
-        env:
-          DOTENV_PRIVATE_KEY_PREVIEW: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
+        uses: ./.github/actions/neon-export-env
+        with:
+          dotenv-private-key-preview: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
 
       - name: Cleanup orphaned preview branches
         run: |
-          # NOTE: Neon APIはページングされる可能性あり。ブランチ数が多い場合は要対応
-          echo "Fetching branches from Neon..."
-          BRANCHES=$(curl -s "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/branches" \
-            -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
-            -H "Accept: application/json")
+          echo "Fetching all branches from Neon (with pagination)..."
+          CURSOR=""
+          ALL_BRANCHES="[]"
+          while true; do
+            # Neon APIの1リクエストあたり最大取得数は100
+            URL="https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/branches?limit=100"
+            if [ -n "$CURSOR" ]; then
+              URL="${URL}&cursor=${CURSOR}"
+            fi
+            RESPONSE=$(curl -s "$URL" \
+              -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
+              -H "Accept: application/json")
+            PAGE=$(echo "$RESPONSE" | jq '.branches')
+            ALL_BRANCHES=$(echo "$ALL_BRANCHES $PAGE" | jq -s '.[0] + .[1]')
+            NEXT=$(echo "$RESPONSE" | jq -r '.pagination.next // empty')
+            if [ -z "$NEXT" ]; then
+              break
+            fi
+            CURSOR="$NEXT"
+            echo "Fetching next page (cursor: $CURSOR)..."
+          done
+          echo "Total branches fetched: $(echo "$ALL_BRANCHES" | jq length)"
 
           # preview/pr-{番号}形式のブランチを抽出
-          echo "$BRANCHES" | jq -r '.branches[] | select(.name | startswith("preview/pr-")) | "\(.id) \(.name)"' | \
+          echo "$ALL_BRANCHES" | jq -r '.[] | select(.name | startswith("preview/pr-")) | "\(.id) \(.name)"' | \
           while read -r BRANCH_ID BRANCH_NAME; do
             if [ -n "$BRANCH_ID" ]; then
               # ブランチ名からPR番号を抽出

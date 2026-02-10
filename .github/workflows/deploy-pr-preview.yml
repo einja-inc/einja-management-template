@@ -1,0 +1,259 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+env:
+  # 環境変数フィルタ（PRプレビュー用：DATABASE_は--envで注入するため除外）
+  ENV_VAR_FILTER: "^(AUTH_|NEXTAUTH_)"
+
+jobs:
+  # CI チェック
+  ci:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/ci
+
+  # Neon Branch作成 + スキーマ同期 + シード
+  neon-and-schema:
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      db_url: ${{ steps.create-branch.outputs.db_url }}
+      db_url_pooled: ${{ steps.create-branch.outputs.db_url_pooled }}
+      neon_parent: ${{ steps.neon-parent.outputs.parent }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      # 0. .env.previewからNeon環境変数をエクスポート
+      - name: Export Neon environment variables
+        uses: ./.github/actions/neon-export-env
+        with:
+          dotenv-private-key-preview: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
+
+      # 1. Neon親ブランチの動的選択（フォールバック付き）
+      - name: Determine Neon parent branch
+        id: neon-parent
+        run: |
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+
+          # Gitブランチ名 → Neonブランチ名のマッピング
+          case "$BASE_REF" in
+            main)    NEON_BRANCH="production" ;;
+            develop) NEON_BRANCH="development" ;;
+            *)       NEON_BRANCH="$BASE_REF" ;;
+          esac
+
+          echo "Git base branch: $BASE_REF → Neon branch: $NEON_BRANCH"
+
+          # Neon APIでブランチの存在を確認
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/branches?search=$NEON_BRANCH" \
+            -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
+            -H "Accept: application/json")
+
+          if [ "$HTTP_STATUS" = "200" ]; then
+            # ブランチ一覧から完全一致を確認
+            BRANCH_EXISTS=$(curl -s \
+              "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/branches?search=$NEON_BRANCH" \
+              -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
+              -H "Accept: application/json" | jq -r ".branches[] | select(.name == \"$NEON_BRANCH\") | .name")
+
+            if [ -n "$BRANCH_EXISTS" ]; then
+              echo "parent=$NEON_BRANCH" >> $GITHUB_OUTPUT
+              echo "Neon parent branch: $NEON_BRANCH"
+            else
+              echo "parent=production" >> $GITHUB_OUTPUT
+              echo "Neon parent branch: production (fallback - '$NEON_BRANCH' not found in Neon)"
+            fi
+          else
+            echo "parent=production" >> $GITHUB_OUTPUT
+            echo "Neon parent branch: production (fallback - API returned $HTTP_STATUS)"
+          fi
+
+      # 2. Neon Branch 作成（v6 + expires_at）
+      - name: Create Neon Branch
+        id: create-branch
+        uses: neondatabase/create-branch-action@v6
+        with:
+          project_id: ${{ env.NEON_PROJECT_ID }}
+          branch_name: preview/pr-${{ github.event.number }}
+          api_key: ${{ env.NEON_API_KEY }}
+          parent: ${{ steps.neon-parent.outputs.parent }}
+          # 1日間アクセスがなければサスペンド（コスト削減）
+          suspend_timeout: 86400
+
+      # 2.5. DB URLのマスク（ログ漏洩防止）
+      - name: Mask DB URLs
+        run: |
+          echo "::add-mask::${{ steps.create-branch.outputs.db_url }}"
+          echo "::add-mask::${{ steps.create-branch.outputs.db_url_pooled }}"
+
+      # 3. スキーマ同期 + シード（直接接続）
+      - name: Push Schema
+        run: pnpm db:push
+        env:
+          DATABASE_URL: ${{ steps.create-branch.outputs.db_url }}
+
+      - name: Run Seed
+        run: pnpm --filter @repo/server-core db:seed
+        env:
+          DATABASE_URL: ${{ steps.create-branch.outputs.db_url }}
+
+  # Web/Adminデプロイ（並列実行）
+  deploy:
+    needs: neon-and-schema
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [web, admin]
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Resolve Vercel Project ID
+        id: resolve
+        run: |
+          case "${{ matrix.app }}" in
+            web)   echo "project_id=${{ secrets.VERCEL_PROJECT_ID_WEB }}" >> $GITHUB_OUTPUT ;;
+            admin) echo "project_id=${{ secrets.VERCEL_PROJECT_ID_ADMIN }}" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Set VERCEL_PROJECT_ID
+        run: echo "VERCEL_PROJECT_ID=${{ steps.resolve.outputs.project_id }}" >> $GITHUB_ENV
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Pull Vercel Environment (apps/${{ matrix.app }})
+        run: vercel pull --yes --environment=preview
+
+      # Vercel環境変数の自動同期（AUTH_/NEXTAUTH_のみ。DATABASE_URLはNeonブランチURLを--envで渡すため除外）
+      - name: Sync environment variables to Vercel
+        run: |
+          npx dotenvx run -f $GITHUB_WORKSPACE/.env.preview -- bash -c '
+            env | grep -E "${{ env.ENV_VAR_FILTER }}" | while IFS="=" read -r key value; do
+              echo "Syncing $key to Vercel (preview)..."
+              echo "$value" | vercel env rm "$key" preview --yes 2>/dev/null || true
+              echo "$value" | vercel env add "$key" preview
+            done
+          '
+        env:
+          DOTENV_PRIVATE_KEY_PREVIEW: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
+
+      # NOTE: dotenvxはデフォルトで既存の環境変数を上書きしない
+      # env:で設定したDATABASE_URLがNeonブランチのURLとして優先される
+      - name: Build Project (apps/${{ matrix.app }})
+        run: |
+          npx dotenvx run -f $GITHUB_WORKSPACE/.env.preview -- \
+            vercel build
+        env:
+          DOTENV_PRIVATE_KEY_PREVIEW: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
+          DATABASE_URL: ${{ needs.neon-and-schema.outputs.db_url_pooled }}
+
+      # Vercel Deploy（ランタイムにもDATABASE_URLを渡す）
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt \
+            --env DATABASE_URL="${{ needs.neon-and-schema.outputs.db_url_pooled }}")
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+
+      # デプロイURLをartifactとして保存
+      - name: Save deploy URL
+        run: echo "${{ steps.deploy.outputs.url }}" > deploy-url-${{ matrix.app }}.txt
+
+      - name: Upload deploy URL
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-url-${{ matrix.app }}
+          path: deploy-url-${{ matrix.app }}.txt
+
+  # PRコメント
+  comment:
+    needs: [neon-and-schema, deploy]
+    if: always() && needs.neon-and-schema.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download deploy URLs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: deploy-url-*
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Read deploy URLs
+        id: urls
+        run: |
+          if [ -f deploy-url-web.txt ]; then
+            echo "web=$(cat deploy-url-web.txt)" >> $GITHUB_OUTPUT
+          else
+            echo "web=Deploy failed" >> $GITHUB_OUTPUT
+          fi
+          if [ -f deploy-url-admin.txt ]; then
+            echo "admin=$(cat deploy-url-admin.txt)" >> $GITHUB_OUTPUT
+          else
+            echo "admin=Deploy failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- neon-preview-url -->';
+            const body = `${marker}
+            ## 🚀 Preview Deployment
+
+            | Item | Value |
+            |------|-------|
+            | **Web Preview URL** | ${{ steps.urls.outputs.web }} |
+            | **Admin Preview URL** | ${{ steps.urls.outputs.admin }} |
+            | **Neon Branch** | \`preview/pr-${{ github.event.number }}\` |
+            | **Neon Parent** | \`${{ needs.neon-and-schema.outputs.neon_parent }}\` |
+            | **Commit** | ${{ github.event.pull_request.head.sha }} |
+            `;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

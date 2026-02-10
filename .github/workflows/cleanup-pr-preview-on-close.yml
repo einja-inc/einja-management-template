@@ -1,0 +1,31 @@
+name: Cleanup PR Preview (on close)
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: pr-preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Export Neon environment variables
+        uses: ./.github/actions/neon-export-env
+        with:
+          dotenv-private-key-preview: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
+      - name: Delete Neon Branch
+        continue-on-error: true
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ env.NEON_PROJECT_ID }}
+          branch: preview/pr-${{ github.event.number }}
+          api_key: ${{ env.NEON_API_KEY }}

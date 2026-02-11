@@ -27,23 +27,27 @@
 
 ### 必須Secrets
 
-| 変数名 | 説明 | 用途 | GitHub Actions | Vercel |
-|--------|------|------|:--------------:|:------:|
-| `DOTENV_PRIVATE_KEY_CI` | CI環境用復号鍵 | CI/CD | ◯ | - |
-| `DOTENV_PRIVATE_KEY_PREVIEW` | Preview環境用復号鍵 | Previewビルド | ◯ | - |
-| `DOTENV_PRIVATE_KEY_PRODUCTION` | 本番環境用復号鍵 | ビルド | ◯ | ◯ |
-| `TURBO_TOKEN` | Turborepo Remote Cacheトークン | ビルド高速化 | ◯ | - |
-| `TURBO_TEAM` | VercelチームID | ビルド高速化 | ◯ | - |
+| Secret名 | 説明 | 用途 |
+|---------|------|------|
+| `DOTENV_PRIVATE_KEY_PREVIEW` | Preview環境用復号鍵 | PR Previewデプロイ |
+| `DOTENV_PRIVATE_KEY_PRODUCTION` | 本番環境用復号鍵 | mainブランチデプロイ |
+| `DOTENV_PRIVATE_KEY_DEVELOP` | 開発環境用復号鍵 | developブランチデプロイ |
+| `DOTENV_PRIVATE_KEY_STAGING` | ステージング環境用復号鍵 | stagingブランチデプロイ |
+| `VERCEL_TOKEN` | Vercel CLIデプロイトークン | 全デプロイ |
+| `VERCEL_ORG_ID` | Vercel組織ID | 全デプロイ |
+| `VERCEL_PROJECT_ID_WEB` | WebアプリのVercelプロジェクトID | Webデプロイ |
+| `VERCEL_PROJECT_ID_ADMIN` | AdminアプリのVercelプロジェクトID | Adminデプロイ |
+| `TURBO_TOKEN` | Turborepo Remote Cacheトークン | ビルド高速化 |
+| `TURBO_TEAM` | VercelチームID | ビルド高速化 |
 
 ### オプション（手動デプロイ・拡張用）
 
-| 変数名 | 説明 | 用途 | GitHub Actions | Vercel |
-|--------|------|------|:--------------:|:------:|
-| `VERCEL_TOKEN` | Vercelデプロイトークン | Vercel CLIデプロイ | `.env.ci` に格納 | - |
-| `VERCEL_ORG_ID` | Vercel組織ID | Vercel CLIデプロイ | `.env.ci` に格納 | - |
-| `VERCEL_PROJECT_ID_WEB` | webプロジェクトID | Vercel CLIデプロイ | `.env.ci` に格納 | - |
-| `RAILWAY_TOKEN` | Railway APIトークン | Railwayデプロイ | ◯ | - |
-| `RAILWAY_SERVICE_ID` | RailwayサービスID | Railwayデプロイ | ◯ | - |
+| Secret名 | 説明 | 用途 |
+|---------|------|------|
+| `RAILWAY_TOKEN` | Railway APIトークン | Railwayデプロイ |
+| `RAILWAY_SERVICE_ID` | RailwayサービスID | Railwayデプロイ |
+| `VERCEL_DEV_DOMAIN_ADMIN` | develop環境のAdminカスタムドメイン | Adminエイリアス |
+| `VERCEL_STG_DOMAIN_ADMIN` | staging環境のAdminカスタムドメイン | Adminエイリアス |
 
 ---
 
@@ -169,29 +173,15 @@ vercel --prod
 
 ### GitHub Actions での Vercel CLI デプロイ
 
-GitHub Actions では `.env.ci` に Vercel CLI の認証情報を保持します。
+GitHub ActionsではVercel CLIの認証情報をGitHub Secretsで管理します。`.env.ci`への格納は不要です。
 
-```bash
-# .env.ci に追加（dotenvxで暗号化されます）
-VERCEL_TOKEN=xxxxxxxxxxxxxxxxxxxx
-VERCEL_ORG_ID=team_xxxxxxxxxxxxx
-VERCEL_PROJECT_ID_WEB=prj_xxxxxxxxxxxxx
-```
+必要なSecrets:
+- `VERCEL_TOKEN`: Vercel Dashboard > Account Settings > Tokens > Create Token
+- `VERCEL_ORG_ID`: Vercel Dashboard > Team Settings > General > Team ID
+- `VERCEL_PROJECT_ID_WEB`: Vercel Dashboard > Project Settings > General > Project ID
+- `VERCEL_PROJECT_ID_ADMIN`: 同上（Adminプロジェクト）
 
-#### 取得方法
-
-```bash
-# VERCEL_TOKEN: Vercel Dashboard > Account Settings > Tokens > Create Token
-# VERCEL_ORG_ID: Vercel Dashboard > Team Settings > General > Team ID
-# VERCEL_PROJECT_ID_WEB: Vercel Dashboard > Project Settings > General > Project ID
-```
-
-`.env.ci` を更新する場合は以下を使用してください：
-
-```bash
-pnpm env:update
-# → 「環境設定を変更」→「CI環境」
-```
+登録方法は [GitHub Secrets登録](#6-github-secrets登録) を参照してください。
 
 ---
 
@@ -315,16 +305,25 @@ gh secret set RAILWAY_SERVICE_ID --body "サービスID"
 # 1. GitHub リポジトリ > Settings > Secrets and variables > Actions
 # 2. 「New repository secret」で以下を追加
 
-# 必須Secrets
-gh secret set DOTENV_PRIVATE_KEY_CI --body "$(grep DOTENV_PRIVATE_KEY_CI .env.keys | cut -d= -f2)"
-gh secret set DOTENV_PRIVATE_KEY_PREVIEW --body "$(grep DOTENV_PRIVATE_KEY_PREVIEW .env.keys | cut -d= -f2)"
-gh secret set TURBO_TOKEN --body "取得したトークン"
-gh secret set TURBO_TEAM --body "team_xxxxxxxxx"
+# --- 復号鍵（.env.keysから取得） ---
+gh secret set DOTENV_PRIVATE_KEY_PREVIEW --body "$(grep DOTENV_PRIVATE_KEY_PREVIEW .env.keys | cut -d'\"' -f2)"
+gh secret set DOTENV_PRIVATE_KEY_PRODUCTION --body "$(grep DOTENV_PRIVATE_KEY_PRODUCTION .env.keys | cut -d'\"' -f2)"
+gh secret set DOTENV_PRIVATE_KEY_DEVELOP --body "$(grep DOTENV_PRIVATE_KEY_DEVELOP .env.keys | cut -d'\"' -f2)"
+gh secret set DOTENV_PRIVATE_KEY_STAGING --body "$(grep DOTENV_PRIVATE_KEY_STAGING .env.keys | cut -d'\"' -f2)"
 
-# オプション（手動デプロイ用）
+# --- Vercel ---
 gh secret set VERCEL_TOKEN --body "取得したトークン"
 gh secret set VERCEL_ORG_ID --body "team_xxxxxxxxx"
 gh secret set VERCEL_PROJECT_ID_WEB --body "prj_xxxxxxxxx"
+gh secret set VERCEL_PROJECT_ID_ADMIN --body "prj_xxxxxxxxx"
+
+# --- Turborepo ---
+gh secret set TURBO_TOKEN --body "取得したトークン"
+gh secret set TURBO_TEAM --body "team_xxxxxxxxx"
+
+# --- オプション（Railway使用時） ---
+gh secret set RAILWAY_TOKEN --body "取得したトークン"
+gh secret set RAILWAY_SERVICE_ID --body "サービスID"
 ```
 
 ### 登録確認

@@ -28,7 +28,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate artifacts
-        run: pnpm generate
+        run: |
+          pnpm generate
+          pnpm --filter @einja/dev-cli prebuild
 
       - name: Run TypeScript type check
         run: pnpm typecheck

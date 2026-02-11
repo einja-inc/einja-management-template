@@ -15,10 +15,11 @@
 
 1. [デプロイメントアーキテクチャ](#1-デプロイメントアーキテクチャ)
 2. [プラットフォーム選定理由](#2-プラットフォーム選定理由)
-3. [CI/CDパイプライン設計](#3-cicdパイプライン設計)
-4. [キャッシュ戦略](#4-キャッシュ戦略)
-5. [Worktree対応設計](#5-worktree対応設計)
-6. [ロールバック戦略](#6-ロールバック戦略)
+3. [GitHub Actionsワークフロー](#3-github-actionsワークフロー)
+4. [ブランチ別デプロイフロー](#4-ブランチ別デプロイフロー)
+5. [キャッシュ戦略](#5-キャッシュ戦略)
+6. [Worktree対応設計](#6-worktree対応設計)
+7. [ロールバック戦略](#7-ロールバック戦略)
 
 ---
 
@@ -30,12 +31,22 @@
 graph TB
     subgraph "GitHub Repository"
         Main[main branch]
+        Develop[develop branch]
+        Staging[staging branch]
         Feature[feature branches]
+    end
+
+    subgraph "GitHub Actions"
+        DeployStable[Deploy Stable Branches<br/>CI → Deploy]
+        DeployPR[Deploy PR Preview<br/>CI → Neon → Deploy]
+        Cleanup[Cleanup DB<br/>毎日00:00 UTC]
     end
 
     subgraph "Vercel Platform"
         WebProd[web - Production]
-        WebPreview[web - Preview]
+        WebDev[web - Develop]
+        WebStg[web - Staging]
+        WebPreview[web - PR Preview]
     end
 
     subgraph "Railway Platform"
@@ -43,17 +54,28 @@ graph TB
     end
 
     subgraph "Neon Database"
-        DBProd[(Production DB)]
-        DBPreview[(Preview DB - 動的生成)]
+        DBProd[(Production DB<br/>定常ブランチ)]
+        DBPreview[(Preview DB<br/>動的生成)]
     end
 
-    Main -->|Auto Deploy| WebProd
-    Main -->|Auto Deploy| CronProd
+    Main -->|push| DeployStable
+    Develop -->|push| DeployStable
+    Staging -->|push| DeployStable
+    Feature -->|PR| DeployPR
 
-    Feature -->|PR Deploy| WebPreview
-    Feature -->|Create Branch| DBPreview
+    DeployStable -->|main| WebProd
+    DeployStable -->|develop| WebDev
+    DeployStable -->|staging| WebStg
+    DeployPR --> WebPreview
+
+    Main -->|push| CronProd
+
+    DeployPR -->|Create Branch| DBPreview
+    Cleanup -->|Delete orphaned| DBPreview
 
     WebProd --> DBProd
+    WebDev --> DBProd
+    WebStg --> DBProd
     WebPreview --> DBPreview
     CronProd --> DBProd
 ```
@@ -62,9 +84,9 @@ graph TB
 
 | アプリケーション | プラットフォーム | デプロイトリガー | 環境 |
 |----------------|--------------|--------------|------|
-| web | Vercel | main push, PR作成 | Production, Preview |
+| web | Vercel | main/develop/staging push, PR作成 | Production, Preview |
 | cron-worker | Railway | main push | Production |
-| Database | Neon | main push, PR作成 | Production, Preview（動的生成） |
+| Database | Neon | PR作成時のみ動的生成 | Production, Preview（動的生成） |
 
 ---
 
@@ -98,77 +120,447 @@ graph TB
 
 ---
 
-## 3. CI/CDパイプライン設計
+## 3. GitHub Actionsワークフロー
 
-### パイプラインフロー
+### ワークフロー一覧
+
+```mermaid
+graph LR
+    subgraph "ワークフロー構成"
+        DeployStable[deploy-stable-branches.yml]
+        DeployPR[deploy-pr-preview.yml]
+        CleanupClose[cleanup-pr-preview-on-close.yml]
+        Cleanup[cleanup-pr-preview-db.yml]
+        ReleaseCLI[release-cli.yml]
+        ReleaseApp[release-create-einja-app.yml]
+        Claude[claude.yml]
+    end
+
+    subgraph "Composite Actions"
+        SetupAction[.github/actions/setup/action.yml]
+        CIAction[.github/actions/ci/action.yml]
+        MigrateAction[.github/actions/migrate/action.yml]
+        NeonExportEnv[.github/actions/neon-export-env/action.yml]
+    end
+
+    DeployStable --> CIAction
+    DeployStable --> MigrateAction
+    DeployPR --> CIAction
+    DeployPR --> NeonExportEnv
+    CleanupClose --> NeonExportEnv
+    CIAction --> SetupAction
+    MigrateAction --> SetupAction
+    Cleanup --> SetupAction
+```
+
+| ワークフロー | ファイル | トリガー | 用途 |
+|------------|---------|---------|------|
+| **Deploy Stable** | `deploy-stable-branches.yml` | push to main/develop/staging | CI → 本番・開発・ステージング環境デプロイ |
+| **PR Preview** | `deploy-pr-preview.yml` | PR opened/sync/closed | CI → Neonブランチ作成 → プレビューデプロイ |
+| **PR Close Cleanup** | `cleanup-pr-preview-on-close.yml` | PR closed | Neonブランチの即座削除（PR close時） |
+| **Cleanup DB** | `cleanup-pr-preview-db.yml` | 毎日00:00 UTC / 手動 | 孤立したNeonブランチ削除 |
+| **Release CLI** | `release-cli.yml` | tag `cli-v*` / 手動 | @einja/dev-cli をNPM公開 |
+| **Release App** | `release-create-einja-app.yml` | tag `create-einja-app-v*` / 手動 | create-einja-app をNPM公開 |
+| **Claude** | `claude.yml` | @claude メンション | Claude Code実行 |
+
+### Composite Actions（2層構造）
+
+バージョン番号を1箇所に集約し、DRY原則に従った構成：
+
+```mermaid
+flowchart TB
+    subgraph "setup/action.yml"
+        S1[pnpm setup<br/>v10.14.0] --> S2[Node.js setup<br/>v22.16.0]
+        S2 --> S3[pnpm install]
+    end
+
+    subgraph "ci/action.yml"
+        C1[setup action 呼び出し] --> C2[pnpm generate]
+        C2 --> C3[pnpm typecheck]
+        C3 --> C4[pnpm lint]
+        C4 --> C5[pnpm test]
+    end
+
+    subgraph "migrate/action.yml"
+        M1[setup action 呼び出し] --> M2[pnpm generate]
+        M2 --> M3[db:migrate:deploy]
+        M3 --> M4{run-seed?}
+        M4 -->|true| M5[db:seed]
+        M4 -->|false| M6[完了]
+        M5 --> M6
+    end
+
+    C1 -.-> S1
+    M1 -.-> S1
+```
+
+| Action | ファイル | 内容 | 呼び出し元 |
+|--------|---------|------|-----------|
+| **Setup** | `actions/setup/action.yml` | pnpm + Node.js + install | ci action, migrate action, cleanup |
+| **CI** | `actions/ci/action.yml` | setup → generate → typecheck → lint → test | deploy-stable-branches, deploy-pr-preview |
+| **Migrate** | `actions/migrate/action.yml` | setup → generate → migrate → seed (optional) | deploy-stable-branches |
+| **Neon Export Env** | `actions/neon-export-env/action.yml` | .env.previewからNeon環境変数をエクスポート | deploy-pr-preview, cleanup-pr-preview-on-close |
+
+### 実行マトリクス
+
+| トリガー | Deploy Stable | PR Preview | 備考 |
+|---------|:-------------:|:----------:|------|
+| feature/* push | ❌ | - | CIなし（PR時に実行） |
+| main push | ✅ | - | CI → 本番デプロイ |
+| develop push | ✅ | - | CI → 開発環境デプロイ |
+| staging push | ✅ | - | CI → ステージングデプロイ |
+| PR → main/develop 作成 | ❌ | ✅ | CI → Neon作成 → プレビュー |
+| PR → main/develop 更新 | ❌ | ✅ | CI → プレビュー更新 |
+| PR クローズ | ❌ | ✅ | Neonブランチ削除 |
+| フォークPR | ❌ | ❌ | Secret制限のため |
+
+### ワークフロー シーケンス図
+
+#### deploy-pr-preview.yml（PR → CI + プレビューデプロイ）
 
 ```mermaid
 sequenceDiagram
     participant Dev as 開発者
     participant GH as GitHub
-    participant CI as GitHub Actions
-    participant Turbo as Turborepo
-    participant Cache as Vercel Cache
+    participant Actions as GitHub Actions
+    participant CI as CI Action
     participant Neon as Neon Database
     participant Vercel as Vercel
-    participant Railway as Railway
 
-    Dev->>GH: git push
-    GH->>CI: Workflow トリガー
-    CI->>CI: 環境セットアップ
-    CI->>Turbo: turbo login
-    Turbo->>Cache: キャッシュ認証
+    Dev->>GH: PR作成/更新
+    GH->>Actions: deploy-pr-preview トリガー
 
-    alt PR作成時
-        CI->>Neon: Create branch from main
-        Neon-->>CI: Preview DB URL
-        CI->>CI: Set DATABASE_URL
+    rect rgb(240, 248, 255)
+        Note over Actions,CI: CI Checks
+        Actions->>CI: ci action 呼び出し
+        CI->>CI: setup (pnpm + Node.js)
+        CI->>CI: pnpm generate
+        CI->>CI: pnpm typecheck
+        CI->>CI: pnpm lint
+        CI->>CI: pnpm test
+        CI-->>Actions: CI完了
     end
 
-    CI->>Turbo: turbo run lint
-    Turbo->>Cache: キャッシュチェック
-    Cache-->>Turbo: キャッシュヒット/ミス
-    Turbo-->>CI: Lint完了
-
-    CI->>Turbo: turbo run build
-    Turbo->>Cache: キャッシュチェック
-    Turbo->>Turbo: ビルド実行
-    Turbo->>Cache: 結果アップロード
-    Turbo-->>CI: ビルド完了
-
-    CI->>Turbo: turbo run test
-    Turbo-->>CI: テスト完了
-
-    alt main ブランチ
-        CI->>Vercel: web デプロイ（Production DB使用）
-        CI->>Railway: cron-worker デプロイ
-    else PR作成時
-        CI->>Vercel: web preview デプロイ（Preview DB使用）
+    rect rgb(255, 248, 240)
+        Note over Actions,Neon: Neon Branch 作成
+        Actions->>Actions: dotenvx で NEON_API_KEY 取得
+        Actions->>Actions: pnpm generate (Prisma Client生成)
+        Actions->>Neon: preview/pr-{番号} ブランチ作成
+        Neon-->>Actions: DB URL (direct + pooled)
+        Actions->>Neon: pnpm db:push (スキーマ同期)
+        Actions->>Neon: pnpm db:seed (データ投入)
     end
 
-    CI-->>Dev: ステータス通知
+    rect rgb(240, 255, 240)
+        Note over Actions,Vercel: Vercel デプロイ
+        Actions->>Vercel: vercel pull
+        Actions->>Vercel: 環境変数同期 (ブラックリスト除外)
+        Actions->>Vercel: vercel build (DATABASE_URL=pooled)
+        Actions->>Vercel: vercel deploy --prebuilt
+        Vercel-->>Actions: Preview URL
+    end
+
+    Actions->>GH: PRにコメント (Preview URL + Neon情報)
+    GH-->>Dev: 通知
 ```
 
-### ステージ構成
+#### deploy-stable-branches.yml（stable push → CI + 本番デプロイ）
 
-| ステージ | タスク | 並列実行 | キャッシュ |
-|---------|-------|---------|----------|
-| Setup | pnpm install, turbo login | - | ✅ |
-| Lint | turbo run lint | ✅ | ✅ |
-| Type Check | turbo run typecheck | ✅ | ✅ |
-| Test | turbo run test | ✅ | ✅ |
-| Build | turbo run build | ✅ | ✅ |
-| Deploy | Vercel, Railway | ✅ | ❌ |
+```mermaid
+sequenceDiagram
+    participant Dev as 開発者
+    participant GH as GitHub
+    participant Actions as GitHub Actions
+    participant CI as CI Action
+    participant Neon as Neon DB (定常)
+    participant Vercel as Vercel
 
-### 設計方針
+    Dev->>GH: main/develop/staging push
+    GH->>Actions: deploy-stable-branches トリガー
 
-1. **高速フィードバック**: Lint・Type Checkを並列実行し、早期エラー検出
-2. **キャッシュ最大活用**: Turborepo Remote Cacheで86%の時間削減
-3. **環境分離**: dotenvxによる暗号化環境変数でセキュアなCI/CD
+    rect rgb(240, 248, 255)
+        Note over Actions,CI: CI Checks
+        Actions->>CI: ci action 呼び出し
+        CI->>CI: setup (pnpm + Node.js)
+        CI->>CI: pnpm generate
+        CI->>CI: pnpm typecheck
+        CI->>CI: pnpm lint
+        CI->>CI: pnpm test
+        CI-->>Actions: CI完了
+    end
+
+    Actions->>Actions: ブランチ判定 (環境変数セット)
+
+    rect rgb(255, 248, 240)
+        Note over Actions,Neon: DB マイグレーション (main/stagingのみ)
+        Actions->>Neon: pnpm db:migrate:deploy
+    end
+
+    alt develop ブランチのみ
+        Actions->>Neon: pnpm db:seed
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Actions,Vercel: Vercel デプロイ
+        Actions->>Vercel: vercel pull
+        Actions->>Vercel: 環境変数同期 (ブラックリスト除外)
+        Actions->>Vercel: vercel pull (Re-pull: 同期後の最新化)
+        Actions->>Vercel: vercel build [--prod]
+        Actions->>Vercel: vercel deploy --prebuilt [--prod]
+        Vercel-->>Actions: Deploy URL
+    end
+
+    alt develop/staging ブランチ
+        Actions->>Vercel: vercel alias (カスタムドメイン)
+    end
+
+    Actions-->>Dev: デプロイ完了
+```
+
+#### cleanup-pr-preview-db.yml（cron → setup + Neon cleanup）
+
+```mermaid
+sequenceDiagram
+    participant Cron as Cron (毎日00:00 UTC)
+    participant Actions as GitHub Actions
+    participant Setup as Setup Action
+    participant Neon as Neon Database
+    participant GHAPI as GitHub API
+
+    Cron->>Actions: cleanup-pr-preview-db トリガー
+
+    rect rgb(240, 248, 255)
+        Note over Actions,Setup: Setup
+        Actions->>Setup: setup action 呼び出し
+        Setup->>Setup: pnpm + Node.js
+        Setup->>Setup: pnpm install
+        Setup-->>Actions: Setup完了
+    end
+
+    Actions->>Actions: dotenvx で NEON_API_KEY 取得
+
+    rect rgb(255, 248, 240)
+        Note over Actions,GHAPI: Cleanup処理
+        Actions->>Neon: 全 preview/pr-* ブランチ取得
+        Neon-->>Actions: ブランチ一覧
+
+        loop 各ブランチ
+            Actions->>GHAPI: PR #{番号} の状態確認
+            GHAPI-->>Actions: PR状態
+
+            alt PR closed or 404
+                Actions->>Neon: ブランチ削除
+            else PR open or APIエラー
+                Actions->>Actions: スキップ (誤削除防止)
+            end
+        end
+    end
+
+    Actions->>Actions: Cleanup完了ログ
+```
+
+> **設計意図**: ci.ymlはpull_requestのみをトリガーとし、feature/* pushでの二重CI実行を防止
+
+### 並行実行制御（Concurrency）
+
+| ワークフロー | concurrencyグループ | cancel-in-progress | 説明 |
+|------------|-------------------|:-----------------:|------|
+| deploy-pr-preview | `pr-preview-{PR番号}` | true | 最新コミットのみデプロイ |
+| cleanup-pr-preview-on-close | `pr-preview-{PR番号}` | true | 同グループでPRデプロイと排他制御 |
+| deploy-stable-branches | `deploy-{ブランチ名}` | false | 全コミットを順次デプロイ |
 
 ---
 
-## 4. キャッシュ戦略
+## 4. ブランチ別デプロイフロー
+
+### mainブランチ（本番環境）
+
+```mermaid
+flowchart TD
+    A[git push main] --> B[deploy-stable-branches.yml]
+    B --> C[CI Checks]
+    C --> D{成功?}
+    D -->|Yes| E[dotenvx復号化]
+    D -->|No| X[失敗通知]
+    E --> F[Vercel Pull]
+    F --> G[環境変数同期]
+    G --> H[DB Migrate]
+    H --> I[Vercel Build]
+    I --> J[Vercel Deploy --prod]
+    J --> K[完了]
+
+    style A fill:#4CAF50
+    style K fill:#4CAF50
+```
+
+**設定**:
+- Vercel環境: `production`
+- 暗号化ファイル: `.env.production`
+- 復号鍵: `DOTENV_PRIVATE_KEY_PRODUCTION`
+- DBマイグレーション: ✅
+- DBシード: ❌（テストデータのため本番非対応）
+- Alias設定: ❌
+
+---
+
+### developブランチ（開発環境）
+
+```mermaid
+flowchart TD
+    A[git push develop] --> B[deploy-stable-branches.yml]
+    B --> C[CI Checks]
+    C --> D{成功?}
+    D -->|Yes| E[dotenvx復号化]
+    D -->|No| X[失敗通知]
+    E --> F[Vercel Pull]
+    F --> G[環境変数同期]
+    G --> H[Vercel Build]
+    H --> I[Vercel Deploy]
+    I --> J[Alias設定]
+    J --> K[完了]
+
+    style A fill:#2196F3
+    style K fill:#2196F3
+```
+
+**設定**:
+- Vercel環境: `preview`
+- 暗号化ファイル: `.env.develop`
+- 復号鍵: `DOTENV_PRIVATE_KEY_DEVELOP`
+- DBマイグレーション: ❌（PR PreviewのNeonブランチで自動同期）
+- DBシード: ❌
+- Alias: `secrets.VERCEL_DEV_DOMAIN`
+
+---
+
+### stagingブランチ（ステージング環境）
+
+```mermaid
+flowchart TD
+    A[git push staging] --> B[deploy-stable-branches.yml]
+    B --> C[CI Checks]
+    C --> D{成功?}
+    D -->|Yes| E[dotenvx復号化]
+    D -->|No| X[失敗通知]
+    E --> F[Vercel Pull]
+    F --> G[環境変数同期]
+    G --> H[DB Migrate]
+    H --> I[Vercel Build]
+    I --> J[Vercel Deploy]
+    J --> K[Alias設定]
+    K --> L[完了]
+
+    style A fill:#FF9800
+    style L fill:#FF9800
+```
+
+**設定**:
+- Vercel環境: `preview`
+- 暗号化ファイル: `.env.staging`
+- 復号鍵: `DOTENV_PRIVATE_KEY_STAGING`
+- DBマイグレーション: ✅
+- DBシード: ❌（既存データ保持）
+- Alias: `secrets.VERCEL_STG_DOMAIN`
+
+---
+
+### Pull Request（プレビュー環境）
+
+```mermaid
+flowchart TD
+    A[PR opened/sync] --> B[deploy-pr-preview.yml]
+    B --> C[pnpm/Node setup]
+    C --> D[Neon環境変数取得]
+    D --> E[親ブランチ決定]
+    E --> F[Neon Branch作成]
+    F --> G[DB Push]
+    G --> H[DB Seed]
+    H --> I[Vercel Build]
+    I --> J[Vercel Deploy]
+    J --> K[PRコメント]
+    K --> L[完了]
+
+    M[PR closed] --> N[cleanup-pr-preview-on-close.yml]
+    N --> O[Neon Branch即座削除]
+    O --> P[完了]
+
+    style A fill:#9C27B0
+    style L fill:#9C27B0
+    style M fill:#F44336
+    style P fill:#F44336
+```
+
+**設定**:
+- Vercel環境: `preview`
+- 暗号化ファイル: `.env.preview`
+- 復号鍵: `DOTENV_PRIVATE_KEY_PREVIEW`
+- Neonブランチ: `preview/pr-{PR番号}`
+- 親ブランチ: PRのベースブランチ（main/develop等）
+- Auto-suspend: 1日間アクセスなし
+- PRコメント: Preview URL + Neon Branch情報
+
+> **⚠️ 同時PR運用時の注意**
+>
+> テンプレートでは`vercel deploy --env DATABASE_URL=...`でデプロイ単位で
+> DATABASE_URLを注入しています。これにより、同時に複数のPRがプレビュー
+> デプロイされても、それぞれのPRが固有のNeonブランチDBを参照します。
+>
+> もし`vercel env add DATABASE_URL`方式を使用すると、Vercel Projectの
+> preview環境変数が上書きされ、同時PRで競合するリスクがあります。
+
+---
+
+### 環境別設定一覧
+
+| 環境 | ブランチ | Vercel環境 | DBマイグ | シード | Alias | 暗号化ファイル | 復号鍵 |
+|------|---------|-----------|:-------:|:-----:|:-----:|--------------|--------|
+| Production | main | production | ✅ | ❌ | ❌ | `.env.production` | `DOTENV_PRIVATE_KEY_PRODUCTION` |
+| Develop | develop | preview | ❌ | ❌ | ✅ | `.env.develop` | `DOTENV_PRIVATE_KEY_DEVELOP` |
+| Staging | staging | preview | ✅ | ❌ | ✅ | `.env.staging` | `DOTENV_PRIVATE_KEY_STAGING` |
+| PR Preview | feature/* | preview | ✅ | ✅ | ❌ | `.env.preview` | `DOTENV_PRIVATE_KEY_PREVIEW` |
+
+### Vercel環境変数の自動同期
+
+ワークフローは `ENV_VAR_EXCLUDE` ブラックリスト正規表現で**同期対象外**を制御:
+
+| ワークフロー | 除外フィルタ | 説明 |
+|------------|-----------|------|
+| PR Preview | `^(DOTENV_\|NEON_\|NODE_ENV$\|VERCEL_)` | DOTENV/Neon/Vercel内部変数を除外。DATABASE_URLはNeonブランチURLを`--env`で注入するため別途除外 |
+| Stable Branches | `^(DOTENV_\|NODE_ENV$\|VERCEL_)` | DOTENV/Vercel内部変数を除外。DATABASE_URL含む全アプリ変数を同期 |
+
+**設計意図**: ホワイトリスト方式だと新しい環境変数追加時にフィルタ更新漏れが発生するため、ブラックリスト方式を採用。
+
+---
+
+### Neonプレビューブランチのクリーンアップ
+
+```mermaid
+flowchart TD
+    A[毎日 00:00 UTC] --> B[cleanup-pr-preview-db.yml]
+    B --> C[Neon API: 全preview/*取得]
+    C --> D{各ブランチ}
+    D --> E[GitHub API: PR状態確認]
+    E --> F{PR状態}
+    F -->|closed| G[ブランチ削除]
+    F -->|404| G
+    F -->|open| H[スキップ]
+    F -->|APIエラー| H
+    G --> D
+    H --> D
+```
+
+**設計意図**:
+- 孤立したNeonブランチの自動削除
+- APIエラー時はスキップ（誤削除防止）
+- コスト最適化
+
+**2種類のクリーンアップ:**
+1. **即時削除** (`cleanup-pr-preview-on-close.yml`): PR close時に即座にNeonブランチ削除
+2. **定期クリーンアップ** (`cleanup-pr-preview-db.yml`): 毎日00:00 UTC、孤立ブランチ（手動削除漏れ等）をAPI経由で検知・削除
+
+---
+
+## 5. キャッシュ戦略
 
 ### Turborepo Remote Cache
 
@@ -200,7 +592,7 @@ sequenceDiagram
 
 ---
 
-## 5. Worktree対応設計
+## 6. Worktree対応設計
 
 ### 課題
 
@@ -249,7 +641,7 @@ sequenceDiagram
 
 ---
 
-## 6. ロールバック戦略
+## 7. ロールバック戦略
 
 ### 設計方針
 
@@ -287,6 +679,7 @@ sequenceDiagram
 - [環境変数設計方針](./environment-variables.md)
 - [デプロイセットアップ手順](../../instructions/deployment-setup.md)
 - [環境変数セットアップ手順](../../instructions/environment-setup.md)
+- [Vercel CLI/APIリファレンス](../../instructions/vercel-cli-reference.md)
 <!-- @einja:managed:end -->
 
 ---

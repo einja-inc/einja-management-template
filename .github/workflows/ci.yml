@@ -31,6 +31,7 @@ jobs:
         run: |
           pnpm generate
           pnpm --filter @einja/dev-cli prebuild
+          pnpm --filter create-einja-app prebuild
 
       - name: Run TypeScript type check
         run: pnpm typecheck

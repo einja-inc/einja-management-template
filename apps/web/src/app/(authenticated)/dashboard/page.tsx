@@ -1,7 +1,7 @@
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
+import { auth } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/card";
 import { H1, P } from "@repo/ui/typography";
-import { auth } from "@/lib/auth";
 
 export default async function DashboardPage() {
   const session = await auth();

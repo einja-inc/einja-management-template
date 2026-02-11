@@ -1,5 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/card";
 import { auth } from "@/lib/auth";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/card";
 
 export default async function ProfilePage() {
   const session = await auth();

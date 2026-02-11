@@ -1,12 +1,14 @@
-import { UserAvatar } from "@/components/auth/user-avatar";
-import Link from "next/link";
 import React from "react";
+import Link from "next/link";
+import { UserAvatar } from "@/components/auth/user-avatar";
 
 export default function Home() {
   return (
     <main
       className="min-h-screen p-4 md:p-8 text-white"
-      style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+      style={{
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      }}
     >
       <header className="mb-6 md:mb-12">
         <nav className="flex justify-between items-center p-4 md:p-6 bg-white/10 rounded-lg backdrop-blur">

@@ -3,7 +3,7 @@ services:
   # 全ワークツリーで共有する単一インスタンス
   # データベース名で分離: main, feature_xxx など
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: ${POSTGRES_CONTAINER_NAME:-einja-management-postgres}
     restart: unless-stopped
     environment:

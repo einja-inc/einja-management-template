@@ -1,7 +1,7 @@
 "use client";
 
-import { Button } from "@repo/ui/button";
 import { HamburgerMenuIcon } from "@radix-ui/react-icons";
+import { Button } from "@repo/ui/button";
 
 interface HeaderProps {
   user:
@@ -52,7 +52,11 @@ export function Header({ user, onMobileMenuToggle }: HeaderProps) {
               className={`w-10 h-10 ${user?.image ? "bg-transparent" : "bg-gray-300"} rounded-full flex items-center justify-center overflow-hidden`}
             >
               {user?.image ? (
-                <img src={user.image} alt={user.name || "User"} className="w-full h-full object-cover" />
+                <img
+                  src={user.image}
+                  alt={user.name || "User"}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <span className="text-sm font-medium text-gray-600">
                   {user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}

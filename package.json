@@ -48,6 +48,7 @@
 		"einja:sync": "npx @einja/dev-cli sync"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "2.3.14",
 		"@clack/prompts": "^0.11.0",
 		"@dotenvx/dotenvx": "^1.51.4",
 		"@types/node": "^25.0.3",

@@ -1,6 +1,6 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/card";
 import { prefetchUsers } from "@/hooks/api/prefetch-users";
 import type { PaginatedUserList } from "@/shared/schemas/user";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/card";
 import { UserTableContainer } from "./_components/UserTableContainer";
 
 export default async function DataPage() {

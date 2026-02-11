@@ -19,7 +19,8 @@
       "**/.pnpm-store",
       "**/test-results",
       "**/playwright-report",
-      "**/.claude"
+      "**/.claude",
+      "**/styled-system"
     ]
   },
   "formatter": {

@@ -210,8 +210,8 @@ importers:
         version: 3.25.76
     devDependencies:
       '@biomejs/biome':
-        specifier: 1.9.4
-        version: 1.9.4
+        specifier: 2.3.14
+        version: 2.3.14
       '@repo/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -431,8 +431,8 @@ importers:
         version: 4.3.5
     devDependencies:
       '@biomejs/biome':
-        specifier: 1.9.4
-        version: 1.9.4
+        specifier: 2.3.14
+        version: 2.3.14
       '@repo/config':
         specifier: workspace:*
         version: link:../config
@@ -459,8 +459,8 @@ importers:
         version: 3.25.76
     devDependencies:
       '@biomejs/biome':
-        specifier: 1.9.4
-        version: 1.9.4
+        specifier: 2.3.14
+        version: 2.3.14
       '@types/node':
         specifier: ^22
         version: 22.18.13
@@ -496,8 +496,8 @@ importers:
         version: 8.2.0
     devDependencies:
       '@biomejs/biome':
-        specifier: ^1.9.4
-        version: 1.9.4
+        specifier: ^2.3.14
+        version: 2.3.14
       '@types/fs-extra':
         specifier: ^11.0.4
         version: 11.0.4

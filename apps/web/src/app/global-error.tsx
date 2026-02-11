@@ -16,9 +16,7 @@ export default function GlobalError({ error, reset }: GlobalErrorPageProps) {
         <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50">
           <div className="text-center">
             <h1 className="mb-4">システムエラー</h1>
-            <p className="text-gray-600 mb-8 text-lg">
-              申し訳ありません。システムエラーが発生しました。
-            </p>
+            <p className="text-gray-600 mb-8 text-lg">申し訳ありません。システムエラーが発生しました。</p>
             <div className="flex gap-4 justify-center">
               <button
                 type="button"

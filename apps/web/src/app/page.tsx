@@ -17,10 +17,7 @@ export default function Home() {
 
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         <section className="text-center mb-8 md:mb-12">
-          <h2
-            className="text-2xl md:text-4xl font-bold mb-4"
-            style={{ textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}
-          >
+          <h2 className="text-2xl md:text-4xl font-bold mb-4" style={{ textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}>
             管理画面テンプレート
           </h2>
           <p className="text-lg md:text-xl opacity-90 leading-relaxed">
@@ -69,8 +66,7 @@ export default function Home() {
                 <strong>データベース起動:</strong> <code>docker-compose up postgres -d</code>
               </li>
               <li>
-                <strong>環境変数設定:</strong> <code>.env.example</code> を <code>.env</code>{" "}
-                にコピー
+                <strong>環境変数設定:</strong> <code>.env.example</code> を <code>.env</code> にコピー
               </li>
               <li>
                 <strong>データベースセットアップ:</strong> <code>npm run db:push</code>

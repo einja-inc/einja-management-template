@@ -228,6 +228,21 @@ jobs:
       - name: Pull Vercel Environment (apps/${{ matrix.app }})
         run: vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
 
+      - name: Get Vercel project name
+        id: project-name
+        run: |
+          PROJECT_NAME=$(curl -s \
+            "https://api.vercel.com/v9/projects/${{ steps.resolve.outputs.project_id }}" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" | jq -r '.name')
+          if [ -z "$PROJECT_NAME" ] || [ "$PROJECT_NAME" = "null" ]; then
+            echo "::warning::プロジェクト名の取得に失敗しました。aliasは設定されません。"
+            echo "name=" >> $GITHUB_OUTPUT
+          else
+            # DNS安全のため小文字に正規化
+            PROJECT_NAME=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')
+            echo "name=$PROJECT_NAME" >> $GITHUB_OUTPUT
+          fi
+
       # Vercel環境変数の自動同期（ブラックリスト除外方式）
       - name: Sync environment variables to Vercel
         run: |
@@ -259,9 +274,26 @@ jobs:
             --env DATABASE_URL="${{ steps.db-urls.outputs.db_url_pooled }}")
           echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
 
+      - name: Set Vercel alias
+        if: steps.project-name.outputs.name != ''
+        id: set-alias
+        continue-on-error: true
+        run: |
+          ALIAS="${{ steps.project-name.outputs.name }}-pr-${{ github.event.number }}.vercel.app"
+          vercel alias ${{ steps.deploy.outputs.url }} "$ALIAS" --token=$VERCEL_TOKEN
+          echo "url=https://$ALIAS" >> $GITHUB_OUTPUT
+
       # デプロイURLをartifactとして保存
       - name: Save deploy URL
-        run: echo "${{ steps.deploy.outputs.url }}" > deploy-url-${{ matrix.app }}.txt
+        run: |
+          ALIAS_URL="${{ steps.set-alias.outputs.url }}"
+          DEPLOY_URL="${{ steps.deploy.outputs.url }}"
+          if [ -n "$ALIAS_URL" ]; then
+            echo "$ALIAS_URL" > deploy-url-${{ matrix.app }}.txt
+          else
+            echo "::warning::Alias未設定のためランダムURLを使用: $DEPLOY_URL"
+            echo "$DEPLOY_URL" > deploy-url-${{ matrix.app }}.txt
+          fi
 
       - name: Upload deploy URL
         uses: actions/upload-artifact@v4

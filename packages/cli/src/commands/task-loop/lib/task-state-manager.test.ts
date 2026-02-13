@@ -6,7 +6,7 @@ import {
   generateVibeKanbanDescription,
   generateVibeKanbanTitle,
 } from "./task-state-manager.js";
-import type { TaskGroup, VibeKanbanIssue } from "./types.js";
+import type { TaskGroup, VibeKanbanTask } from "./types.js";
 
 // 外部依存をモック
 vi.mock("./github-client.js", () => ({
@@ -73,7 +73,7 @@ describe("TaskStateManager", () => {
   describe("initializeDoneTaskIds", () => {
     it("Done状態のタスク一覧でpreviousDoneTaskIdsが設定される", () => {
       // Given: Done状態のタスクが2つ、他ステータスが1つ存在
-      const tasks: VibeKanbanIssue[] = [
+      const tasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[Issue22 1.2] Task 2", status: "done" },
         { id: "task-3", title: "[Issue22 1.3] Task 3", status: "todo" },
@@ -90,14 +90,14 @@ describe("TaskStateManager", () => {
 
     it("空のタスク一覧の場合、空Setになる", () => {
       // Given: 空のタスク一覧
-      const tasks: VibeKanbanIssue[] = [];
+      const tasks: VibeKanbanTask[] = [];
 
       // When: 初期化を実行
       manager.initializeDoneTaskIds(tasks);
 
       // Then: 空のSetが設定される
       // 検証: 後続で完了タスクを検出すると新規として扱われる
-      const newTasks: VibeKanbanIssue[] = [
+      const newTasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
       ];
       const newlyCompleted = manager.detectNewlyCompletedTasks(newTasks);
@@ -106,7 +106,7 @@ describe("TaskStateManager", () => {
 
     it("Issue番号を指定すると、該当Issueのタスクのみログ出力される", () => {
       // Given: Issue22とIssue23のタスクが混在
-      const tasks: VibeKanbanIssue[] = [
+      const tasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[Issue23 1.1] Task 2", status: "done" },
       ];
@@ -122,7 +122,7 @@ describe("TaskStateManager", () => {
   describe("initializeDoneTaskIds - レガシーフォーマット", () => {
     it("descriptionCacheからIssue番号を推論できる", () => {
       // Given: タイトルにIssue番号がない旧形式のタスクで、descriptionCacheにIssue情報が含まれる
-      const tasks: VibeKanbanIssue[] = [
+      const tasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[1.1] Task 1", status: "done" },
         { id: "task-2", title: "[1.2] Task 2", status: "done" },
         { id: "task-3", title: "[2.1] Task 3", status: "todo" },
@@ -147,7 +147,7 @@ describe("TaskStateManager", () => {
 
     it("タイトルに[IssueXX]がない旧形式でも動作する", () => {
       // Given: 旧形式のタスクタイトル（Issue番号なし）
-      const tasks: VibeKanbanIssue[] = [
+      const tasks: VibeKanbanTask[] = [
         { id: "task-old-1", title: "[1.1] レガシータスク1", status: "done" },
         { id: "task-old-2", title: "[1.2] レガシータスク2", status: "done" },
       ];
@@ -171,7 +171,7 @@ describe("TaskStateManager", () => {
 
     it("descriptionCacheがnullの場合でも正常動作する", () => {
       // Given: descriptionがnullのタスク
-      const tasks: VibeKanbanIssue[] = [
+      const tasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[1.2] Task 2 (旧形式)", status: "done" },
       ];
@@ -194,7 +194,7 @@ describe("TaskStateManager", () => {
 
     it("新形式と旧形式が混在している場合、両方を正しく認識する", () => {
       // Given: 新形式と旧形式のタスクが混在
-      const tasks: VibeKanbanIssue[] = [
+      const tasks: VibeKanbanTask[] = [
         { id: "task-new", title: "[Issue22 1.1] 新形式タスク", status: "done" },
         { id: "task-old", title: "[1.2] 旧形式タスク", status: "done" },
         { id: "task-other", title: "[Issue99 2.1] 別Issueのタスク", status: "done" },
@@ -221,14 +221,14 @@ describe("TaskStateManager", () => {
   describe("detectNewlyCompletedTasks", () => {
     it("前回より1タスク増加した場合、新規完了タスクIDを返す", () => {
       // Given: 初期状態で1つのタスクがDone
-      const initialTasks: VibeKanbanIssue[] = [
+      const initialTasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[Issue22 1.2] Task 2", status: "todo" },
       ];
       manager.initializeDoneTaskIds(initialTasks);
 
       // When: task-2が完了した状態のタスク一覧
-      const updatedTasks: VibeKanbanIssue[] = [
+      const updatedTasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[Issue22 1.2] Task 2", status: "done" },
       ];
@@ -240,7 +240,7 @@ describe("TaskStateManager", () => {
 
     it("変化なしの場合、空配列を返す", () => {
       // Given: 初期状態で1つのタスクがDone
-      const tasks: VibeKanbanIssue[] = [
+      const tasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[Issue22 1.2] Task 2", status: "todo" },
       ];
@@ -255,7 +255,7 @@ describe("TaskStateManager", () => {
 
     it("複数タスク同時完了の場合、全IDを返す", () => {
       // Given: 初期状態で全タスクがTodo
-      const initialTasks: VibeKanbanIssue[] = [
+      const initialTasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "todo" },
         { id: "task-2", title: "[Issue22 1.2] Task 2", status: "todo" },
         { id: "task-3", title: "[Issue22 1.3] Task 3", status: "todo" },
@@ -263,7 +263,7 @@ describe("TaskStateManager", () => {
       manager.initializeDoneTaskIds(initialTasks);
 
       // When: 3つのタスクが同時に完了
-      const updatedTasks: VibeKanbanIssue[] = [
+      const updatedTasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[Issue22 1.2] Task 2", status: "done" },
         { id: "task-3", title: "[Issue22 1.3] Task 3", status: "done" },
@@ -276,14 +276,14 @@ describe("TaskStateManager", () => {
 
     it("Done状態が減少した場合（キャンセルなど）、previousDoneTaskIdsが正しく更新される", () => {
       // Given: 初期状態で2つのタスクがDone
-      const initialTasks: VibeKanbanIssue[] = [
+      const initialTasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[Issue22 1.2] Task 2", status: "done" },
       ];
       manager.initializeDoneTaskIds(initialTasks);
 
       // When: task-2がTodoに戻された状態
-      const updatedTasks: VibeKanbanIssue[] = [
+      const updatedTasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[Issue22 1.2] Task 2", status: "todo" },
       ];
@@ -293,7 +293,7 @@ describe("TaskStateManager", () => {
       expect(result).toEqual([]);
 
       // Then: 次回task-2が完了すると新規完了として検出される
-      const recompletedTasks: VibeKanbanIssue[] = [
+      const recompletedTasks: VibeKanbanTask[] = [
         { id: "task-1", title: "[Issue22 1.1] Task 1", status: "done" },
         { id: "task-2", title: "[Issue22 1.2] Task 2", status: "done" },
       ];

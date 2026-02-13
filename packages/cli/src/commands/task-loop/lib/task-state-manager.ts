@@ -8,7 +8,7 @@
 
 import { getIssue, markTaskGroupAsCompleted, updateIssueBody } from "./github-client.js";
 import { parseIssueBody } from "./issue-parser.js";
-import type { ParsedIssue, TaskGroup, VibeKanbanIssue } from "./types.js";
+import type { ParsedIssue, TaskGroup, VibeKanbanTask } from "./types.js";
 
 /**
  * タスク状態マネージャー
@@ -24,7 +24,7 @@ export class TaskStateManager {
    * タスクが対象Issueに属するかチェック
    */
   private isTaskForTargetIssue(
-    task: VibeKanbanIssue,
+    task: VibeKanbanTask,
     descriptionCache?: Map<string, string | null>
   ): boolean {
     if (this.targetIssueNumber === null) return true;
@@ -56,7 +56,7 @@ export class TaskStateManager {
    * @param descriptionCache タスクID -> description のキャッシュ（旧形式タスクのIssue判定用）
    */
   initializeDoneTaskIds(
-    tasks: VibeKanbanIssue[],
+    tasks: VibeKanbanTask[],
     issueNumber?: number,
     descriptionCache?: Map<string, string | null>
   ): void {
@@ -90,7 +90,7 @@ export class TaskStateManager {
    * @returns 新たに Done になったタスクの ID 一覧
    */
   detectNewlyCompletedTasks(
-    currentTasks: VibeKanbanIssue[],
+    currentTasks: VibeKanbanTask[],
     descriptionCache?: Map<string, string | null>
   ): string[] {
     // 対象Issueに関連するタスクのみフィルタリング

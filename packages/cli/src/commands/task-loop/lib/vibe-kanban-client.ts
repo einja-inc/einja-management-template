@@ -153,58 +153,58 @@ export class VibeKanbanClient {
   }
 
   /**
-   * タスク一覧を取得
+   * イシュー一覧を取得
    */
-  async listTasks(projectId: string): Promise<VibeKanbanTask[]> {
+  async listIssues(projectId?: string): Promise<VibeKanbanTask[]> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
-      name: "list_tasks",
-      arguments: { project_id: projectId },
+      name: "list_issues",
+      arguments: projectId ? { project_id: projectId } : {},
     });
 
-    const parsed = this.parseToolResult<{ tasks: VibeKanbanTask[] }>(result, { tasks: [] });
-    return parsed.tasks;
+    // レスポンスは直接配列として返る
+    return this.parseToolResult<VibeKanbanTask[]>(result, []);
   }
 
   /**
    * リポジトリ一覧を取得
    */
-  async listRepos(projectId: string): Promise<VibeKanbanRepo[]> {
+  async listRepos(): Promise<VibeKanbanRepo[]> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
       name: "list_repos",
-      arguments: { project_id: projectId },
+      arguments: {},
     });
 
-    const parsed = this.parseToolResult<{ repos: VibeKanbanRepo[] }>(result, { repos: [] });
-    return parsed.repos;
+    // レスポンスは直接配列として返る
+    return this.parseToolResult<VibeKanbanRepo[]>(result, []);
   }
 
   /**
-   * タスクを取得
+   * イシューを取得
    */
-  async getTask(taskId: string): Promise<VibeKanbanTask | null> {
+  async getIssue(issueId: string): Promise<VibeKanbanTask | null> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
-      name: "get_task",
-      arguments: { task_id: taskId },
+      name: "get_issue",
+      arguments: { issue_id: issueId },
     });
 
     return this.parseToolResult<VibeKanbanTask | null>(result, null);
   }
 
   /**
-   * タスクを作成
-   * @returns タスクID
+   * イシューを作成
+   * @returns イシューID
    */
-  async createTask(projectId: string, title: string, description: string): Promise<string> {
+  async createIssue(projectId: string, title: string, description: string): Promise<string> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
-      name: "create_task",
+      name: "create_issue",
       arguments: {
         project_id: projectId,
         title,
@@ -212,50 +212,53 @@ export class VibeKanbanClient {
       },
     });
 
-    const parsed = this.parseToolResult<{ task_id: string } | null>(result, null);
-    if (!parsed?.task_id) {
-      throw new Error("タスクの作成に失敗しました");
+    const parsed = this.parseToolResult<{ id?: string; issue_id?: string } | null>(result, null);
+    const issueId = parsed?.id ?? parsed?.issue_id;
+    if (!issueId) {
+      throw new Error("イシューの作成に失敗しました");
     }
-    return parsed.task_id;
+    return issueId;
   }
 
   /**
-   * タスクを更新
+   * イシューを更新
    */
-  async updateTask(taskId: string, status: "todo" | "inprogress" | "done"): Promise<void> {
+  async updateIssue(issueId: string, status: string): Promise<void> {
     this.ensureConnected();
 
     await this.client.callTool({
-      name: "update_task",
+      name: "update_issue",
       arguments: {
-        task_id: taskId,
+        issue_id: issueId,
         status,
       },
     });
   }
 
   /**
-   * タスク実行を開始
+   * ワークスペースセッションを開始
    */
-  async startTaskAttempt(
-    taskId: string,
+  async startWorkspaceSession(
+    issueId: string | undefined,
+    title: string,
     executor: "CLAUDE_CODE",
     repos: Array<{ repo_id: string; base_branch: string }>
   ): Promise<VibeKanbanAttempt> {
     this.ensureConnected();
 
+    const args: Record<string, unknown> = { title, executor, repos };
+    if (issueId) {
+      args.issue_id = issueId;
+    }
+
     const result = await this.client.callTool({
       name: "start_workspace_session",
-      arguments: {
-        task_id: taskId,
-        executor,
-        repos,
-      },
+      arguments: args,
     });
 
     const attempt = this.parseToolResult<VibeKanbanAttempt | null>(result, null);
     if (!attempt) {
-      throw new Error("タスク実行の開始に失敗しました");
+      throw new Error("ワークスペースセッションの開始に失敗しました");
     }
     return attempt;
   }

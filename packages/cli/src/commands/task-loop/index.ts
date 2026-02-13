@@ -144,7 +144,7 @@ export async function taskLoopCommand(
   const stateManager = new TaskStateManager();
 
   // 既存の Vibe-Kanban タスクを取得
-  const existingTasks = await vibeKanban.listIssues(projectId);
+  const existingTasks = await vibeKanban.listTasks(projectId);
 
   // descriptionキャッシュを作成（パフォーマンス改善: getTaskを複数回呼ばない）
   console.log("📦 タスクのdescriptionをキャッシュ中...");
@@ -152,7 +152,7 @@ export async function taskLoopCommand(
   for (const task of existingTasks) {
     let description = task.description ?? null;
     if (!description) {
-      const fullTask = await vibeKanban.getIssue(task.id);
+      const fullTask = await vibeKanban.getTask(task.id);
       description = fullTask?.description ?? null;
     }
     descriptionCache.set(task.id, description);
@@ -233,7 +233,7 @@ export async function taskLoopCommand(
       console.log(`\n🔄 ポーリング #${loopCount} [${getTimestamp()}]`);
 
       // Vibe-Kanban のタスク状態を取得
-      const currentTasks = await vibeKanban.listIssues(projectId);
+      const currentTasks = await vibeKanban.listTasks(projectId);
 
       // 対象Issueに関連するDoneタスクの件数のみ表示
       const doneTasks = currentTasks.filter((t) => t.status === "done" && isTaskForThisIssue(t));
@@ -350,7 +350,7 @@ async function startExecutableTasks(
   console.log(`   📝 着手可能なタスク: ${executableGroups.length} 件`);
 
   // 既存の Vibe-Kanban タスクを取得（cancelled 以外）
-  const existingTasks = await vibeKanban.listIssues(projectId);
+  const existingTasks = await vibeKanban.listTasks(projectId);
 
   // 対象Issueに属する既存タスクのタスクグループIDを収集
   const existingTaskGroupIdsForThisIssue = new Set<string>();
@@ -372,7 +372,7 @@ async function startExecutableTasks(
     // 旧形式の場合はdescriptionで判定
     let description = task.description;
     if (!description) {
-      const fullTask = await vibeKanban.getIssue(task.id);
+      const fullTask = await vibeKanban.getTask(task.id);
       description = fullTask?.description;
     }
     if (description?.includes(issuePatternInDesc)) {
@@ -381,7 +381,7 @@ async function startExecutableTasks(
   }
 
   // リポジトリ情報を取得（startTaskAttempt に必要）
-  const repos = await vibeKanban.listRepos();
+  const repos = await vibeKanban.listRepos(projectId);
 
   // 各タスクグループを Vibe-Kanban に登録
   for (const taskGroup of executableGroups) {
@@ -400,13 +400,13 @@ async function startExecutableTasks(
 
     // タスク作成
     console.log(`   📌 タスク作成: ${taskGroup.id} - ${taskGroup.name}`);
-    const issueId = await vibeKanban.createIssue(projectId, title, description);
+    const taskId = await vibeKanban.createTask(projectId, title, description);
 
     // マッピング登録
-    stateManager.registerTaskMapping(issueId, taskGroup.id);
+    stateManager.registerTaskMapping(taskId, taskGroup.id);
 
-    // ステータスを In Progress に更新
-    await vibeKanban.updateIssue(issueId, "In Progress");
+    // ステータスを inprogress に更新
+    await vibeKanban.updateTask(taskId, "inprogress");
 
     // タスク実行開始（Phase ブランチをベースに使用）
     const phaseBranch = getPhaseBranchNameNew(issueNumber, taskGroup.phaseNumber);
@@ -415,7 +415,7 @@ async function startExecutableTasks(
         repo_id: repo.id,
         base_branch: phaseBranch,
       }));
-      const attempt = await vibeKanban.startWorkspaceSession(issueId, title, "CLAUDE_CODE", reposWithBranch);
+      const attempt = await vibeKanban.startTaskAttempt(taskId, "CLAUDE_CODE", reposWithBranch);
       console.log(
         `   ▶️  タスク開始: ${taskGroup.id} (base: ${phaseBranch}, attempt: ${attempt?.id ?? "unknown"})`
       );

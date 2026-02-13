@@ -60,6 +60,12 @@ export interface RepoInfo {
   defaultBranch: string;
 }
 
+/** Vibe-Kanban 組織 */
+export interface VibeKanbanOrganization {
+  id: string;
+  name: string;
+}
+
 /** Vibe-Kanban プロジェクト */
 export interface VibeKanbanProject {
   id: string;
@@ -67,18 +73,18 @@ export interface VibeKanbanProject {
   git_repo_path: string;
 }
 
-/** Vibe-Kanban タスク */
-export interface VibeKanbanTask {
+/** Vibe-Kanban Issue (旧: Task) */
+export interface VibeKanbanIssue {
   id: string;
   title: string;
   description?: string;
-  status: "todo" | "inprogress" | "in-progress" | "done" | "cancelled";
+  status: "todo" | "in-progress" | "done" | "cancelled";
 }
 
-/** Vibe-Kanban タスク実行試行 */
-export interface VibeKanbanAttempt {
+/** Vibe-Kanban ワークスペースセッション */
+export interface VibeKanbanWorkspaceSession {
   id: string;
-  task_id: string;
+  issue_id?: string;
   executor: string;
   base_branch: string;
 }
@@ -96,10 +102,10 @@ export interface LoopState {
   baseBranch: string;
   vibeKanbanProjectId: string;
   issueBranch: string;
-  /** タスクグループID -> Vibe-KanbanタスクID */
-  createdTaskIds: Map<string, string>;
-  /** 前回のポーリング時点での Done タスクID一覧 */
-  previousDoneTaskIds: Set<string>;
+  /** タスクグループID -> Vibe-Kanban Issue ID */
+  createdIssueIds: Map<string, string>;
+  /** 前回のポーリング時点での Done Issue ID一覧 */
+  previousDoneIssueIds: Set<string>;
 }
 
 /** ログレベル */

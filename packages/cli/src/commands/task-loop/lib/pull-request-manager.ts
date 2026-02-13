@@ -259,7 +259,10 @@ export function createAndMergePullRequest(
           return { success: false, error: createResult.error };
         }
 
-        prUrl = createResult.url!;
+        if (!createResult.url) {
+          return { success: false, error: "PR URLの取得に失敗しました" };
+        }
+        prUrl = createResult.url;
         console.log(`   ✅ PRを作成: ${prUrl}`);
       } else {
         // OPEN状態のPRを再利用
@@ -279,7 +282,10 @@ export function createAndMergePullRequest(
         return { success: false, error: createResult.error };
       }
 
-      prUrl = createResult.url!;
+      if (!createResult.url) {
+        return { success: false, error: "PR URLの取得に失敗しました" };
+      }
+      prUrl = createResult.url;
       console.log(`   ✅ PRを作成: ${prUrl}`);
     }
 

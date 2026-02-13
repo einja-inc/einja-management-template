@@ -7,6 +7,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { type Interface, createInterface } from "node:readline";
+import type { VibeKanbanOrganization } from "./types.js";
 import type { VibeKanbanClient } from "./vibe-kanban-client.js";
 import { VibeKanbanRestClient } from "./vibe-kanban-rest-client.js";
 
@@ -94,17 +95,43 @@ export async function selectProject(
   vibeKanban: VibeKanbanClient,
   issueNumber?: number
 ): Promise<string> {
-  // 1. プロジェクト一覧を取得（接続確認も兼ねる）
-  let projects: Array<{ id: string; name: string }>;
+  // 1. 組織一覧を取得（接続確認も兼ねる）
+  let organizations: VibeKanbanOrganization[];
   try {
-    projects = await vibeKanban.listProjects();
+    organizations = await vibeKanban.listOrganizations();
   } catch (error) {
     // MCP経由でバックエンドに接続できない場合
     showCreateProjectGuidance(issueNumber);
     process.exit(1);
   }
 
-  // 2. 設定ファイルがあれば使用
+  if (organizations.length === 0) {
+    console.error("❌ 利用可能な組織がありません");
+    process.exit(1);
+  }
+
+  // 2. 組織を選択（1つなら自動選択）
+  let organizationId: string;
+  if (organizations.length === 1) {
+    organizationId = organizations[0].id;
+    console.log(`📂 組織: ${organizations[0].name}`);
+  } else {
+    // 複数の場合は最初の組織を自動選択
+    organizationId = organizations[0].id;
+    console.log(`⚠️  複数の組織が存在します（${organizations.length}件）`);
+    console.log(`📂 組織: ${organizations[0].name} (最初の組織を自動選択)`);
+  }
+
+  // 3. プロジェクト一覧を取得
+  let projects: Array<{ id: string; name: string }>;
+  try {
+    projects = await vibeKanban.listProjects(organizationId);
+  } catch (error) {
+    showCreateProjectGuidance(issueNumber);
+    process.exit(1);
+  }
+
+  // 4. 設定ファイルがあれば使用
   const config = loadConfig();
   if (config?.project_id) {
     // プロジェクトが存在するか確認
@@ -119,7 +146,7 @@ export async function selectProject(
     console.log("   プロジェクトを再選択してください\n");
   }
 
-  // 3. インタラクティブ選択
+  // 5. インタラクティブ選択
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,

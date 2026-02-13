@@ -75,10 +75,10 @@ export interface VibeKanbanTask {
   status: "todo" | "inprogress" | "in-progress" | "done" | "cancelled";
 }
 
-/** Vibe-Kanban タスク実行試行 */
+/** Vibe-Kanban ワークスペースセッション */
 export interface VibeKanbanAttempt {
   id: string;
-  task_id: string;
+  issue_id?: string;
   executor: string;
   base_branch: string;
 }

@@ -35,32 +35,7 @@ const ENV_FILE_PROTECTION = {
  * @returns 保護対象の場合 true
  */
 function isProtectedEnvFile(filePath: string): boolean {
-  return ENV_FILE_PROTECTION.protected.some((pattern) =>
-    filePath.endsWith(pattern)
-  );
-}
-
-/**
- * apps/packagesの詳細フィルタリング
- * @param files - 全ファイルリスト
- * @param detail - 選択された詳細項目
- * @param prefix - "apps" or "packages"
- * @returns フィルタリング後のファイルリスト
- */
-function filterDetailFiles(
-  files: string[],
-  detail: string[] | undefined,
-  prefix: string
-): string[] {
-  if (!detail || detail.length === 0) {
-    // 詳細指定なしの場合は全て含める
-    return files;
-  }
-
-  // 選択されたアイテムのみをフィルタリング
-  return files.filter((file) =>
-    detail.some((item) => file.startsWith(`${prefix}/${item}/`))
-  );
+  return ENV_FILE_PROTECTION.protected.some((pattern) => filePath.endsWith(pattern));
 }
 
 /**
@@ -119,11 +94,7 @@ export async function collectSyncFiles(
     logger.info("同期対象ファイルを収集中...");
 
     // 1. カテゴリからパターン抽出
-    const patterns = extractPatternsFromCategories(
-      categories,
-      appsDetail,
-      packagesDetail
-    );
+    const patterns = extractPatternsFromCategories(categories, appsDetail, packagesDetail);
 
     if (patterns.length === 0) {
       logger.warn("同期対象のパターンがありません");

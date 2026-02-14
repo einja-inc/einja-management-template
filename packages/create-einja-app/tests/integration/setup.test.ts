@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, rmSync, existsSync, writeFileSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupCommand } from "../../src/commands/setup.js";
 import * as promptSetup from "../../src/prompts/setup.js";
 
@@ -204,7 +204,7 @@ describe("setup command integration test", () => {
         await setupCommand();
         // Then: process.exitが呼ばれることを期待
         expect.fail("Should have thrown error");
-      } catch (error) {
+      } catch (_error) {
         // Then: エラーが発生し、exitCode = 1
         expect(exitCode).toBe(1);
       } finally {

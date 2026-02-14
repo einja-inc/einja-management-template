@@ -1,8 +1,8 @@
-import { join } from "node:path";
 import { execSync } from "node:child_process";
+import { join } from "node:path";
 import inquirer from "inquirer";
 import type { ToolSetupOptions } from "../../types/index.js";
-import { writeWithStrategy, appendToGitignore } from "../../utils/fs.js";
+import { appendToGitignore, writeWithStrategy } from "../../utils/fs.js";
 import * as logger from "../../utils/logger.js";
 
 const ENVRC_CONTENT = `# direnv configuration
@@ -65,7 +65,7 @@ export async function promptDirenvAllow(targetDir: string): Promise<void> {
       try {
         execSync("direnv allow", { cwd: targetDir, stdio: "inherit" });
         logger.success("direnv allow を実行しました");
-      } catch (error) {
+      } catch (_error) {
         logger.warn("direnv allow の実行に失敗しました");
         logger.info("後で手動で 'direnv allow' を実行してください");
       }
@@ -73,7 +73,7 @@ export async function promptDirenvAllow(targetDir: string): Promise<void> {
       logger.info("direnv allow をスキップしました");
       logger.info("後で手動で 'direnv allow' を実行してください");
     }
-  } catch (error) {
+  } catch (_error) {
     // プロンプトがキャンセルされた場合など
     logger.info("direnv allow をスキップしました");
   }

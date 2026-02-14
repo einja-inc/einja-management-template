@@ -1,5 +1,5 @@
-import { execa, execaSync } from "execa";
 import chalk from "chalk";
+import { execa, execaSync } from "execa";
 import inquirer from "inquirer";
 import ora from "ora";
 import type { ProjectConfig } from "../types/index.js";
@@ -46,7 +46,7 @@ async function promptAndExecuteDirenvAllow(targetPath: string): Promise<void> {
       try {
         await execa("direnv", ["allow"], { cwd: targetPath });
         logger.success("direnv allow を実行しました");
-      } catch (error) {
+      } catch (_error) {
         logger.warn("direnv allow の実行に失敗しました");
         logger.info("後で手動で 'direnv allow' を実行してください");
       }
@@ -54,7 +54,7 @@ async function promptAndExecuteDirenvAllow(targetPath: string): Promise<void> {
       logger.info("direnv allow をスキップしました");
       logger.info("後で手動で 'direnv allow' を実行してください");
     }
-  } catch (error) {
+  } catch (_error) {
     logger.info("direnv allow をスキップしました");
   }
 }
@@ -73,12 +73,8 @@ function printCompletionMessage(config: ProjectConfig): void {
   console.log(chalk.cyan("  pnpm env:update          # 環境変数を設定"));
   console.log(chalk.cyan("  pnpm dev                 # PostgreSQL起動 + 開発サーバー起動"));
   console.log();
-  console.log(
-    chalk.yellow("⚠ セキュリティ: テンプレートの秘密鍵をそのまま使用しないでください")
-  );
-  console.log(
-    chalk.gray("  pnpm env:rotate-secrets  # 秘密鍵を自分のプロジェクト用に再生成")
-  );
+  console.log(chalk.yellow("⚠ セキュリティ: テンプレートの秘密鍵をそのまま使用しないでください"));
+  console.log(chalk.gray("  pnpm env:rotate-secrets  # 秘密鍵を自分のプロジェクト用に再生成"));
   console.log();
   console.log(chalk.gray("開発サーバー: ターミナルに表示されるURLを確認"));
   console.log();
@@ -107,7 +103,7 @@ export async function execPostSetup(
       await execa("git", ["add", "."], { cwd: targetPath });
       await execa("git", ["commit", "-m", "Initial commit"], { cwd: targetPath });
       gitSpinner.succeed("Gitリポジトリを初期化しました");
-    } catch (error) {
+    } catch (_error) {
       gitSpinner.fail("Gitリポジトリの初期化に失敗しました");
       logger.warn("後で手動で 'git init' を実行してください");
     }
@@ -125,11 +121,11 @@ export async function execPostSetup(
       try {
         await execa("pnpm", ["db:generate"], { cwd: targetPath });
         prismaSpinner.succeed("Prismaクライアントを生成しました");
-      } catch (error) {
+      } catch (_error) {
         prismaSpinner.fail("Prismaクライアントの生成に失敗しました");
         logger.warn("後で手動で 'pnpm db:generate' を実行してください");
       }
-    } catch (error) {
+    } catch (_error) {
       installSpinner.fail("依存関係のインストールに失敗しました");
       logger.warn("後で手動で 'pnpm install' を実行してください");
     }
@@ -146,7 +142,7 @@ export async function execPostSetup(
     try {
       await execa("npx", ["@einja/dev-cli", "init", "--force", "--no-backup"], { cwd: targetPath });
       einjaSpinner.succeed("@einja/dev-cli を初期化しました");
-    } catch (error) {
+    } catch (_error) {
       einjaSpinner.fail("@einja/dev-cli の初期化に失敗しました");
       logger.warn("後で手動で 'npx @einja/dev-cli init' を実行してください");
     }

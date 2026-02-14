@@ -1,8 +1,10 @@
 import fsExtra from "fs-extra";
+
 const { copySync, readFileSync, writeFileSync, existsSync, removeSync } = fsExtra;
-import { glob } from "glob";
+
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { glob } from "glob";
 import type { ProjectConfig } from "../prompts/project.js";
 import { ensureDir } from "../utils/fs.js";
 import * as logger from "../utils/logger.js";
@@ -50,12 +52,7 @@ function getTemplatePath(templateName: string): string {
  */
 function getAuthExcludePatterns(authMethod: string): string[] {
   if (authMethod === "none") {
-    return [
-      "**/api/auth/**",
-      "**/packages/auth/**",
-      "**/signin/**",
-      "**/signup/**",
-    ];
+    return ["**/api/auth/**", "**/packages/auth/**", "**/signin/**", "**/signup/**"];
   }
   return [];
 }
@@ -66,10 +63,7 @@ function getAuthExcludePatterns(authMethod: string): string[] {
  * @param variables - 置換する変数
  * @returns 置換後の内容
  */
-function replacePlaceholders(
-  content: string,
-  variables: TemplateVariables
-): string {
+function replacePlaceholders(content: string, variables: TemplateVariables): string {
   let result = content;
 
   // {{projectName}} の置換
@@ -95,12 +89,19 @@ function replacePlaceholders(
  * @param filePath - ファイルパス
  * @param variables - 置換する変数
  */
-function processFileVariables(
-  filePath: string,
-  variables: TemplateVariables
-): void {
+function processFileVariables(filePath: string, variables: TemplateVariables): void {
   // バイナリファイルは処理しない
-  const binaryExtensions = [".png", ".jpg", ".jpeg", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".eot"];
+  const binaryExtensions = [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+  ];
   if (binaryExtensions.some((ext) => filePath.endsWith(ext))) {
     return;
   }
@@ -112,7 +113,7 @@ function processFileVariables(
     if (content !== replaced) {
       writeFileSync(filePath, replaced, "utf-8");
     }
-  } catch (error) {
+  } catch (_error) {
     // 読み込みに失敗した場合はスキップ（バイナリファイル等）
     logger.warn(`変数置換をスキップ: ${filePath}`);
   }
@@ -190,10 +191,7 @@ function excludeAuthFiles(targetPath: string, authMethod: string): void {
  * @param config - プロジェクト設定
  * @param targetPath - ターゲットディレクトリパス
  */
-export async function generateTemplate(
-  config: ProjectConfig,
-  targetPath: string
-): Promise<void> {
+export async function generateTemplate(config: ProjectConfig, targetPath: string): Promise<void> {
   const templatePath = getTemplatePath(config.template);
 
   // テンプレートディレクトリの存在確認
@@ -241,9 +239,7 @@ export async function generateTemplate(
       );
 
       // 拡張子チェック
-      const matchesExtension = excludeExtensions.some((ext) =>
-        relativePath.endsWith(ext)
-      );
+      const matchesExtension = excludeExtensions.some((ext) => relativePath.endsWith(ext));
 
       return !matchesExcludePattern && !matchesExtension;
     },

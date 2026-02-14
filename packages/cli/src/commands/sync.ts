@@ -89,7 +89,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   log(chalk.blue("\n🔄 テンプレート同期を開始...\n"), options);
 
   // 1. カテゴリのパース（--onlyオプション）
-  let categories: string[] | undefined = undefined;
+  let categories: string[] | undefined ;
 
   if (options.only) {
     const validationResult = validateCategories(options.only);

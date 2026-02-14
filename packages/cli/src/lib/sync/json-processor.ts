@@ -96,7 +96,7 @@ export class JsonProcessor {
 
     const cloned: Record<string, unknown> = {};
     for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      if (Object.hasOwn(obj, key)) {
         cloned[key] = this.deepClone((obj as Record<string, unknown>)[key]);
       }
     }

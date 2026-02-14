@@ -1,6 +1,5 @@
 "use client";
 
-import type { UserListItem } from "@/application/use-cases/UserUseCases";
 import { Badge } from "@repo/ui/badge";
 import { Button } from "@repo/ui/button";
 import { DataTable } from "@repo/ui/data-table";
@@ -12,6 +11,7 @@ import {
 } from "@repo/ui/dropdown-menu";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown, Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
+import type { UserListItem } from "@/application/use-cases/UserUseCases";
 
 /**
  * ステータスバッジを表示

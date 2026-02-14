@@ -1,6 +1,5 @@
 "use client";
 
-import { labels, taskSchema } from "@/data/tasks";
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { Button } from "@repo/admin-ui/ui/button";
 import {
@@ -18,6 +17,7 @@ import {
 } from "@repo/admin-ui/ui/dropdown-menu";
 import type { Row } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
+import { labels, taskSchema } from "@/data/tasks";
 import { useTasks } from "./tasks-provider";
 
 type DataTableRowActionsProps<TData> = {

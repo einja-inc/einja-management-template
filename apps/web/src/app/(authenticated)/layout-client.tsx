@@ -1,8 +1,8 @@
 "use client";
 
-import { Sidebar } from "@/components/shared/Sidebar";
-import { Header } from "@/components/shared/header";
 import { useState } from "react";
+import { Header } from "@/components/shared/header";
+import { Sidebar } from "@/components/shared/Sidebar";
 
 interface AuthenticatedLayoutClientProps {
   children: React.ReactNode;

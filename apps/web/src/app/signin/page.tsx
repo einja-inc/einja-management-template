@@ -4,9 +4,9 @@ import { Button } from "@repo/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui/card";
 import { Input } from "@repo/ui/input";
 import { Label } from "@repo/ui/label";
-import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { useState } from "react";
 
 export default function LoginPage() {
@@ -43,7 +43,7 @@ export default function LoginPage() {
         console.warn("Unexpected signIn result:", result);
         setError("ログインの結果が不明です。");
       }
-    } catch (error) {
+    } catch (_error) {
       setError("ログイン中にエラーが発生しました。");
     } finally {
       setIsLoading(false);

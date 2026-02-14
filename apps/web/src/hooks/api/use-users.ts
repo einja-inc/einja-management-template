@@ -6,15 +6,14 @@
 
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { parseResponse } from "@/lib/api/parse-response";
 import {
   type PaginatedUserList,
-  type UserListItem,
   paginatedUserListSchema,
   userListItemSchema,
 } from "@/shared/schemas/user";
-import { useQuery } from "@tanstack/react-query";
 
 /**
  * QueryKey factory for users

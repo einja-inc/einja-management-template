@@ -1,6 +1,5 @@
 "use client";
 
-import { showSubmittedData } from "@/lib/show-submitted-data";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@repo/admin-ui/ui/button";
 import { Checkbox } from "@repo/admin-ui/ui/checkbox";
@@ -15,6 +14,7 @@ import {
 } from "@repo/admin-ui/ui/form";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { showSubmittedData } from "@/lib/show-submitted-data";
 import { ContentSection } from "../_components/content-section";
 
 const items = [

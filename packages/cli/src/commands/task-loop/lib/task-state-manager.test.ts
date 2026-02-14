@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  TaskStateManager,
   extractIssueNumberFromTitle,
   extractTaskGroupIdFromTitle,
   generateVibeKanbanDescription,
   generateVibeKanbanTitle,
+  TaskStateManager,
 } from "./task-state-manager.js";
 import type { TaskGroup, VibeKanbanTask } from "./types.js";
 

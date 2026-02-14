@@ -1,7 +1,6 @@
 "use client";
 
-import { Header } from "@repo/admin-ui/layout";
-import { Main } from "@repo/admin-ui/layout";
+import { Header, Main } from "@repo/admin-ui/layout";
 import { Button } from "@repo/admin-ui/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/admin-ui/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/admin-ui/ui/tabs";

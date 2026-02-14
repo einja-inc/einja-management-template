@@ -1,46 +1,15 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "vcs": {
-    "enabled": false,
-    "clientKind": "git",
-    "useIgnoreFile": false
-  },
+  "root": false,
+  "$schema": "https://biomejs.dev/schemas/2.3.15/schema.json",
+  "extends": ["../../biome.json"],
   "files": {
-    "ignoreUnknown": false,
-    "ignore": ["templates/", "dist/", "test-temp/"]
-  },
-  "formatter": {
-    "indentStyle": "space",
-    "lineWidth": 100
+    "includes": ["**", "!!**/templates/", "!!**/dist/", "!!**/test-temp/"]
   },
   "linter": {
     "rules": {
-      "recommended": true,
       "suspicious": {
-        "noExplicitAny": "error"
-      },
-      "complexity": {
-        "noForEach": "off"
-      },
-      "style": {
-        "useImportType": "error",
-        "useConst": "error",
-        "noParameterAssign": "error",
-        "useAsConstAssertion": "error",
-        "useDefaultParameterLast": "error",
-        "useEnumInitializers": "error",
-        "useSelfClosingElements": "error",
-        "useSingleVarDeclarator": "error",
-        "noUnusedTemplateLiteral": "error",
-        "useNumberNamespace": "error",
-        "noInferrableTypes": "error",
-        "noUselessElse": "error"
+        "noBiomeFirstException": "off"
       }
-    }
-  },
-  "javascript": {
-    "formatter": {
-      "trailingCommas": "es5"
     }
   }
 }

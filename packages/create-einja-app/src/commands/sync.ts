@@ -142,8 +142,10 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     let categories: SyncCategory[];
     let appsDetail: string[] | undefined;
     let packagesDetail: string[] | undefined;
-    let conflictStrategy: "merge" | "overwrite" | "skip";
-    let packageJsonSections: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines"> | undefined;
+    let _conflictStrategy: "merge" | "overwrite" | "skip";
+    let packageJsonSections:
+      | Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">
+      | undefined;
 
     if (options.all) {
       // デフォルト: 全カテゴリ選択
@@ -162,7 +164,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       ];
       appsDetail = undefined; // 全apps
       packagesDetail = undefined; // 全packages
-      conflictStrategy = "merge";
+      _conflictStrategy = "merge";
 
       logger.info("全カテゴリを同期対象に設定しました");
     } else if (options.categories) {
@@ -170,7 +172,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       categories = options.categories as SyncCategory[];
       appsDetail = undefined;
       packagesDetail = undefined;
-      conflictStrategy = "merge";
+      _conflictStrategy = "merge";
 
       logger.info(`指定されたカテゴリ: ${categories.join(", ")}`);
     } else {
@@ -179,7 +181,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       categories = promptResult.categories;
       appsDetail = promptResult.appsDetail;
       packagesDetail = promptResult.packagesDetail;
-      conflictStrategy = promptResult.conflictStrategy;
+      _conflictStrategy = promptResult.conflictStrategy;
       packageJsonSections = promptResult.packageJsonSections;
     }
 
@@ -188,7 +190,12 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     // ========================================
     logger.info("📁 同期対象ファイルを収集中...");
 
-    const filesToSync = await collectSyncFiles(templatePath, categories, appsDetail, packagesDetail);
+    const filesToSync = await collectSyncFiles(
+      templatePath,
+      categories,
+      appsDetail,
+      packagesDetail
+    );
 
     if (filesToSync.length === 0) {
       logger.warn("⚠️ 同期対象のファイルが見つかりません");

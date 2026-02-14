@@ -4,7 +4,7 @@
  * pnpm task:loop 実行前に GitHub CLI の準備を自動化する
  */
 
-import { type ExecSyncOptions, execSync, spawnSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 
 // ANSI カラーコード（setup-dev.ts と同じパターン）
 const colors = {

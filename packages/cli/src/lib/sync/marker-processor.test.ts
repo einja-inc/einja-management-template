@@ -160,7 +160,9 @@ describe("MarkerProcessor", () => {
       expect(result.errors).toHaveLength(2);
       expect(result.errors[0].type).toBe("nested");
       expect(result.errors[0].line).toBe(4);
-      expect(result.errors[0].message).toBe("@einja:managedマーカー内に@einja:managedマーカーをネストすることは許可されていません");
+      expect(result.errors[0].message).toBe(
+        "@einja:managedマーカー内に@einja:managedマーカーをネストすることは許可されていません"
+      );
       expect(result.errors[1].type).toBe("unpaired_end");
       expect(result.errors[1].line).toBe(7);
     });

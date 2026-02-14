@@ -43,6 +43,7 @@ export default async function ProfilePage() {
               <div>
                 <span className="text-sm font-medium text-muted-foreground">プロフィール画像</span>
                 <div className="mt-2">
+                  {/* biome-ignore lint/performance/noImgElement: Next.js Imageへの移行は別タスクで対応 */}
                   <img
                     src={user.image}
                     alt={user.name || "Profile"}

@@ -1,6 +1,5 @@
 "use client";
 
-import { showSubmittedData } from "@/lib/show-submitted-data";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "@repo/admin-ui/lib/utils";
 import { Button } from "@repo/admin-ui/ui/button";
@@ -27,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@repo/admin-ui/ui/popov
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { showSubmittedData } from "@/lib/show-submitted-data";
 import { ContentSection } from "../_components/content-section";
 
 const languages = [
@@ -116,7 +116,6 @@ export default function AccountPage() {
                     <FormControl>
                       <Button
                         variant="outline"
-                        // biome-ignore lint/a11y/useSemanticElements: shadcn/ui Combobox pattern
                         role="combobox"
                         className={cn(
                           "w-[200px] justify-between",

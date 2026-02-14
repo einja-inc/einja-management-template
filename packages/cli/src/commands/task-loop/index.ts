@@ -26,11 +26,11 @@ import { parseIssueBody } from "./lib/issue-parser.js";
 import { selectProject } from "./lib/project-selector.js";
 import { ensurePullRequestCreated } from "./lib/pull-request-manager.js";
 import {
-  TaskStateManager,
   extractIssueNumberFromTitle,
   extractTaskGroupIdFromTitle,
   generateVibeKanbanDescription,
   generateVibeKanbanTitle,
+  TaskStateManager,
 } from "./lib/task-state-manager.js";
 import type { ParsedIssue } from "./lib/types.js";
 import { VibeKanbanClient } from "./lib/vibe-kanban-client.js";

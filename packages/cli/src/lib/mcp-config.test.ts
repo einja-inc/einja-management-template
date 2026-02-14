@@ -1,9 +1,7 @@
-import os from "node:os";
-import path from "node:path";
 import fs from "fs-extra";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadExistingMcpConfig, mergeMcpConfigs, setupMcpConfig } from "./mcp-config.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { McpConfig } from "./mcp-config.js";
+import { loadExistingMcpConfig, mergeMcpConfigs, setupMcpConfig } from "./mcp-config.js";
 
 // fs-extraのモック
 vi.mock("fs-extra");

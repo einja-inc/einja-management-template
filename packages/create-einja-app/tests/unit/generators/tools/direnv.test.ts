@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { setupDirenv, promptDirenvAllow } from "../../../../src/generators/tools/direnv.js";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { promptDirenvAllow, setupDirenv } from "../../../../src/generators/tools/direnv.js";
 
 describe("direnv generator", () => {
   let testDir: string;

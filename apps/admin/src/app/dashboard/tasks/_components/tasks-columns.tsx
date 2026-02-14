@@ -1,10 +1,10 @@
 "use client";
 
-import { type Task, labels, priorities, statuses } from "@/data/tasks";
 import { DataTableColumnHeader } from "@repo/admin-ui/data-table";
 import { Badge } from "@repo/admin-ui/ui/badge";
 import { Checkbox } from "@repo/admin-ui/ui/checkbox";
 import type { ColumnDef } from "@tanstack/react-table";
+import { labels, priorities, statuses, type Task } from "@/data/tasks";
 import { DataTableRowActions } from "./data-table-row-actions";
 
 export const tasksColumns: ColumnDef<Task>[] = [

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.3.15/schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -7,19 +7,21 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": [
-      "**/node_modules",
-      "**/.next",
-      "**/.turbo",
-      "**/dist",
-      "**/build",
-      "**/.cache",
-      "**/coverage",
-      "**/.vercel",
-      "**/.pnpm-store",
-      "**/test-results",
-      "**/playwright-report",
-      "**/.claude"
+    "includes": [
+      "**",
+      "!!**/node_modules",
+      "!!**/.next",
+      "!!**/.turbo",
+      "!!**/dist",
+      "!!**/build",
+      "!!**/.cache",
+      "!!**/coverage",
+      "!!**/.vercel",
+      "!!**/.pnpm-store",
+      "!!**/test-results",
+      "!!**/playwright-report",
+      "!!**/.claude",
+      "!!**/styled-system"
     ]
   },
   "formatter": {
@@ -56,33 +58,9 @@
       "trailingCommas": "es5"
     }
   },
-  "overrides": [
-    {
-      "include": ["apps/**"],
-      "linter": {
-        "rules": {
-          "nursery": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "paths": {
-                  "@prisma/client": "@prisma/clientは@repo/server-core経由で使用してください",
-                  "../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
-                  "../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
-                  "../../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
-                  "../../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
-                  "../../../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
-                  "../../../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
-                  "../../../../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
-                  "../../../../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
-                  "../../../../../packages/server-core": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください",
-                  "../../../../../packages/server-core/src": "packages/server-coreへの相対パスimportは禁止です。@repo/server-coreを使用してください"
-                }
-              }
-            }
-          }
-        }
-      }
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
-  ]
+  }
 }

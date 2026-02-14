@@ -1,12 +1,11 @@
 "use client";
 
-import type { ChatUser } from "@/data/chats";
-import { conversations } from "@/data/chats";
-import { Header } from "@repo/admin-ui/layout";
-import { Main } from "@repo/admin-ui/layout";
+import { Header, Main } from "@repo/admin-ui/layout";
 import { Button } from "@repo/admin-ui/ui/button";
 import { Edit, MessagesSquare } from "lucide-react";
 import { useState } from "react";
+import type { ChatUser } from "@/data/chats";
+import { conversations } from "@/data/chats";
 import { ChatList } from "./chat-list";
 import { ChatMessages } from "./chat-messages";
 import { NewChat } from "./new-chat";

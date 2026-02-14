@@ -1,12 +1,12 @@
 "use client";
 
-import type { ChatUser } from "@/data/chats";
 import { cn } from "@repo/admin-ui/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/admin-ui/ui/avatar";
 import { ScrollArea } from "@repo/admin-ui/ui/scroll-area";
 import { Separator } from "@repo/admin-ui/ui/separator";
 import { Search as SearchIcon } from "lucide-react";
 import { Fragment } from "react";
+import type { ChatUser } from "@/data/chats";
 
 interface ChatListProps {
   filteredChatList: ChatUser[];

@@ -1,7 +1,5 @@
 "use client";
 
-import { roles } from "@/data/users";
-import type { User } from "@/data/users";
 import { DataTablePagination, DataTableToolbar } from "@repo/admin-ui/data-table";
 import { cn } from "@repo/admin-ui/lib/utils";
 import {
@@ -14,9 +12,6 @@ import {
 } from "@repo/admin-ui/ui/table";
 import {
   type ColumnFiltersState,
-  type PaginationState,
-  type SortingState,
-  type VisibilityState,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -24,9 +19,14 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  type PaginationState,
+  type SortingState,
   useReactTable,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import { useState } from "react";
+import type { User } from "@/data/users";
+import { roles } from "@/data/users";
 import { DataTableBulkActions } from "./data-table-bulk-actions";
 import { usersColumns as columns } from "./users-columns";
 

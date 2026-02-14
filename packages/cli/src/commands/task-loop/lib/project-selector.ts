@@ -6,7 +6,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { type Interface, createInterface } from "node:readline";
+import { createInterface, type Interface } from "node:readline";
 import type { VibeKanbanClient } from "./vibe-kanban-client.js";
 import { VibeKanbanRestClient } from "./vibe-kanban-rest-client.js";
 
@@ -98,7 +98,7 @@ export async function selectProject(
   let projects: Array<{ id: string; name: string }>;
   try {
     projects = await vibeKanban.listProjects();
-  } catch (error) {
+  } catch (_error) {
     // MCP経由でバックエンドに接続できない場合
     showCreateProjectGuidance(issueNumber);
     process.exit(1);

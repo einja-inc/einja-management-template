@@ -1,7 +1,5 @@
 "use client";
 
-import { SelectDropdown } from "@/components/shared/select-dropdown";
-import { roles } from "@/data/users";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@repo/admin-ui/ui/button";
 import {
@@ -27,6 +25,8 @@ import { MailPlus, Send } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { SelectDropdown } from "@/components/shared/select-dropdown";
+import { roles } from "@/data/users";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address."),

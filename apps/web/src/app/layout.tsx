@@ -1,7 +1,7 @@
 import "./globals.css";
+import type { Metadata } from "next";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/components/providers/session-provider";
-import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: {
@@ -11,11 +11,7 @@ export const metadata: Metadata = {
   description: "管理システム",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
       <body>

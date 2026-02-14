@@ -5,7 +5,7 @@
  * Domain層とInfrastructure層を組み合わせてビジネスロジックを実行。
  */
 
-import { type Result, failure, success } from "@repo/server-core/core/result";
+import { failure, type Result, success } from "@repo/server-core/core/result";
 import type { User } from "@repo/server-core/domain/entities/User";
 import type {
   PaginatedResult,

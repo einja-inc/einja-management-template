@@ -1,6 +1,5 @@
 "use client";
 
-import type { ChatUser } from "@/data/chats";
 import { Badge } from "@repo/admin-ui/ui/badge";
 import { Button } from "@repo/admin-ui/ui/button";
 import {
@@ -14,6 +13,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@repo/admin-ui/ui/dialog";
 import { Check, X } from "lucide-react";
 import { useState } from "react";
+import type { ChatUser } from "@/data/chats";
 
 type User = Omit<ChatUser, "messages">;
 
@@ -91,6 +91,7 @@ export function NewChat({ users, onOpenChange, open }: NewChatProps) {
                     className="flex items-center justify-between gap-2 hover:bg-accent hover:text-accent-foreground"
                   >
                     <div className="flex items-center gap-2">
+                      {/* biome-ignore lint/performance/noImgElement: Next.js Imageへの移行は別タスクで対応 */}
                       <img
                         src={user.profile || "/placeholder.svg"}
                         alt={user.fullName}

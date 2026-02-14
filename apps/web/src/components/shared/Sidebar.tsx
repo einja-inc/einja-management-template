@@ -1,20 +1,19 @@
 "use client";
 
-import { Button } from "@repo/ui/button";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   DashboardIcon,
   ExitIcon,
-  HamburgerMenuIcon,
   HomeIcon,
   PersonIcon,
   TableIcon,
 } from "@radix-ui/react-icons";
+import { Button } from "@repo/ui/button";
 import { cn } from "@repo/ui/utils";
-import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 interface SidebarProps {
@@ -72,7 +71,6 @@ export function Sidebar({ className, isMobileOpen, setIsMobileOpen }: SidebarPro
     <>
       {/* Overlay for mobile */}
       {isMobileOpen && (
-        // biome-ignore lint/a11y/useKeyWithClickEvents: サイドメニューのオーバーレイ
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsMobileOpen(false)}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  VALID_CATEGORIES,
   createValidationErrorMessage,
+  VALID_CATEGORIES,
   validateCategories,
 } from "./category-validator.js";
 

@@ -15,7 +15,6 @@ import {
   ensurePhaseBranchWithoutCheckout,
   fetchRemote,
   getDefaultBranch,
-  getCurrentBranch,
   getPhaseBranchName,
   getPhaseBranchNameNew,
   mergePhaseBranchIntoIssue,
@@ -374,7 +373,7 @@ describe("branch-manager", () => {
         .mockReturnValueOnce("[]") // PR一覧（空）
         .mockReturnValueOnce("https://github.com/owner/repo/pull/1\n") // createPullRequest
         .mockImplementationOnce(() => {
-          const error = new Error("Merge conflict") as any;
+          const error = new Error("Merge conflict") as Error & { stderr?: string };
           error.stderr = "Merge conflict";
           throw error;
         }); // mergePullRequest でコンフリクト
@@ -410,12 +409,12 @@ describe("branch-manager", () => {
         .mockReturnValueOnce("[]") // PR一覧（空）
         .mockReturnValueOnce("https://github.com/owner/repo/pull/1\n") // createPullRequest
         .mockImplementationOnce(() => {
-          const error = new Error("Merge conflict") as any;
+          const error = new Error("Merge conflict") as Error & { stderr?: string };
           error.stderr = "Merge conflict";
           throw error;
         }); // mergePullRequest でコンフリクト
 
-      let callCount = 0;
+      const _callCount = 0;
       vi.mocked(execSync)
         .mockReturnValueOnce("") // fetchRemote
         .mockReturnValueOnce("") // remote phase branch exists
@@ -457,7 +456,7 @@ describe("branch-manager", () => {
         .mockReturnValueOnce("[]") // PR一覧（空）
         .mockReturnValueOnce("https://github.com/owner/repo/pull/1\n") // createPullRequest
         .mockImplementationOnce(() => {
-          const error = new Error("Merge conflict") as any;
+          const error = new Error("Merge conflict") as Error & { stderr?: string };
           error.stderr = "Merge conflict";
           throw error;
         }); // mergePullRequest でコンフリクト
@@ -567,10 +566,7 @@ describe("branch-manager", () => {
         expect.stringContaining("git worktree add"),
         expect.anything()
       );
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining("git -C"),
-        expect.anything()
-      );
+      expect(execSync).toHaveBeenCalledWith(expect.stringContaining("git -C"), expect.anything());
     });
   });
 

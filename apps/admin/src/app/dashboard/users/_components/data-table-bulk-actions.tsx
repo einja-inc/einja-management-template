@@ -1,6 +1,5 @@
 "use client";
 
-import type { User } from "@/data/users";
 import { DataTableBulkActions as BulkActionsToolbar } from "@repo/admin-ui/data-table";
 import { Button } from "@repo/admin-ui/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/admin-ui/ui/tooltip";
@@ -8,6 +7,7 @@ import type { Table } from "@tanstack/react-table";
 import { Mail, Trash2, UserCheck, UserX } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { User } from "@/data/users";
 import { UsersMultiDeleteDialog } from "./users-multi-delete-dialog";
 
 type DataTableBulkActionsProps<TData> = {

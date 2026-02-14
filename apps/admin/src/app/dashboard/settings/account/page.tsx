@@ -116,7 +116,6 @@ export default function AccountPage() {
                     <FormControl>
                       <Button
                         variant="outline"
-                        // biome-ignore lint/a11y/useSemanticElements: shadcn/ui Combobox pattern
                         role="combobox"
                         className={cn(
                           "w-[200px] justify-between",

@@ -91,6 +91,7 @@ export function NewChat({ users, onOpenChange, open }: NewChatProps) {
                     className="flex items-center justify-between gap-2 hover:bg-accent hover:text-accent-foreground"
                   >
                     <div className="flex items-center gap-2">
+                      {/* biome-ignore lint/performance/noImgElement: Next.js Imageへの移行は別タスクで対応 */}
                       <img
                         src={user.profile || "/placeholder.svg"}
                         alt={user.fullName}

@@ -49,7 +49,7 @@ async function safeJsonParse(response: Response): Promise<unknown> {
  */
 function extractErrorInfo(
   json: unknown,
-  statusCode: number
+  _statusCode: number
 ): { code: string; message: string; details?: Record<string, unknown> } {
   if (typeof json === "object" && json !== null && "error" in json) {
     const errorField = (json as { error: unknown }).error;

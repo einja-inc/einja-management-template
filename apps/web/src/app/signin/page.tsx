@@ -43,7 +43,7 @@ export default function LoginPage() {
         console.warn("Unexpected signIn result:", result);
         setError("ログインの結果が不明です。");
       }
-    } catch (error) {
+    } catch (_error) {
       setError("ログイン中にエラーが発生しました。");
     } finally {
       setIsLoading(false);

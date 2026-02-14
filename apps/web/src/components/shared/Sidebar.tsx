@@ -5,7 +5,6 @@ import {
   ChevronRightIcon,
   DashboardIcon,
   ExitIcon,
-  HamburgerMenuIcon,
   HomeIcon,
   PersonIcon,
   TableIcon,
@@ -72,7 +71,6 @@ export function Sidebar({ className, isMobileOpen, setIsMobileOpen }: SidebarPro
     <>
       {/* Overlay for mobile */}
       {isMobileOpen && (
-        // biome-ignore lint/a11y/useKeyWithClickEvents: サイドメニューのオーバーレイ
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsMobileOpen(false)}

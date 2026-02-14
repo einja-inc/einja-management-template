@@ -12,7 +12,6 @@ import { parseResponse } from "@/lib/api/parse-response";
 import {
   type PaginatedUserList,
   paginatedUserListSchema,
-  type UserListItem,
   userListItemSchema,
 } from "@/shared/schemas/user";
 

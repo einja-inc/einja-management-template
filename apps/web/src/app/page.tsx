@@ -1,5 +1,4 @@
 import Link from "next/link";
-import React from "react";
 import { UserAvatar } from "@/components/auth/user-avatar";
 
 export default function Home() {

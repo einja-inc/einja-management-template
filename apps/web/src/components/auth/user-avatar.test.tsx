@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import type { Session } from "next-auth";
+// biome-ignore lint/correctness/noUnusedImports: Vitest jsdom環境でJSXに必要
+import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { UserAvatar } from "./user-avatar";
 

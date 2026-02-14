@@ -1,4 +1,6 @@
 import { render, screen } from "@testing-library/react";
+// biome-ignore lint/correctness/noUnusedImports: Vitest jsdom環境でJSXに必要
+import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import Home from "./page";
 

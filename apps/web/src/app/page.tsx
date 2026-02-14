@@ -1,4 +1,6 @@
 import Link from "next/link";
+// biome-ignore lint/correctness/noUnusedImports: Vitest jsdom環境でJSXに必要
+import React from "react";
 import { UserAvatar } from "@/components/auth/user-avatar";
 
 export default function Home() {

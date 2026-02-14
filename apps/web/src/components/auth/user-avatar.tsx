@@ -1,6 +1,8 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+// biome-ignore lint/correctness/noUnusedImports: Vitest jsdom環境でJSXに必要
+import React from "react";
 import { LoginButton } from "./login-button";
 import { LogoutButton } from "./logout-button";
 

@@ -15,7 +15,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint .",
+    "lint": "biome lint src tests",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "template:update": "tsx scripts/template-update.ts",

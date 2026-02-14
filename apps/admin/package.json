@@ -42,7 +42,6 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
     "@faker-js/faker": "^9.0.0",
     "@repo/config": "workspace:*",
     "@types/node": "^22",

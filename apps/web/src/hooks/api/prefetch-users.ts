@@ -4,9 +4,9 @@
  * Server Component用のユーザーデータプリフェッチ関数
  */
 
+import { cookies, headers } from "next/headers";
 import { parseResponse } from "@/lib/api/parse-response";
 import { type PaginatedUserList, paginatedUserListSchema } from "@/shared/schemas/user";
-import { cookies, headers } from "next/headers";
 
 /**
  * User filters type

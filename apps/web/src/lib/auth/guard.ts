@@ -1,5 +1,5 @@
-import type { Session } from "next-auth";
 import { redirect } from "next/navigation";
+import type { Session } from "next-auth";
 import React from "react";
 import { auth } from "./index";
 

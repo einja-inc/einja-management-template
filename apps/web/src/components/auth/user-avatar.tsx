@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
 import { useSession } from "next-auth/react";
+import React from "react";
 import { LoginButton } from "./login-button";
 import { LogoutButton } from "./logout-button";
 

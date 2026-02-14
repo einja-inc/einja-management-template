@@ -1,13 +1,13 @@
 "use client";
 
-import { LongText } from "@/components/shared/long-text";
-import { callTypes, roles } from "@/data/users";
-import type { User } from "@/data/users";
 import { DataTableColumnHeader } from "@repo/admin-ui/data-table";
 import { cn } from "@repo/admin-ui/lib/utils";
 import { Badge } from "@repo/admin-ui/ui/badge";
 import { Checkbox } from "@repo/admin-ui/ui/checkbox";
 import type { ColumnDef } from "@tanstack/react-table";
+import { LongText } from "@/components/shared/long-text";
+import type { User } from "@/data/users";
+import { callTypes, roles } from "@/data/users";
 import { DataTableRowActions } from "./data-table-row-actions";
 
 export const usersColumns: ColumnDef<User>[] = [

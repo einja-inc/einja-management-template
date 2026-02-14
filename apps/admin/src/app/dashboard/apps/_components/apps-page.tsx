@@ -1,6 +1,5 @@
 "use client";
 
-import { apps } from "@/data/apps";
 import { Header, Main } from "@repo/admin-ui/layout";
 import { Button } from "@repo/admin-ui/ui/button";
 import { Input } from "@repo/admin-ui/ui/input";
@@ -14,6 +13,7 @@ import {
 import { Separator } from "@repo/admin-ui/ui/separator";
 import { ArrowDownAZ, ArrowUpAZ, SlidersHorizontal } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
+import { apps } from "@/data/apps";
 
 type AppType = "all" | "connected" | "notConnected";
 

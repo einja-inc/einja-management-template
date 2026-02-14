@@ -1,6 +1,5 @@
 "use client";
 
-import type { ChatUser } from "@/data/chats";
 import { Badge } from "@repo/admin-ui/ui/badge";
 import { Button } from "@repo/admin-ui/ui/button";
 import {
@@ -14,6 +13,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@repo/admin-ui/ui/dialog";
 import { Check, X } from "lucide-react";
 import { useState } from "react";
+import type { ChatUser } from "@/data/chats";
 
 type User = Omit<ChatUser, "messages">;
 

@@ -1,6 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import type { Session } from "next-auth";
+import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { UserAvatar } from "./user-avatar";
 

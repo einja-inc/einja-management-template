@@ -1,6 +1,5 @@
 "use client";
 
-import { type Task, priorities, statuses } from "@/data/tasks";
 import { DataTableBulkActions as BulkActionsToolbar } from "@repo/admin-ui/data-table";
 import { Button } from "@repo/admin-ui/ui/button";
 import {
@@ -14,6 +13,7 @@ import type { Table } from "@tanstack/react-table";
 import { ArrowUpDown, CircleArrowUp, Download, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { priorities, statuses, type Task } from "@/data/tasks";
 import { TasksMultiDeleteDialog } from "./tasks-multi-delete-dialog";
 
 type DataTableBulkActionsProps<TData> = {

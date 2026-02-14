@@ -1,6 +1,5 @@
 "use client";
 
-import { type Task, priorities, statuses } from "@/data/tasks";
 import { DataTablePagination, DataTableToolbar } from "@repo/admin-ui/data-table";
 import { cn } from "@repo/admin-ui/lib/utils";
 import {
@@ -28,6 +27,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useState } from "react";
+import { priorities, statuses, type Task } from "@/data/tasks";
 import { DataTableBulkActions } from "./data-table-bulk-actions";
 import { tasksColumns as columns } from "./tasks-columns";
 

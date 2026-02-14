@@ -1,6 +1,5 @@
 "use client";
 
-import type { User } from "@/data/users";
 import { Alert, AlertDescription, AlertTitle } from "@repo/admin-ui/ui/alert";
 import { ConfirmDialog } from "@repo/admin-ui/ui/confirm-dialog";
 import { Input } from "@repo/admin-ui/ui/input";
@@ -8,6 +7,7 @@ import { Label } from "@repo/admin-ui/ui/label";
 import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { User } from "@/data/users";
 
 type UserDeleteDialogProps = {
   open: boolean;

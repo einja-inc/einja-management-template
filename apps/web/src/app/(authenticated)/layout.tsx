@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { AuthenticatedLayoutClient } from "./layout-client";
 
 interface AuthenticatedLayoutProps {

@@ -1,6 +1,5 @@
 "use client";
 
-import type { User } from "@/data/users";
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { Button } from "@repo/admin-ui/ui/button";
 import {
@@ -13,6 +12,7 @@ import {
 } from "@repo/admin-ui/ui/dropdown-menu";
 import type { Row } from "@tanstack/react-table";
 import { Trash2, UserPen } from "lucide-react";
+import type { User } from "@/data/users";
 import { useUsers } from "./users-provider";
 
 type DataTableRowActionsProps = {

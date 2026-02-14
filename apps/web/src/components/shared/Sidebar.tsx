@@ -12,9 +12,9 @@ import {
 } from "@radix-ui/react-icons";
 import { Button } from "@repo/ui/button";
 import { cn } from "@repo/ui/utils";
-import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 interface SidebarProps {

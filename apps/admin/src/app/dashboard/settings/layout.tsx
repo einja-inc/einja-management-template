@@ -1,11 +1,7 @@
 import { Separator } from "@repo/admin-ui/ui/separator";
 import { SidebarNav } from "./_components/sidebar-nav";
 
-export default function SettingsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-6 p-6 pb-16">
       <div className="space-y-0.5">

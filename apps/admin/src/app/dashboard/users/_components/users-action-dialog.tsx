@@ -1,8 +1,5 @@
 "use client";
 
-import { SelectDropdown } from "@/components/shared/select-dropdown";
-import { roles } from "@/data/users";
-import type { User } from "@/data/users";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@repo/admin-ui/ui/button";
 import {
@@ -26,6 +23,9 @@ import { PasswordInput } from "@repo/admin-ui/ui/password-input";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { SelectDropdown } from "@/components/shared/select-dropdown";
+import type { User } from "@/data/users";
+import { roles } from "@/data/users";
 
 const formSchema = z
   .object({

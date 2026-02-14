@@ -1,6 +1,5 @@
 "use client";
 
-import type { ChatUser, Convo } from "@/data/chats";
 import { cn } from "@repo/admin-ui/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/admin-ui/ui/avatar";
 import { Button } from "@repo/admin-ui/ui/button";
@@ -16,6 +15,7 @@ import {
   Video,
 } from "lucide-react";
 import { Fragment, useState } from "react";
+import type { ChatUser, Convo } from "@/data/chats";
 
 interface ChatMessagesProps {
   selectedUser: ChatUser;

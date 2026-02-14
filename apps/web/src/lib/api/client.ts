@@ -5,8 +5,8 @@
  * 型安全なAPI呼び出しを提供
  */
 
-import type { AppType } from "@/app/api/rpc/[[...route]]/route";
 import { hc } from "hono/client";
+import type { AppType } from "@/app/api/rpc/[[...route]]/route";
 
 /**
  * Hono Client インスタンス

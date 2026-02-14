@@ -83,7 +83,7 @@ function mergeWithWorktree(
       execSync(`git -C "${tempDir}" merge origin/${headBranch} -m "${commitMessage}"`, {
         stdio: "pipe",
       });
-    } catch (mergeError) {
+    } catch (_mergeError) {
       // マージコンフリクト - worktree を保持してパスを返す
       return {
         success: false,
@@ -695,7 +695,9 @@ export async function mergePhaseBranchIntoIssue(
 `;
 
   // PR作成 → 自動マージ
-  console.log(`   🔀 Phase ブランチを Issue ブランチにマージ（PR経由）: ${phaseBranch} → ${issueBranch}`);
+  console.log(
+    `   🔀 Phase ブランチを Issue ブランチにマージ（PR経由）: ${phaseBranch} → ${issueBranch}`
+  );
 
   const result = createAndMergePullRequest(phaseBranch, issueBranch, prTitle, prBody, {
     mergeMethod: "merge",

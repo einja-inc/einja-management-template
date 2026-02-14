@@ -21,15 +21,13 @@ import { MarkerProcessor } from "../lib/sync/marker-processor.js";
 import { MetadataManager } from "../lib/sync/metadata-manager.js";
 import { SeedSynchronizer } from "../lib/sync/seed-synchronizer.js";
 import type { SyncOptions } from "../types/index.js";
-import type { JsonFileInfo, JsonOutput, SyncTarget } from "../types/sync.js";
+import type { JsonFileInfo, JsonOutput } from "../types/sync.js";
 
 /**
  * ファイル内容にマーカーが含まれているかチェック
  */
 function hasMarkers(content: string): boolean {
-  return (
-    content.includes("@einja:managed:start") || content.includes("@einja:seed:start")
-  );
+  return content.includes("@einja:managed:start") || content.includes("@einja:seed:start");
 }
 
 /**
@@ -89,7 +87,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   log(chalk.blue("\n🔄 テンプレート同期を開始...\n"), options);
 
   // 1. カテゴリのパース（--onlyオプション）
-  let categories: string[] | undefined ;
+  let categories: string[] | undefined;
 
   if (options.only) {
     const validationResult = validateCategories(options.only);
@@ -210,7 +208,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
             // JSONマージは基本的に成功扱い
             dryRunStats.updated++;
             log(chalk.cyan(`  📝 更新: ${target.path}`), options);
-          } catch (error) {
+          } catch (_error) {
             // JSONのパースエラーの場合は3方向マージにフォールバック
             const fileMetadata = metadata.files[target.path];
             const baseContent = fileMetadata
@@ -346,12 +344,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
         // ファイル名のみを抽出（create-einja-appの登録形式に合わせる）
         const fileName = target.path.split("/").pop() || target.path;
-        const mergedJson = jsonProcessor.mergeJson(
-          templateJson,
-          localJson,
-          jsonPaths,
-          fileName
-        );
+        const mergedJson = jsonProcessor.mergeJson(templateJson, localJson, jsonPaths, fileName);
 
         const mergedContent = `${JSON.stringify(mergedJson, null, 2)}\n`;
 
@@ -363,7 +356,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
           conflicts: [],
           action: "merged" as const,
         };
-      } catch (error) {
+      } catch (_error) {
         // JSONのパースエラーの場合は3方向マージにフォールバック
         const fileMetadata = metadata.files[target.path];
         const baseContent = fileMetadata

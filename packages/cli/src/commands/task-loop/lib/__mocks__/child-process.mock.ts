@@ -1,4 +1,4 @@
-import type { ExecSyncOptions, SpawnSyncReturns } from "node:child_process";
+import type { ExecSyncOptions } from "node:child_process";
 import { type Mock, vi } from "vitest";
 
 /**
@@ -36,7 +36,7 @@ export class ChildProcessMock {
    */
   setup(): void {
     // execSync のデフォルト実装
-    this.execSyncMock.mockImplementation((command: string, options?: ExecSyncOptions) => {
+    this.execSyncMock.mockImplementation((command: string, _options?: ExecSyncOptions) => {
       const cmdStr = command.toString().trim();
 
       // エラーがモックされている場合

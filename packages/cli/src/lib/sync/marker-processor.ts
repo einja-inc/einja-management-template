@@ -1,9 +1,4 @@
-import type {
-  MarkerError,
-  MarkerErrorType,
-  MarkerSection,
-  MarkerValidationResult,
-} from "../../types/sync.js";
+import type { MarkerError, MarkerSection, MarkerValidationResult } from "../../types/sync.js";
 
 /**
  * @einja:managedおよび@einja:seedマーカーの処理を行うクラス
@@ -34,7 +29,8 @@ export class MarkerProcessor {
   /**
    * YAML/JSONファイル用のseedマーカーパターン（ID属性はオプショナルだが、検証で必須チェック）
    */
-  private static readonly YAML_SEED_START_PATTERN = /^\s*#\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*$/;
+  private static readonly YAML_SEED_START_PATTERN =
+    /^\s*#\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*$/;
   private static readonly YAML_SEED_END_PATTERN = /^\s*#\s*@einja:seed:end\s*$/;
 
   /**
@@ -272,9 +268,7 @@ export class MarkerProcessor {
    * @param line - 行内容
    * @returns マーカー情報（種別、ID）またはnull
    */
-  private parseStartMarker(
-    line: string
-  ): { type: "managed" | "seed"; id?: string } | null {
+  private parseStartMarker(line: string): { type: "managed" | "seed"; id?: string } | null {
     // Markdown managed
     let match = line.match(MarkerProcessor.MARKDOWN_MANAGED_START_PATTERN);
     if (match) {
@@ -330,25 +324,5 @@ export class MarkerProcessor {
     }
 
     return null;
-  }
-
-  /**
-   * 行がマーカー開始かどうかを判定する（後方互換性のため残す）
-   *
-   * @param line - 行内容
-   * @returns マーカー開始の場合true
-   */
-  private isStartMarker(line: string): boolean {
-    return this.parseStartMarker(line) !== null;
-  }
-
-  /**
-   * 行がマーカー終了かどうかを判定する（後方互換性のため残す）
-   *
-   * @param line - 行内容
-   * @returns マーカー終了の場合true
-   */
-  private isEndMarker(line: string): boolean {
-    return this.parseEndMarker(line) !== null;
   }
 }

@@ -33,53 +33,6 @@ export class JsonProcessor {
   }
 
   /**
-   * 指定されたパスの値を取得
-   *
-   * @param obj - 対象オブジェクト
-   * @param path - ドット区切りのパス (例: "scripts.build")
-   * @returns パスに対応する値（存在しない場合はundefined）
-   */
-  private getValueAtPath(obj: Record<string, unknown>, path: string): unknown {
-    const keys = path.split(".");
-    let current: unknown = obj;
-
-    for (const key of keys) {
-      if (current === null || current === undefined) {
-        return undefined;
-      }
-      if (typeof current !== "object") {
-        return undefined;
-      }
-      current = (current as Record<string, unknown>)[key];
-    }
-
-    return current;
-  }
-
-  /**
-   * 指定されたパスに値を設定
-   *
-   * @param obj - 対象オブジェクト
-   * @param path - ドット区切りのパス (例: "scripts.build")
-   * @param value - 設定する値
-   */
-  private setValueAtPath(obj: Record<string, unknown>, path: string, value: unknown): void {
-    const keys = path.split(".");
-    let current: Record<string, unknown> = obj;
-
-    for (let i = 0; i < keys.length - 1; i++) {
-      const key = keys[i];
-      if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {
-        current[key] = {};
-      }
-      current = current[key] as Record<string, unknown>;
-    }
-
-    const lastKey = keys[keys.length - 1];
-    current[lastKey] = value;
-  }
-
-  /**
    * オブジェクトのディープクローンを作成
    *
    * @param obj - クローン対象のオブジェクト

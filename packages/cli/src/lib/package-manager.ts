@@ -1,5 +1,4 @@
 import path from "node:path";
-import { execSync } from "node:child_process";
 import fs from "fs-extra";
 
 export type PackageManager = "npm" | "yarn" | "pnpm" | "bun";

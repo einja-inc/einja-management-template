@@ -27,27 +27,46 @@ export interface HorizontalSplitResult {
 /** アーキテクチャレイヤー定義 */
 const ARCHITECTURE_LAYERS = [
   { order: 1, name: "Domain", keywords: ["Domain", "ドメイン", "Entity", "エンティティ"] },
-  { order: 2, name: "Infrastructure", keywords: ["Infra", "Infrastructure", "インフラ", "インフラストラクチャ", "Repository実装", "Mapper"] },
-  { order: 3, name: "Application", keywords: ["UseCase", "Application", "アプリケーション", "ユースケース"] },
-  { order: 4, name: "Presentation", keywords: ["API実装", "Presentation", "プレゼンテーション", "エンドポイント"] },
+  {
+    order: 2,
+    name: "Infrastructure",
+    keywords: [
+      "Infra",
+      "Infrastructure",
+      "インフラ",
+      "インフラストラクチャ",
+      "Repository実装",
+      "Mapper",
+    ],
+  },
+  {
+    order: 3,
+    name: "Application",
+    keywords: ["UseCase", "Application", "アプリケーション", "ユースケース"],
+  },
+  {
+    order: 4,
+    name: "Presentation",
+    keywords: ["API実装", "Presentation", "プレゼンテーション", "エンドポイント"],
+  },
   { order: 5, name: "UI", keywords: ["UI実装", "フロントエンド実装", "画面実装"] },
 ] as const;
 
 /** 横切り検出の例外パターン（偽陽性回避） */
 const EXCEPTION_PATTERNS = [
-  /Domain[〜～~]UI/i,           // フルスタック示唆
+  /Domain[〜～~]UI/i, // フルスタック示唆
   /フルスタック/i,
-  /API連携/i,                   // 外部連携
+  /API連携/i, // 外部連携
   /外部API/i,
-  /ドメイン(知識|理解|モデリング)/i,  // 技術レイヤーではない
-  /(作成|登録)[・、](編集|更新)/,    // 複合操作
+  /ドメイン(知識|理解|モデリング)/i, // 技術レイヤーではない
+  /(作成|登録)[・、](編集|更新)/, // 複合操作
   /CRUD/i,
 ];
 
 /** タスクグループ名がどのレイヤーに該当するか判定 */
 function matchLayer(taskGroupName: string): { order: number; layerName: string } | null {
   // 例外パターンに該当する場合はスキップ
-  if (EXCEPTION_PATTERNS.some(pattern => pattern.test(taskGroupName))) {
+  if (EXCEPTION_PATTERNS.some((pattern) => pattern.test(taskGroupName))) {
     return null;
   }
 
@@ -55,10 +74,13 @@ function matchLayer(taskGroupName: string): { order: number; layerName: string }
     for (const keyword of layer.keywords) {
       // 単語境界を考慮（前に日本語・英数字がない場合のみマッチ）
       const patterns = [
-        new RegExp(`(?:^|[^a-zA-Z0-9\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff])${keyword}(層|レイヤー)?の?(実装|構築|設計)?(\\s|$|\\(|\\[|\\-|\\/|・|、)`, "i"),
+        new RegExp(
+          `(?:^|[^a-zA-Z0-9\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff])${keyword}(層|レイヤー)?の?(実装|構築|設計)?(\\s|$|\\(|\\[|\\-|\\/|・|、)`,
+          "i"
+        ),
         new RegExp(`^${keyword}(層|レイヤー)`, "i"),
       ];
-      if (patterns.some(p => p.test(taskGroupName))) {
+      if (patterns.some((p) => p.test(taskGroupName))) {
         return { order: layer.order, layerName: layer.name };
       }
     }
@@ -83,7 +105,7 @@ export function detectHorizontalSplit(phase: Phase): HorizontalSplitResult | nul
   }
 
   // 3つ以上の異なるレイヤーがマッチした場合のみ横切りと判定
-  const uniqueLayers = new Set(layerMatches.map(m => m.order));
+  const uniqueLayers = new Set(layerMatches.map((m) => m.order));
   if (uniqueLayers.size < 3) {
     return null;
   }

@@ -38,13 +38,7 @@ export interface ValidationResult {
 }
 
 /** 必須メタデータ一覧 */
-const REQUIRED_METADATA = [
-  "要件",
-  "依存関係",
-  "完了条件",
-  "対応設計",
-  "シナリオテスト",
-] as const;
+const REQUIRED_METADATA = ["要件", "依存関係", "完了条件", "対応設計", "シナリオテスト"] as const;
 
 /**
  * Issue本文をバリデーション
@@ -69,7 +63,7 @@ export function validateIssueBody(body: string): ValidationResult {
   }
 
   // 横切りエラーがあれば他のチェックをスキップして即座に返却
-  if (errors.some(e => e.type === "horizontal_split_detected")) {
+  if (errors.some((e) => e.type === "horizontal_split_detected")) {
     return { isValid: false, errors };
   }
 
@@ -88,9 +82,7 @@ export function validateIssueBody(body: string): ValidationResult {
 /**
  * 解析済みIssueをバリデーション
  */
-export function validateParsedIssue(
-  parsedIssue: ParsedIssue
-): ValidationResult {
+export function validateParsedIssue(parsedIssue: ParsedIssue): ValidationResult {
   const errors: ValidationError[] = [];
 
   // 🔴 横切り検出を最優先で実行
@@ -107,14 +99,12 @@ export function validateParsedIssue(
   }
 
   // 横切りエラーがあれば他のチェックをスキップして即座に返却
-  if (errors.some(e => e.type === "horizontal_split_detected")) {
+  if (errors.some((e) => e.type === "horizontal_split_detected")) {
     return { isValid: false, errors };
   }
 
   // Phase番号の連番チェック
-  const phaseNumbers = parsedIssue.phases
-    .map((p) => p.number)
-    .sort((a, b) => a - b);
+  const phaseNumbers = parsedIssue.phases.map((p) => p.number).sort((a, b) => a - b);
   for (let i = 0; i < phaseNumbers.length; i++) {
     const expected = i + 1;
     const actual = phaseNumbers[i];
@@ -203,9 +193,7 @@ function validatePhaseStructure(body: string): ValidationError[] {
   const phasePattern = /^###\s*Phase\s*(\d+):/gim;
   const matches = [...body.matchAll(phasePattern)];
 
-  const phaseNumbers = matches
-    .map((m) => Number.parseInt(m[1], 10))
-    .sort((a, b) => a - b);
+  const phaseNumbers = matches.map((m) => Number.parseInt(m[1], 10)).sort((a, b) => a - b);
 
   for (let i = 0; i < phaseNumbers.length; i++) {
     const expected = i + 1;
@@ -289,9 +277,7 @@ function validateMetadata(body: string): ValidationError[] {
     if (taskMatch) {
       // 前のタスクのメタデータをチェック
       if (currentTaskId) {
-        const missing = REQUIRED_METADATA.filter(
-          (m) => !currentTaskMetadata.has(m)
-        );
+        const missing = REQUIRED_METADATA.filter((m) => !currentTaskMetadata.has(m));
         for (const m of missing) {
           errors.push({
             type: "missing_metadata",
@@ -309,9 +295,7 @@ function validateMetadata(body: string): ValidationError[] {
     }
 
     // メタデータ行の検出
-    const metadataMatch = line.match(
-      /\*\*(要件|依存関係|完了条件|対応設計|シナリオテスト)\*\*:/
-    );
+    const metadataMatch = line.match(/\*\*(要件|依存関係|完了条件|対応設計|シナリオテスト)\*\*:/);
     if (metadataMatch && currentTaskId) {
       currentTaskMetadata.add(metadataMatch[1]);
     }
@@ -320,9 +304,7 @@ function validateMetadata(body: string): ValidationError[] {
     const taskGroupMatch = line.match(/^-\s*\[[ xX]\]\s*\d+\.\d+\s/);
     if (taskGroupMatch && currentTaskId) {
       // 前のタスクのメタデータをチェック
-      const missing = REQUIRED_METADATA.filter(
-        (m) => !currentTaskMetadata.has(m)
-      );
+      const missing = REQUIRED_METADATA.filter((m) => !currentTaskMetadata.has(m));
       for (const m of missing) {
         errors.push({
           type: "missing_metadata",
@@ -339,9 +321,7 @@ function validateMetadata(body: string): ValidationError[] {
 
   // 最後のタスクのチェック
   if (currentTaskId) {
-    const missing = REQUIRED_METADATA.filter(
-      (m) => !currentTaskMetadata.has(m)
-    );
+    const missing = REQUIRED_METADATA.filter((m) => !currentTaskMetadata.has(m));
     for (const m of missing) {
       errors.push({
         type: "missing_metadata",

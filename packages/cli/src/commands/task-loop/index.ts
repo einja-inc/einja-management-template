@@ -381,7 +381,7 @@ async function startExecutableTasks(
   }
 
   // リポジトリ情報を取得（startTaskAttempt に必要）
-  const repos = await vibeKanban.listRepos(projectId);
+  const repos = await vibeKanban.listRepos();
 
   // 各タスクグループを Vibe-Kanban に登録
   for (const taskGroup of executableGroups) {
@@ -415,7 +415,12 @@ async function startExecutableTasks(
         repo_id: repo.id,
         base_branch: phaseBranch,
       }));
-      const attempt = await vibeKanban.startTaskAttempt(taskId, "CLAUDE_CODE", reposWithBranch);
+      const attempt = await vibeKanban.startTaskAttempt(
+        title,
+        "CLAUDE_CODE",
+        reposWithBranch,
+        taskId
+      );
       console.log(
         `   ▶️  タスク開始: ${taskGroup.id} (base: ${phaseBranch}, attempt: ${attempt?.id ?? "unknown"})`
       );

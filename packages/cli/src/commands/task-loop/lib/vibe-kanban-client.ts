@@ -189,13 +189,14 @@ export class VibeKanbanClient {
 
   /**
    * リポジトリ一覧を取得
+   * 旧API: project_id パラメータ必須 → 新API: パラメータなし
    */
-  async listRepos(projectId: string): Promise<VibeKanbanRepo[]> {
+  async listRepos(): Promise<VibeKanbanRepo[]> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
       name: "list_repos",
-      arguments: { project_id: projectId },
+      arguments: {},
     });
 
     const parsed = this.parseToolResult<{ repos: VibeKanbanRepo[] }>(result, { repos: [] });
@@ -261,20 +262,23 @@ export class VibeKanbanClient {
 
   /**
    * タスク実行を開始
+   * 旧API: task_id（必須）, executor, repos → 新API: title（必須）, executor, repos, issue_id（任意）
    */
   async startTaskAttempt(
-    taskId: string,
+    title: string,
     executor: "CLAUDE_CODE",
-    repos: Array<{ repo_id: string; base_branch: string }>
+    repos: Array<{ repo_id: string; base_branch: string }>,
+    issueId?: string
   ): Promise<VibeKanbanAttempt> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
       name: "start_workspace_session",
       arguments: {
-        task_id: taskId,
+        title,
         executor,
         repos,
+        ...(issueId && { issue_id: issueId }),
       },
     });
 

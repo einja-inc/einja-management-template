@@ -12,6 +12,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type {
   VibeKanbanAttempt,
+  VibeKanbanOrganization,
   VibeKanbanProject,
   VibeKanbanRepo,
   VibeKanbanTask,
@@ -136,14 +137,32 @@ export class VibeKanbanClient {
   }
 
   /**
-   * プロジェクト一覧を取得
+   * 組織一覧を取得
    */
-  async listProjects(): Promise<VibeKanbanProject[]> {
+  async listOrganizations(): Promise<VibeKanbanOrganization[]> {
+    this.ensureConnected();
+
+    const result = await this.client.callTool({
+      name: "list_organizations",
+      arguments: {},
+    });
+
+    const parsed = this.parseToolResult<{ organizations: VibeKanbanOrganization[] }>(result, {
+      organizations: [],
+    });
+    return parsed.organizations;
+  }
+
+  /**
+   * プロジェクト一覧を取得
+   * @param organizationId 組織ID（必須）
+   */
+  async listProjects(organizationId: string): Promise<VibeKanbanProject[]> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
       name: "list_projects",
-      arguments: {},
+      arguments: { organization_id: organizationId },
     });
 
     const parsed = this.parseToolResult<{ projects: VibeKanbanProject[] }>(result, {

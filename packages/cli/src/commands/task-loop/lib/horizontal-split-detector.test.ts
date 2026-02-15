@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { detectHorizontalSplit } from "./horizontal-split-detector.js";
 import type { Phase } from "./types.js";
 
@@ -10,12 +10,60 @@ describe("横切り分割検出", () => {
         number: 1,
         name: "基盤構築と収入管理機能",
         taskGroups: [
-          { id: "1.1", name: "データモデル設計と基盤構築", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.2", name: "ドメイン層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.3", name: "インフラストラクチャ層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.4", name: "アプリケーション層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.5", name: "収入API実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.6", name: "フロントエンド実装 - 収入管理", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
+          {
+            id: "1.1",
+            name: "データモデル設計と基盤構築",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "ドメイン層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.3",
+            name: "インフラストラクチャ層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.4",
+            name: "アプリケーション層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.5",
+            name: "収入API実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.6",
+            name: "フロントエンド実装 - 収入管理",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
         ],
       };
 
@@ -29,7 +77,7 @@ describe("横切り分割検出", () => {
       expect(result?.matchedTaskGroups.length).toBeGreaterThanOrEqual(3);
 
       // マッチしたレイヤー名を検証
-      const layerNames = result?.matchedTaskGroups.map(m => m.layerName);
+      const layerNames = result?.matchedTaskGroups.map((m) => m.layerName);
       expect(layerNames).toContain("Domain");
       expect(layerNames).toContain("Infrastructure");
       expect(layerNames).toContain("Application");
@@ -45,9 +93,33 @@ describe("横切り分割検出", () => {
         number: 1,
         name: "機能実装",
         taskGroups: [
-          { id: "1.1", name: "ドメイン層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.2", name: "インフラストラクチャ層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.3", name: "アプリケーション層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
+          {
+            id: "1.1",
+            name: "ドメイン層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "インフラストラクチャ層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.3",
+            name: "アプリケーション層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
         ],
       };
 
@@ -56,7 +128,7 @@ describe("横切り分割検出", () => {
 
       // Then: 横切りとして検出され、Infrastructureが含まれる
       expect(result).not.toBeNull();
-      const layerNames = result?.matchedTaskGroups.map(m => m.layerName);
+      const layerNames = result?.matchedTaskGroups.map((m) => m.layerName);
       expect(layerNames).toContain("Infrastructure");
     });
 
@@ -66,9 +138,33 @@ describe("横切り分割検出", () => {
         number: 1,
         name: "機能実装",
         taskGroups: [
-          { id: "1.1", name: "ドメイン層実装（収入登録）", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.2", name: "インフラ層実装 - 収入管理", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.3", name: "アプリケーション層[収入]", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
+          {
+            id: "1.1",
+            name: "ドメイン層実装（収入登録）",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "インフラ層実装 - 収入管理",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.3",
+            name: "アプリケーション層[収入]",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
         ],
       };
 
@@ -88,10 +184,42 @@ describe("横切り分割検出", () => {
         number: 1,
         name: "収入管理機能",
         taskGroups: [
-          { id: "1.1", name: "DB基盤構築", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.2", name: "収入登録機能（Domain〜UIフルスタック）", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.3", name: "収入編集・削除機能（Domain〜UIフルスタック）", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.4", name: "収入一覧・KPI表示機能", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
+          {
+            id: "1.1",
+            name: "DB基盤構築",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "収入登録機能（Domain〜UIフルスタック）",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.3",
+            name: "収入編集・削除機能（Domain〜UIフルスタック）",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.4",
+            name: "収入一覧・KPI表示機能",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
         ],
       };
 
@@ -110,9 +238,33 @@ describe("横切り分割検出", () => {
         number: 1,
         name: "外部連携機能",
         taskGroups: [
-          { id: "1.1", name: "API連携機能", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.2", name: "外部API統合", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.3", name: "データ同期機能", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
+          {
+            id: "1.1",
+            name: "API連携機能",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "外部API統合",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.3",
+            name: "データ同期機能",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
         ],
       };
 
@@ -129,9 +281,33 @@ describe("横切り分割検出", () => {
         number: 1,
         name: "ビジネス分析",
         taskGroups: [
-          { id: "1.1", name: "ドメイン知識の整理", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.2", name: "ドメインモデリング", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.3", name: "ドメイン理解の共有", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
+          {
+            id: "1.1",
+            name: "ドメイン知識の整理",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "ドメインモデリング",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.3",
+            name: "ドメイン理解の共有",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
         ],
       };
 
@@ -148,9 +324,33 @@ describe("横切り分割検出", () => {
         number: 1,
         name: "機能実装",
         taskGroups: [
-          { id: "1.1", name: "GUI実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.2", name: "Subdomain設計", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.3", name: "データ処理", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
+          {
+            id: "1.1",
+            name: "GUI実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "Subdomain設計",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.3",
+            name: "データ処理",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
         ],
       };
 
@@ -169,9 +369,33 @@ describe("横切り分割検出", () => {
         number: 1,
         name: "機能実装",
         taskGroups: [
-          { id: "1.1", name: "基盤構築", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.2", name: "ドメイン層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.3", name: "UI実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
+          {
+            id: "1.1",
+            name: "基盤構築",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "ドメイン層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.3",
+            name: "UI実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
         ],
       };
 
@@ -188,10 +412,42 @@ describe("横切り分割検出", () => {
         number: 1,
         name: "機能実装",
         taskGroups: [
-          { id: "1.1", name: "基盤構築", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.2", name: "ドメイン層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.3", name: "インフラ層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
-          { id: "1.4", name: "アプリケーション層実装", phaseNumber: 1, status: "pending", dependencies: [], completionCriteria: "", tasks: [] },
+          {
+            id: "1.1",
+            name: "基盤構築",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "ドメイン層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.3",
+            name: "インフラ層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.4",
+            name: "アプリケーション層実装",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
         ],
       };
 

@@ -301,7 +301,13 @@ describe("FileCopier", () => {
         expect(result.files[0].source).toContain("einja-coding-standards");
 
         // 検証：einja-スキルのみが存在する
-        const einjaSkillPath = join(presetDir, ".claude", "skills", "einja-coding-standards", "SKILL.md");
+        const einjaSkillPath = join(
+          presetDir,
+          ".claude",
+          "skills",
+          "einja-coding-standards",
+          "SKILL.md"
+        );
         const customSkillPath = join(presetDir, ".claude", "skills", "custom-skill", "SKILL.md");
 
         expect(existsSync(einjaSkillPath)).toBe(true);

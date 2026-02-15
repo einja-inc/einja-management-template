@@ -220,7 +220,9 @@ describe("FileFilter", () => {
       // Given & When: 各カテゴリのパス
       const commandsCategory = fileFilter.getCategoryFromPath(".claude/commands/einja/test.md");
       const agentsCategory = fileFilter.getCategoryFromPath(".claude/agents/einja/test.md");
-      const skillsCategory = fileFilter.getCategoryFromPath(".claude/skills/einja-coding-standards/SKILL.md");
+      const skillsCategory = fileFilter.getCategoryFromPath(
+        ".claude/skills/einja-coding-standards/SKILL.md"
+      );
       const docsCategory = fileFilter.getCategoryFromPath("docs/einja/test.md");
 
       // Then: 正しいカテゴリが返される

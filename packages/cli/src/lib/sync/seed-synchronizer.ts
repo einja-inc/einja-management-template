@@ -34,9 +34,7 @@ export class SeedSynchronizer {
     const templateSeeds = templateSections.filter((section) => section.type === "seed");
 
     // When: ローカルに存在しないseedセクションを抽出
-    const seedsToAdd = templateSeeds.filter(
-      (seed) => seed.id && !localSeedIds.has(seed.id)
-    );
+    const seedsToAdd = templateSeeds.filter((seed) => seed.id && !localSeedIds.has(seed.id));
 
     // Then: ローカルに追加するseedがない場合は、ローカルをそのまま返す
     if (seedsToAdd.length === 0) {

@@ -34,7 +34,8 @@ export class MarkerProcessor {
   /**
    * YAML/JSONファイル用のseedマーカーパターン（ID属性はオプショナルだが、検証で必須チェック）
    */
-  private static readonly YAML_SEED_START_PATTERN = /^\s*#\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*$/;
+  private static readonly YAML_SEED_START_PATTERN =
+    /^\s*#\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*$/;
   private static readonly YAML_SEED_END_PATTERN = /^\s*#\s*@einja:seed:end\s*$/;
 
   /**
@@ -272,9 +273,7 @@ export class MarkerProcessor {
    * @param line - 行内容
    * @returns マーカー情報（種別、ID）またはnull
    */
-  private parseStartMarker(
-    line: string
-  ): { type: "managed" | "seed"; id?: string } | null {
+  private parseStartMarker(line: string): { type: "managed" | "seed"; id?: string } | null {
     // Markdown managed
     let match = line.match(MarkerProcessor.MARKDOWN_MANAGED_START_PATTERN);
     if (match) {

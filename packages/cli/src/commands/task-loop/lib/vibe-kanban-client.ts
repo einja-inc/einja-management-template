@@ -154,17 +154,18 @@ export class VibeKanbanClient {
 
   /**
    * タスク一覧を取得
+   * 内部で list_issues ツールを呼び出す（旧API: list_tasks → 新API: list_issues）
    */
   async listTasks(projectId: string): Promise<VibeKanbanTask[]> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
-      name: "list_tasks",
+      name: "list_issues",
       arguments: { project_id: projectId },
     });
 
-    const parsed = this.parseToolResult<{ tasks: VibeKanbanTask[] }>(result, { tasks: [] });
-    return parsed.tasks;
+    const parsed = this.parseToolResult<{ issues: VibeKanbanTask[] }>(result, { issues: [] });
+    return parsed.issues;
   }
 
   /**
@@ -184,13 +185,15 @@ export class VibeKanbanClient {
 
   /**
    * タスクを取得
+   * 内部で get_issue ツールを呼び出す（旧API: get_task → 新API: get_issue）
+   * パラメータ名も変更（task_id → issue_id）
    */
   async getTask(taskId: string): Promise<VibeKanbanTask | null> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
-      name: "get_task",
-      arguments: { task_id: taskId },
+      name: "get_issue",
+      arguments: { issue_id: taskId },
     });
 
     return this.parseToolResult<VibeKanbanTask | null>(result, null);
@@ -198,13 +201,14 @@ export class VibeKanbanClient {
 
   /**
    * タスクを作成
+   * 内部で create_issue ツールを呼び出す（旧API: create_task → 新API: create_issue）
    * @returns タスクID
    */
   async createTask(projectId: string, title: string, description: string): Promise<string> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
-      name: "create_task",
+      name: "create_issue",
       arguments: {
         project_id: projectId,
         title,
@@ -212,23 +216,25 @@ export class VibeKanbanClient {
       },
     });
 
-    const parsed = this.parseToolResult<{ task_id: string } | null>(result, null);
-    if (!parsed?.task_id) {
+    const parsed = this.parseToolResult<{ issue_id: string } | null>(result, null);
+    if (!parsed?.issue_id) {
       throw new Error("タスクの作成に失敗しました");
     }
-    return parsed.task_id;
+    return parsed.issue_id;
   }
 
   /**
    * タスクを更新
+   * 内部で update_issue ツールを呼び出す（旧API: update_task → 新API: update_issue）
+   * パラメータ名も変更（task_id → issue_id）
    */
   async updateTask(taskId: string, status: "todo" | "inprogress" | "done"): Promise<void> {
     this.ensureConnected();
 
     await this.client.callTool({
-      name: "update_task",
+      name: "update_issue",
       arguments: {
-        task_id: taskId,
+        issue_id: taskId,
         status,
       },
     });

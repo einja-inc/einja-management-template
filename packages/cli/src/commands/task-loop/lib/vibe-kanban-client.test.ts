@@ -308,4 +308,164 @@ describe("VibeKanbanClient", () => {
       });
     });
   });
+
+  describe("パラメータ変更対応", () => {
+    describe("listRepos", () => {
+      it("project_id パラメータなしで list_repos ツールを呼び出し、リポジトリ一覧が取得できる", async () => {
+        // Given: vibe-kanban MCPが最新バージョンで接続済み
+        await client.connect();
+
+        const mockRepos = [
+          { id: "repo-1", name: "Repository A" },
+          { id: "repo-2", name: "Repository B" },
+        ];
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ repos: mockRepos }),
+            },
+          ],
+        });
+
+        // When: listRepos メソッドを呼び出す
+        const result = await client.listRepos();
+
+        // Then: list_repos ツールがパラメータなし（空オブジェクト）で呼び出される
+        expect(mockMCPClient.callTool).toHaveBeenCalledWith({
+          name: "list_repos",
+          arguments: {},
+        });
+
+        // Then: リポジトリ一覧が取得できる
+        expect(result).toEqual(mockRepos);
+      });
+
+      it("project_id パラメータが含まれていないことを確認", async () => {
+        // Given: vibe-kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ repos: [] }),
+            },
+          ],
+        });
+
+        // When: listRepos メソッドを呼び出す
+        await client.listRepos();
+
+        // Then: arguments に project_id が含まれていない
+        const callArgs = mockMCPClient.callTool.mock.calls[0][0];
+        expect(callArgs.arguments).not.toHaveProperty("project_id");
+        expect(callArgs.arguments).toEqual({});
+      });
+    });
+
+    describe("startTaskAttempt", () => {
+      it("title、executor、repos、issue_id のパラメータで start_workspace_session を呼び出し、Attemptが開始される", async () => {
+        // Given: 有効なIssue ID、executor、reposが存在
+        await client.connect();
+
+        const mockAttempt = {
+          id: "attempt-123",
+          status: "in-progress",
+        };
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mockAttempt),
+            },
+          ],
+        });
+
+        const title = "Test Task";
+        const executor = "CLAUDE_CODE";
+        const repos = [
+          { repo_id: "repo-1", base_branch: "main" },
+          { repo_id: "repo-2", base_branch: "develop" },
+        ];
+        const issueId = "issue-001";
+
+        // When: startTaskAttempt を呼び出す
+        const result = await client.startTaskAttempt(title, executor, repos, issueId);
+
+        // Then: start_workspace_session に全パラメータが渡される
+        expect(mockMCPClient.callTool).toHaveBeenCalledWith({
+          name: "start_workspace_session",
+          arguments: {
+            title,
+            executor,
+            repos,
+            issue_id: issueId,
+          },
+        });
+
+        // Then: Attemptが返る
+        expect(result).toEqual(mockAttempt);
+      });
+
+      it("issue_id がオプショナルで、指定しない場合はパラメータに含まれない", async () => {
+        // Given: vibe-kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ id: "attempt-456" }),
+            },
+          ],
+        });
+
+        const title = "Test Task Without Issue ID";
+        const executor = "CLAUDE_CODE";
+        const repos = [{ repo_id: "repo-1", base_branch: "main" }];
+
+        // When: startTaskAttempt を issue_id なしで呼び出す
+        await client.startTaskAttempt(title, executor, repos);
+
+        // Then: arguments に issue_id が含まれていない
+        const callArgs = mockMCPClient.callTool.mock.calls[0][0];
+        expect(callArgs.arguments).not.toHaveProperty("issue_id");
+        expect(callArgs.arguments).toEqual({
+          title,
+          executor,
+          repos,
+        });
+      });
+
+      it("task_id パラメータではなく issue_id パラメータを使用する", async () => {
+        // Given: vibe-kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ id: "attempt-789" }),
+            },
+          ],
+        });
+
+        // When: startTaskAttempt を呼び出す
+        await client.startTaskAttempt(
+          "Test Task",
+          "CLAUDE_CODE",
+          [{ repo_id: "repo-1", base_branch: "main" }],
+          "issue-001"
+        );
+
+        // Then: task_id ではなく issue_id が使用される
+        const callArgs = mockMCPClient.callTool.mock.calls[0][0];
+        expect(callArgs.arguments).toHaveProperty("issue_id");
+        expect(callArgs.arguments).not.toHaveProperty("task_id");
+      });
+    });
+  });
 });

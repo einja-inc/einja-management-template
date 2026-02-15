@@ -359,8 +359,22 @@ export interface VibeKanbanTask {
 - 既存機能の動作が100%維持される
 - 新API対応のカバレッジが100%
 
-## タイムライン
-- Phase 1: 型定義の追加と修正（Story 4）
-- Phase 2: API名変更とパラメータ対応（Story 1, 3）
-- Phase 3: 組織対応の統合（Story 2）
-- Phase 4: 統合テストと動作確認
+## タイムライン（縦切り）
+
+各Phaseは独立してデプロイ可能な単位で構成されています。
+
+- **Phase 1: Story 1 - API名変更対応**
+  - 型定義の確認 → `list_issues`, `get_issue`, `create_issue`, `update_issue` への変更 → 単体テスト
+  - 完了条件: 旧API名を使用せず、新API名で動作すること
+
+- **Phase 2: Story 2 - 組織対応**
+  - `VibeKanbanOrganization` 型追加 → `listOrganizations` 実装 → `listProjects(organizationId)` 変更 → 組織選択フロー追加 → 単体・統合テスト
+  - 完了条件: 組織を選択してプロジェクト一覧が取得できること
+
+- **Phase 3: Story 3 - パラメータ変更対応**
+  - `listRepos` パラメータ削除 → `startTaskAttempt` パラメータ構造変更 → title生成ロジック実装 → 単体テスト
+  - 完了条件: 新パラメータ構造でAttemptが開始できること
+
+- **Phase 4: Story 4 - ステータス値統一**
+  - 型定義から `"inprogress"` 削除 → ステータス比較処理修正 → 既存データ互換性テスト
+  - 完了条件: `"in-progress"` に統一され、既存データも正しく処理されること

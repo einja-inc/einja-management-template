@@ -248,4 +248,64 @@ describe("VibeKanbanClient", () => {
       expect(firstIssue.title).toBeDefined();
     });
   });
+
+  describe("組織対応", () => {
+    describe("listOrganizations", () => {
+      it("list_organizations ツールを呼び出し、組織一覧が取得できる", async () => {
+        // Given: Vibe-Kanban MCPが接続済み
+        await client.connect();
+
+        const mockOrganizations = [
+          { id: "org-1", name: "Organization A" },
+          { id: "org-2", name: "Organization B" },
+        ];
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ organizations: mockOrganizations }),
+            },
+          ],
+        });
+
+        // When: listOrganizations メソッドを呼び出す
+        const result = await client.listOrganizations();
+
+        // Then: list_organizations ツールが呼び出される
+        expect(mockMCPClient.callTool).toHaveBeenCalledWith({
+          name: "list_organizations",
+          arguments: {},
+        });
+
+        // Then: 組織一覧が取得できる
+        expect(result).toEqual(mockOrganizations);
+      });
+    });
+
+    describe("listProjects", () => {
+      it("organization_id パラメータで list_projects ツールを呼び出す", async () => {
+        // Given: Vibe-Kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ projects: [] }),
+            },
+          ],
+        });
+
+        // When: listProjects メソッドを組織IDで呼び出す
+        await client.listProjects("org-123");
+
+        // Then: organization_id パラメータで呼び出される
+        expect(mockMCPClient.callTool).toHaveBeenCalledWith({
+          name: "list_projects",
+          arguments: { organization_id: "org-123" },
+        });
+      });
+    });
+  });
 });

@@ -296,6 +296,9 @@ export class VibeKanbanClient {
       },
     });
 
+    // デバッグログ: MCPレスポンス形式調査用
+    console.log("DEBUG: MCP result:", JSON.stringify(result, null, 2));
+
     const attempt = this.parseToolResult<VibeKanbanAttempt | null>(result, null);
     if (!attempt) {
       throw new Error("タスク実行の開始に失敗しました");

@@ -276,7 +276,20 @@ export class VibeKanbanClient {
 
   /**
    * タスク実行を開始
-   * 旧API: task_id（必須）, executor, repos → 新API: title（必須）, executor, repos, issue_id（任意）
+   *
+   * @param title - ワークスペースのタイトル
+   * @param executor - 実行者（現在は "CLAUDE_CODE" のみサポート）
+   * @param repos - リポジトリ情報の配列
+   * @param issueId - オプショナルなIssue ID
+   * @returns タスク実行試行情報
+   * @throws {Error} パース失敗または未対応のレスポンス形式の場合
+   *
+   * @remarks
+   * 新旧両形式のMCPレスポンスに対応:
+   * - 旧形式: `{ id, task_id, executor, base_branch }`
+   * - 新形式: `{ attempt_id, issue_id, executor, base_branch }`
+   * - ネスト形式: `{ attempt: { id }, issue_id, executor }`
+   * - 配列形式: `{ attempts: [{ id, issue_id, executor, base_branch }] }`
    */
   async startTaskAttempt(
     title: string,
@@ -296,15 +309,12 @@ export class VibeKanbanClient {
       },
     });
 
-    // デバッグログ: MCPレスポンス形式調査用
-    console.log("DEBUG: MCP result:", JSON.stringify(result, null, 2));
-
     const parsed = this.parseToolResult<unknown>(result, null);
     if (!parsed) {
       throw new Error("タスク実行の開始に失敗しました");
     }
 
-    // 新形式対応: フィールド名マッピング
+    // 新形式対応: mapToAttemptでフィールド名マッピング
     const attempt = this.mapToAttempt(parsed);
     return attempt;
   }
@@ -338,7 +348,15 @@ export class VibeKanbanClient {
     if (this.isArrayFormat(parsed)) {
       return this.mapArrayFormat(parsed);
     }
-    throw new Error("未対応のレスポンス形式です");
+
+    // 未対応の形式の場合、レスポンス内容をログ出力してエラーをスロー
+    console.error(
+      "未対応のレスポンス形式です。実際のレスポンス:",
+      JSON.stringify(parsed, null, 2)
+    );
+    throw new Error(
+      "未対応のレスポンス形式です。MCPサーバーのバージョンを確認してください。"
+    );
   }
 
   /**

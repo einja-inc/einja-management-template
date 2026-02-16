@@ -54,7 +54,7 @@ export function ChatMessages({
   return (
     <div
       className={cn(
-        "absolute inset-0 start-full z-50 hidden w-full flex-1 flex-col border bg-background shadow-xs sm:static sm:z-auto sm:flex sm:rounded-md",
+        "absolute inset-0 start-full z-[var(--z-mobile-panel)] hidden w-full flex-1 flex-col border bg-background shadow-xs sm:static sm:z-auto sm:flex sm:rounded-md",
         mobileSelectedUser && "start-0 flex"
       )}
     >

@@ -37,7 +37,7 @@ export function ChatsPage() {
         <section className="flex h-full gap-6">
           {/* Left Side */}
           <div className="flex w-full flex-col gap-2 sm:w-56 lg:w-72 2xl:w-80">
-            <div className="sticky top-0 z-10 -mx-4 bg-background px-4 pb-3 shadow-md sm:static sm:z-auto sm:mx-0 sm:p-0 sm:shadow-none">
+            <div className="sticky top-0 z-[var(--z-sticky)] -mx-4 bg-background px-4 pb-3 shadow-md sm:static sm:z-auto sm:mx-0 sm:p-0 sm:shadow-none">
               <div className="flex items-center justify-between py-2">
                 <div className="flex gap-2">
                   <h2 className="text-xl font-bold">Inbox</h2>
@@ -74,7 +74,7 @@ export function ChatsPage() {
               onCloseMobile={() => setMobileSelectedUser(null)}
             />
           ) : (
-            <div className="absolute inset-0 start-full z-50 hidden w-full flex-1 flex-col justify-center rounded-md border bg-card shadow-xs sm:static sm:z-auto sm:flex">
+            <div className="absolute inset-0 start-full z-[var(--z-mobile-panel)] hidden w-full flex-1 flex-col justify-center rounded-md border bg-card shadow-xs sm:static sm:z-auto sm:flex">
               <div className="flex flex-col items-center space-y-6">
                 <div className="flex size-16 items-center justify-center rounded-full border-2 border-border">
                   <MessagesSquare className="size-8" />

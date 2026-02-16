@@ -74,7 +74,7 @@ export function Sidebar({ className, isMobileOpen, setIsMobileOpen }: SidebarPro
       {isMobileOpen && (
         // biome-ignore lint/a11y/useKeyWithClickEvents: サイドメニューのオーバーレイ
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 z-[var(--z-header)] md:hidden"
           onClick={() => setIsMobileOpen(false)}
           aria-hidden="true"
         />
@@ -83,7 +83,7 @@ export function Sidebar({ className, isMobileOpen, setIsMobileOpen }: SidebarPro
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full border-r bg-card text-card-foreground transition-all duration-300 ease-in-out",
+          "fixed left-0 top-0 z-[var(--z-header)] h-full border-r bg-card text-card-foreground transition-all duration-300 ease-in-out",
           "md:static md:z-auto",
           // Mobile状態
           "md:translate-x-0",

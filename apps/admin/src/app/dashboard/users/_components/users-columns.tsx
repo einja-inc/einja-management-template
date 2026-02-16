@@ -24,7 +24,7 @@ export const usersColumns: ColumnDef<User>[] = [
       />
     ),
     meta: {
-      className: cn("max-md:sticky start-0 z-10 rounded-tl-[inherit]"),
+      className: cn("max-md:sticky start-0 z-[var(--z-sticky)] rounded-tl-[inherit]"),
     },
     cell: ({ row }) => (
       <Checkbox

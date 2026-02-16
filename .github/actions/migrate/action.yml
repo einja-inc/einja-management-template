@@ -1,0 +1,35 @@
+name: 'Database Migration'
+description: 'Run Prisma migration and optional seed'
+
+inputs:
+  dotenv-file:
+    description: 'dotenvx file path (e.g., $GITHUB_WORKSPACE/.env.production)'
+    required: true
+  dotenv-private-key:
+    description: 'dotenvx private key environment variable name'
+    required: true
+  run-seed:
+    description: 'Whether to run seed (true/false)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Environment
+      uses: ./.github/actions/setup
+
+    # DB マイグレーション
+    - name: Run Prisma migrate deploy
+      run: |
+        npx dotenvx run -f ${{ inputs.dotenv-file }} -- \
+          pnpm db:migrate:deploy
+      shell: bash
+
+    # シード（オプション）
+    - name: Run Seed
+      if: inputs.run-seed == 'true'
+      run: |
+        npx dotenvx run -f ${{ inputs.dotenv-file }} -- \
+          pnpm --filter @repo/server-core db:seed
+      shell: bash

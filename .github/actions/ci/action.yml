@@ -1,0 +1,54 @@
+name: 'CI Checks'
+description: 'Run CI checks including setup, type check, lint, and tests'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Environment
+      uses: ./.github/actions/setup
+
+    - name: Generate artifacts
+      run: pnpm generate
+      shell: bash
+
+    - name: Run TypeScript type check
+      run: pnpm typecheck
+      shell: bash
+
+    - name: Run lint
+      run: pnpm lint
+      shell: bash
+
+    - name: Run tests
+      run: pnpm test
+      shell: bash
+
+# ---
+# PostgreSQL Service Container の使用例
+# Composite Actionではservicesを使用できないため、
+# ワークフローレベルで定義する必要があります。
+#
+# jobs:
+#   test:
+#     runs-on: ubuntu-latest
+#     services:
+#       postgres:
+#         image: postgres:15-alpine
+#         env:
+#           POSTGRES_DB: test_db
+#           POSTGRES_USER: postgres
+#           POSTGRES_PASSWORD: postgres
+#         ports:
+#           - 5432:5432
+#         options: >-
+#           --health-cmd pg_isready
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: ./.github/actions/ci
+#       - name: Run DB tests
+#         run: pnpm test:db
+#         env:
+#           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db

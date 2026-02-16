@@ -707,7 +707,8 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 - **[フロントエンド開発ガイド](frontend-development.md)** - Server/Client Component、Tanstack Query、React Hook Form、Hono Client
 
 ### データベース
-- **[スキーマ設計](../schema-design.md)** - Prismaスキーマ、テーブル定義、ERD
+- **[スキーマ設計](../db-schema-design.md)** - Prismaスキーマ、テーブル定義、ERD
+- **[データベースガイドライン](database-guidelines.md)** - PostgreSQL日付型の使い分け、Prisma型マッピング
 
 ### インフラ
 - **[CI/CDパイプライン](../infrastructure/ci-cd.md)** - GitHub Actions、Turborepoキャッシュ

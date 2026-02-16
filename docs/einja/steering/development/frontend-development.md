@@ -30,10 +30,11 @@ Tanstack Query、React Hook Form、Hono Clientを活用した型安全で保守�
 5. [Tanstack Query（サーバー状態管理）](#5-tanstack-queryサーバー状態管理)
 6. [React Hook Form（フォーム処理）](#6-react-hook-formフォーム処理)
 7. [コンポーネント設計](#7-コンポーネント設計)
-8. [App Router構成](#8-app-router構成)
-9. [状態管理戦略](#9-状態管理戦略)
-10. [エラーハンドリング](#10-エラーハンドリング)
-11. [実装例](#11-実装例)
+8. [Layering / z-index ガイドライン](#8-layering--z-index-ガイドライン)
+9. [App Router構成](#9-app-router構成)
+10. [状態管理戦略](#10-状態管理戦略)
+11. [エラーハンドリング](#11-エラーハンドリング)
+12. [実装例](#12-実装例)
 
 ---
 
@@ -1189,7 +1190,81 @@ export function useDeletePost() {
 
 ---
 
-## 8. App Router構成
+## 8. Layering / z-index ガイドライン
+
+UIコンポーネントの重なり順序を一貫して管理するため、z-indexトークンを使用します。
+
+### z-indexトークン管理
+
+プロジェクト全体でz-indexの値をCSS変数（デザイントークン）として一元管理しています。ハードコードされたz-index値（`z-10`, `z-50`等）は使用せず、必ずトークンを使用してください。
+
+#### トークン定義場所
+
+- **Admin**: `packages/admin-ui/src/styles/tokens.css`
+- **Web**: `apps/web/src/app/globals.css`
+
+#### トークン階層
+
+| 値 | トークン | 用途 |
+|----|---------|------|
+| 0 | `--z-base` | ベースレイヤー |
+| 10 | `--z-sticky` | sticky要素（テーブルカラム、セクションヘッダー） |
+| 10 | `--z-sidebar` | サイドバー本体 |
+| 20 | `--z-sidebar-rail` | サイドバーリサイズハンドル |
+| 30 | `--z-mobile-panel` | モバイルスライドインパネル |
+| 40 | `--z-header` | 固定ヘッダー |
+| 50 | `--z-dropdown` | ドロップダウン / ポップオーバー（Popover, Tooltip, Select, DropdownMenu） |
+| 59 | `--z-drawer-overlay` | ドロワーオーバーレイ |
+| 60 | `--z-drawer` | ドロワー本体（Drawer/Sheet Content） |
+| 69 | `--z-dialog-overlay` | ダイアログオーバーレイ |
+| 70 | `--z-dialog` | ダイアログ本体（Dialog Content） |
+| 79 | `--z-alert-dialog-overlay` | アラートダイアログオーバーレイ |
+| 80 | `--z-alert-dialog` | アラートダイアログ本体（AlertDialog Content） |
+| 90 | `--z-toast` | トースト通知 |
+| 100 | `--z-tooltip` | ツールチップ |
+
+#### 使用方法
+
+Tailwind CSSの任意値記法でCSS変数を参照します：
+
+```tsx
+// ✅ 正しい: トークンを使用
+<div className="z-[var(--z-header)]">ヘッダー</div>
+<div className="z-[var(--z-dialog)]">ダイアログ</div>
+
+// ❌ 禁止: ハードコード値
+<div className="z-10">...</div>
+<div className="z-50">...</div>
+```
+
+#### 新しいトークンの追加
+
+新しいz-index値が必要な場合は、以下の手順で追加してください：
+
+1. 既存の階層を確認し、適切な値を決定する
+2. **両方**のトークン定義ファイルに追加する（Admin用・Web用）
+3. このドキュメントの階層表を更新する
+
+### 優先順位
+
+**Tooltip > Toast > AlertDialog > Dialog > Drawer > Dropdown > Header > Mobile Panel > Sidebar Rail > Sidebar/Sticky**
+
+より重要な（ユーザーの注意を引く必要がある）要素ほど高いz-index値を持ちます。
+
+### 使用ルール
+
+1. **数値直書き禁止**: `z-50`等の直書きは禁止。必ずトークン参照を使用
+
+2. **Overlay < Content**: 同一コンポーネント内でOverlayはContentより1段下
+   - Dialog: Overlay(69) < Content(70)
+   - Drawer: Overlay(59) < Content(60)
+   - AlertDialog: Overlay(79) < Content(80)
+
+3. **時間依存制御禁止**: `setTimeout`等でのレイヤー制御は禁止
+
+---
+
+## 9. App Router構成
 
 ### ルートグループ
 

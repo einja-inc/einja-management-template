@@ -89,13 +89,14 @@ export class FileCopier {
    *
    * ディレクトリではなく個別ファイルのマッピング
    */
-  private readonly singleFileMappings: { source: string; destination: string; category: string }[] = [
-    {
-      source: ".envrc",
-      destination: ".envrc",
-      category: "env",
-    },
-  ];
+  private readonly singleFileMappings: { source: string; destination: string; category: string }[] =
+    [
+      {
+        source: ".envrc",
+        destination: ".envrc",
+        category: "env",
+      },
+    ];
 
   /**
    * プリセットへファイルをコピー

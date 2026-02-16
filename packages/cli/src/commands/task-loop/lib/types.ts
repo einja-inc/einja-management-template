@@ -60,6 +60,12 @@ export interface RepoInfo {
   defaultBranch: string;
 }
 
+/** Vibe-Kanban 組織 */
+export interface VibeKanbanOrganization {
+  id: string;
+  name: string;
+}
+
 /** Vibe-Kanban プロジェクト */
 export interface VibeKanbanProject {
   id: string;

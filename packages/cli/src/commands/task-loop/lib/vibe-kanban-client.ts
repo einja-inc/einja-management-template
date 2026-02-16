@@ -12,6 +12,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type {
   VibeKanbanAttempt,
+  VibeKanbanOrganization,
   VibeKanbanProject,
   VibeKanbanRepo,
   VibeKanbanTask,
@@ -136,14 +137,32 @@ export class VibeKanbanClient {
   }
 
   /**
-   * プロジェクト一覧を取得
+   * 組織一覧を取得
    */
-  async listProjects(): Promise<VibeKanbanProject[]> {
+  async listOrganizations(): Promise<VibeKanbanOrganization[]> {
+    this.ensureConnected();
+
+    const result = await this.client.callTool({
+      name: "list_organizations",
+      arguments: {},
+    });
+
+    const parsed = this.parseToolResult<{ organizations: VibeKanbanOrganization[] }>(result, {
+      organizations: [],
+    });
+    return parsed.organizations;
+  }
+
+  /**
+   * プロジェクト一覧を取得
+   * @param organizationId 組織ID（必須）
+   */
+  async listProjects(organizationId: string): Promise<VibeKanbanProject[]> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
       name: "list_projects",
-      arguments: {},
+      arguments: { organization_id: organizationId },
     });
 
     const parsed = this.parseToolResult<{ projects: VibeKanbanProject[] }>(result, {
@@ -154,28 +173,35 @@ export class VibeKanbanClient {
 
   /**
    * タスク一覧を取得
+   * 内部で list_issues ツールを呼び出す（旧API: list_tasks → 新API: list_issues）
    */
   async listTasks(projectId: string): Promise<VibeKanbanTask[]> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
-      name: "list_tasks",
+      name: "list_issues",
       arguments: { project_id: projectId },
     });
 
-    const parsed = this.parseToolResult<{ tasks: VibeKanbanTask[] }>(result, { tasks: [] });
-    return parsed.tasks;
+    const parsed = this.parseToolResult<{ issues: VibeKanbanTask[] }>(result, { issues: [] });
+
+    // 各タスクのステータス値を変換
+    return parsed.issues.map((task) => ({
+      ...task,
+      status: this.normalizeStatusForReceive(task.status) as VibeKanbanTask["status"],
+    }));
   }
 
   /**
    * リポジトリ一覧を取得
+   * 旧API: project_id パラメータ必須 → 新API: パラメータなし
    */
-  async listRepos(projectId: string): Promise<VibeKanbanRepo[]> {
+  async listRepos(): Promise<VibeKanbanRepo[]> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
       name: "list_repos",
-      arguments: { project_id: projectId },
+      arguments: {},
     });
 
     const parsed = this.parseToolResult<{ repos: VibeKanbanRepo[] }>(result, { repos: [] });
@@ -184,27 +210,36 @@ export class VibeKanbanClient {
 
   /**
    * タスクを取得
+   * 内部で get_issue ツールを呼び出す（旧API: get_task → 新API: get_issue）
+   * パラメータ名も変更（task_id → issue_id）
    */
   async getTask(taskId: string): Promise<VibeKanbanTask | null> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
-      name: "get_task",
-      arguments: { task_id: taskId },
+      name: "get_issue",
+      arguments: { issue_id: taskId },
     });
 
-    return this.parseToolResult<VibeKanbanTask | null>(result, null);
+    const task = this.parseToolResult<VibeKanbanTask | null>(result, null);
+
+    // 受信時にステータス値を変換
+    if (task) {
+      task.status = this.normalizeStatusForReceive(task.status) as VibeKanbanTask["status"];
+    }
+    return task;
   }
 
   /**
    * タスクを作成
+   * 内部で create_issue ツールを呼び出す（旧API: create_task → 新API: create_issue）
    * @returns タスクID
    */
   async createTask(projectId: string, title: string, description: string): Promise<string> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
-      name: "create_task",
+      name: "create_issue",
       arguments: {
         project_id: projectId,
         title,
@@ -212,44 +247,52 @@ export class VibeKanbanClient {
       },
     });
 
-    const parsed = this.parseToolResult<{ task_id: string } | null>(result, null);
-    if (!parsed?.task_id) {
+    const parsed = this.parseToolResult<{ issue_id: string } | null>(result, null);
+    if (!parsed?.issue_id) {
       throw new Error("タスクの作成に失敗しました");
     }
-    return parsed.task_id;
+    return parsed.issue_id;
   }
 
   /**
    * タスクを更新
+   * 内部で update_issue ツールを呼び出す（旧API: update_task → 新API: update_issue）
+   * パラメータ名も変更（task_id → issue_id）
    */
   async updateTask(taskId: string, status: "todo" | "inprogress" | "done"): Promise<void> {
     this.ensureConnected();
 
+    // 送信前にステータス値を変換
+    const mappedStatus = this.normalizeStatusForSend(status);
+
     await this.client.callTool({
-      name: "update_task",
+      name: "update_issue",
       arguments: {
-        task_id: taskId,
-        status,
+        issue_id: taskId,
+        status: mappedStatus,
       },
     });
   }
 
   /**
    * タスク実行を開始
+   * 旧API: task_id（必須）, executor, repos → 新API: title（必須）, executor, repos, issue_id（任意）
    */
   async startTaskAttempt(
-    taskId: string,
+    title: string,
     executor: "CLAUDE_CODE",
-    repos: Array<{ repo_id: string; base_branch: string }>
+    repos: Array<{ repo_id: string; base_branch: string }>,
+    issueId?: string
   ): Promise<VibeKanbanAttempt> {
     this.ensureConnected();
 
     const result = await this.client.callTool({
       name: "start_workspace_session",
       arguments: {
-        task_id: taskId,
+        title,
         executor,
         repos,
+        ...(issueId && { issue_id: issueId }),
       },
     });
 
@@ -258,6 +301,22 @@ export class VibeKanbanClient {
       throw new Error("タスク実行の開始に失敗しました");
     }
     return attempt;
+  }
+
+  /**
+   * ステータス値をMCP送信用に変換
+   * 内部形式 "inprogress" → MCP形式 "in-progress"
+   */
+  private normalizeStatusForSend(status: string): string {
+    return status === "inprogress" ? "in-progress" : status;
+  }
+
+  /**
+   * ステータス値を内部形式に変換
+   * MCP形式 "in-progress" → 内部形式 "inprogress"
+   */
+  private normalizeStatusForReceive(status: string): string {
+    return status === "in-progress" ? "inprogress" : status;
   }
 
   /**

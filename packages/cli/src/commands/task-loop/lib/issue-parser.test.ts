@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  SAMPLE_ISSUE_SIMPLE,
+  SAMPLE_ISSUE_WITH_COMPLETED_TASKS,
+} from "./__mocks__/sample-issues.js";
+import {
   findTaskGroupById,
   getAllTaskGroups,
   getCompletedTaskGroupIds,
@@ -7,10 +11,6 @@ import {
   parseIssueBody,
 } from "./issue-parser.js";
 import type { GitHubIssue, ParsedIssue } from "./types.js";
-import {
-  SAMPLE_ISSUE_SIMPLE,
-  SAMPLE_ISSUE_WITH_COMPLETED_TASKS,
-} from "./__mocks__/sample-issues.js";
 
 describe("issue-parser", () => {
   describe("parseIssueBody", () => {

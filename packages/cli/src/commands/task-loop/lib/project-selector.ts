@@ -7,6 +7,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { type Interface, createInterface } from "node:readline";
+import type { VibeKanbanOrganization } from "./types.js";
 import type { VibeKanbanClient } from "./vibe-kanban-client.js";
 import { VibeKanbanRestClient } from "./vibe-kanban-rest-client.js";
 
@@ -94,17 +95,51 @@ export async function selectProject(
   vibeKanban: VibeKanbanClient,
   issueNumber?: number
 ): Promise<string> {
-  // 1. プロジェクト一覧を取得（接続確認も兼ねる）
-  let projects: Array<{ id: string; name: string }>;
+  // 1. 組織一覧を取得（接続確認も兼ねる）
+  let organizations: VibeKanbanOrganization[];
   try {
-    projects = await vibeKanban.listProjects();
+    organizations = await vibeKanban.listOrganizations();
   } catch (error) {
     // MCP経由でバックエンドに接続できない場合
     showCreateProjectGuidance(issueNumber);
     process.exit(1);
   }
 
-  // 2. 設定ファイルがあれば使用
+  // 組織が存在しない場合
+  if (organizations.length === 0) {
+    console.error("❌ 組織が存在しません。先に組織を作成してください。");
+    process.exit(1);
+  }
+
+  // 2. 組織を選択（組織が1つの場合は自動選択）
+  let selectedOrganizationId: string;
+  if (organizations.length === 1) {
+    selectedOrganizationId = organizations[0].id;
+    console.log(`📦 組織: ${organizations[0].name} (${selectedOrganizationId.substring(0, 8)}...)`);
+  } else {
+    // インタラクティブ選択
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    try {
+      selectedOrganizationId = await interactiveSelectOrganization(rl, organizations);
+    } finally {
+      rl.close();
+    }
+  }
+
+  // 3. プロジェクト一覧を取得
+  let projects: Array<{ id: string; name: string }>;
+  try {
+    projects = await vibeKanban.listProjects(selectedOrganizationId);
+  } catch (error) {
+    console.error("❌ プロジェクト一覧の取得に失敗しました:", error);
+    process.exit(1);
+  }
+
+  // 4. 設定ファイルがあれば使用
   const config = loadConfig();
   if (config?.project_id) {
     // プロジェクトが存在するか確認
@@ -119,7 +154,7 @@ export async function selectProject(
     console.log("   プロジェクトを再選択してください\n");
   }
 
-  // 3. インタラクティブ選択
+  // 5. インタラクティブ選択
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -130,6 +165,37 @@ export async function selectProject(
     return projectId;
   } finally {
     rl.close();
+  }
+}
+
+/**
+ * インタラクティブに組織を選択
+ */
+async function interactiveSelectOrganization(
+  rl: Interface,
+  organizations: VibeKanbanOrganization[]
+): Promise<string> {
+  console.log("\n📦 Vibe-Kanban 組織を選択してください:\n");
+
+  // 選択肢を表示
+  for (let i = 0; i < organizations.length; i++) {
+    console.log(`  ${i + 1}. ${organizations[i].name}`);
+  }
+  console.log("");
+
+  // 入力を受け付ける
+  while (true) {
+    const answer = await askQuestion(rl, `番号を入力 (1-${organizations.length}): `);
+    const num = Number.parseInt(answer, 10);
+
+    if (Number.isNaN(num) || num < 1 || num > organizations.length) {
+      console.log(`❌ 1〜${organizations.length} の数字を入力してください`);
+      continue;
+    }
+
+    const selected = organizations[num - 1];
+    console.log(`\n✅ 組織「${selected.name}」を選択しました\n`);
+    return selected.id;
   }
 }
 

@@ -42,8 +42,7 @@ async function isPackageAvailable(packageName: string, cwd: string): Promise<boo
       if (await fs.pathExists(packageJsonPath)) {
         const packageJson = await fs.readJson(packageJsonPath);
         return !!(
-          packageJson.devDependencies?.[packageName] ||
-          packageJson.dependencies?.[packageName]
+          packageJson.devDependencies?.[packageName] || packageJson.dependencies?.[packageName]
         );
       }
     } catch {
@@ -230,13 +229,13 @@ export async function checkAndInstallDependencies(
       spinner.start(`devDependencies をインストール中... (${addCmd})`);
       try {
         execSync(addCmd, { cwd, stdio: "pipe", timeout: 120000 });
-        spinner.succeed(`devDependencies インストール完了: ${checkResult.missingDevDeps.join(", ")}`);
+        spinner.succeed(
+          `devDependencies インストール完了: ${checkResult.missingDevDeps.join(", ")}`
+        );
         result.devDepsInstalled = true;
       } catch (error) {
         spinner.fail("devDependencies のインストールに失敗しました");
-        console.error(
-          chalk.red(`    ${error instanceof Error ? error.message : String(error)}`)
-        );
+        console.error(chalk.red(`    ${error instanceof Error ? error.message : String(error)}`));
       }
     } else {
       console.log(chalk.yellow("  devDependencies のインストールをスキップしました"));
@@ -279,12 +278,12 @@ export async function checkAndInstallDependencies(
           }
         }
         await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
-        console.log(
-          chalk.green(`  ✓ scripts を追加しました: ${result.scriptsAdded.join(", ")}`)
-        );
+        console.log(chalk.green(`  ✓ scripts を追加しました: ${result.scriptsAdded.join(", ")}`));
       } catch (error) {
         console.error(
-          chalk.red(`  scripts の追加に失敗: ${error instanceof Error ? error.message : String(error)}`)
+          chalk.red(
+            `  scripts の追加に失敗: ${error instanceof Error ? error.message : String(error)}`
+          )
         );
       }
     } else {

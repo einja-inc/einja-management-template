@@ -27,9 +27,7 @@ import type { JsonFileInfo, JsonOutput, SyncTarget } from "../types/sync.js";
  * ファイル内容にマーカーが含まれているかチェック
  */
 function hasMarkers(content: string): boolean {
-  return (
-    content.includes("@einja:managed:start") || content.includes("@einja:seed:start")
-  );
+  return content.includes("@einja:managed:start") || content.includes("@einja:seed:start");
 }
 
 /**
@@ -346,12 +344,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
         // ファイル名のみを抽出（create-einja-appの登録形式に合わせる）
         const fileName = target.path.split("/").pop() || target.path;
-        const mergedJson = jsonProcessor.mergeJson(
-          templateJson,
-          localJson,
-          jsonPaths,
-          fileName
-        );
+        const mergedJson = jsonProcessor.mergeJson(templateJson, localJson, jsonPaths, fileName);
 
         const mergedContent = `${JSON.stringify(mergedJson, null, 2)}\n`;
 

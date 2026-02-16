@@ -184,7 +184,12 @@ export class VibeKanbanClient {
     });
 
     const parsed = this.parseToolResult<{ issues: VibeKanbanTask[] }>(result, { issues: [] });
-    return parsed.issues;
+
+    // 各タスクのステータス値を変換
+    return parsed.issues.map((task) => ({
+      ...task,
+      status: this.normalizeStatusForReceive(task.status) as VibeKanbanTask["status"],
+    }));
   }
 
   /**
@@ -216,7 +221,13 @@ export class VibeKanbanClient {
       arguments: { issue_id: taskId },
     });
 
-    return this.parseToolResult<VibeKanbanTask | null>(result, null);
+    const task = this.parseToolResult<VibeKanbanTask | null>(result, null);
+
+    // 受信時にステータス値を変換
+    if (task) {
+      task.status = this.normalizeStatusForReceive(task.status) as VibeKanbanTask["status"];
+    }
+    return task;
   }
 
   /**
@@ -251,11 +262,14 @@ export class VibeKanbanClient {
   async updateTask(taskId: string, status: "todo" | "inprogress" | "done"): Promise<void> {
     this.ensureConnected();
 
+    // 送信前にステータス値を変換
+    const mappedStatus = this.normalizeStatusForSend(status);
+
     await this.client.callTool({
       name: "update_issue",
       arguments: {
         issue_id: taskId,
-        status,
+        status: mappedStatus,
       },
     });
   }
@@ -287,6 +301,22 @@ export class VibeKanbanClient {
       throw new Error("タスク実行の開始に失敗しました");
     }
     return attempt;
+  }
+
+  /**
+   * ステータス値をMCP送信用に変換
+   * 内部形式 "inprogress" → MCP形式 "in-progress"
+   */
+  private normalizeStatusForSend(status: string): string {
+    return status === "inprogress" ? "in-progress" : status;
+  }
+
+  /**
+   * ステータス値を内部形式に変換
+   * MCP形式 "in-progress" → 内部形式 "inprogress"
+   */
+  private normalizeStatusForReceive(status: string): string {
+    return status === "in-progress" ? "inprogress" : status;
   }
 
   /**

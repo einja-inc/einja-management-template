@@ -479,7 +479,9 @@ describe("VibeKanbanClient", () => {
 
         const mockAttempt = {
           id: "attempt-123",
-          status: "in-progress",
+          task_id: "issue-001",
+          executor: "CLAUDE_CODE",
+          base_branch: "main",
         };
 
         mockMCPClient.callTool.mockResolvedValueOnce({
@@ -572,6 +574,178 @@ describe("VibeKanbanClient", () => {
         const callArgs = mockMCPClient.callTool.mock.calls[0][0];
         expect(callArgs.arguments).toHaveProperty("issue_id");
         expect(callArgs.arguments).not.toHaveProperty("task_id");
+      });
+    });
+  });
+
+  describe("レスポンス形式変更対応（TDD: Red-Green-Refactor）", () => {
+    describe("startTaskAttempt - 新形式対応", () => {
+      it("新形式（attempt_id, issue_id）のレスポンスを渡すと、VibeKanbanAttemptにマッピングされる", async () => {
+        // Given: 新形式のレスポンス
+        await client.connect();
+
+        const mockResponse = {
+          attempt_id: "attempt-123",
+          issue_id: "issue-001",
+          executor: "CLAUDE_CODE",
+          base_branch: "main",
+        };
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mockResponse),
+            },
+          ],
+        });
+
+        // When: startTaskAttempt を呼び出す
+        const result = await client.startTaskAttempt(
+          "Test Task",
+          "CLAUDE_CODE",
+          [{ repo_id: "repo-1", base_branch: "main" }],
+          "issue-001"
+        );
+
+        // Then: フィールド名がマッピングされる
+        expect(result.id).toBe("attempt-123");
+        expect(result.task_id).toBe("issue-001");
+        expect(result.executor).toBe("CLAUDE_CODE");
+        expect(result.base_branch).toBe("main");
+      });
+
+      it("旧形式（id, task_id）のレスポンスを渡すと、そのままVibeKanbanAttemptとして扱われる", async () => {
+        // Given: 旧形式のレスポンス
+        await client.connect();
+
+        const mockResponse = {
+          id: "attempt-456",
+          task_id: "task-002",
+          executor: "CLAUDE_CODE",
+          base_branch: "develop",
+        };
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mockResponse),
+            },
+          ],
+        });
+
+        // When: startTaskAttempt を呼び出す
+        const result = await client.startTaskAttempt(
+          "Test Task",
+          "CLAUDE_CODE",
+          [{ repo_id: "repo-1", base_branch: "develop" }]
+        );
+
+        // Then: 旧形式がそのまま返る
+        expect(result.id).toBe("attempt-456");
+        expect(result.task_id).toBe("task-002");
+      });
+
+      it("ネスト形式のレスポンスを渡すと、attempt.idが正しく取得される", async () => {
+        // Given: ネスト形式のレスポンス
+        await client.connect();
+
+        const mockResponse = {
+          attempt: {
+            id: "attempt-789",
+            status: "in-progress",
+          },
+          issue_id: "issue-003",
+          executor: "CLAUDE_CODE",
+        };
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mockResponse),
+            },
+          ],
+        });
+
+        // When: startTaskAttempt を呼び出す
+        const result = await client.startTaskAttempt(
+          "Test Task",
+          "CLAUDE_CODE",
+          [{ repo_id: "repo-1", base_branch: "main" }],
+          "issue-003"
+        );
+
+        // Then: ネストが解除される
+        expect(result.id).toBe("attempt-789");
+        expect(result.task_id).toBe("issue-003");
+      });
+
+      it("配列形式のレスポンスを渡すと、最初の要素が取得される", async () => {
+        // Given: 配列形式のレスポンス
+        await client.connect();
+
+        const mockResponse = {
+          attempts: [
+            {
+              id: "attempt-aaa",
+              issue_id: "issue-004",
+              executor: "CLAUDE_CODE",
+              base_branch: "feature",
+            },
+          ],
+        };
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mockResponse),
+            },
+          ],
+        });
+
+        // When: startTaskAttempt を呼び出す
+        const result = await client.startTaskAttempt(
+          "Test Task",
+          "CLAUDE_CODE",
+          [{ repo_id: "repo-1", base_branch: "feature" }]
+        );
+
+        // Then: 配列の最初の要素が返る
+        expect(result.id).toBe("attempt-aaa");
+        expect(result.task_id).toBe("issue-004");
+      });
+    });
+
+    describe("startTaskAttempt - 異常系", () => {
+      it("未対応のレスポンス形式の場合、エラーがスローされる", async () => {
+        // Given: 未対応の形式
+        await client.connect();
+
+        const mockResponse = {
+          unknown_field: "value",
+        };
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mockResponse),
+            },
+          ],
+        });
+
+        // When: startTaskAttempt を呼び出す
+        // Then: エラーがスローされる
+        await expect(
+          client.startTaskAttempt(
+            "Test Task",
+            "CLAUDE_CODE",
+            [{ repo_id: "repo-1", base_branch: "main" }]
+          )
+        ).rejects.toThrow("未対応のレスポンス形式です");
       });
     });
   });

@@ -22,6 +22,7 @@
 | コード実装 | `task-executer` |
 | 品質検証（QA） | `task-qa` |
 | 実装レビュー | `task-reviewer` |
+| Codex作業（レビュー・実装支援等） | `codex-agent` |
 
 #### Skill（直接呼び出し）
 
@@ -56,7 +57,7 @@
 
 ## コード変更時の動作方針
 
-**【厳守事項】コード変更の指示があった場合、絶対に即座に実装を開始してはならない。**
+**【厳守事項】コード変更の指示があった場合、絶対に即座に実装を開始してはならない。（サブエージェントとしての動作時は除く）**
 
 ### 必須フロー
 1. 問題・要件を調査・分析する
@@ -290,10 +291,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 
 ## AskUserQuestion ツールの使用
 
-選択肢を提示してユーザーに質問する場合は、**必ず AskUserQuestion ツール**を使用してください。
+**不明点や曖昧な点がある場合は、推測で進めずに必ず AskUserQuestion ツールで確認してください。**
+
+### 基本姿勢
+- 要件が不明確な場合は**積極的に質問する**
+- 推測や仮定で実装を進めない
+- 確認することで手戻りを防ぐ
 
 ### 使用必須シーン
-- 複数の実装方法・設計アプローチがある場合
+- **要件・仕様が不明確な場合**
+- **複数の実装方法・設計アプローチがある場合**
+- **技術的な判断が必要な場合**（ライブラリ選定、アーキテクチャ決定など）
 - 重要な判断（コミット分割、リファクタリング方針など）
 - 破壊的な操作の前
 
@@ -301,6 +309,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - テーブル形式: 複数項目の比較
 - 番号付きリスト: 詳細説明が必要な場合
 - 推奨オプションには `（推奨）` と理由を付記
+
+### サブエージェントでの使用
+サブエージェント（task-executer等）も同様に、不明点がある場合は AskUserQuestion を使用して確認すること。
 
 ## サブエージェント結果報告のルール
 
@@ -402,6 +413,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 [後続処理の説明]
 ```
 
+#### codex-agent 呼び出し時
+
+プロンプト末尾に以下を追加:
+
+```
+---
+**【必須】以下の形式で報告してください。この形式以外は不可:**
+
+## 🤖 Codex作業完了
+
+### タスク: [作業内容]
+
+### 作業結果: [✅ SUCCESS / ⚠️ PARTIAL / ❌ FAILURE]
+
+### 作業モード: [レビュー / 実装 / バグ修正 / リファクタリング / 調査]
+
+### サマリー
+[主要な結果・数値]
+
+### 詳細
+[Codexからの出力・分析結果]
+
+### 次のステップ
+[後続処理の説明]
+```
+
 ## 追加指示
 
 以下のドキュメントも参照して作業を進めてください:
@@ -413,6 +450,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - @docs/einja/steering/development/review-guidelines.md - コードレビューのガイドライン
 - @docs/einja/memory/decisions.md - 過去の意思決定記録（セッション跨ぎで継承）
 - @docs/einja/memory/patterns.md - 再利用可能なパターン（セッション跨ぎで継承）
+- @.claude/skills/einja-playwright-mcp/SKILL.md - Playwright MCP動作確認ガイドライン
 
 <!-- @einja:excluded:start -->
 ## このリポジトリ限定の設定

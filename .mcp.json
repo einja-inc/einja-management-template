@@ -19,16 +19,17 @@
 			"args": ["-y", "@playwright/mcp", "--isolated"]
 		},
 		"serena": {
+			"type": "stdio",
 			"command": "uvx",
 			"args": [
 				"--from",
 				"git+https://github.com/oraios/serena",
-				"serena-mcp-server",
+				"serena",
+				"start-mcp-server",
 				"--context",
-				"ide-assistant",
-				".",
-				"--enable-web-dashboard=false"
-			]
+				"claude-code",
+				"--open-web-dashboard",
+				"false"]
 		},
 		"github": {
 			"type": "http",
@@ -36,10 +37,6 @@
 			"headers": {
 				"Authorization": "Bearer ${GITHUB_TOKEN}"
 			}
-		},
-		"asana": {
-			"command": "npx",
-			"args": ["mcp-remote", "https://mcp.asana.com/sse"]
 		}
 	}
 }

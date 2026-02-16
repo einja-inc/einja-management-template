@@ -2,8 +2,18 @@
 # playwright-resize.sh - Playwright使用前にリサイズを強制するhook
 # PreToolUseで実行され、リサイズ未実施ならブロックする
 
-input=$(cat)
-tool_name=$(echo "$input" | jq -r '.tool_name // empty')
+# stdin読み込み（3秒タイムアウト）
+input=""
+while IFS= read -r -t 3 line; do
+  input="${input}${line}"
+done
+
+tool_name=$(echo "$input" | jq -r '.tool_name // empty' 2>/dev/null)
+
+# inputが空またはtool_name取得失敗時 → 安全側で許可（hookをスキップ）
+if [ -z "$tool_name" ]; then
+  exit 0
+fi
 
 # Playwrightツール以外は無視
 if [[ ! "$tool_name" =~ ^mcp__playwright__ ]]; then

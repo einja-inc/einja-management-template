@@ -49,7 +49,7 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
    - **検証レベル**: 各ACの `Unit` / `Integration` / `E2E` 分類
    - **非機能要件**: パフォーマンス、セキュリティ等の制約
 
-**パース対象**: Given-When-Then 形式の受け入れ条件
+**パース対象**: `**ACx.y**: [要約文]` + インデントGiven-When-Then形式の受け入れ条件（`- Given:` / `- When:` / `- Then:` / `- 検証レベル:` の箇条書き形式）
 
 ---
 

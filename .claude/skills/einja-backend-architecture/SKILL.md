@@ -12,3 +12,7 @@ description: "4層レイヤードアーキテクチャ、Repositoryパターン�
 ## 詳細ドキュメント
 
 @docs/einja/steering/development/backend-architecture.md
+
+## 関連ドキュメント
+
+- @docs/einja/steering/development/database-guidelines.md

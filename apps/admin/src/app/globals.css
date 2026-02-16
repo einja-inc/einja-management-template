@@ -52,3 +52,58 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ボタンにカーソルポインター */
+button {
+  cursor: pointer;
+}
+
+/* スクロールバーのスタイル */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted) transparent;
+}
+
+/* Webkit用スクロールバー */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--muted);
+  border-radius: 4px;
+}
+
+/* slideDown/slideUp アニメーション（Radix Collapsible用） */
+@keyframes slideDown {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+[data-state="open"] > [data-slot="collapsible-content"] {
+  animation: slideDown 300ms ease-out;
+}
+
+[data-state="closed"] > [data-slot="collapsible-content"] {
+  animation: slideUp 300ms ease-out;
+}

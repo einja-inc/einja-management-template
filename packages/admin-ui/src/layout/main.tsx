@@ -9,10 +9,11 @@ function Main({ className, fixed, ...props }: MainProps) {
   return (
     <main
       className={cn(
-        "flex flex-1 flex-col gap-4 p-4 pt-0",
-        fixed && "overflow-hidden",
+        "px-4 py-6",
+        fixed && "flex grow flex-col overflow-hidden",
         className
       )}
+      data-layout={fixed ? "fixed" : "auto"}
       {...props}
     />
   );

@@ -35,6 +35,25 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* z-index階層トークン */
+  --z-base: 0;
+  /* コンポーネント内部レイヤー（低優先度のローカルスタッキング） */
+  --z-sticky: 10;          /* sticky要素（テーブルカラム、セクションヘッダー） */
+  --z-sidebar: 10;         /* サイドバー本体 */
+  --z-sidebar-rail: 20;    /* サイドバーリサイズハンドル */
+  --z-mobile-panel: 30;    /* モバイルスライドインパネル */
+  --z-header: 40;
+  --z-dropdown: 50;
+  --z-drawer-overlay: 59;
+  --z-drawer: 60;
+  --z-dialog-overlay: 69;
+  --z-dialog: 70;
+  --z-alert-dialog-overlay: 79;
+  --z-alert-dialog: 80;
+  /* 最上位レイヤー */
+  --z-toast: 90;           /* トースト通知 */
+  --z-tooltip: 100;        /* ツールチップ */
 }
 
 .dark {

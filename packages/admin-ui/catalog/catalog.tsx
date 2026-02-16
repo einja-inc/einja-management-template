@@ -108,7 +108,7 @@ export function Catalog() {
   return (
     <div className={isDark ? "dark" : ""}>
       <div className="min-h-screen bg-background text-foreground">
-        <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+        <header className="sticky top-0 z-[var(--z-header)] border-b bg-background/95 backdrop-blur">
           <div className="container mx-auto flex items-center justify-between px-6 py-4">
             <h1 className="text-lg font-bold">@repo/admin-ui Component Catalog</h1>
             <Button
@@ -121,7 +121,7 @@ export function Catalog() {
           </div>
         </header>
 
-        <nav className="sticky top-[65px] z-40 border-b bg-background/95 backdrop-blur">
+        <nav className="sticky top-[65px] z-[var(--z-header)] border-b bg-background/95 backdrop-blur">
           <div className="container mx-auto px-6 py-2">
             <ScrollArea className="w-full">
               <div className="flex gap-4 text-sm">

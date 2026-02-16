@@ -57,6 +57,10 @@
 			"cache": false,
 			"passThroughEnv": ["DATABASE_URL"]
 		},
+		"db:migrate:deploy": {
+			"cache": false,
+			"passThroughEnv": ["DATABASE_URL"]
+		},
 		"db:studio": {
 			"cache": false,
 			"persistent": true

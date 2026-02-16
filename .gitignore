@@ -84,3 +84,7 @@ modifications/
 
 # Serena設定（個人用）
 **/.serena/
+
+# Playwright MCP一時ファイル
+/tmp/
+.playwright-mcp/

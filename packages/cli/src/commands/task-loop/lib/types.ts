@@ -81,7 +81,19 @@ export interface VibeKanbanTask {
   status: "todo" | "inprogress" | "in-progress" | "done" | "cancelled";
 }
 
-/** Vibe-Kanban タスク実行試行 */
+/**
+ * Vibe-Kanban タスク実行試行
+ *
+ * @remarks
+ * vibe-kanban MCP の start_workspace_session レスポンス形式。
+ * 新形式（attempt_id, issue_id）と旧形式（id, task_id）の両方に対応。
+ * パース処理で内部的にマッピングされ、常にこの形式で扱われる。
+ *
+ * @property {string} id - Attempt ID
+ * @property {string} task_id - Task/Issue ID
+ * @property {string} executor - 実行者（CLAUDE_CODE）
+ * @property {string} base_branch - ベースブランチ名
+ */
 export interface VibeKanbanAttempt {
   id: string;
   task_id: string;

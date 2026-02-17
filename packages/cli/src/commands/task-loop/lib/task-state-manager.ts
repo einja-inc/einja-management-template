@@ -295,7 +295,7 @@ export function generateVibeKanbanDescription(taskGroup: TaskGroup, issueNumber:
 以下のコマンドを実行してタスクを開始してください：
 
 \`\`\`
-/task-exec #${issueNumber} ${taskGroup.id}
+claude "/einja:task-exec #${issueNumber} ${taskGroup.id}"
 \`\`\`
 
 ---

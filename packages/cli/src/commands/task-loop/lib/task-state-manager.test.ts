@@ -613,7 +613,7 @@ describe("TaskStateManager", () => {
       const result = generateVibeKanbanDescription(taskGroup, issueNumber);
 
       // Then: 必須セクションが含まれる
-      expect(result).toContain("/task-exec #22 1.2");
+      expect(result).toContain('claude "/einja:task-exec #22 1.2"');
       expect(result).toContain("GitHub Issue #22");
       expect(result).toContain("1.2");
       expect(result).toContain("### タスク 1.2.1: テーブル設計");
@@ -684,7 +684,7 @@ describe("TaskStateManager", () => {
       // Then: 実行コマンドセクションが含まれる
       expect(result).toContain("## 🚀 最初に実行するコマンド");
       expect(result).toContain("```");
-      expect(result).toContain("/task-exec #45 2.3");
+      expect(result).toContain('claude "/einja:task-exec #45 2.3"');
     });
   });
 

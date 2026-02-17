@@ -6,7 +6,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { type Interface, createInterface } from "node:readline";
+import inquirer from "inquirer";
 import type { VibeKanbanOrganization } from "./types.js";
 import type { VibeKanbanClient } from "./vibe-kanban-client.js";
 import { VibeKanbanRestClient } from "./vibe-kanban-rest-client.js";
@@ -50,17 +50,6 @@ function saveConfig(projectId: string): void {
   const configPath = getConfigPath();
   const config: VibeKanbanConfig = { project_id: projectId };
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
-}
-
-/**
- * readline でユーザー入力を取得
- */
-function askQuestion(rl: Interface, question: string): Promise<string> {
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      resolve(answer.trim());
-    });
-  });
 }
 
 /**
@@ -118,16 +107,7 @@ export async function selectProject(
     console.log(`📦 組織: ${organizations[0].name} (${selectedOrganizationId.substring(0, 8)}...)`);
   } else {
     // インタラクティブ選択
-    const rl = createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    try {
-      selectedOrganizationId = await interactiveSelectOrganization(rl, organizations);
-    } finally {
-      rl.close();
-    }
+    selectedOrganizationId = await interactiveSelectOrganization(organizations);
   }
 
   // 3. プロジェクト一覧を取得
@@ -155,98 +135,68 @@ export async function selectProject(
   }
 
   // 5. インタラクティブ選択
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  try {
-    const projectId = await interactiveSelectProject(rl, projects, issueNumber);
-    return projectId;
-  } finally {
-    rl.close();
-  }
+  return await interactiveSelectProject(projects, issueNumber);
 }
 
 /**
  * インタラクティブに組織を選択
  */
 async function interactiveSelectOrganization(
-  rl: Interface,
   organizations: VibeKanbanOrganization[]
 ): Promise<string> {
-  console.log("\n📦 Vibe-Kanban 組織を選択してください:\n");
+  const { orgId } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "orgId",
+      message: "📦 Vibe-Kanban 組織を選択してください:",
+      choices: organizations.map((org) => ({
+        name: org.name,
+        value: org.id,
+      })),
+    },
+  ]);
 
-  // 選択肢を表示
-  for (let i = 0; i < organizations.length; i++) {
-    console.log(`  ${i + 1}. ${organizations[i].name}`);
-  }
-  console.log("");
-
-  // 入力を受け付ける
-  while (true) {
-    const answer = await askQuestion(rl, `番号を入力 (1-${organizations.length}): `);
-    const num = Number.parseInt(answer, 10);
-
-    if (Number.isNaN(num) || num < 1 || num > organizations.length) {
-      console.log(`❌ 1〜${organizations.length} の数字を入力してください`);
-      continue;
-    }
-
-    const selected = organizations[num - 1];
-    console.log(`\n✅ 組織「${selected.name}」を選択しました\n`);
-    return selected.id;
-  }
+  const selected = organizations.find((o) => o.id === orgId);
+  console.log(`\n✅ 組織「${selected?.name}」を選択しました\n`);
+  return orgId;
 }
 
 /**
  * インタラクティブにプロジェクトを選択
  */
 async function interactiveSelectProject(
-  rl: Interface,
   projects: Array<{ id: string; name: string }>,
   issueNumber?: number
 ): Promise<string> {
-  console.log("\n📦 Vibe-Kanban プロジェクトを選択してください:\n");
+  const NEW_PROJECT_VALUE = "__new__";
 
-  // 選択肢を表示
-  for (let i = 0; i < projects.length; i++) {
-    console.log(`  ${i + 1}. ${projects[i].name}`);
+  const { projectId } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "projectId",
+      message: "📦 Vibe-Kanban プロジェクトを選択してください:",
+      choices: [
+        ...projects.map((p) => ({ name: p.name, value: p.id })),
+        new inquirer.Separator("─────────────────"),
+        { name: "新しいプロジェクトを作成", value: NEW_PROJECT_VALUE },
+      ],
+    },
+  ]);
+
+  if (projectId === NEW_PROJECT_VALUE) {
+    return await createNewProject(issueNumber);
   }
 
-  // 区切り線と新規作成オプション
-  console.log("  ─────────────────");
-  console.log(`  ${projects.length + 1}. 新しいプロジェクトを作成`);
-  console.log("");
-
-  // 入力を受け付ける
-  while (true) {
-    const answer = await askQuestion(rl, `番号を入力 (1-${projects.length + 1}): `);
-    const num = Number.parseInt(answer, 10);
-
-    if (Number.isNaN(num) || num < 1 || num > projects.length + 1) {
-      console.log(`❌ 1〜${projects.length + 1} の数字を入力してください`);
-      continue;
-    }
-
-    // 既存プロジェクトを選択
-    if (num <= projects.length) {
-      const selected = projects[num - 1];
-      saveConfig(selected.id);
-      console.log("\n✅ .vibe-kanban.json を作成しました");
-      console.log("   次回から自動的にこのプロジェクトが使用されます\n");
-      return selected.id;
-    }
-
-    // 新規プロジェクト作成
-    return await createNewProject(rl, issueNumber);
-  }
+  saveConfig(projectId);
+  console.log("\n✅ .vibe-kanban.json を作成しました");
+  console.log("   次回から自動的にこのプロジェクトが使用されます\n");
+  return projectId;
 }
 
 /**
  * 新規プロジェクトを作成
  */
-async function createNewProject(rl: Interface, issueNumber?: number): Promise<string> {
+async function createNewProject(issueNumber?: number): Promise<string> {
   console.log("\n📝 新しいプロジェクトを作成します\n");
 
   // ポート発見
@@ -268,8 +218,14 @@ async function createNewProject(rl: Interface, issueNumber?: number): Promise<st
 
   // プロジェクト名を入力
   const defaultName = basename(process.cwd());
-  const answer = await askQuestion(rl, `プロジェクト名を入力 (default: ${defaultName}): `);
-  const projectName = answer || defaultName;
+  const { projectName } = await inquirer.prompt([
+    {
+      type: "input",
+      name: "projectName",
+      message: "📝 プロジェクト名を入力:",
+      default: defaultName,
+    },
+  ]);
 
   // プロジェクト作成
   try {

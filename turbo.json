@@ -17,7 +17,7 @@
 			"persistent": true
 		},
 		"generate": {
-			"cache": false
+			"outputs": ["src/__generated__/**"]
 		},
 		"lint": {
 			"dependsOn": ["^lint"]
@@ -36,7 +36,8 @@
 		},
 		"test": {
 			"dependsOn": ["generate", "^generate", "^build"],
-			"outputs": ["coverage/**"]
+			"outputs": ["coverage/**"],
+			"passThroughEnv": ["DATABASE_URL"]
 		},
 		"test:watch": {
 			"cache": false,
@@ -58,6 +59,7 @@
 			"passThroughEnv": ["DATABASE_URL"]
 		},
 		"db:migrate:deploy": {
+			"dependsOn": ["generate", "^generate"],
 			"cache": false,
 			"passThroughEnv": ["DATABASE_URL"]
 		},

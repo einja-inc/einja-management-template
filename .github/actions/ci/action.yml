@@ -1,6 +1,12 @@
 name: 'CI Checks'
 description: 'Run CI checks including setup, type check, lint, and tests'
 
+inputs:
+  database-url:
+    description: 'Database URL for running tests with DB connection'
+    required: false
+    default: ''
+
 runs:
   using: 'composite'
   steps:
@@ -10,6 +16,13 @@ runs:
     - name: Generate artifacts
       run: pnpm generate
       shell: bash
+
+    - name: Prisma migrate deploy
+      if: inputs.database-url != ''
+      run: pnpm db:migrate:deploy
+      shell: bash
+      env:
+        DATABASE_URL: ${{ inputs.database-url }}
 
     - name: Run TypeScript type check
       run: pnpm typecheck
@@ -22,33 +35,5 @@ runs:
     - name: Run tests
       run: pnpm test
       shell: bash
-
-# ---
-# PostgreSQL Service Container の使用例
-# Composite Actionではservicesを使用できないため、
-# ワークフローレベルで定義する必要があります。
-#
-# jobs:
-#   test:
-#     runs-on: ubuntu-latest
-#     services:
-#       postgres:
-#         image: postgres:15-alpine
-#         env:
-#           POSTGRES_DB: test_db
-#           POSTGRES_USER: postgres
-#           POSTGRES_PASSWORD: postgres
-#         ports:
-#           - 5432:5432
-#         options: >-
-#           --health-cmd pg_isready
-#           --health-interval 10s
-#           --health-timeout 5s
-#           --health-retries 5
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: ./.github/actions/ci
-#       - name: Run DB tests
-#         run: pnpm test:db
-#         env:
-#           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      env:
+        DATABASE_URL: ${{ inputs.database-url }}

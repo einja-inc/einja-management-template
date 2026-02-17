@@ -6,7 +6,7 @@ inputs:
     description: 'dotenvx file path (e.g., $GITHUB_WORKSPACE/.env.production)'
     required: true
   dotenv-private-key:
-    description: 'dotenvx private key environment variable name'
+    description: 'dotenvx private key for decrypting the dotenv file'
     required: true
   run-seed:
     description: 'Whether to run seed (true/false)'
@@ -25,6 +25,8 @@ runs:
         npx dotenvx run -f ${{ inputs.dotenv-file }} -- \
           pnpm db:migrate:deploy
       shell: bash
+      env:
+        DOTENV_PRIVATE_KEY: ${{ inputs.dotenv-private-key }}
 
     # シード（オプション）
     - name: Run Seed
@@ -33,3 +35,5 @@ runs:
         npx dotenvx run -f ${{ inputs.dotenv-file }} -- \
           pnpm --filter @repo/server-core db:seed
       shell: bash
+      env:
+        DOTENV_PRIVATE_KEY: ${{ inputs.dotenv-private-key }}

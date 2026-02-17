@@ -136,6 +136,7 @@ npx @einja/dev-cli sync --only hooks
 ### `task:loop`
 
 GitHub Issueのタスクを自動実行します（Claude Code経由）。
+Phase毎に親Issueを作成し、タスクグループをサブIssueとして階層管理します。
 
 ```bash
 # pnpm scripts経由（推奨）

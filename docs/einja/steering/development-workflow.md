@@ -65,6 +65,7 @@
 │  pnpm task:loop <issue-number>                                              │
 │      │                                                                       │
 │      ├── 初期化: Issue取得、ブランチ作成、Vibe-Kanban接続                     │
+│      │      ├── Phase毎に親Issue作成（MCP create_issue）                     │
 │      │                                                                       │
 │      └── ループ開始 ─────────────────────────────────────────┐               │
 │           │                                                   │               │
@@ -75,7 +76,7 @@
 │           │                                                   │               │
 │           ▼                                                   │               │
 │      ┌─────────────────────────────────────────────────────┐ │               │
-│      │ Vibe-Kanbanにタスク作成 → start_task_attempt        │ │               │
+│      │ サブIssue作成（親Issue配下） → start_workspace_session│ │               │
 │      │ （Claude Codeが自動起動されて実装開始）              │ │               │
 │      └─────────────────────────────────────────────────────┘ │               │
 │           │                                                   │               │
@@ -110,6 +111,11 @@
 │           │                                                                   │
 │           ▼                                                                   │
 │      task:loopがDone検知 → GitHub Issueチェックボックス更新                   │
+│           │                                                                   │
+│      Phase全サブIssue完了？                                                   │
+│      ├─ Yes → 親Issue Workspace作成 → PR作成・マージ                         │
+│      │        → 親Issue自動Done                                               │
+│      └─ No  → スキップ                                                       │
 │           │                                                                   │
 │           └──────────────────────────────────────────────────┘               │
 │                        次のタスクグループを自動開始                            │
@@ -187,6 +193,8 @@ pnpm task:loop 123 --branch develop       # develop ブランチベースで実�
 
 実行後、specで作成されたタスクが着手可能なものから自動で実行開始されます。
 
+Phase毎に親Issueが自動作成され、タスクグループはサブIssueとして管理されます。
+
 1. **Vibe-Kanbanの画面を眺める** - タスクの進捗を確認
 2. **In Reviewになったら自己レビュー** - 実装内容を確認
 3. **OKなら「Create PR」ボタンをクリック** - PRが自動作成される
@@ -233,6 +241,12 @@ task-executer → task-reviewer → task-qa → In Review
 │  task:loop: Done 検知（15秒ポーリング）                     │
 │      ↓                                                      │
 │  GitHub Issue: チェックボックス更新（自動）                 │
+│      ↓                                                      │
+│  Phase 全サブIssue完了？                                    │
+│      ├─ Yes → 親Issue Workspace作成                         │
+│      │        → Phase→Issue PR作成・マージ                  │
+│      │        → 親Issue自動Done（タイムアウト2分）           │
+│      └─ No  → スキップ                                      │
 │      ↓                                                      │
 │  次のタスクが自動開始                                       │
 └─────────────────────────────────────────────────────────────┘

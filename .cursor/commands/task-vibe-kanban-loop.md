@@ -162,7 +162,21 @@ GitHub Issueから Issue番号を取得し、ブランチ名を生成して作�
    - 実行対象の各フェーズについて、フェーズブランチを確認
    - 存在しない場合 → タスクブランチから作成してプッシュ
 
-6. **設定の表示**
+6a. **REST APIヘルスチェック（probeCapability）**
+   - `GET /api/remote/issues` を呼び出してREST APIの疎通を確認
+   - 成功した場合のみ親Issue作成機能を有効化
+   - 失敗した場合はREST API機能をスキップし、サブIssueのparent_issue_id設定をスキップ
+
+6b. **Phase毎に親Issue作成**
+
+   実行対象の各Phaseについて:
+   - タイトル形式: `[Issue{N} Phase{M}] {Phase名}`
+     - 例: `[Issue21 Phase1] 認証基盤構築`
+   - 既存チェック（再開サポート）: 同名の親Issueが既に存在する場合はスキップ
+   - `mcp__vibe_kanban__create_issue` で親Issue作成
+   - stateManagerにPhaseID → 親Issue UUIDのマッピングを登録
+
+7. **設定の表示**
    ```markdown
    📋 タスク実行設定:
    - タスクファイル: {task_file_path}
@@ -170,6 +184,7 @@ GitHub Issueから Issue番号を取得し、ブランチ名を生成して作�
    - タスクブランチ: feat/{ディレクトリ}/{タスク名}（新規作成 / 既存）
    - 実行フェーズ: Phase {N}まで
    - フェーズブランチ: feat/{ディレクトリ}/{タスク名}-phase{N}
+   - 親Issue: [Issue{N} Phase{M}] {Phase名}（各フェーズに作成済み）
    ```
 
 以下の処理をループで繰り返し実行します：
@@ -237,13 +252,22 @@ GitHub Issueから Issue番号を取得し、ブランチ名を生成して作�
 - ✅ **task-starterが選定したタスクのみを作成**
 - ✅ **task-starterが「実行可能なタスクなし」の場合、このフェーズはスキップして待機フェーズへ移行**
 
-1. **Vibe-Kanbanにタスクを作成**（task-starterが選定したタスクのみ）
+1. **Vibe-KanbanにサブIssueを作成**（task-starterが選定したタスクのみ）
+
+   **サブIssue作成手順**:
+
+   1. `mcp__vibe_kanban__create_issue` で通常のIssueを作成
+   2. REST PATCH `/api/remote/issues/{id}` を呼び出して `{"parent_issue_id": "{parent_uuid}"}` を設定
+      - `{parent_uuid}` は初期化フェーズ（6b）で登録した該当PhaseのIssue UUID
+   3. **PATCH失敗時のリトライ**:
+      - 最大3回リトライ
+      - 全失敗時は `mcp__vibe_kanban__delete_issue` でIssueを削除し、エラーを再スロー
+   4. **冪等性チェック**: Issue作成前に同名タイトル + 同じ `parent_issue_id` のIssueが存在しないか確認し、存在する場合はスキップ
 
    **選定タスクが1個の場合**:
 
-   - タイトル形式: `/task-exec <タスクグループ番号> <タスクグループ名>`
-     - 例: `/task-exec 4.1 Turborepoビルドパイプライン最適化`
-     - `/task-exec` プレフィックスは**必須**です
+   - タイトル形式: `[Issue{N} {X.Y}] {タスクグループ名}` ※ `/task-exec` プレフィックスはtitleに**含めない**
+     - 例: `[Issue21 4.1] Turborepoビルドパイプライン最適化`
    - 説明:
      ```
      ## タスクファイル
@@ -258,8 +282,8 @@ GitHub Issueから Issue番号を取得し、ブランチ名を生成して作�
 
    **選定タスクが複数の場合**:
 
-   - タイトル形式: `/task-exec <タスクグループ番号1>, <タスクグループ番号2>, ... <グループ名>`
-     - 例: `/task-exec 4.1, 4.2 Phase 4 ビルド最適化タスク`
+   - タイトル形式: `[Issue{N} {X.Y}, {X.Z}] {グループ名}`
+     - 例: `[Issue21 4.1, 4.2] Phase 4 ビルド最適化タスク`
      - グループ名は粒度指定から生成、または「まとめて実装」など
    - 説明:
      ```
@@ -278,14 +302,14 @@ GitHub Issueから Issue番号を取得し、ブランチ名を生成して作�
      <tasks.mdから抽出したタスク一覧とサブタスク2>
      ```
 
-   **実装時の注意**: `mcp__vibe_kanban__create_task` を呼び出す際、titleパラメータには必ず `/task-exec ` で始まる文字列を渡すこと
+   **実装時の注意**: `mcp__vibe_kanban__create_issue` を呼び出す際、titleパラメータには `[Issue{N} {X.Y}]` 形式の文字列を渡すこと（Workspace起動時にtitleをコマンドとして解釈させるため）
 
 2. **ステータスを "in-progress" に更新**
-   - `mcp__vibe_kanban__update_task` を使用
+   - `mcp__vibe_kanban__update_issue` を使用
    - status パラメータには `"in-progress"` を指定（ハイフン区切り）
 
 3. **タスクの実行を開始**
-   - `mcp__vibe_kanban__start_task_attempt` を呼び出し
+   - `mcp__vibe_kanban__start_workspace_session` を呼び出し
    - executor: CLAUDE_CODE
    - base_branch: **タスクが属するフェーズのフェーズブランチ**
      - 例: Phase 1のタスク → `feat/monorepo/20251104-turborepo-setup-phase1`
@@ -303,6 +327,17 @@ GitHub Issueから Issue番号を取得し、ブランチ名を生成して作�
      - **このコマンドの役割はタスクの選定とVibe-Kanban登録のみです**
 
 ### 4. 完了・待機フェーズ
+
+#### 4.0 Phase完了判定（タスク選定フェーズの結果を受けて実行）
+
+- **Phase内の全サブIssueがDone** → Phase完了と判定
+  - Done検知では **親IssueをIDベースで除外** し、サブIssueのみを監視する
+  - 初期化フェーズ（6b）で登録した親Issue UUIDをフィルタリングに使用
+- **Phase完了時の処理**:
+  1. 該当Phaseの親Issue用Workspaceを作成（フェーズブランチをベースに）
+  2. フェーズブランチのPRを作成・マージ
+  3. 親IssueをDone状態に更新（自動Done）
+  4. **タイムアウト（2分）でPR/マージが完了しない場合**: `mcp__vibe_kanban__update_issue` で手動Doneにフォールバック
 
 #### 4.1 最大タスク番号に到達した場合
 
@@ -350,10 +385,14 @@ model: haiku  # コスト削減のため軽量モデルを使用
 
 ### 使用ツール
 - **タスク読み取り**: GitHub MCP（GitHub Issueからタスク一覧を読み取り）
-- **Vibe-Kanban操作**:
-  - `mcp__vibe_kanban__create_task`
-  - `mcp__vibe_kanban__update_task`
-  - `mcp__vibe_kanban__start_task_attempt`
+- **Vibe-Kanban操作（MCP）**:
+  - `mcp__vibe_kanban__create_issue`（Issue/サブIssue作成）
+  - `mcp__vibe_kanban__update_issue`（ステータス更新、手動Done）
+  - `mcp__vibe_kanban__delete_issue`（PATCH失敗時のロールバック）
+  - `mcp__vibe_kanban__start_workspace_session`（Workspace起動）
+- **Vibe-Kanban操作（REST API）**:
+  - `GET /api/remote/issues` — ヘルスチェック（probeCapability）
+  - `PATCH /api/remote/issues/{id}` — `parent_issue_id` 設定（サブIssue関連付け）
 
 **注意**: GitHub Issueの書き込みは行わない（実行エージェントが完了時に自動更新）
 
@@ -440,32 +479,43 @@ Vibe-Kanbanでタスクを管理する際に必要な情報：
 **プロジェクトID**: `<project_id>`
 **プロジェクト名**: `<project_name>`
 
-## 作成されたタスク一覧
+## 親Issue一覧
 
-| タスクグループ番号 | タスクグループ名 | Vibe-Kanban タスクID | ステータス | 作成日時 |
-|-----------|---------|---------------------|----------|---------|
-| 4.1 | Turborepoビルドパイプライン最適化 | `<task_id>` | in-progress | YYYY-MM-DD HH:MM |
-| 4.2 | リモートキャッシュ設定 | `<task_id>` | todo | YYYY-MM-DD HH:MM |
+| フェーズ | 親Issueタイトル | 親Issue UUID | 作成日時 |
+|---------|---------------|-------------|---------|
+| Phase 1 | [Issue21 Phase1] 認証基盤構築 | `<parent_uuid>` | YYYY-MM-DD HH:MM |
+| Phase 2 | [Issue21 Phase2] UI実装 | `<parent_uuid>` | YYYY-MM-DD HH:MM |
 
-## タスク実行試行情報
+## 作成されたサブIssue一覧
 
-| タスクグループ番号 | 試行ID | Executor | Base Branch | 開始日時 |
-|-----------|--------|----------|-------------|---------|
-| 4.1 | `<attempt_id>` | CLAUDE_CODE | main | YYYY-MM-DD HH:MM |
+| タスクグループ番号 | タスクグループ名 | Vibe-Kanban IssueID | 親Issue UUID | ステータス | 作成日時 |
+|-----------|---------|---------------------|------------|----------|---------|
+| 4.1 | Turborepoビルドパイプライン最適化 | `<issue_id>` | `<parent_uuid>` | in-progress | YYYY-MM-DD HH:MM |
+| 4.2 | リモートキャッシュ設定 | `<issue_id>` | `<parent_uuid>` | todo | YYYY-MM-DD HH:MM |
+
+## Workspace実行情報
+
+| タスクグループ番号 | WorkspaceセッションID | Executor | Base Branch | 開始日時 |
+|-----------|----------------------|----------|-------------|---------|
+| 4.1 | `<session_id>` | CLAUDE_CODE | feat/.../phase1 | YYYY-MM-DD HH:MM |
 ```
 
 ### 記録すべき情報
 
 1. **プロジェクトID** (`project_id`)
    - `mcp__vibe_kanban__list_projects` で取得
-   - 全タスク操作で必要
+   - 全Issue操作で必要
 
-2. **タスクID** (`task_id`)
-   - `mcp__vibe_kanban__create_task` のレスポンスから取得
-   - タスク更新・削除時に必要
+2. **親Issue UUID** (`parent_uuid`)
+   - `mcp__vibe_kanban__create_issue` のレスポンスから取得
+   - 各Phaseに1つ作成し、サブIssueの `parent_issue_id` として使用
 
-3. **タスク実行試行ID** (`attempt_id`)
-   - `mcp__vibe_kanban__start_task_attempt` のレスポンスから取得
+3. **サブIssue ID** (`issue_id`)
+   - `mcp__vibe_kanban__create_issue` のレスポンスから取得
+   - Issue更新・削除時に必要
+
+4. **WorkspaceセッションID** (`session_id`)
+   - `mcp__vibe_kanban__start_workspace_session` のレスポンスから取得
    - 実行状況の追跡に使用
 
 ### 情報の取得方法
@@ -475,30 +525,45 @@ Vibe-Kanbanでタスクを管理する際に必要な情報：
 const projects = await mcp__vibe_kanban__list_projects({});
 // => プロジェクトID: projects.data[0].id
 
-// タスク作成
-const task = await mcp__vibe_kanban__create_task({
+// 親Issue作成（Phase単位）
+const parentIssue = await mcp__vibe_kanban__create_issue({
   project_id: "<project_id>",
-  title: "1.1.1 プロジェクトルート初期化",
+  title: "[Issue21 Phase1] 認証基盤構築",
   description: "..."
 });
-// => タスクID: task.id
+// => 親Issue UUID: parentIssue.id
 
-// タスク実行開始
-const attempt = await mcp__vibe_kanban__start_task_attempt({
-  task_id: "<task_id>",
-  executor: "CLAUDE_CODE",
-  base_branch: "main"
+// サブIssue作成
+const subIssue = await mcp__vibe_kanban__create_issue({
+  project_id: "<project_id>",
+  title: "[Issue21 4.1] Turborepoビルドパイプライン最適化",
+  description: "..."
 });
-// => 試行ID: attempt.id
+// => サブIssue ID: subIssue.id
+
+// parent_issue_id 設定（REST PATCH）
+await fetch(`/api/remote/issues/${subIssue.id}`, {
+  method: "PATCH",
+  body: JSON.stringify({ parent_issue_id: parentIssue.id })
+});
+
+// Workspace起動
+const session = await mcp__vibe_kanban__start_workspace_session({
+  issue_id: "<issue_id>",
+  base_branch: "feat/.../phase1"
+});
+// => セッションID: session.id
 ```
 
 ## 注意事項
 
 **⚠️ 厳守事項**:
 1. **待機時間は必ず120秒**: `sleep 120` を使用。60秒や300秒など他の値に変更してはいけません
-2. **実行可能なタスクのみ作成**: 依存関係が満たされていないタスクのVibe-Kanbanタスクを事前に作成してはいけません
+2. **実行可能なタスクのみ作成**: 依存関係が満たされていないタスクのVibe-KanbanサブIssueを事前に作成してはいけません
 3. **タスク開始後は即座にタスク選定へ**: 次のタスクを事前に作成せず、必ずタスク選定フェーズから開始します
 4. **完了報告で止まらない**: タスク完了を確認したら、報告だけで止まらず、即座に次のタスク選定フェーズに進みます
+5. **Done検知では親IssueをIDベースで除外**: 初期化時に登録した親Issue UUIDを使い、サブIssueのみを完了監視対象とすること
+6. **Phase完了時の親Issue自動Done**: タイムアウト2分でPR/マージが完了しない場合、`mcp__vibe_kanban__update_issue` で手動Doneにフォールバックすること
 
 - **最大タスク番号が指定されている場合、その番号に到達したらループを自動終了します**
 - **最大タスク番号が `all` の場合、すべてのタスクが完了するまで継続します（手動停止が必要）**
@@ -513,8 +578,8 @@ const attempt = await mcp__vibe_kanban__start_task_attempt({
 - **タスク作成時は必ず返却されたIDを記録し、後続の操作で使用してください**
 - **タスクブランチの作成元は初期化時に1度だけ確認します（デフォルト: リモートのデフォルトブランチを自動取得）**
 - **各タスクは属するフェーズのフェーズブランチをベースブランチとして実行します**
-- **粒度指定がある場合、指定された粒度（Phase/タスクグループ/タスク）に応じて実行可能なタスクをまとめて1つのVibe-Kanbanタスクとして作成します**
-- **複数タスクをまとめて実行する場合、Vibe-Kanbanタスクのタイトルには `/task-exec <タスク番号1>, <タスク番号2>, ... <グループ名>` 形式を使用します**
+- **粒度指定がある場合、指定された粒度（Phase/タスクグループ/タスク）に応じて実行可能なタスクをまとめて1つのVibe-KanbanサブIssueとして作成します**
+- **複数タスクをまとめて実行する場合、VIbe-KanbanサブIssueのタイトルには `[Issue{N} {X.Y}, {X.Z}] {グループ名}` 形式を使用します**
 
 ## タスク番号の比較ルール
 

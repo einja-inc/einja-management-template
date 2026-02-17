@@ -455,6 +455,26 @@ server-coreパッケージが動作し、DBに接続できること（AC1.1を�
 design.md「Server Core構築」セクション
 ```
 
+### 親Issue/サブIssue階層（task:loop使用時）
+
+`pnpm task:loop` 使用時は、Vibe-Kanban上でPhase→親Issue、タスクグループ→サブIssueの階層構造で管理されます。
+
+**親Issueタイトル形式**:
+```
+[Issue{N} Phase{M}] {Phase名}
+```
+例: `[Issue17 Phase1] 基盤構築`
+
+**サブIssueタイトル形式**:
+```
+[Issue{N} {X.Y}] {タスクグループ名}
+```
+例: `[Issue17 1.1] Server Core構築とDB設定`
+
+**親子関係の設定**: サブIssue作成後、REST API（PATCH `/api/remote/issues/{id}`）で `parent_issue_id` を設定します。
+
+**注意**: `/einja:task-exec` による単発実行時はこの階層構造は使用されません。`pnpm task:loop` 使用時のみ適用されます。
+
 ## コマンドリファレンス
 
 ### タスク管理関連コマンド
@@ -483,6 +503,7 @@ pnpm task:loop <issue番号> --branch <ブランチ> # ベースブランチ指�
 ```
 - 着手可能なタスクグループを並列でVibe-Kanbanに登録
 - Done状態を監視して次のタスクを自動開始
+- Phase毎に親Issueを作成し、タスクグループをサブIssueとして管理（詳細は「親Issue/サブIssue階層」を参照）
 - **前提**: `npx @einja/cli init` 実行済み、Claude Code インストール済み
 
 **仕様書からドキュメント更新**:

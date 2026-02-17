@@ -7,6 +7,8 @@ GitHub Issue からタスクを自動選定し、Vibe-Kanban に登録して連�
 
 **⚠️ 重要**: 着手可能なタスクを全て並列で Doing に移し、Done 状態の変化を監視して次のタスクを開始するループ処理。
 
+**親Issue/サブIssue 構造**: Phase ごとに Vibe-Kanban 上で **親Issue** を作成し、着手可能なタスクグループは親Issueの配下に **サブIssue** として登録します。Phase内の全サブIssueが完了すると、PR作成・マージを経て親Issueが自動でDoneになります。
+
 ---
 
 ## 使用方法
@@ -166,7 +168,7 @@ PR をマージすると：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  PR マージ                                                  │
+│  PR マージ（サブIssue分）                                   │
 │      ↓                                                      │
 │  Vibe-Kanban: タスク → Done（自動）                        │
 │      ↓                                                      │
@@ -174,8 +176,10 @@ PR をマージすると：
 │      ↓                                                      │
 │  GitHub Issue: チェックボックス更新（自動）                 │
 │      ↓                                                      │
-│  Phase 全タスク完了？                                       │
-│      ├─ Yes → Phase ブランチを Issue ブランチにマージ       │
+│  Phase 全タスク（サブIssue）完了？                         │
+│      ├─ Yes → 親Issue用Workspace作成                        │
+│      │         → PR作成・マージ（Phase → Issue ブランチ）  │
+│      │         → 親Issue 自動Done（タイムアウト2分でフォールバック）│
 │      └─ No  → スキップ                                      │
 │      ↓                                                      │
 │  次のタスクが自動開始                                       │
@@ -245,9 +249,10 @@ graph TD
         T1[Issue取得・解析]
         T2[ブランチ作成]
         T3[Vibe-Kanban 接続]
-        T4[タスク作成・開始指示]
+        T3a[Phase毎に親Issue作成]
+        T4[サブIssue作成・開始指示]
         T5[15秒ポーリング]
-        T6{Done検知?}
+        T6{Done検知?<br/>※親Issue除外}
         T7[GitHub Issue<br/>チェックボックス更新]
         T8[次のタスク開始指示]
         T9{全完了?}
@@ -276,7 +281,8 @@ graph TD
     U1 --> T1
     T1 --> T2
     T2 --> T3
-    T3 --> T4
+    T3 --> T3a
+    T3a --> T4
     T4 --> V1
     V1 --> V2
     V2 --> C1
@@ -331,10 +337,12 @@ sequenceDiagram
     Script->>GitHub: Issue 取得・解析
     Script->>Script: ブランチ作成（issue/123, issue/123-phase1...）
     Script->>Vibe: MCP 接続
+    Script->>Script: REST API ヘルスチェック（probeCapability）
+    Script->>Vibe: Phase毎に親Issue作成（MCP create_issue）
 
-    Note over Script: 【タスク開始】
+    Note over Script: 【サブIssue開始】
     Script->>Script: 着手可能タスク選定
-    Script->>Vibe: タスク作成
+    Script->>Vibe: サブIssue作成（MCP create_issue + REST PATCH parent_issue_id）
     Script->>Vibe: start_task_attempt（実行開始指示）
     Vibe->>Claude: Claude Code 起動
 
@@ -357,11 +365,16 @@ sequenceDiagram
 
     Note over Script: 【ポーリング検知】
     loop 15秒ごと
-        Script->>Vibe: タスク状態取得
-        alt Done 増加検知
+        Script->>Vibe: タスク状態取得（親Issue除外）
+        alt Done 増加検知（サブIssue）
             Script->>GitHub: Issue チェックボックス更新
+            alt Phase内全サブIssue完了
+                Script->>Vibe: 親Issue用Workspace作成
+                Script->>GitHub: PR作成・マージ（Phase→Issue）
+                Note over Vibe: PRマージ検知 → 親Issue自動Done<br/>（タイムアウト2分でフォールバック）
+            end
             Script->>Script: 新たに着手可能なタスク選定
-            Script->>Vibe: 次のタスク作成・開始
+            Script->>Vibe: 次のサブIssue作成・開始
             Vibe->>Claude: Claude Code 起動（次タスク）
         end
     end
@@ -378,7 +391,8 @@ sequenceDiagram
 | 開始 | `pnpm task:loop` 実行 | 👤 ユーザー |
 | 初期化 | Issue 取得、ブランチ作成 | 🔄 task:loop |
 | 初期化 | Vibe-Kanban 接続 | 🔄 task:loop |
-| タスク開始 | タスク作成・開始指示 | 🔄 task:loop |
+| Phase初期化 | Phase毎に親Issue作成 | 🔄 task:loop |
+| タスク開始 | サブIssue作成・開始指示（parent_issue_id設定） | 🔄 task:loop |
 | タスク開始 | Claude Code 起動 | 📋 Vibe-Kanban |
 | 実装 | コード実装、テスト、コミット | 🤖 Claude Code |
 | 実装 | 作業完了報告 | 🤖 Claude Code |
@@ -403,19 +417,26 @@ sequenceDiagram
 - Phase ブランチ作成: `issue/{issue_number}-phase{N}`
 - Vibe-Kanban MCP 接続（以降使い回し）
 - プロジェクト ID 取得
+- REST API ヘルスチェック（probeCapability）
+- **Phase ごとに親Issue作成**: タイトル形式 `[Issue{N} Phase{M}] {Phase名}`
 
-### 2. 初期タスク開始
+### 2. 初期サブIssue開始
 
 - 依存関係を考慮して着手可能なタスクグループを全て選定
-- Vibe-Kanban にタスク作成
+- Vibe-Kanban に**サブIssueとして作成**（MCP create_issue + REST PATCH で parent_issue_id 設定）
+  - PATCH 失敗時はリトライ3回 → 全失敗時は MCP delete_issue で削除して再スロー
 - `start_task_attempt` で実行開始
 
 ### 3. メインループ（15秒ポーリング）
 
-- Vibe-Kanban のタスク状態を取得
+- Vibe-Kanban のタスク状態を取得（**親IssueをIDベースで除外**してサブIssueのみ対象）
 - Done 増加を検知した場合:
   - GitHub Issue のチェックボックスを `- [x]` に更新
-  - **Phase 内の全タスクが完了していれば、Phase ブランチを Issue ブランチに自動マージ**
+  - **Phase 内の全サブIssueが完了していれば**:
+    1. 親Issue用Workspace作成（target = issue/N）
+    2. PR作成・自動マージ（Phase ブランチ → Issue ブランチ）
+    3. Vibe-KanbanがPRマージ検知 → 親Issue自動Done
+    4. タイムアウト（2分）時は手動Done更新（フォールバック）
   - 新たに着手可能になったタスクを開始
 - 全タスク完了で終了
 
@@ -468,7 +489,7 @@ packages/cli/src/commands/task-loop/
     ├── branch-manager.ts       # Git ブランチ操作
     ├── conflict-handler.ts     # コンフリクト処理
     ├── vibe-kanban-client.ts   # MCP経由Vibe-Kanban操作
-    ├── vibe-kanban-rest-client.ts # REST API クライアント
+    ├── vibe-kanban-rest-client.ts # REST API クライアント（親子関係設定、ヘルスチェック）
     ├── issue-parser.ts         # Issue Markdownパーサー
     ├── dependency-resolver.ts  # 依存関係解析
     ├── project-selector.ts     # プロジェクト選択

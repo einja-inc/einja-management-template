@@ -8,7 +8,7 @@
 
 import { getIssue, markTaskGroupAsCompleted, updateIssueBody } from "./github-client.js";
 import { parseIssueBody } from "./issue-parser.js";
-import type { ParsedIssue, TaskGroup, VibeKanbanTask } from "./types.js";
+import type { ParsedIssue, Phase, PhaseIssueMapping, TaskGroup, VibeKanbanTask } from "./types.js";
 
 /**
  * タスク状態マネージャー
@@ -19,6 +19,10 @@ export class TaskStateManager {
   private vibeTaskToGroupMap: Map<string, string> = new Map();
   /** 対象Issue番号（フィルタリング用） */
   private targetIssueNumber: number | null = null;
+  /** Phase番号 -> 親Issue マッピング */
+  private phaseToParentIssue: Map<number, PhaseIssueMapping> = new Map();
+  /** 親Issue IDセット（フィルタリング用） */
+  private parentIssueIds: Set<string> = new Set();
 
   /**
    * タスクが対象Issueに属するかチェック
@@ -39,6 +43,35 @@ export class TaskStateManager {
       if (desc?.includes(`GitHub Issue #${this.targetIssueNumber}`)) return true;
     }
     return false;
+  }
+
+  /**
+   * Phase -> 親Issue マッピングを登録
+   */
+  registerPhaseMapping(phaseNumber: number, mapping: PhaseIssueMapping): void {
+    // 既存マッピングの古いIDを削除（再登録時の孤立ID防止）
+    const existing = this.phaseToParentIssue.get(phaseNumber);
+    if (existing) {
+      this.parentIssueIds.delete(existing.parentIssueId);
+    }
+    this.phaseToParentIssue.set(phaseNumber, mapping);
+    this.parentIssueIds.add(mapping.parentIssueId);
+    console.log(`   🔗 Phase マッピング登録: Phase ${phaseNumber} → ${mapping.parentIssueId}`);
+  }
+
+  /**
+   * Phase番号から親Issueマッピングを取得
+   */
+  getParentIssueMapping(phaseNumber: number): PhaseIssueMapping | undefined {
+    return this.phaseToParentIssue.get(phaseNumber);
+  }
+
+  /**
+   * 親Issueかどうか判定（IDベース）
+   * Done検知フィルタリングで使用
+   */
+  isParentIssue(issueId: string): boolean {
+    return this.parentIssueIds.has(issueId);
   }
 
   /**
@@ -190,11 +223,18 @@ export function extractTaskGroupIdFromTitle(title: string): string | null {
 
 /**
  * Vibe-Kanban タスクのタイトルから Issue 番号を抽出
- * タイトル形式: "[IssueXX Y.Z] タスク名"
+ * タイトル形式: "[IssueXX Y.Z] タスク名" または "[IssueXX PhaseM] Phase名"
  */
 export function extractIssueNumberFromTitle(title: string): number | null {
-  const match = title.match(/\[Issue(\d+)\s+\d+\.\d+\]/);
-  return match ? Number.parseInt(match[1], 10) : null;
+  // サブIssue形式: [Issue22 1.2] タスク名
+  const subMatch = title.match(/\[Issue(\d+)\s+\d+\.\d+\]/);
+  if (subMatch) return Number.parseInt(subMatch[1], 10);
+
+  // 親Issue形式: [Issue22 Phase1] Phase名
+  const parentMatch = title.match(/\[Issue(\d+)\s+Phase\d+\]/);
+  if (parentMatch) return Number.parseInt(parentMatch[1], 10);
+
+  return null;
 }
 
 /**
@@ -202,6 +242,44 @@ export function extractIssueNumberFromTitle(title: string): number | null {
  */
 export function generateVibeKanbanTitle(taskGroup: TaskGroup, issueNumber: number): string {
   return `[Issue${issueNumber} ${taskGroup.id}] ${taskGroup.name}`;
+}
+
+/**
+ * Phase用の Vibe-Kanban 親Issueタイトルを生成
+ * 形式: [Issue{N} Phase{M}] {Phase名}
+ */
+export function generateParentIssueTitle(phase: Phase, issueNumber: number): string {
+  return `[Issue${issueNumber} Phase${phase.number}] ${phase.name}`;
+}
+
+/**
+ * Phase用の Vibe-Kanban 親Issue説明文を生成
+ */
+export function generateParentIssueDescription(phase: Phase, issueNumber: number): string {
+  const taskGroupList = phase.taskGroups
+    .map((tg) => `- ${tg.id}: ${tg.name}`)
+    .join("\n");
+
+  return `## Phase ${phase.number}: ${phase.name}
+
+GitHub Issue #${issueNumber} の Phase ${phase.number} を管理する親Issueです。
+
+## 含まれるタスクグループ
+
+${taskGroupList || "(タスクグループなし)"}
+
+## 完了条件
+Phase 内のすべてのサブIssue（タスクグループ）が完了すること。
+`;
+}
+
+/**
+ * 親IssueのタイトルからPhase番号を抽出
+ * タイトル形式: "[IssueXX PhaseM] Phase名"
+ */
+export function extractPhaseNumberFromTitle(title: string): number | null {
+  const match = title.match(/\[Issue\d+\s+Phase(\d+)\]/);
+  return match ? Number.parseInt(match[1], 10) : null;
 }
 
 /**

@@ -79,6 +79,7 @@ export interface VibeKanbanTask {
   title: string;
   description?: string;
   status: "todo" | "inprogress" | "in-progress" | "done" | "cancelled";
+  parent_issue_id?: string;
 }
 
 /** Vibe-Kanban タスク実行試行 */
@@ -95,6 +96,20 @@ export interface VibeKanbanRepo {
   name: string;
 }
 
+/** Phase -> 親Issue マッピング */
+export interface PhaseIssueMapping {
+  phaseNumber: number;
+  parentIssueId: string; // Vibe-Kanban Issue UUID
+}
+
+/** Task Group -> サブIssue マッピング */
+export interface TaskGroupSubIssueMapping {
+  taskGroupId: string;
+  subIssueId: string;
+  parentIssueId: string;
+  phaseNumber: number;
+}
+
 /** ループ状態 */
 export interface LoopState {
   issueNumber: number;
@@ -106,6 +121,10 @@ export interface LoopState {
   createdTaskIds: Map<string, string>;
   /** 前回のポーリング時点での Done タスクID一覧 */
   previousDoneTaskIds: Set<string>;
+  /** Phase番号 -> 親Issue マッピング */
+  phaseIssueMap: Map<number, PhaseIssueMapping>;
+  /** タスクグループID -> サブIssue マッピング */
+  taskGroupSubIssueMap: Map<string, TaskGroupSubIssueMapping>;
 }
 
 /** ログレベル */

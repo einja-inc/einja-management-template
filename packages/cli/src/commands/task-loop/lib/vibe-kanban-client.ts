@@ -275,6 +275,85 @@ export class VibeKanbanClient {
   }
 
   /**
+   * 親Issueを作成（Phase対応）
+   * 内部的にはcreateTaskと同じだが、意図を明確にするためのエイリアス
+   * @returns Issue ID
+   */
+  async createParentIssue(projectId: string, title: string, description: string): Promise<string> {
+    return this.createTask(projectId, title, description);
+  }
+
+  /**
+   * サブIssueを作成（タスクグループ対応）
+   * B案: MCP create_issue + REST PATCH parent_issue_id
+   *
+   * @param projectId プロジェクトID
+   * @param parentIssueId 親IssueのID
+   * @param title タイトル
+   * @param description 説明
+   * @param restClient REST APIクライアント（PATCH用）
+   * @returns サブIssue ID
+   */
+  async createSubIssue(
+    projectId: string,
+    parentIssueId: string,
+    title: string,
+    description: string,
+    restClient: { setParentIssue: (issueId: string, parentIssueId: string) => Promise<void> }
+  ): Promise<string> {
+    // Step 1: MCP create_issue で通常Issue作成
+    const issueId = await this.createTask(projectId, title, description);
+
+    // Step 2: REST PATCH で parent_issue_id 設定（リトライ3回）
+    const MAX_RETRIES = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        await restClient.setParentIssue(issueId, parentIssueId);
+        console.log(`   ✅ サブIssue作成完了: ${issueId} (parent: ${parentIssueId})`);
+        return issueId;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.warn(
+          `   ⚠️ parent_issue_id 設定失敗 (${attempt}/${MAX_RETRIES}): ${lastError.message}`
+        );
+        if (attempt < MAX_RETRIES) {
+          // 指数バックオフ: 1秒, 2秒, 4秒
+          await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+        }
+      }
+    }
+
+    // 全リトライ失敗: Issue を削除して再試行
+    console.error(`   ❌ parent_issue_id の設定に${MAX_RETRIES}回失敗。Issueを削除して再作成します。`);
+    try {
+      await this.deleteTask(issueId);
+    } catch (deleteError) {
+      console.warn(`   ⚠️ Issue削除失敗: ${deleteError}`);
+    }
+
+    throw new Error(
+      `サブIssueの作成に失敗しました（parent_issue_id設定失敗）: ${lastError?.message}`
+    );
+  }
+
+  /**
+   * Issueを削除
+   * サブIssue作成失敗時のクリーンアップ用
+   */
+  async deleteTask(taskId: string): Promise<void> {
+    this.ensureConnected();
+
+    await this.client.callTool({
+      name: "delete_issue",
+      arguments: {
+        issue_id: taskId,
+      },
+    });
+  }
+
+  /**
    * タスク実行を開始
    * 旧API: task_id（必須）, executor, repos → 新API: title（必須）, executor, repos, issue_id（任意）
    */

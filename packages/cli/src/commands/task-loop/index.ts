@@ -28,12 +28,16 @@ import { ensurePullRequestCreated } from "./lib/pull-request-manager.js";
 import {
   TaskStateManager,
   extractIssueNumberFromTitle,
+  extractPhaseNumberFromTitle,
   extractTaskGroupIdFromTitle,
+  generateParentIssueDescription,
+  generateParentIssueTitle,
   generateVibeKanbanDescription,
   generateVibeKanbanTitle,
 } from "./lib/task-state-manager.js";
 import type { ParsedIssue } from "./lib/types.js";
 import { VibeKanbanClient } from "./lib/vibe-kanban-client.js";
+import { VibeKanbanRestClient } from "./lib/vibe-kanban-rest-client.js";
 import { getWorktreePathByAttemptId, runDirenvAllow } from "./lib/worktree-utils.js";
 
 export interface TaskLoopOptions {
@@ -43,6 +47,9 @@ export interface TaskLoopOptions {
 
 /** ポーリング間隔（ミリ秒） */
 const POLLING_INTERVAL_MS = 15_000;
+
+/** 親Issue自動Doneタイムアウト（ミリ秒） */
+const PARENT_DONE_TIMEOUT_MS = 120_000;
 
 /**
  * 現在日時を YYYY/MM/DD HH:mm:ss 形式で取得
@@ -140,6 +147,24 @@ export async function taskLoopCommand(
   // プロジェクト ID 取得（設定ファイルまたはインタラクティブ選択）
   const projectId = await selectProject(vibeKanban, issueNumber);
 
+  // REST APIクライアント初期化（サブIssue作成に必要）
+  const restPort = VibeKanbanRestClient.discoverPort();
+  if (!restPort) {
+    console.error("❌ Vibe-Kanban REST API のポートが見つかりません");
+    process.exit(1);
+  }
+  const restClient = new VibeKanbanRestClient(restPort);
+
+  // REST API Capability Probe
+  const restAvailable = await restClient.probeCapability();
+  if (!restAvailable) {
+    console.warn(
+      "⚠️ Vibe-Kanban REST API (/api/remote/issues) が利用できません。サブIssue機能が制限されます。"
+    );
+  } else {
+    console.log("✅ Vibe-Kanban REST API 利用可能");
+  }
+
   // タスク状態マネージャー初期化
   const stateManager = new TaskStateManager();
 
@@ -212,6 +237,33 @@ export async function taskLoopCommand(
     descriptionCache
   );
 
+  // Phase毎に親Issue初期化
+  console.log("\n📌 Phase 親Issue を初期化中...");
+  for (const phase of parsedIssue.phases) {
+    const parentTitle = generateParentIssueTitle(phase, issueNumber);
+
+    // 既存チェック（再開サポート: 同一タイトルの既存親Issueを検索）
+    const existingParent = existingTasks.find(
+      (t) => t.title === parentTitle && t.status !== "cancelled"
+    );
+
+    if (existingParent) {
+      console.log(`   📌 既存の親Issueを使用: Phase ${phase.number} → ${existingParent.id}`);
+      stateManager.registerPhaseMapping(phase.number, {
+        phaseNumber: phase.number,
+        parentIssueId: existingParent.id,
+      });
+    } else {
+      const parentDesc = generateParentIssueDescription(phase, issueNumber);
+      const parentIssueId = await vibeKanban.createParentIssue(projectId, parentTitle, parentDesc);
+      console.log(`   ✅ 親Issue作成: Phase ${phase.number} → ${parentIssueId}`);
+      stateManager.registerPhaseMapping(phase.number, {
+        phaseNumber: phase.number,
+        parentIssueId,
+      });
+    }
+  }
+
   try {
     // 初期化: 着手可能なタスクを全部 Doing に移す
     console.log("\n🔍 着手可能なタスクを選定中...");
@@ -223,7 +275,8 @@ export async function taskLoopCommand(
       baseBranch,
       projectId,
       vibeKanban,
-      stateManager
+      stateManager,
+      restClient
     );
 
     // メインループ
@@ -240,9 +293,12 @@ export async function taskLoopCommand(
       const totalDoneTasks = currentTasks.filter((t) => t.status === "done").length;
       console.log(`   📊 Done: ${doneTasks.length}件 (対象Issue) / ${totalDoneTasks}件 (全体)`);
 
+      // 親Issueを除外してサブIssueのみDone検知（リスク#3 対策: IDベース）
+      const subIssueTasks = currentTasks.filter((t) => !stateManager.isParentIssue(t.id));
+
       // Done 増加を検知
       const newlyCompletedVibeTaskIds = stateManager.detectNewlyCompletedTasks(
-        currentTasks,
+        subIssueTasks,
         descriptionCache
       );
 
@@ -259,6 +315,15 @@ export async function taskLoopCommand(
           completedTaskGroupIds
         );
 
+        // Phase完了チェック & ハンドリング
+        await checkAndHandlePhaseCompletion(
+          parsedIssue,
+          issueNumber,
+          issueBranch,
+          vibeKanban,
+          stateManager
+        );
+
         // 新たに着手可能になったタスクを開始
         await startExecutableTasks(
           parsedIssue,
@@ -268,7 +333,8 @@ export async function taskLoopCommand(
           baseBranch,
           projectId,
           vibeKanban,
-          stateManager
+          stateManager,
+          restClient
         );
       }
 
@@ -299,6 +365,7 @@ const mergedPhaseNumbers = new Set<number>();
 
 /**
  * 完了した Phase を Issue ブランチにマージ
+ * 将来的なフォールバック用として残す
  */
 async function mergeCompletedPhases(
   parsedIssue: ParsedIssue,
@@ -324,6 +391,98 @@ async function mergeCompletedPhases(
 }
 
 /**
+ * Phase完了を検出し、親Issue Workspace作成 → PR作成・マージ → 親Issue Done 待機を実行
+ */
+async function checkAndHandlePhaseCompletion(
+  parsedIssue: ParsedIssue,
+  issueNumber: number,
+  issueBranch: string,
+  vibeKanban: VibeKanbanClient,
+  stateManager: TaskStateManager
+): Promise<void> {
+  const completedPhases = getCompletedPhaseNumbers(parsedIssue);
+
+  for (const phaseNumber of completedPhases) {
+    if (mergedPhaseNumbers.has(phaseNumber)) {
+      continue;
+    }
+
+    const mapping = stateManager.getParentIssueMapping(phaseNumber);
+    if (!mapping) {
+      console.warn(`   ⚠️ Phase ${phaseNumber} の親Issueマッピングが見つかりません`);
+      continue;
+    }
+
+    console.log(`\n🎯 Phase ${phaseNumber} が完了 - Phase完了処理を開始`);
+
+    // Step 1: 親Issue用Workspace作成（target = issue/N）
+    //   → Vibe-KanbanがPRマージを追跡できるように
+    try {
+      const repos = await vibeKanban.listRepos();
+      const reposWithIssueBranch = repos.map((repo) => ({
+        repo_id: repo.id,
+        base_branch: issueBranch,
+      }));
+
+      await vibeKanban.startTaskAttempt(
+        `[Issue${issueNumber} Phase${phaseNumber}] Phase merge`,
+        "CLAUDE_CODE",
+        reposWithIssueBranch,
+        mapping.parentIssueId
+      );
+      console.log(`   ✅ 親Issue Workspace作成完了: Phase ${phaseNumber}`);
+    } catch (error) {
+      console.warn(`   ⚠️ 親Issue Workspace作成失敗: ${error}`);
+      // Workspace作成失敗でもマージは続行
+    }
+
+    // Step 2: PR作成・自動マージ
+    try {
+      await mergePhaseBranchIntoIssue(issueNumber, phaseNumber, issueBranch);
+      mergedPhaseNumbers.add(phaseNumber);
+      console.log(`   ✅ Phase ${phaseNumber} マージ完了`);
+    } catch (error) {
+      console.error(`   ❌ Phase ${phaseNumber} のマージに失敗:`, error);
+      throw error;
+    }
+
+    // Step 3: 親Issue自動Done待機
+    //   → Vibe-KanbanがPRマージ検知して自動Doneにするのを待つ
+    //   → タイムアウト時はフォールバックで手動Done
+    await waitForParentIssueDone(vibeKanban, mapping.parentIssueId, phaseNumber);
+  }
+}
+
+/**
+ * 親IssueのDone状態を待機（タイムアウト付きフォールバック）
+ */
+async function waitForParentIssueDone(
+  vibeKanban: VibeKanbanClient,
+  parentIssueId: string,
+  phaseNumber: number
+): Promise<void> {
+  const start = Date.now();
+
+  while (Date.now() - start < PARENT_DONE_TIMEOUT_MS) {
+    const issue = await vibeKanban.getTask(parentIssueId);
+    if (issue?.status === "done") {
+      console.log(`   ✅ 親Issue Done確認: Phase ${phaseNumber}`);
+      return;
+    }
+    await sleep(15_000);
+  }
+
+  // タイムアウト: 手動でDoneに更新
+  console.warn(`   ⚠️ 親Issue Phase ${phaseNumber} の自動Done検知がタイムアウト。手動更新します。`);
+  try {
+    await vibeKanban.updateTask(parentIssueId, "done");
+    console.log(`   ✅ 親Issue 手動Done完了: Phase ${phaseNumber}`);
+  } catch (error) {
+    console.error(`   ❌ 親Issue Done更新失敗: Phase ${phaseNumber}`, error);
+  }
+}
+
+/**
  * 着手可能なタスクを Vibe-Kanban に登録して実行開始
  */
 async function startExecutableTasks(
@@ -334,11 +493,9 @@ async function startExecutableTasks(
   baseBranch: string,
   projectId: string,
   vibeKanban: VibeKanbanClient,
-  stateManager: TaskStateManager
+  stateManager: TaskStateManager,
+  restClient: VibeKanbanRestClient
 ): Promise<void> {
-  // 完了した Phase を Issue ブランチにマージ（新しい Phase のタスク開始前に実行）
-  await mergeCompletedPhases(parsedIssue, issueNumber, issueBranch);
-
   // 着手可能なタスクグループを選定
   const executableGroups = await selectExecutableTaskGroups(parsedIssue, maxTaskNumber);
 
@@ -398,9 +555,23 @@ async function startExecutableTasks(
     // タスク開始前に Phase ブランチを同期（リモートの最新を取得）
     await syncPhaseBranch(issueNumber, taskGroup.phaseNumber, issueBranch, baseBranch);
 
-    // タスク作成
-    console.log(`   📌 タスク作成: ${taskGroup.id} - ${taskGroup.name}`);
-    const taskId = await vibeKanban.createTask(projectId, title, description);
+    // サブIssue作成（親Issueの子として）
+    const phaseMapping = stateManager.getParentIssueMapping(taskGroup.phaseNumber);
+    if (!phaseMapping) {
+      console.error(`   ❌ Phase ${taskGroup.phaseNumber} の親Issueマッピングが見つかりません`);
+      continue;
+    }
+
+    console.log(
+      `   📌 サブIssue作成: ${taskGroup.id} - ${taskGroup.name} (parent: Phase ${taskGroup.phaseNumber})`
+    );
+    const taskId = await vibeKanban.createSubIssue(
+      projectId,
+      phaseMapping.parentIssueId,
+      title,
+      description,
+      restClient
+    );
 
     // マッピング登録
     stateManager.registerTaskMapping(taskId, taskGroup.id);

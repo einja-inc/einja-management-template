@@ -12,23 +12,33 @@ concurrency:
   group: pr-preview-${{ github.event.number }}
   cancel-in-progress: true
 
-env:
-  # 環境変数フィルタ（ブラックリスト：除外対象を指定）
-  # DOTENV_*, NEON_*, NODE_ENV, VERCEL_*, DATABASE_* はVercelに同期しない
-  # DATABASE_URLはNeonブランチURLを--envで注入するため除外
-  ENV_VAR_EXCLUDE: "^(DOTENV_|NEON_|NODE_ENV$|VERCEL_|DATABASE_)"
-
 jobs:
-  # CI チェック
+  # CI チェック（PostgreSQLサービスコンテナ付き）
   ci:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/ci
+        with:
+          database-url: postgresql://postgres:postgres@localhost:5432/test_db
 
   # Neon Branch作成 + スキーマ同期 + シード
   neon-and-schema:
@@ -102,7 +112,7 @@ jobs:
           # 1日間アクセスがなければサスペンド（コスト削減）
           suspend_timeout: 86400
 
-      # 2.5. DB URLの解決（ブランチ再利用時のフォールバック対応）
+      # 2.5. DB URLの解決（connection_uri API方式）
       - name: Resolve DB URLs
         id: resolve-db
         run: |
@@ -113,21 +123,21 @@ jobs:
             echo "::notice::Branch was reused — fetching DB URLs from Neon API..."
             BRANCH_ID="${{ steps.create-branch.outputs.branch_id }}"
 
-            ENDPOINTS=$(curl -s \
-              "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/branches/$BRANCH_ID/endpoints" \
+            # connection_uri APIで直接URL取得（sed不要）
+            DB_URL=$(curl -s \
+              "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=false&database_name=neondb" \
               -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
-              -H "Accept: application/json")
+              -H "Accept: application/json" | jq -r '.uri')
 
-            HOST=$(echo "$ENDPOINTS" | jq -r '.endpoints[0].host')
-            if [ -z "$HOST" ] || [ "$HOST" = "null" ]; then
-              echo "::error::Failed to resolve DB host from Neon API"
+            DB_URL_POOLED=$(curl -s \
+              "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=true&database_name=neondb" \
+              -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
+              -H "Accept: application/json" | jq -r '.uri')
+
+            if [ -z "$DB_URL" ] || [ "$DB_URL" = "null" ] || [ -z "$DB_URL_POOLED" ] || [ "$DB_URL_POOLED" = "null" ]; then
+              echo "::error::Failed to resolve DB URLs from Neon API"
               exit 1
             fi
-
-            # Neonの接続文字列を構築（-pooler. をホスト名に挿入してプーリングURL生成）
-            DB_URL="postgres://${HOST}/neondb?sslmode=require"
-            POOLER_HOST=$(echo "$HOST" | sed 's/\./-pooler./')
-            DB_URL_POOLED="postgres://${POOLER_HOST}/neondb?sslmode=require"
           fi
 
           # ログへの漏洩を防止
@@ -146,7 +156,7 @@ jobs:
 
       # 3. スキーマ同期 + シード（直接接続）
       - name: Push Schema
-        run: pnpm db:push
+        run: pnpm db:push -- --accept-data-loss
         env:
           DATABASE_URL: ${{ steps.resolve-db.outputs.db_url }}
 
@@ -178,26 +188,27 @@ jobs:
         with:
           dotenv-private-key-preview: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
 
-      # Neon APIからDB URLを取得（add-maskジョブ境界問題の回避）
+      # Neon APIからDB URLを取得（connection_uri API方式）
       - name: Fetch DB URLs from Neon API
         id: db-urls
         run: |
           BRANCH_ID="${{ needs.neon-and-schema.outputs.branch_id }}"
 
-          ENDPOINTS=$(curl -s \
-            "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/branches/$BRANCH_ID/endpoints" \
+          # connection_uri APIで直接URL取得
+          DB_URL=$(curl -s \
+            "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=false&database_name=neondb" \
             -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
-            -H "Accept: application/json")
+            -H "Accept: application/json" | jq -r '.uri')
 
-          HOST=$(echo "$ENDPOINTS" | jq -r '.endpoints[0].host')
-          if [ -z "$HOST" ] || [ "$HOST" = "null" ]; then
-            echo "::error::Failed to resolve DB host from Neon API"
+          DB_URL_POOLED=$(curl -s \
+            "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=true&database_name=neondb" \
+            -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
+            -H "Accept: application/json" | jq -r '.uri')
+
+          if [ -z "$DB_URL" ] || [ "$DB_URL" = "null" ] || [ -z "$DB_URL_POOLED" ] || [ "$DB_URL_POOLED" = "null" ]; then
+            echo "::error::Failed to resolve DB URLs from Neon API"
             exit 1
           fi
-
-          DB_URL="postgres://${HOST}/neondb?sslmode=require"
-          POOLER_HOST=$(echo "$HOST" | sed 's/\./-pooler./')
-          DB_URL_POOLED="postgres://${POOLER_HOST}/neondb?sslmode=require"
 
           echo "::add-mask::$DB_URL"
           echo "::add-mask::$DB_URL_POOLED"
@@ -210,6 +221,13 @@ jobs:
             echo "$DB_URL_POOLED"
             echo "NEON_EOF"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Validate DATABASE_URL
+        run: |
+          if [ -z "${{ steps.db-urls.outputs.db_url_pooled }}" ]; then
+            echo "::error::DATABASE_URL is empty. Neon API may have failed."
+            exit 1
+          fi
 
       - name: Resolve Vercel Project ID
         id: resolve
@@ -243,16 +261,23 @@ jobs:
             echo "name=$PROJECT_NAME" >> $GITHUB_OUTPUT
           fi
 
-      # Vercel環境変数の自動同期（ブラックリスト除外方式）
+      # Vercel環境変数の自動同期（encrypted-only方式：dotenvxで管理しているもの = Vercelに同期すべきもの）
       - name: Sync environment variables to Vercel
         run: |
-          npx dotenvx run -f $GITHUB_WORKSPACE/.env.preview -- bash -c '
-            env | grep -vE "${{ env.ENV_VAR_EXCLUDE }}" | while IFS="=" read -r key value; do
-              echo "Syncing $key to Vercel (preview)..."
-              echo "$value" | vercel env rm "$key" preview --yes --token=$VERCEL_TOKEN 2>/dev/null || true
-              echo "$value" | vercel env add "$key" preview --token=$VERCEL_TOKEN
+          # .env.previewから encrypted: を含むキー名を抽出
+          # NEON_*とDATABASE_*を除外（Neon APIから動的取得・--envで注入するため）
+          ENCRYPTED_KEYS=$(grep 'encrypted:' $GITHUB_WORKSPACE/.env.preview | sed 's/=.*//' | grep -vE '^(NEON_|DATABASE_)')
+
+          npx dotenvx run -f $GITHUB_WORKSPACE/.env.preview -- bash -c "
+            for key in $ENCRYPTED_KEYS; do
+              value=\$(printenv \"\$key\" 2>/dev/null || true)
+              if [ -n \"\$value\" ]; then
+                echo \"Syncing \$key to Vercel (preview)...\"
+                echo \"\$value\" | vercel env rm \"\$key\" preview --yes --token=\$VERCEL_TOKEN 2>/dev/null || true
+                echo \"\$value\" | vercel env add \"\$key\" preview --token=\$VERCEL_TOKEN
+              fi
             done
-          '
+          "
         env:
           DOTENV_PRIVATE_KEY_PREVIEW: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
 

@@ -8,15 +8,23 @@ concurrency:
   group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
-env:
-  # 環境変数フィルタ（ブラックリスト：除外対象を指定）
-  # DOTENV_*, NODE_ENV, VERCEL_* はVercelに同期しない
-  # DATABASE_URLを含む全アプリ変数を同期するため、DATABASE_は除外しない
-  ENV_VAR_EXCLUDE: "^(DOTENV_|NODE_ENV$|VERCEL_)"
-
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
@@ -25,6 +33,8 @@ jobs:
 
       - name: Run CI checks
         uses: ./.github/actions/ci
+        with:
+          database-url: postgresql://postgres:postgres@localhost:5432/test_db
 
   # 変更検知
   changes:
@@ -71,62 +81,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ブランチ判定 — 環境変数を $GITHUB_ENV に書き出す
-      - name: Determine environment
-        run: |
-          BRANCH="${GITHUB_REF##*/}"
-          case "$BRANCH" in
-            main)
-              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.production" >> $GITHUB_ENV
-              echo "DEPLOY_DOTENV_KEY=DOTENV_PRIVATE_KEY_PRODUCTION" >> $GITHUB_ENV
-              echo "DEPLOY_VERCEL_ENV=production" >> $GITHUB_ENV
-              echo "DEPLOY_PROD_FLAG=--prod" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_MIGRATION=true" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_SEED=false" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_ALIAS=false" >> $GITHUB_ENV
-              ;;
-            develop)
-              # NOTE: migrateジョブはif条件(main/staging)でdevelopをスキップするため実行されない
-              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.develop" >> $GITHUB_ENV
-              echo "DEPLOY_DOTENV_KEY=DOTENV_PRIVATE_KEY_DEVELOP" >> $GITHUB_ENV
-              echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
-              echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_MIGRATION=true" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_SEED=true" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
-              ;;
-            staging)
-              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.staging" >> $GITHUB_ENV
-              echo "DEPLOY_DOTENV_KEY=DOTENV_PRIVATE_KEY_STAGING" >> $GITHUB_ENV
-              echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
-              echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_MIGRATION=true" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_SEED=false" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
-              ;;
-          esac
-          echo "Branch: $BRANCH, Environment: $(cat $GITHUB_ENV | grep DEPLOY_VERCEL_ENV)"
-
-      # dotenvx復号キーを $GITHUB_ENV に設定
-      # secrets[<動的キー>] は env: ブロックのキー側では使えないため、
-      # 明示的に各ブランチのキーを設定する
-      - name: Set dotenvx private key
-        run: |
-          if [ "$DEPLOY_DOTENV_KEY" = "DOTENV_PRIVATE_KEY_PRODUCTION" ]; then
-            echo "DOTENV_PRIVATE_KEY=${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}" >> $GITHUB_ENV
-          elif [ "$DEPLOY_DOTENV_KEY" = "DOTENV_PRIVATE_KEY_DEVELOP" ]; then
-            echo "DOTENV_PRIVATE_KEY=${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}" >> $GITHUB_ENV
-          elif [ "$DEPLOY_DOTENV_KEY" = "DOTENV_PRIVATE_KEY_STAGING" ]; then
-            echo "DOTENV_PRIVATE_KEY=${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}" >> $GITHUB_ENV
-          fi
-
-      # DB操作（マイグレーション + オプションでシード）
-      - name: Run database migration
+      # main: production環境マイグレーション（シード無効）
+      - name: Migrate production
+        if: github.ref_name == 'main'
         uses: ./.github/actions/migrate
         with:
-          dotenv-file: ${{ env.DEPLOY_DOTENV_FILE }}
-          dotenv-private-key: ${{ env.DOTENV_PRIVATE_KEY }}
-          run-seed: ${{ env.DEPLOY_RUN_SEED }}
+          dotenv-file: ${{ github.workspace }}/.env.production
+          dotenv-private-key: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+          run-seed: 'false'
+
+      # staging: ステージング環境マイグレーション（シード無効）
+      - name: Migrate staging
+        if: github.ref_name == 'staging'
+        uses: ./.github/actions/migrate
+        with:
+          dotenv-file: ${{ github.workspace }}/.env.staging
+          dotenv-private-key: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+          run-seed: 'false'
 
   # Web/Adminデプロイ（並列実行・変更検知付き）
   deploy:
@@ -235,17 +206,23 @@ jobs:
         if: steps.check.outputs.should_deploy == 'true'
         run: vercel pull --yes --environment=${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
 
-      # Vercel環境変数の自動同期（ブラックリスト除外方式・dotenvxファイルがSingle Source of Truth）
+      # Vercel環境変数の自動同期（encrypted-only方式：dotenvxで管理しているもの = Vercelに同期すべきもの）
       - name: Sync environment variables to Vercel
         if: steps.check.outputs.should_deploy == 'true'
         run: |
-          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
-            env | grep -vE "${{ env.ENV_VAR_EXCLUDE }}" | while IFS="=" read -r key value; do
-              echo "Syncing $key to Vercel (${{ env.DEPLOY_VERCEL_ENV }})..."
-              echo "$value" | vercel env rm "$key" ${{ env.DEPLOY_VERCEL_ENV }} --yes --token=$VERCEL_TOKEN 2>/dev/null || true
-              echo "$value" | vercel env add "$key" ${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
+          # dotenvxファイルから encrypted: を含むキー名を抽出
+          ENCRYPTED_KEYS=$(grep 'encrypted:' ${{ env.DEPLOY_DOTENV_FILE }} | sed 's/=.*//')
+
+          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c "
+            for key in $ENCRYPTED_KEYS; do
+              value=\$(printenv \"\$key\" 2>/dev/null || true)
+              if [ -n \"\$value\" ]; then
+                echo \"Syncing \$key to Vercel (${{ env.DEPLOY_VERCEL_ENV }})...\"
+                echo \"\$value\" | vercel env rm \"\$key\" ${{ env.DEPLOY_VERCEL_ENV }} --yes --token=\$VERCEL_TOKEN 2>/dev/null || true
+                echo \"\$value\" | vercel env add \"\$key\" ${{ env.DEPLOY_VERCEL_ENV }} --token=\$VERCEL_TOKEN
+              fi
             done
-          '
+          "
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
           DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}

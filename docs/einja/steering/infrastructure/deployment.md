@@ -176,9 +176,12 @@ flowchart TB
 
     subgraph "ci/action.yml"
         C1[setup action 呼び出し] --> C2[pnpm generate]
-        C2 --> C3[pnpm typecheck]
+        C2 --> C2B{database-url?}
+        C2B -->|あり| C2C[db:migrate:deploy]
+        C2B -->|なし| C3
+        C2C --> C3[pnpm typecheck]
         C3 --> C4[pnpm lint]
-        C4 --> C5[pnpm test]
+        C4 --> C5[pnpm test<br/>DATABASE_URL]
     end
 
     subgraph "migrate/action.yml"
@@ -197,7 +200,7 @@ flowchart TB
 | Action | ファイル | 内容 | 呼び出し元 |
 |--------|---------|------|-----------|
 | **Setup** | `actions/setup/action.yml` | pnpm + Node.js + install | ci action, migrate action, cleanup |
-| **CI** | `actions/ci/action.yml` | setup → generate → typecheck → lint → test | deploy-stable-branches, deploy-pr-preview |
+| **CI** | `actions/ci/action.yml` | setup → generate → [migrate] → typecheck → lint → test | deploy-stable-branches, deploy-pr-preview |
 | **Migrate** | `actions/migrate/action.yml` | setup → generate → migrate → seed (optional) | deploy-stable-branches |
 | **Neon Export Env** | `actions/neon-export-env/action.yml` | .env.previewからNeon環境変数をエクスポート | deploy-pr-preview, cleanup-pr-preview-on-close |
 
@@ -231,30 +234,31 @@ sequenceDiagram
     GH->>Actions: deploy-pr-preview トリガー
 
     rect rgb(240, 248, 255)
-        Note over Actions,CI: CI Checks
-        Actions->>CI: ci action 呼び出し
+        Note over Actions,CI: CI Checks（PostgreSQLサービスコンテナ付き）
+        Actions->>CI: ci action 呼び出し (database-url付き)
         CI->>CI: setup (pnpm + Node.js)
         CI->>CI: pnpm generate
+        CI->>CI: db:migrate:deploy (テスト用DB)
         CI->>CI: pnpm typecheck
         CI->>CI: pnpm lint
-        CI->>CI: pnpm test
+        CI->>CI: pnpm test (DATABASE_URL付き)
         CI-->>Actions: CI完了
     end
 
     rect rgb(255, 248, 240)
-        Note over Actions,Neon: Neon Branch 作成
+        Note over Actions,Neon: Neon Branch 作成（connection_uri API方式）
         Actions->>Actions: dotenvx で NEON_API_KEY 取得
         Actions->>Actions: pnpm generate (Prisma Client生成)
         Actions->>Neon: preview/pr-{番号} ブランチ作成
-        Neon-->>Actions: DB URL (direct + pooled)
-        Actions->>Neon: pnpm db:push (スキーマ同期)
+        Neon-->>Actions: DB URL (connection_uri APIから取得)
+        Actions->>Neon: pnpm db:push --accept-data-loss (スキーマ同期)
         Actions->>Neon: pnpm db:seed (データ投入)
     end
 
     rect rgb(240, 255, 240)
         Note over Actions,Vercel: Vercel デプロイ
         Actions->>Vercel: vercel pull
-        Actions->>Vercel: 環境変数同期 (ブラックリスト除外)
+        Actions->>Vercel: 環境変数同期 (encrypted-only)
         Actions->>Vercel: vercel build (DATABASE_URL=pooled)
         Actions->>Vercel: vercel deploy --prebuilt
         Vercel-->>Actions: Preview URL
@@ -279,20 +283,21 @@ sequenceDiagram
     GH->>Actions: deploy-stable-branches トリガー
 
     rect rgb(240, 248, 255)
-        Note over Actions,CI: CI Checks
-        Actions->>CI: ci action 呼び出し
+        Note over Actions,CI: CI Checks（PostgreSQLサービスコンテナ付き）
+        Actions->>CI: ci action 呼び出し (database-url付き)
         CI->>CI: setup (pnpm + Node.js)
         CI->>CI: pnpm generate
+        CI->>CI: db:migrate:deploy (テスト用DB)
         CI->>CI: pnpm typecheck
         CI->>CI: pnpm lint
-        CI->>CI: pnpm test
+        CI->>CI: pnpm test (DATABASE_URL付き)
         CI-->>Actions: CI完了
     end
 
     Actions->>Actions: ブランチ判定 (環境変数セット)
 
     rect rgb(255, 248, 240)
-        Note over Actions,Neon: DB マイグレーション (main/stagingのみ)
+        Note over Actions,Neon: DB マイグレーション (main/stagingのみ・if分岐方式)
         Actions->>Neon: pnpm db:migrate:deploy
     end
 
@@ -303,7 +308,7 @@ sequenceDiagram
     rect rgb(240, 255, 240)
         Note over Actions,Vercel: Vercel デプロイ
         Actions->>Vercel: vercel pull
-        Actions->>Vercel: 環境変数同期 (ブラックリスト除外)
+        Actions->>Vercel: 環境変数同期 (encrypted-only)
         Actions->>Vercel: vercel pull (Re-pull: 同期後の最新化)
         Actions->>Vercel: vercel build [--prod]
         Actions->>Vercel: vercel deploy --prebuilt [--prod]
@@ -521,14 +526,14 @@ flowchart TD
 
 ### Vercel環境変数の自動同期
 
-ワークフローは `ENV_VAR_EXCLUDE` ブラックリスト正規表現で**同期対象外**を制御:
+ワークフローは **encrypted-only方式** で同期対象を制御:
 
-| ワークフロー | 除外フィルタ | 説明 |
-|------------|-----------|------|
-| PR Preview | `^(DOTENV_\|NEON_\|NODE_ENV$\|VERCEL_)` | DOTENV/Neon/Vercel内部変数を除外。DATABASE_URLはNeonブランチURLを`--env`で注入するため別途除外 |
-| Stable Branches | `^(DOTENV_\|NODE_ENV$\|VERCEL_)` | DOTENV/Vercel内部変数を除外。DATABASE_URL含む全アプリ変数を同期 |
+| ワークフロー | 同期対象 | 除外 | 説明 |
+|------------|---------|------|------|
+| PR Preview | `.env.preview` 内の `encrypted:` キー | `NEON_*`, `DATABASE_*` | dotenvxで管理しているもの = Vercelに同期すべきもの |
+| Stable Branches | `.env.{env}` 内の `encrypted:` キー | なし | dotenvxで管理している全キーを同期 |
 
-**設計意図**: ホワイトリスト方式だと新しい環境変数追加時にフィルタ更新漏れが発生するため、ブラックリスト方式を採用。
+**設計意図**: dotenvxの暗号化ファイル内の `encrypted:` を含む行のキー名のみを対象とし、「dotenvxで管理 = Vercelに同期」の意図を明確にする。ブラックリスト方式（全env走査）ではシステム変数混入や新変数追加時の漏れリスクがあるため廃止。
 
 ---
 
@@ -574,6 +579,7 @@ flowchart TD
 | タスク | キャッシュ | 理由 |
 |--------|----------|------|
 | build | ✅ | ビルド成果物を再利用 |
+| generate | ✅ | `src/__generated__/**` をキャッシュ（outputs定義） |
 | lint | ✅ | ソースコード未変更時はスキップ |
 | typecheck | ✅ | 型定義未変更時はスキップ |
 | test | ✅ | テストコード・対象未変更時はスキップ |

@@ -35,7 +35,7 @@ import {
   generateVibeKanbanDescription,
   generateVibeKanbanTitle,
 } from "./lib/task-state-manager.js";
-import type { ParsedIssue } from "./lib/types.js";
+import type { ParsedIssue, VibeKanbanRepo } from "./lib/types.js";
 import { VibeKanbanClient } from "./lib/vibe-kanban-client.js";
 import { VibeKanbanRestClient } from "./lib/vibe-kanban-rest-client.js";
 import { getWorktreePathByAttemptId, runDirenvAllow } from "./lib/worktree-utils.js";
@@ -143,6 +143,30 @@ export async function taskLoopCommand(
   // Vibe-Kanban 接続
   const vibeKanban = new VibeKanbanClient();
   await vibeKanban.connect();
+
+  // Vibe-Kanban に登録済みのリポジトリから現在のリポジトリを特定
+  const allRepos = await vibeKanban.listRepos();
+  const normalize = (name: string) =>
+    name
+      .toLowerCase()
+      .replace(/\.git$/, "")
+      .split("/")
+      .pop() ?? "";
+  const normalizedRepoName = normalize(repoInfo.name);
+  const matchedRepos = allRepos.filter((repo) => normalize(repo.name) === normalizedRepoName);
+
+  if (matchedRepos.length === 0) {
+    console.error(`❌ Vibe-Kanbanにリポジトリ "${repoInfo.name}" が見つかりません`);
+    console.error(`   登録済みリポジトリ: ${allRepos.map((r) => r.name).join(", ")}`);
+    process.exit(1);
+  }
+  if (matchedRepos.length > 1) {
+    console.error(`❌ リポジトリ "${repoInfo.name}" に複数の候補が見つかりました`);
+    console.error(`   候補: ${matchedRepos.map((r) => `${r.name} (${r.id})`).join(", ")}`);
+    process.exit(1);
+  }
+  const currentRepo = matchedRepos[0];
+  console.log(`✅ リポジトリ: ${currentRepo.name} (${currentRepo.id})`);
 
   // プロジェクト ID 取得（設定ファイルまたはインタラクティブ選択）
   const projectId = await selectProject(vibeKanban, issueNumber);
@@ -276,7 +300,8 @@ export async function taskLoopCommand(
       projectId,
       vibeKanban,
       stateManager,
-      restClient
+      restClient,
+      currentRepo
     );
 
     // メインループ
@@ -321,7 +346,8 @@ export async function taskLoopCommand(
           issueNumber,
           issueBranch,
           vibeKanban,
-          stateManager
+          stateManager,
+          currentRepo
         );
 
         // 新たに着手可能になったタスクを開始
@@ -334,7 +360,8 @@ export async function taskLoopCommand(
           projectId,
           vibeKanban,
           stateManager,
-          restClient
+          restClient,
+          currentRepo
         );
       }
 
@@ -398,7 +425,8 @@ async function checkAndHandlePhaseCompletion(
   issueNumber: number,
   issueBranch: string,
   vibeKanban: VibeKanbanClient,
-  stateManager: TaskStateManager
+  stateManager: TaskStateManager,
+  currentRepo: VibeKanbanRepo
 ): Promise<void> {
   const completedPhases = getCompletedPhaseNumbers(parsedIssue);
 
@@ -418,11 +446,7 @@ async function checkAndHandlePhaseCompletion(
     // Step 1: 親Issue用Workspace作成（target = issue/N）
     //   → Vibe-KanbanがPRマージを追跡できるように
     try {
-      const repos = await vibeKanban.listRepos();
-      const reposWithIssueBranch = repos.map((repo) => ({
-        repo_id: repo.id,
-        base_branch: issueBranch,
-      }));
+      const reposWithIssueBranch = [{ repo_id: currentRepo.id, base_branch: issueBranch }];
 
       await vibeKanban.startTaskAttempt(
         `[Issue${issueNumber} Phase${phaseNumber}] Phase merge`,
@@ -494,7 +518,8 @@ async function startExecutableTasks(
   projectId: string,
   vibeKanban: VibeKanbanClient,
   stateManager: TaskStateManager,
-  restClient: VibeKanbanRestClient
+  restClient: VibeKanbanRestClient,
+  currentRepo: VibeKanbanRepo
 ): Promise<void> {
   // 着手可能なタスクグループを選定
   const executableGroups = await selectExecutableTaskGroups(parsedIssue, maxTaskNumber);
@@ -536,9 +561,6 @@ async function startExecutableTasks(
       existingTaskGroupIdsForThisIssue.add(taskGroupId);
     }
   }
-
-  // リポジトリ情報を取得（startTaskAttempt に必要）
-  const repos = await vibeKanban.listRepos();
 
   // 各タスクグループを Vibe-Kanban に登録
   for (const taskGroup of executableGroups) {
@@ -582,10 +604,7 @@ async function startExecutableTasks(
     // タスク実行開始（Phase ブランチをベースに使用）
     const phaseBranch = getPhaseBranchNameNew(issueNumber, taskGroup.phaseNumber);
     try {
-      const reposWithBranch = repos.map((repo) => ({
-        repo_id: repo.id,
-        base_branch: phaseBranch,
-      }));
+      const reposWithBranch = [{ repo_id: currentRepo.id, base_branch: phaseBranch }];
       const attempt = await vibeKanban.startTaskAttempt(
         title,
         "CLAUDE_CODE",

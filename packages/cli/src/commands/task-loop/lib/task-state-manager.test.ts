@@ -2,11 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   TaskStateManager,
   extractIssueNumberFromTitle,
+  extractPhaseNumberFromTitle,
   extractTaskGroupIdFromTitle,
+  generateParentIssueDescription,
+  generateParentIssueTitle,
   generateVibeKanbanDescription,
   generateVibeKanbanTitle,
 } from "./task-state-manager.js";
-import type { TaskGroup, VibeKanbanTask } from "./types.js";
+import type { Phase, PhaseIssueMapping, TaskGroup, VibeKanbanTask } from "./types.js";
 
 // 外部依存をモック
 vi.mock("./github-client.js", () => ({
@@ -526,6 +529,17 @@ describe("TaskStateManager", () => {
       // Then: 123が抽出される
       expect(result).toBe(123);
     });
+
+    it("'[Issue22 Phase1] Phase名'形式（親Issue）からIssue番号22を抽出する", () => {
+      // Given: 親Issue形式のタイトル
+      const title = "[Issue22 Phase1] Phase名";
+
+      // When: Issue番号を抽出
+      const result = extractIssueNumberFromTitle(title);
+
+      // Then: 22が抽出される
+      expect(result).toBe(22);
+    });
   });
 
   describe("generateVibeKanbanTitle", () => {
@@ -671,6 +685,302 @@ describe("TaskStateManager", () => {
       expect(result).toContain("## 🚀 最初に実行するコマンド");
       expect(result).toContain("```");
       expect(result).toContain("/task-exec #45 2.3");
+    });
+  });
+
+  describe("registerPhaseMapping", () => {
+    it("registerPhaseMappingでマッピング登録すると、getParentIssueMappingで取得できる", () => {
+      // Given: Phase番号とマッピング情報
+      const phaseNumber = 1;
+      const mapping: PhaseIssueMapping = {
+        phaseNumber: 1,
+        parentIssueId: "parent-issue-uuid-1",
+      };
+
+      // When: マッピングを登録
+      manager.registerPhaseMapping(phaseNumber, mapping);
+
+      // Then: 登録したマッピングが取得できる
+      const result = manager.getParentIssueMapping(phaseNumber);
+      expect(result).toEqual(mapping);
+    });
+
+    it("同一Phase番号で再登録すると上書きされる", () => {
+      // Given: 既に登録されているPhase1のマッピング
+      const phaseNumber = 1;
+      const originalMapping: PhaseIssueMapping = {
+        phaseNumber: 1,
+        parentIssueId: "original-uuid",
+      };
+      manager.registerPhaseMapping(phaseNumber, originalMapping);
+
+      // When: 同じPhase番号で別のマッピングを登録
+      const newMapping: PhaseIssueMapping = {
+        phaseNumber: 1,
+        parentIssueId: "new-uuid",
+      };
+      manager.registerPhaseMapping(phaseNumber, newMapping);
+
+      // Then: 新しいマッピングで上書きされる
+      const result = manager.getParentIssueMapping(phaseNumber);
+      expect(result).toEqual(newMapping);
+      expect(result?.parentIssueId).toBe("new-uuid");
+
+      // Then: 古いIDはisParentIssueでfalseを返す（孤立ID防止）
+      expect(manager.isParentIssue("original-uuid")).toBe(false);
+
+      // Then: 新しいIDはisParentIssueでtrueを返す
+      expect(manager.isParentIssue("new-uuid")).toBe(true);
+    });
+
+    it("複数Phaseのマッピングを登録すると全て保存される", () => {
+      // Given: 複数のPhaseマッピング
+      const mapping1: PhaseIssueMapping = { phaseNumber: 1, parentIssueId: "uuid-phase1" };
+      const mapping2: PhaseIssueMapping = { phaseNumber: 2, parentIssueId: "uuid-phase2" };
+      const mapping3: PhaseIssueMapping = { phaseNumber: 3, parentIssueId: "uuid-phase3" };
+
+      // When: 複数のマッピングを登録
+      manager.registerPhaseMapping(1, mapping1);
+      manager.registerPhaseMapping(2, mapping2);
+      manager.registerPhaseMapping(3, mapping3);
+
+      // Then: 全てのマッピングが保存される
+      expect(manager.getParentIssueMapping(1)).toEqual(mapping1);
+      expect(manager.getParentIssueMapping(2)).toEqual(mapping2);
+      expect(manager.getParentIssueMapping(3)).toEqual(mapping3);
+    });
+  });
+
+  describe("getParentIssueMapping", () => {
+    it("登録済みのPhase番号を渡すと、対応するマッピングが返る", () => {
+      // Given: Phase2のマッピングが登録済み
+      const mapping: PhaseIssueMapping = {
+        phaseNumber: 2,
+        parentIssueId: "uuid-for-phase2",
+      };
+      manager.registerPhaseMapping(2, mapping);
+
+      // When: Phase2のマッピングを取得
+      const result = manager.getParentIssueMapping(2);
+
+      // Then: 登録したマッピングが返る
+      expect(result).toEqual(mapping);
+      expect(result?.parentIssueId).toBe("uuid-for-phase2");
+    });
+
+    it("未登録のPhase番号を渡すと、undefinedが返る", () => {
+      // Given: 何も登録されていない状態
+
+      // When: 未登録のPhase番号でマッピングを取得
+      const result = manager.getParentIssueMapping(99);
+
+      // Then: undefinedが返る
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe("isParentIssue", () => {
+    it("登録された親IssueのIDを渡すと、trueが返る", () => {
+      // Given: Phase1マッピングとして親IssueIDが登録済み
+      const mapping: PhaseIssueMapping = {
+        phaseNumber: 1,
+        parentIssueId: "parent-uuid-abc",
+      };
+      manager.registerPhaseMapping(1, mapping);
+
+      // When: 登録された親IssueIDで判定
+      const result = manager.isParentIssue("parent-uuid-abc");
+
+      // Then: trueが返る
+      expect(result).toBe(true);
+    });
+
+    it("未登録のIDを渡すと、falseが返る", () => {
+      // Given: 何も登録されていない状態
+
+      // When: 登録されていないIDで判定
+      const result = manager.isParentIssue("unknown-uuid");
+
+      // Then: falseが返る
+      expect(result).toBe(false);
+    });
+
+    it("複数のPhaseマッピングに含まれるIDの場合もtrueが返る", () => {
+      // Given: Phase1とPhase2にそれぞれ異なる親IssueIDが登録済み
+      manager.registerPhaseMapping(1, { phaseNumber: 1, parentIssueId: "parent-uuid-phase1" });
+      manager.registerPhaseMapping(2, { phaseNumber: 2, parentIssueId: "parent-uuid-phase2" });
+
+      // When: Phase2の親IssueIDで判定
+      const resultPhase1 = manager.isParentIssue("parent-uuid-phase1");
+      const resultPhase2 = manager.isParentIssue("parent-uuid-phase2");
+
+      // Then: 両方ともtrueが返る
+      expect(resultPhase1).toBe(true);
+      expect(resultPhase2).toBe(true);
+    });
+  });
+
+  describe("generateParentIssueTitle", () => {
+    it("Phase情報とIssue番号から'[Issue22 Phase1] Phase名'形式のタイトルが生成される", () => {
+      // Given: Phase情報とIssue番号
+      const phase: Phase = {
+        number: 1,
+        name: "環境構築フェーズ",
+        taskGroups: [],
+      };
+      const issueNumber = 22;
+
+      // When: タイトルを生成
+      const result = generateParentIssueTitle(phase, issueNumber);
+
+      // Then: 正しい形式のタイトルが生成される
+      expect(result).toBe("[Issue22 Phase1] 環境構築フェーズ");
+    });
+
+    it("Phase番号が複数桁でも正しく生成される", () => {
+      // Given: 複数桁のPhase番号
+      const phase: Phase = {
+        number: 12,
+        name: "大規模フェーズ",
+        taskGroups: [],
+      };
+      const issueNumber = 99;
+
+      // When: タイトルを生成
+      const result = generateParentIssueTitle(phase, issueNumber);
+
+      // Then: 複数桁のPhase番号でも正しく生成される
+      expect(result).toBe("[Issue99 Phase12] 大規模フェーズ");
+    });
+  });
+
+  describe("generateParentIssueDescription", () => {
+    it("Phase情報とIssue番号からタスクグループ一覧を含む説明文が生成される", () => {
+      // Given: タスクグループを含むPhase情報
+      const phase: Phase = {
+        number: 1,
+        name: "環境構築フェーズ",
+        taskGroups: [
+          {
+            id: "1.1",
+            name: "開発環境セットアップ",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+          {
+            id: "1.2",
+            name: "データベース設計",
+            phaseNumber: 1,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+        ],
+      };
+      const issueNumber = 22;
+
+      // When: 説明文を生成
+      const result = generateParentIssueDescription(phase, issueNumber);
+
+      // Then: タスクグループ一覧が含まれる
+      expect(result).toContain("GitHub Issue #22");
+      expect(result).toContain("Phase 1");
+      expect(result).toContain("- 1.1: 開発環境セットアップ");
+      expect(result).toContain("- 1.2: データベース設計");
+    });
+
+    it("タスクグループがない場合、'(タスクグループなし)'と表示される", () => {
+      // Given: タスクグループのないPhase情報
+      const phase: Phase = {
+        number: 2,
+        name: "実装フェーズ",
+        taskGroups: [],
+      };
+      const issueNumber = 33;
+
+      // When: 説明文を生成
+      const result = generateParentIssueDescription(phase, issueNumber);
+
+      // Then: タスクグループなしのメッセージが含まれる
+      expect(result).toContain("(タスクグループなし)");
+    });
+
+    it("Issue番号とPhase情報が正しく含まれる", () => {
+      // Given: Phase3の情報
+      const phase: Phase = {
+        number: 3,
+        name: "テストフェーズ",
+        taskGroups: [
+          {
+            id: "3.1",
+            name: "ユニットテスト",
+            phaseNumber: 3,
+            status: "pending",
+            dependencies: [],
+            completionCriteria: "",
+            tasks: [],
+          },
+        ],
+      };
+      const issueNumber = 55;
+
+      // When: 説明文を生成
+      const result = generateParentIssueDescription(phase, issueNumber);
+
+      // Then: Issue番号とPhase番号が正しく含まれる
+      expect(result).toContain("GitHub Issue #55");
+      expect(result).toContain("Phase 3");
+      expect(result).toContain("テストフェーズ");
+    });
+  });
+
+  describe("extractPhaseNumberFromTitle", () => {
+    it("'[Issue22 Phase1] Phase名'からPhase番号1を抽出する", () => {
+      // Given: 親Issue形式のタイトル
+      const title = "[Issue22 Phase1] Phase名";
+
+      // When: Phase番号を抽出
+      const result = extractPhaseNumberFromTitle(title);
+
+      // Then: 1が抽出される
+      expect(result).toBe(1);
+    });
+
+    it("'[Issue99 Phase12] Phase名'から複数桁のPhase番号12を抽出する", () => {
+      // Given: 複数桁のPhase番号を含むタイトル
+      const title = "[Issue99 Phase12] 大規模フェーズ";
+
+      // When: Phase番号を抽出
+      const result = extractPhaseNumberFromTitle(title);
+
+      // Then: 12が抽出される
+      expect(result).toBe(12);
+    });
+
+    it("'[Issue22 1.2] タスク名'の場合（サブIssue形式）、nullが返る", () => {
+      // Given: サブIssue（タスクグループ）形式のタイトル
+      const title = "[Issue22 1.2] タスク名";
+
+      // When: Phase番号を抽出
+      const result = extractPhaseNumberFromTitle(title);
+
+      // Then: nullが返る（Phaseパターンに一致しないため）
+      expect(result).toBeNull();
+    });
+
+    it("パターンに一致しないタイトルの場合、nullが返る", () => {
+      // Given: パターンに一致しないタイトル
+      const title = "普通のタイトル";
+
+      // When: Phase番号を抽出
+      const result = extractPhaseNumberFromTitle(title);
+
+      // Then: nullが返る
+      expect(result).toBeNull();
     });
   });
 });

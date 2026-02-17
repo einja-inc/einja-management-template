@@ -416,6 +416,259 @@ describe("VibeKanbanClient", () => {
     });
   });
 
+  describe("親Issue/サブIssue対応", () => {
+    describe("createParentIssue", () => {
+      it("createParentIssue を呼び出すと、内部で create_issue ツールが呼ばれ、Issue IDが返る", async () => {
+        // Given: Vibe-Kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ issue_id: "parent-issue-123" }),
+            },
+          ],
+        });
+
+        // When: createParentIssue メソッドを呼び出す
+        const result = await client.createParentIssue("project-123", "Parent Task", "Parent Description");
+
+        // Then: create_issue ツールが呼び出される
+        expect(mockMCPClient.callTool).toHaveBeenCalledWith({
+          name: "create_issue",
+          arguments: {
+            project_id: "project-123",
+            title: "Parent Task",
+            description: "Parent Description",
+          },
+        });
+
+        // Then: Issue IDが返る
+        expect(result).toBe("parent-issue-123");
+      });
+
+      it("createTask と同じパラメータで create_issue が呼び出される", async () => {
+        // Given: Vibe-Kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValue({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ issue_id: "issue-abc" }),
+            },
+          ],
+        });
+
+        // When: createParentIssue と createTask を同じ引数で呼び出す
+        await client.createParentIssue("project-x", "Title", "Desc");
+        await client.createTask("project-x", "Title", "Desc");
+
+        // Then: どちらも同じ引数で create_issue が呼ばれる
+        expect(mockMCPClient.callTool).toHaveBeenCalledTimes(2);
+        const firstCallArgs = mockMCPClient.callTool.mock.calls[0][0];
+        const secondCallArgs = mockMCPClient.callTool.mock.calls[1][0];
+        expect(firstCallArgs).toEqual(secondCallArgs);
+      });
+    });
+
+    describe("createSubIssue", () => {
+      it("MCP create_issue 成功 + REST PATCH 成功の場合、サブIssue IDが返る", async () => {
+        // Given: Vibe-Kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ issue_id: "sub-issue-456" }),
+            },
+          ],
+        });
+
+        const mockRestClient = {
+          setParentIssue: vi.fn().mockResolvedValueOnce(undefined),
+        };
+
+        // When: createSubIssue メソッドを呼び出す
+        const result = await client.createSubIssue(
+          "project-123",
+          "parent-issue-001",
+          "Sub Task",
+          "Sub Description",
+          mockRestClient
+        );
+
+        // Then: create_issue ツールが呼び出される
+        expect(mockMCPClient.callTool).toHaveBeenCalledWith({
+          name: "create_issue",
+          arguments: {
+            project_id: "project-123",
+            title: "Sub Task",
+            description: "Sub Description",
+          },
+        });
+
+        // Then: setParentIssue が正しい引数で呼ばれる
+        expect(mockRestClient.setParentIssue).toHaveBeenCalledWith("sub-issue-456", "parent-issue-001");
+
+        // Then: サブIssue IDが返る
+        expect(result).toBe("sub-issue-456");
+      });
+
+      it("REST PATCH が1回目失敗・2回目成功の場合、リトライして成功する", async () => {
+        // Given: Vibe-Kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ issue_id: "sub-issue-789" }),
+            },
+          ],
+        });
+
+        // setTimeout をモックしてすぐ実行させる
+        const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation(
+          (fn: TimerHandler) => {
+            if (typeof fn === "function") fn();
+            return 0 as unknown as ReturnType<typeof setTimeout>;
+          }
+        );
+
+        const mockRestClient = {
+          setParentIssue: vi
+            .fn()
+            .mockRejectedValueOnce(new Error("Network error"))
+            .mockResolvedValueOnce(undefined),
+        };
+
+        // When: createSubIssue メソッドを呼び出す
+        const result = await client.createSubIssue(
+          "project-123",
+          "parent-issue-001",
+          "Sub Task",
+          "Sub Description",
+          mockRestClient
+        );
+
+        // Then: setParentIssue が2回呼ばれる（1回失敗 + 1回成功）
+        expect(mockRestClient.setParentIssue).toHaveBeenCalledTimes(2);
+
+        // Then: サブIssue IDが返る
+        expect(result).toBe("sub-issue-789");
+
+        setTimeoutSpy.mockRestore();
+      });
+
+      it("REST PATCH が3回全て失敗した場合、deleteTask が呼ばれてからエラーがスローされる", async () => {
+        // Given: Vibe-Kanban MCPが接続済み
+        await client.connect();
+
+        // create_issue の成功レスポンス + delete_issue の成功レスポンス
+        mockMCPClient.callTool
+          .mockResolvedValueOnce({
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ issue_id: "sub-issue-fail" }),
+              },
+            ],
+          })
+          .mockResolvedValueOnce({
+            content: [{ type: "text", text: JSON.stringify({ success: true }) }],
+          });
+
+        // setTimeout をモックしてすぐ実行させる
+        const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation(
+          (fn: TimerHandler) => {
+            if (typeof fn === "function") fn();
+            return 0 as unknown as ReturnType<typeof setTimeout>;
+          }
+        );
+
+        const mockRestClient = {
+          setParentIssue: vi.fn().mockRejectedValue(new Error("Persistent error")),
+        };
+
+        // When: createSubIssue メソッドを呼び出す
+        await expect(
+          client.createSubIssue(
+            "project-123",
+            "parent-issue-001",
+            "Sub Task",
+            "Sub Description",
+            mockRestClient
+          )
+        ).rejects.toThrow("サブIssueの作成に失敗しました");
+
+        // Then: setParentIssue が3回呼ばれる
+        expect(mockRestClient.setParentIssue).toHaveBeenCalledTimes(3);
+
+        // Then: delete_issue ツールが呼ばれる（deleteTask 経由）
+        expect(mockMCPClient.callTool).toHaveBeenCalledWith({
+          name: "delete_issue",
+          arguments: { issue_id: "sub-issue-fail" },
+        });
+
+        setTimeoutSpy.mockRestore();
+      });
+
+      it("restClient.setParentIssue が正しい引数（issueId, parentIssueId）で呼ばれる", async () => {
+        // Given: Vibe-Kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ issue_id: "sub-issue-999" }),
+            },
+          ],
+        });
+
+        const mockRestClient = {
+          setParentIssue: vi.fn().mockResolvedValueOnce(undefined),
+        };
+
+        // When: createSubIssue メソッドを呼び出す
+        await client.createSubIssue(
+          "project-abc",
+          "parent-issue-xyz",
+          "My Sub Task",
+          "Description",
+          mockRestClient
+        );
+
+        // Then: setParentIssue が issueId=作成されたID, parentIssueId=指定した親ID で呼ばれる
+        expect(mockRestClient.setParentIssue).toHaveBeenCalledWith("sub-issue-999", "parent-issue-xyz");
+        expect(mockRestClient.setParentIssue).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe("deleteTask", () => {
+      it("deleteTask を呼び出すと、delete_issue ツールが issue_id パラメータで呼ばれる", async () => {
+        // Given: Vibe-Kanban MCPが接続済み
+        await client.connect();
+
+        mockMCPClient.callTool.mockResolvedValueOnce({
+          content: [{ type: "text", text: JSON.stringify({ success: true }) }],
+        });
+
+        // When: deleteTask メソッドを呼び出す
+        await client.deleteTask("issue-to-delete-001");
+
+        // Then: delete_issue ツールが issue_id パラメータで呼び出される
+        expect(mockMCPClient.callTool).toHaveBeenCalledWith({
+          name: "delete_issue",
+          arguments: { issue_id: "issue-to-delete-001" },
+        });
+      });
+    });
+  });
+
   describe("パラメータ変更対応", () => {
     describe("listRepos", () => {
       it("project_id パラメータなしで list_repos ツールを呼び出し、リポジトリ一覧が取得できる", async () => {

@@ -290,13 +290,10 @@ export function generateVibeKanbanDescription(taskGroup: TaskGroup, issueNumber:
     .map((t) => `### タスク ${t.id}: ${t.name}\n${t.subtasks.map((s) => `- ${s}`).join("\n")}`)
     .join("\n\n");
 
-  return `## 🚀 最初に実行するコマンド
+  return `## 🚀 実行方法
 
-以下のコマンドを実行してタスクを開始してください：
-
-\`\`\`
-claude "/einja:task-exec #${issueNumber} ${taskGroup.id}"
-\`\`\`
+このタスクはVibe-kanban経由でClaude Codeが自動実行します。
+手動実行する場合: Skill "einja:task-exec" を引数 "#${issueNumber} ${taskGroup.id}" で実行
 
 ---
 
@@ -313,4 +310,39 @@ ${taskList || "(個別タスクなし)"}
 ## 完了条件
 ${taskGroup.completionCriteria || "(未定義)"}
 `;
+}
+
+/**
+ * Claude Code用のエージェントプロンプトを生成
+ *
+ * Vibe-kanbanの start_workspace_session の title として渡され、
+ * to_prompt() 経由でClaude Codeの初期プロンプトになる。
+ *
+ * 構成:
+ * 1. Skill実行指示
+ * 2. タスク本文（タスク一覧・完了条件等）
+ */
+export function generateAgentPrompt(taskGroup: TaskGroup, issueNumber: number): string {
+  const taskList = taskGroup.tasks
+    .map((t) => `### タスク ${t.id}: ${t.name}\n${t.subtasks.map((s) => `- ${s}`).join("\n")}`)
+    .join("\n\n");
+
+  return `Skill "einja:task-exec" を引数 "#${issueNumber} ${taskGroup.id}" で実行してください
+
+---
+
+## タスク情報
+
+### GitHub Issue
+#${issueNumber}
+
+### タスクグループ
+${taskGroup.id}
+
+### タスク一覧
+
+${taskList || "(個別タスクなし)"}
+
+### 完了条件
+${taskGroup.completionCriteria || "(未定義)"}`;
 }

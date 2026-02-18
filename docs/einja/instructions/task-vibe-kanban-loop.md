@@ -496,6 +496,55 @@ packages/cli/src/commands/task-loop/
     └── task-state-manager.ts   # タスク状態管理
 ```
 
+## Claude Codeプロンプト生成アーキテクチャ
+
+### VK Issue と VK 内部タスクの違い
+
+task:loop は Vibe-Kanban に対して2種類のオブジェクトを作成する。**これらは別物であり、混同しないこと。**
+
+| オブジェクト | 作成API | 用途 | 備考 |
+|-------------|---------|------|------|
+| VK Issue（サブIssue） | `createSubIssue(title, description)` | VK UI上でのタスク表示・管理 | title=`[Issue22 1.2] タスク名` |
+| VK 内部タスク | `start_workspace_session(title)` | Claude Codeセッション起動 | **titleがプロンプトになる** |
+
+### プロンプトの流れ
+
+```
+startTaskAttempt(agentPrompt, executor, repos, issueId)
+    │
+    └─ VK: start_workspace_session(title=agentPrompt)
+         └─ CreateTask(title=agentPrompt, description=None)
+              └─ task.to_prompt() → agentPrompt をそのまま返す
+                   └─ CodingAgentInitialRequest { prompt: agentPrompt }
+                        └─ Claude Code起動
+```
+
+**重要**: `start_workspace_session` には description パラメータがない。内部タスクの description は常に None になるため、**title のみが Claude Code のプロンプトになる**。
+
+### start_workspace_session のパラメータ
+
+| パラメータ | 型 | Claude Codeへの影響 |
+|-----------|-----|-------------------|
+| title | String | **Claude Codeのプロンプトになる** |
+| executor | String | 起動するエージェントの種類 |
+| repos | Array | リポジトリ・ベースブランチ |
+| issue_id | UUID? | Issueとのリンク（プロンプトに影響なし） |
+| variant | String? | エージェントのバリアント |
+
+### プロンプト生成関数
+
+| 関数 | 用途 | 出力先 |
+|------|------|--------|
+| `generateVibeKanbanTitle()` | VK Issue のタイトル | `createSubIssue` の title |
+| `generateVibeKanbanDescription()` | VK Issue の説明文 | `createSubIssue` の description |
+| `generateAgentPrompt()` | Claude Code の初期プロンプト | `startTaskAttempt` の title |
+
+### プロンプト変更時の注意
+
+1. `startTaskAttempt` の第1引数が Claude Code の初期プロンプトになる
+2. `createSubIssue` の title とは別に管理すること（同じ変数を使い回さない）
+3. VK UI の Issue description とは独立（description は UI 表示用のみ）
+
 ---
 
 ## 関連ドキュメント

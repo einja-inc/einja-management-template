@@ -4,6 +4,7 @@ import {
   extractIssueNumberFromTitle,
   extractPhaseNumberFromTitle,
   extractTaskGroupIdFromTitle,
+  generateAgentPrompt,
   generateParentIssueDescription,
   generateParentIssueTitle,
   generateVibeKanbanDescription,
@@ -613,7 +614,7 @@ describe("TaskStateManager", () => {
       const result = generateVibeKanbanDescription(taskGroup, issueNumber);
 
       // Then: 必須セクションが含まれる
-      expect(result).toContain('claude "/einja:task-exec #22 1.2"');
+      expect(result).toContain('手動実行する場合: Skill "einja:task-exec" を引数 "#22 1.2" で実行');
       expect(result).toContain("GitHub Issue #22");
       expect(result).toContain("1.2");
       expect(result).toContain("### タスク 1.2.1: テーブル設計");
@@ -682,9 +683,56 @@ describe("TaskStateManager", () => {
       const result = generateVibeKanbanDescription(taskGroup, issueNumber);
 
       // Then: 実行コマンドセクションが含まれる
-      expect(result).toContain("## 🚀 最初に実行するコマンド");
-      expect(result).toContain("```");
-      expect(result).toContain('claude "/einja:task-exec #45 2.3"');
+      expect(result).toContain("## 🚀 実行方法");
+      expect(result).toContain('手動実行する場合: Skill "einja:task-exec" を引数 "#45 2.3" で実行');
+    });
+  });
+
+  describe("generateAgentPrompt", () => {
+    it("Skill実行指示とタスク情報を含むプロンプトを生成する", () => {
+      const taskGroup: TaskGroup = {
+        id: "1.2",
+        name: "テストタスク",
+        phaseNumber: 1,
+        tasks: [
+          {
+            id: "1.2.1",
+            name: "サブタスク1",
+            subtasks: ["手順A", "手順B"],
+          },
+        ],
+        completionCriteria: "テストが通ること",
+        dependencies: [],
+        status: "pending",
+      };
+
+      const result = generateAgentPrompt(taskGroup, 22);
+
+      expect(result).toContain('Skill "einja:task-exec" を引数 "#22 1.2" で実行してください');
+      expect(result).toContain("### GitHub Issue\n#22");
+      expect(result).toContain("### タスクグループ\n1.2");
+      expect(result).toContain("### タスク 1.2.1: サブタスク1");
+      expect(result).toContain("- 手順A");
+      expect(result).toContain("- 手順B");
+      expect(result).toContain("### 完了条件\nテストが通ること");
+    });
+
+    it("タスクがない場合も正しく生成される", () => {
+      const taskGroup: TaskGroup = {
+        id: "2.1",
+        name: "空タスク",
+        phaseNumber: 2,
+        tasks: [],
+        completionCriteria: "",
+        dependencies: [],
+        status: "pending",
+      };
+
+      const result = generateAgentPrompt(taskGroup, 10);
+
+      expect(result).toContain('Skill "einja:task-exec" を引数 "#10 2.1" で実行してください');
+      expect(result).toContain("(個別タスクなし)");
+      expect(result).toContain("(未定義)");
     });
   });
 

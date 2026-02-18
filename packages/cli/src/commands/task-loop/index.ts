@@ -30,6 +30,7 @@ import {
   extractIssueNumberFromTitle,
   extractPhaseNumberFromTitle,
   extractTaskGroupIdFromTitle,
+  generateAgentPrompt,
   generateParentIssueDescription,
   generateParentIssueTitle,
   generateVibeKanbanDescription,
@@ -605,8 +606,9 @@ async function startExecutableTasks(
     const phaseBranch = getPhaseBranchNameNew(issueNumber, taskGroup.phaseNumber);
     try {
       const reposWithBranch = [{ repo_id: currentRepo.id, base_branch: phaseBranch }];
+      const agentPrompt = generateAgentPrompt(taskGroup, issueNumber);
       const attempt = await vibeKanban.startTaskAttempt(
-        title,
+        agentPrompt,
         "CLAUDE_CODE",
         reposWithBranch,
         taskId

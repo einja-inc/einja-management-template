@@ -224,10 +224,10 @@ export async function taskLoopCommand(
   };
 
   const initialDoneTasks = existingTasks.filter(
-    (t) => t.status === "done" && isTaskForThisIssue(t)
+    (t) => t.status === "Done" && isTaskForThisIssue(t)
   );
   const initialInProgressTasks = existingTasks.filter(
-    (t) => (t.status === "inprogress" || t.status === "in-progress") && isTaskForThisIssue(t)
+    (t) => t.status === "In Progress" && isTaskForThisIssue(t)
   );
   console.log(`📊 起動時のタスク状態 (Issue #${issueNumber} 関連):`);
   console.log(
@@ -269,7 +269,7 @@ export async function taskLoopCommand(
 
     // 既存チェック（再開サポート: 同一タイトルの既存親Issueを検索）
     const existingParent = existingTasks.find(
-      (t) => t.title === parentTitle && t.status !== "cancelled"
+      (t) => t.title === parentTitle && t.status !== "Cancelled"
     );
 
     if (existingParent) {
@@ -315,8 +315,8 @@ export async function taskLoopCommand(
       const currentTasks = await vibeKanban.listTasks(projectId);
 
       // 対象Issueに関連するDoneタスクの件数のみ表示
-      const doneTasks = currentTasks.filter((t) => t.status === "done" && isTaskForThisIssue(t));
-      const totalDoneTasks = currentTasks.filter((t) => t.status === "done").length;
+      const doneTasks = currentTasks.filter((t) => t.status === "Done" && isTaskForThisIssue(t));
+      const totalDoneTasks = currentTasks.filter((t) => t.status === "Done").length;
       console.log(`   📊 Done: ${doneTasks.length}件 (対象Issue) / ${totalDoneTasks}件 (全体)`);
 
       // 親Issueを除外してサブIssueのみDone検知（リスク#3 対策: IDベース）
@@ -490,7 +490,7 @@ async function waitForParentIssueDone(
 
   while (Date.now() - start < PARENT_DONE_TIMEOUT_MS) {
     const issue = await vibeKanban.getTask(parentIssueId);
-    if (issue?.status === "done") {
+    if (issue?.status === "Done") {
       console.log(`   ✅ 親Issue Done確認: Phase ${phaseNumber}`);
       return;
     }
@@ -500,7 +500,7 @@ async function waitForParentIssueDone(
   // タイムアウト: 手動でDoneに更新
   console.warn(`   ⚠️ 親Issue Phase ${phaseNumber} の自動Done検知がタイムアウト。手動更新します。`);
   try {
-    await vibeKanban.updateTask(parentIssueId, "done");
+    await vibeKanban.updateTask(parentIssueId, "Done");
     console.log(`   ✅ 親Issue 手動Done完了: Phase ${phaseNumber}`);
   } catch (error) {
     console.error(`   ❌ 親Issue Done更新失敗: Phase ${phaseNumber}`, error);
@@ -532,14 +532,14 @@ async function startExecutableTasks(
 
   console.log(`   📝 着手可能なタスク: ${executableGroups.length} 件`);
 
-  // 既存の Vibe-Kanban タスクを取得（cancelled 以外）
+  // 既存の Vibe-Kanban タスクを取得（Cancelled 以外）
   const existingTasks = await vibeKanban.listTasks(projectId);
 
   // 対象Issueに属する既存タスクのタスクグループIDを収集
   const existingTaskGroupIdsForThisIssue = new Set<string>();
   const issuePatternInDesc = `GitHub Issue #${issueNumber}`;
   for (const task of existingTasks) {
-    if (task.status === "cancelled") {
+    if (task.status === "Cancelled") {
       continue;
     }
     const taskGroupId = extractTaskGroupIdFromTitle(task.title);
@@ -599,8 +599,8 @@ async function startExecutableTasks(
     // マッピング登録
     stateManager.registerTaskMapping(taskId, taskGroup.id);
 
-    // ステータスを inprogress に更新
-    await vibeKanban.updateTask(taskId, "inprogress");
+    // ステータスを In Progress に更新
+    await vibeKanban.updateTask(taskId, "In Progress");
 
     // タスク実行開始（Phase ブランチをベースに使用）
     const phaseBranch = getPhaseBranchNameNew(issueNumber, taskGroup.phaseNumber);
@@ -652,7 +652,7 @@ async function syncExistingDoneTasks(
   descriptionCache: Map<string, string | null>
 ): Promise<ParsedIssue> {
   // Vibe-KanbanでDone状態のタスクを取得
-  const doneTasks = existingTasks.filter((t) => t.status === "done");
+  const doneTasks = existingTasks.filter((t) => t.status === "Done");
 
   // GitHub Issueで未完了のタスクグループIDを取得
   const { getCompletedTaskGroupIds } = await import("./lib/issue-parser.js");

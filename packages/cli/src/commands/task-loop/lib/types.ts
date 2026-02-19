@@ -78,7 +78,7 @@ export interface VibeKanbanTask {
   id: string;
   title: string;
   description?: string;
-  status: "todo" | "inprogress" | "in-progress" | "done" | "cancelled";
+  status: "Backlog" | "Todo" | "In Progress" | "Done" | "Cancelled";
   parent_issue_id?: string;
 }
 

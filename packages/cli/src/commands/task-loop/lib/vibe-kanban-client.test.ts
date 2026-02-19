@@ -37,8 +37,8 @@ describe("VibeKanbanClient", () => {
         await client.connect();
 
         const mockIssues = [
-          { id: "issue-1", title: "Task 1", status: "todo" },
-          { id: "issue-2", title: "Task 2", status: "in-progress" },
+          { id: "issue-1", title: "Task 1", status: "Todo" },
+          { id: "issue-2", title: "Task 2", status: "In Progress" },
         ];
 
         mockMCPClient.callTool.mockResolvedValueOnce({
@@ -59,10 +59,10 @@ describe("VibeKanbanClient", () => {
           arguments: { project_id: "project-123" },
         });
 
-        // Then: Issue一覧が取得できる（in-progress は inprogress に変換される）
+        // Then: Issue一覧が取得できる（ステータスはそのまま返される）
         expect(result).toEqual([
-          { id: "issue-1", title: "Task 1", status: "todo" },
-          { id: "issue-2", title: "Task 2", status: "inprogress" },
+          { id: "issue-1", title: "Task 1", status: "Todo" },
+          { id: "issue-2", title: "Task 2", status: "In Progress" },
         ]);
       });
     });

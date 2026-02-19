@@ -38,7 +38,6 @@ import {
 } from "./lib/task-state-manager.js";
 import type { ParsedIssue, VibeKanbanRepo } from "./lib/types.js";
 import { VibeKanbanClient } from "./lib/vibe-kanban-client.js";
-import { VibeKanbanRestClient } from "./lib/vibe-kanban-rest-client.js";
 import { getWorktreePathByAttemptId, runDirenvAllow } from "./lib/worktree-utils.js";
 
 export interface TaskLoopOptions {
@@ -172,24 +171,6 @@ export async function taskLoopCommand(
   // プロジェクト ID 取得（設定ファイルまたはインタラクティブ選択）
   const projectId = await selectProject(vibeKanban, issueNumber);
 
-  // REST APIクライアント初期化（サブIssue作成に必要）
-  const restPort = VibeKanbanRestClient.discoverPort();
-  if (!restPort) {
-    console.error("❌ Vibe-Kanban REST API のポートが見つかりません");
-    process.exit(1);
-  }
-  const restClient = new VibeKanbanRestClient(restPort);
-
-  // REST API Capability Probe
-  const restAvailable = await restClient.probeCapability();
-  if (!restAvailable) {
-    console.warn(
-      "⚠️ Vibe-Kanban REST API (/api/remote/issues) が利用できません。サブIssue機能が制限されます。"
-    );
-  } else {
-    console.log("✅ Vibe-Kanban REST API 利用可能");
-  }
-
   // タスク状態マネージャー初期化
   const stateManager = new TaskStateManager();
 
@@ -301,7 +282,6 @@ export async function taskLoopCommand(
       projectId,
       vibeKanban,
       stateManager,
-      restClient,
       currentRepo
     );
 
@@ -361,7 +341,6 @@ export async function taskLoopCommand(
           projectId,
           vibeKanban,
           stateManager,
-          restClient,
           currentRepo
         );
       }
@@ -519,7 +498,6 @@ async function startExecutableTasks(
   projectId: string,
   vibeKanban: VibeKanbanClient,
   stateManager: TaskStateManager,
-  restClient: VibeKanbanRestClient,
   currentRepo: VibeKanbanRepo
 ): Promise<void> {
   // 着手可能なタスクグループを選定
@@ -592,8 +570,7 @@ async function startExecutableTasks(
       projectId,
       phaseMapping.parentIssueId,
       title,
-      description,
-      restClient
+      description
     );
 
     // マッピング登録

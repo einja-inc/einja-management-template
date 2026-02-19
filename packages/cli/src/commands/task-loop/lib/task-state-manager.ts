@@ -100,7 +100,7 @@ export class TaskStateManager {
 
     // フィルタリング適用（対象Issue番号がある場合のみ）
     const doneTasks = tasks
-      .filter((t) => t.status === "done")
+      .filter((t) => t.status === "Done")
       .filter((t) => this.isTaskForTargetIssue(t, descriptionCache));
 
     this.previousDoneTaskIds = new Set(doneTasks.map((t) => t.id));
@@ -132,7 +132,7 @@ export class TaskStateManager {
     );
 
     const currentDoneIds = new Set(
-      relevantTasks.filter((t) => t.status === "done").map((t) => t.id)
+      relevantTasks.filter((t) => t.status === "Done").map((t) => t.id)
     );
 
     // デバッグ: 比較情報を出力

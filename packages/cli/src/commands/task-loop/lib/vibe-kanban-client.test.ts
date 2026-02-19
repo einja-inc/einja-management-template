@@ -190,14 +190,14 @@ describe("VibeKanbanClient", () => {
         });
 
         // When: updateTask メソッドを呼び出す
-        await client.updateTask("issue-001", "done");
+        await client.updateTask("issue-001", "Done");
 
         // Then: update_issue ツールが issue_id パラメータで呼び出される
         expect(mockMCPClient.callTool).toHaveBeenCalledWith({
           name: "update_issue",
           arguments: {
             issue_id: "issue-001",
-            status: "done",
+            status: "Done",
           },
         });
       });
@@ -216,7 +216,7 @@ describe("VibeKanbanClient", () => {
         });
 
         // When: updateTask メソッドを呼び出す
-        await client.updateTask("issue-001", "inprogress");
+        await client.updateTask("issue-001", "In Progress");
 
         // Then: task_id ではなく issue_id が使用される
         const callArgs = mockMCPClient.callTool.mock.calls[0][0];
@@ -314,7 +314,7 @@ describe("VibeKanbanClient", () => {
 
   describe("ステータス値統一", () => {
     describe("updateTask", () => {
-      it("inprogress を指定すると、MCP には in-progress として送信される", async () => {
+      it("In Progress を指定すると、MCP にそのまま送信される", async () => {
         // Given: Vibe-Kanban MCPが接続済み
         await client.connect();
 
@@ -322,20 +322,20 @@ describe("VibeKanbanClient", () => {
           content: [{ type: "text", text: JSON.stringify({ success: true }) }],
         });
 
-        // When: inprogress を指定してタスクを更新
-        await client.updateTask("issue-001", "inprogress");
+        // When: In Progress を指定してタスクを更新
+        await client.updateTask("issue-001", "In Progress");
 
-        // Then: MCP には in-progress として送信される
+        // Then: MCP にそのまま送信される
         expect(mockMCPClient.callTool).toHaveBeenCalledWith({
           name: "update_issue",
           arguments: {
             issue_id: "issue-001",
-            status: "in-progress",
+            status: "In Progress",
           },
         });
       });
 
-      it("todo や done は変換されずにそのまま送信される", async () => {
+      it("Todo や Done はそのまま送信される", async () => {
         // Given: Vibe-Kanban MCPが接続済み
         await client.connect();
 
@@ -343,25 +343,25 @@ describe("VibeKanbanClient", () => {
           content: [{ type: "text", text: JSON.stringify({ success: true }) }],
         });
 
-        // When: todo と done を送信
-        await client.updateTask("issue-001", "todo");
-        await client.updateTask("issue-002", "done");
+        // When: Todo と Done を送信
+        await client.updateTask("issue-001", "Todo");
+        await client.updateTask("issue-002", "Done");
 
-        // Then: 変換されずにそのまま送信される
+        // Then: そのまま送信される
         expect(mockMCPClient.callTool).toHaveBeenCalledWith({
           name: "update_issue",
-          arguments: { issue_id: "issue-001", status: "todo" },
+          arguments: { issue_id: "issue-001", status: "Todo" },
         });
         expect(mockMCPClient.callTool).toHaveBeenCalledWith({
           name: "update_issue",
-          arguments: { issue_id: "issue-002", status: "done" },
+          arguments: { issue_id: "issue-002", status: "Done" },
         });
       });
     });
 
     describe("getTask", () => {
-      it("MCP から in-progress を受信すると、内部では inprogress として扱う", async () => {
-        // Given: MCP が in-progress ステータスのタスクを返す
+      it("MCP から In Progress を受信すると、そのまま返される", async () => {
+        // Given: MCP が In Progress ステータスのタスクを返す
         await client.connect();
 
         mockMCPClient.callTool.mockResolvedValueOnce({
@@ -371,7 +371,7 @@ describe("VibeKanbanClient", () => {
               text: JSON.stringify({
                 id: "issue-001",
                 title: "Test",
-                status: "in-progress",
+                status: "In Progress",
               }),
             },
           ],
@@ -380,14 +380,14 @@ describe("VibeKanbanClient", () => {
         // When: getTask を呼び出す
         const task = await client.getTask("issue-001");
 
-        // Then: 内部では inprogress として扱う
-        expect(task?.status).toBe("inprogress");
+        // Then: そのまま返される
+        expect(task?.status).toBe("In Progress");
       });
     });
 
     describe("listTasks", () => {
-      it("MCP から in-progress を受信すると、各タスクで inprogress に変換される", async () => {
-        // Given: MCP が in-progress ステータスのタスクを含む一覧を返す
+      it("MCP から受信したステータス値がそのまま返される", async () => {
+        // Given: MCP が各種ステータスのタスクを含む一覧を返す
         await client.connect();
 
         mockMCPClient.callTool.mockResolvedValueOnce({
@@ -396,9 +396,9 @@ describe("VibeKanbanClient", () => {
               type: "text",
               text: JSON.stringify({
                 issues: [
-                  { id: "1", title: "Task 1", status: "todo" },
-                  { id: "2", title: "Task 2", status: "in-progress" },
-                  { id: "3", title: "Task 3", status: "done" },
+                  { id: "1", title: "Task 1", status: "Todo" },
+                  { id: "2", title: "Task 2", status: "In Progress" },
+                  { id: "3", title: "Task 3", status: "Done" },
                 ],
               }),
             },
@@ -408,10 +408,10 @@ describe("VibeKanbanClient", () => {
         // When: listTasks を呼び出す
         const tasks = await client.listTasks("project-123");
 
-        // Then: in-progress が inprogress に変換される
-        expect(tasks[0].status).toBe("todo");
-        expect(tasks[1].status).toBe("inprogress");
-        expect(tasks[2].status).toBe("done");
+        // Then: そのまま返される
+        expect(tasks[0].status).toBe("Todo");
+        expect(tasks[1].status).toBe("In Progress");
+        expect(tasks[2].status).toBe("Done");
       });
     });
   });

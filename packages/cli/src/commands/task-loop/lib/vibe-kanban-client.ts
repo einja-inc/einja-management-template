@@ -259,17 +259,17 @@ export class VibeKanbanClient {
    * 内部で update_issue ツールを呼び出す（旧API: update_task → 新API: update_issue）
    * パラメータ名も変更（task_id → issue_id）
    */
-  async updateTask(taskId: string, status: "todo" | "inprogress" | "done"): Promise<void> {
+  async updateTask(
+    taskId: string,
+    status: "Backlog" | "Todo" | "In Progress" | "Done" | "Cancelled"
+  ): Promise<void> {
     this.ensureConnected();
-
-    // 送信前にステータス値を変換
-    const mappedStatus = this.normalizeStatusForSend(status);
 
     await this.client.callTool({
       name: "update_issue",
       arguments: {
         issue_id: taskId,
-        status: mappedStatus,
+        status,
       },
     });
   }
@@ -383,19 +383,17 @@ export class VibeKanbanClient {
   }
 
   /**
-   * ステータス値をMCP送信用に変換
-   * 内部形式 "inprogress" → MCP形式 "in-progress"
+   * ステータス値をMCP送信用に変換（現在は変換不要、将来の拡張用に保持）
    */
   private normalizeStatusForSend(status: string): string {
-    return status === "inprogress" ? "in-progress" : status;
+    return status;
   }
 
   /**
-   * ステータス値を内部形式に変換
-   * MCP形式 "in-progress" → 内部形式 "inprogress"
+   * ステータス値を内部形式に変換（現在は変換不要、将来の拡張用に保持）
    */
   private normalizeStatusForReceive(status: string): string {
-    return status === "in-progress" ? "inprogress" : status;
+    return status;
   }
 
   /**

@@ -897,7 +897,7 @@ describe("dependency-resolver", () => {
         completionCriteria: "完了",
         tasks: [],
       };
-      vi.mocked(isIssueClosed).mockReturnValue(true);
+      vi.mocked(isIssueClosed).mockResolvedValue(true);
 
       // When: 外部Issue依存をチェック
       const result = await checkExternalIssueDependencies(taskGroup);
@@ -918,7 +918,7 @@ describe("dependency-resolver", () => {
         completionCriteria: "完了",
         tasks: [],
       };
-      vi.mocked(isIssueClosed).mockReturnValue(false);
+      vi.mocked(isIssueClosed).mockResolvedValue(false);
 
       // When: 外部Issue依存をチェック
       const result = await checkExternalIssueDependencies(taskGroup);
@@ -939,7 +939,7 @@ describe("dependency-resolver", () => {
         completionCriteria: "完了",
         tasks: [],
       };
-      vi.mocked(isIssueClosed).mockReturnValue(true);
+      vi.mocked(isIssueClosed).mockResolvedValue(true);
 
       // When: 外部Issue依存をチェック
       const result = await checkExternalIssueDependencies(taskGroup);
@@ -961,7 +961,7 @@ describe("dependency-resolver", () => {
         completionCriteria: "完了",
         tasks: [],
       };
-      vi.mocked(isIssueClosed).mockReturnValueOnce(true).mockReturnValueOnce(false);
+      vi.mocked(isIssueClosed).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 
       // When: 外部Issue依存をチェック
       const result = await checkExternalIssueDependencies(taskGroup);
@@ -1446,7 +1446,7 @@ describe("dependency-resolver", () => {
 `,
       };
       const parsedIssue = parseIssueBody(issue);
-      vi.mocked(isIssueClosed).mockReturnValue(true);
+      vi.mocked(isIssueClosed).mockResolvedValue(true);
 
       // When: 実行可能タスクグループを選定
       const result = await selectExecutableTaskGroups(parsedIssue);
@@ -1471,7 +1471,7 @@ describe("dependency-resolver", () => {
 `,
       };
       const parsedIssue = parseIssueBody(issue);
-      vi.mocked(isIssueClosed).mockReturnValue(false);
+      vi.mocked(isIssueClosed).mockResolvedValue(false);
 
       // When: 実行可能タスクグループを選定
       const result = await selectExecutableTaskGroups(parsedIssue);

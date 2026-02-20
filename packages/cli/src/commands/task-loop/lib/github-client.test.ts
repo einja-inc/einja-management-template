@@ -3,7 +3,10 @@ import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // child_process モジュールをモック
-vi.mock("node:child_process");
+vi.mock("node:child_process", () => ({
+  exec: vi.fn(),
+  execSync: vi.fn(),
+}));
 
 // fs モジュールをモック
 vi.mock("node:fs", () => ({
@@ -13,7 +16,7 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-import { execSync } from "node:child_process";
+import { exec, execSync } from "node:child_process";
 import fs from "node:fs";
 import {
   getIssue,
@@ -213,65 +216,78 @@ describe("github-client", () => {
   });
 
   describe("isIssueClosed", () => {
-    it("CLOSEDステータスのIssueの場合、trueを返す", () => {
+    it("CLOSEDステータスのIssueの場合、trueを返す", async () => {
       // Given: CLOSEDステータスのIssue
       const issueNumber = 123;
-      vi.mocked(execSync).mockReturnValueOnce(
-        Buffer.from(
-          JSON.stringify({
-            state: "CLOSED",
-          })
-        )
+      vi.mocked(exec).mockImplementation(
+        ((_cmd: string, callback: any) => {
+          // コールバックを非同期で呼び出す
+          process.nextTick(() => {
+            callback(null, { stdout: JSON.stringify({ state: "CLOSED" }), stderr: "" });
+          });
+          return {} as any;
+        }) as any
       );
 
       // When: isIssueClosedを呼び出す
-      const result = isIssueClosed(issueNumber);
+      const result = await isIssueClosed(issueNumber);
 
       // Then: trueが返る
       expect(result).toBe(true);
     });
 
-    it("OPENステータスのIssueの場合、falseを返す", () => {
+    it("OPENステータスのIssueの場合、falseを返す", async () => {
       // Given: OPENステータスのIssue
       const issueNumber = 456;
-      vi.mocked(execSync).mockReturnValueOnce(
-        Buffer.from(
-          JSON.stringify({
-            state: "OPEN",
-          })
-        )
+      vi.mocked(exec).mockImplementation(
+        ((_cmd: string, callback: any) => {
+          process.nextTick(() => {
+            callback(null, { stdout: JSON.stringify({ state: "OPEN" }), stderr: "" });
+          });
+          return {} as any;
+        }) as any
       );
 
       // When: isIssueClosedを呼び出す
-      const result = isIssueClosed(issueNumber);
+      const result = await isIssueClosed(issueNumber);
 
       // Then: falseが返る
       expect(result).toBe(false);
     });
 
-    it("Issueが見つからない場合、falseを返す", () => {
+    it("Issueが見つからない場合、falseを返す", async () => {
       // Given: 存在しないIssue
       const issueNumber = 999;
-      vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error("issue not found");
-      });
+      vi.mocked(exec).mockImplementation(
+        ((_cmd: string, callback: any) => {
+          process.nextTick(() => {
+            callback(new Error("issue not found"), { stdout: "", stderr: "" });
+          });
+          return {} as any;
+        }) as any
+      );
 
       // When: isIssueClosedを呼び出す
-      const result = isIssueClosed(issueNumber);
+      const result = await isIssueClosed(issueNumber);
 
       // Then: falseが返る（閉じられていないとみなす）
       expect(result).toBe(false);
     });
 
-    it("ghコマンドが失敗した場合、falseを返す", () => {
+    it("ghコマンドが失敗した場合、falseを返す", async () => {
       // Given: ghコマンドが失敗する状況
       const issueNumber = 123;
-      vi.mocked(execSync).mockImplementationOnce(() => {
-        throw new Error("gh command failed");
-      });
+      vi.mocked(exec).mockImplementation(
+        ((_cmd: string, callback: any) => {
+          process.nextTick(() => {
+            callback(new Error("gh command failed"), { stdout: "", stderr: "" });
+          });
+          return {} as any;
+        }) as any
+      );
 
       // When: isIssueClosedを呼び出す
-      const result = isIssueClosed(issueNumber);
+      const result = await isIssueClosed(issueNumber);
 
       // Then: falseが返る
       expect(result).toBe(false);

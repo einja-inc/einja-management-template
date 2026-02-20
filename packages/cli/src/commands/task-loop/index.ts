@@ -25,6 +25,7 @@ import { getIssue, getRepoInfo } from "./lib/github-client.js";
 import { parseIssueBody } from "./lib/issue-parser.js";
 import { selectProject } from "./lib/project-selector.js";
 import { ensurePullRequestCreated } from "./lib/pull-request-manager.js";
+import { MCP_RETRY_OPTIONS, withRetry } from "./lib/retry-utils.js";
 import {
   TaskStateManager,
   extractIssueNumberFromTitle,
@@ -142,10 +143,16 @@ export async function taskLoopCommand(
 
   // Vibe-Kanban 接続
   const vibeKanban = new VibeKanbanClient();
-  await vibeKanban.connect();
+  await withRetry(() => vibeKanban.connect(), {
+    ...MCP_RETRY_OPTIONS,
+    onRetry: (attempt, error, nextDelayMs) => {
+      console.log(`   ⚠️ MCP 接続失敗 (試行 ${attempt}): ${error.message}`);
+      console.log(`   🔄 ${nextDelayMs / 1000}秒後にリトライします...`);
+    },
+  });
 
   // Vibe-Kanban に登録済みのリポジトリから現在のリポジトリを特定
-  const allRepos = await vibeKanban.listRepos();
+  const allRepos = await withRetry(() => vibeKanban.listRepos(), MCP_RETRY_OPTIONS);
   const normalize = (name: string) =>
     name
       .toLowerCase()
@@ -175,7 +182,7 @@ export async function taskLoopCommand(
   const stateManager = new TaskStateManager();
 
   // 既存の Vibe-Kanban タスクを取得
-  const existingTasks = await vibeKanban.listTasks(projectId);
+  const existingTasks = await withRetry(() => vibeKanban.listTasks(projectId), MCP_RETRY_OPTIONS);
 
   // descriptionキャッシュを作成（パフォーマンス改善: getTaskを複数回呼ばない）
   console.log("📦 タスクのdescriptionをキャッシュ中...");
@@ -292,7 +299,10 @@ export async function taskLoopCommand(
       console.log(`\n🔄 ポーリング #${loopCount} [${getTimestamp()}]`);
 
       // Vibe-Kanban のタスク状態を取得
-      const currentTasks = await vibeKanban.listTasks(projectId);
+      const currentTasks = await withRetry(
+        () => vibeKanban.listTasks(projectId),
+        MCP_RETRY_OPTIONS
+      );
 
       // 対象Issueに関連するDoneタスクの件数のみ表示
       const doneTasks = currentTasks.filter((t) => t.status === "Done" && isTaskForThisIssue(t));
@@ -511,7 +521,7 @@ async function startExecutableTasks(
   console.log(`   📝 着手可能なタスク: ${executableGroups.length} 件`);
 
   // 既存の Vibe-Kanban タスクを取得（Cancelled 以外）
-  const existingTasks = await vibeKanban.listTasks(projectId);
+  const existingTasks = await withRetry(() => vibeKanban.listTasks(projectId), MCP_RETRY_OPTIONS);
 
   // 対象Issueに属する既存タスクのタスクグループIDを収集
   const existingTaskGroupIdsForThisIssue = new Set<string>();

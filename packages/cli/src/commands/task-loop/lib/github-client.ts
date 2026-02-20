@@ -2,11 +2,14 @@
  * GitHub Issue 操作（gh CLI wrapper）
  */
 
-import { execSync } from "node:child_process";
+import { exec, execSync } from "node:child_process";
+import { promisify } from "node:util";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { GitHubIssue, RepoInfo } from "./types.js";
+
+const execAsync = promisify(exec);
 
 /**
  * GitHub Issue を取得
@@ -55,13 +58,12 @@ export function updateIssueBody(issueNumber: number, newBody: string): void {
 
 /**
  * GitHub Issue の状態を確認（Open/Closed）
+ * 非同期バージョン
  */
-export function isIssueClosed(issueNumber: number): boolean {
+export async function isIssueClosed(issueNumber: number): Promise<boolean> {
   try {
-    const result = execSync(`gh issue view ${issueNumber} --json state`, {
-      encoding: "utf-8",
-    });
-    const data = JSON.parse(result) as { state: string };
+    const { stdout } = await execAsync(`gh issue view ${issueNumber} --json state`);
+    const data = JSON.parse(stdout) as { state: string };
     return data.state === "CLOSED";
   } catch {
     // Issue が見つからない場合は閉じられていないとみなす

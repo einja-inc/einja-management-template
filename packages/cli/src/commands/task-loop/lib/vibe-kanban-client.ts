@@ -25,6 +25,7 @@ export class VibeKanbanClient {
   private client: Client;
   private transport: StdioClientTransport | null = null;
   private connected = false;
+  private cleanupHandlerAttached = false;
 
   constructor() {
     this.client = new Client({
@@ -43,23 +44,32 @@ export class VibeKanbanClient {
 
     console.log("🔌 Vibe-Kanban MCP サーバーに接続中...");
 
-    // MCPサーバー起動前にポートファイルを同期
-    this.syncPortFile();
+    try {
+      // MCPサーバー起動前にポートファイルを同期
+      this.syncPortFile();
 
-    this.transport = new StdioClientTransport({
-      command: "npx",
-      args: ["-y", "vibe-kanban@latest", "--mcp"],
-      env: {
-        ...process.env,
-        RUST_LOG: "error", // DEBUGログを抑制
-      },
-      stderr: "ignore", // stderrからのデバッグログを抑制
-    });
+      this.transport = new StdioClientTransport({
+        command: "npx",
+        args: ["-y", "vibe-kanban@latest", "--mcp"],
+        env: {
+          ...process.env,
+          RUST_LOG: "error", // DEBUGログを抑制
+        },
+        stderr: "ignore", // stderrからのデバッグログを抑制
+      });
 
-    await this.client.connect(this.transport);
-    this.connected = true;
+      await this.client.connect(this.transport);
+      this.connected = true;
 
-    console.log("✅ Vibe-Kanban MCP 接続完了");
+      // 接続成功後にクリーンアップハンドラーを登録
+      this.attachCleanupHandlers();
+
+      console.log("✅ Vibe-Kanban MCP 接続完了");
+    } catch (error) {
+      // エラー時はtransportを強制クローズ
+      await this.forceCloseTransport();
+      throw error;
+    }
   }
 
   /**
@@ -130,7 +140,15 @@ export class VibeKanbanClient {
 
     console.log("🔌 Vibe-Kanban MCP サーバーから切断中...");
 
-    await this.client.close();
+    try {
+      await this.client.close();
+    } catch (error) {
+      console.error("クライアント切断エラー:", error);
+    }
+
+    // transportを明示的にクローズ
+    await this.forceCloseTransport();
+
     this.connected = false;
 
     console.log("✅ Vibe-Kanban MCP 切断完了");
@@ -370,6 +388,43 @@ export class VibeKanbanClient {
    */
   private normalizeStatusForReceive(status: string): string {
     return status;
+  }
+
+  /**
+   * SIGINT/SIGTERMハンドラーを登録
+   */
+  private attachCleanupHandlers(): void {
+    if (this.cleanupHandlerAttached) {
+      return;
+    }
+
+    const cleanup = async () => {
+      console.log("\n🛑 シグナル受信 - クリーンアップ中...");
+      try {
+        await this.disconnect();
+      } catch (error) {
+        console.error("クリーンアップエラー:", error);
+      }
+      process.exit(0);
+    };
+
+    process.on("SIGINT", cleanup);
+    process.on("SIGTERM", cleanup);
+    this.cleanupHandlerAttached = true;
+  }
+
+  /**
+   * transportを強制的にクローズ
+   */
+  private async forceCloseTransport(): Promise<void> {
+    if (this.transport) {
+      try {
+        await this.transport.close();
+      } catch {
+        // エラーを無視
+      }
+      this.transport = null;
+    }
   }
 
   /**

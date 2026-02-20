@@ -63,7 +63,7 @@ export async function checkExternalIssueDependencies(taskGroup: TaskGroup): Prom
     const issueDepMatch = dep.match(/^#(\d+)$/);
     if (issueDepMatch) {
       const issueNumber = Number.parseInt(issueDepMatch[1], 10);
-      const closed = isIssueClosed(issueNumber);
+      const closed = await isIssueClosed(issueNumber);
       if (!closed) {
         return false;
       }

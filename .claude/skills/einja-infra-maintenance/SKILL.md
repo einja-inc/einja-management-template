@@ -1,18 +1,6 @@
 ---
 name: infra-maintenance
 description: "インフラ環境のセットアップ・メンテナンスを対話的に実行するSkill。ローカル環境、Vercel、Neon、GitHub Actions、環境変数管理をカバー"
-allowed-tools:
-  - Bash
-  - Read
-  - Glob
-  - Grep
-  - Write
-  - Edit
-  - AskUserQuestion
-  - TodoWrite
-  - TodoRead
-  - Task
-  - WebFetch
 user-invocable: true
 ---
 
@@ -23,6 +11,8 @@ user-invocable: true
 インフラ環境のセットアップ・メンテナンスを**対話的に**実行するSkillです。ローカル開発環境、Vercel、Neon、GitHub Actions、環境変数管理をカバーします。
 
 ## 参照ドキュメント
+
+> **重要**: ドキュメントは**起動時に全て読まない**。選択されたカテゴリの実行時に、該当する参照ドキュメントのみを読むこと。各カテゴリの「参照ドキュメント」セクションに記載されたファイルが対象。
 
 ### 設計方針
 - `docs/einja/steering/infrastructure/environment-variables.md`
@@ -35,30 +25,22 @@ user-invocable: true
 - `docs/einja/instructions/neon-cli-reference.md`
 - `docs/einja/instructions/local-server-environment-and-worktree.md`
 
-> **重要**: 各操作の詳細手順は上記ドキュメントに従うこと。このSkillは対話フローの定義であり、具体的なコマンドは参照ドキュメントが正（Single Source of Truth）。
+> **Single Source of Truth**: このSkillは対話フローの定義であり、具体的なコマンド手順は各カテゴリの参照ドキュメントが正。
 
 ---
 
 ## 実行フロー
 
-```
-[Skill起動]
-  ↓
-[環境状態の自動検出]
-  ↓
-[AskUserQuestion: メインメニュー]
-  ├─ 1. ローカル環境セットアップ
-  ├─ 2. 環境変数管理
-  ├─ 3. Vercel管理
-  ├─ 4. Neon管理
-  ├─ 5. GitHub Secrets管理
-  └─ 6. 環境状態確認（ヘルスチェック）
-  ↓
-[AskUserQuestion: サブメニュー]
-  ↓
-[実行]
-  ↓
-[結果報告]
+```mermaid
+graph TB
+    Start[Skill起動] --> Detect[Phase 1: 環境状態の自動検出]
+    Detect --> Judge[Phase 2: 意図判定]
+    Judge -->|意図が明確| Direct[該当カテゴリへ直接遷移]
+    Judge -->|意図が不明確| Menu[AskUserQuestion: メインメニュー]
+    Menu --> Cat[カテゴリ 1-7 選択]
+    Direct --> Exec[実行]
+    Cat --> Exec
+    Exec --> Result[結果報告]
 ```
 
 ---
@@ -89,9 +71,37 @@ pnpm dev:status 2>/dev/null || echo "停止中"
 
 ---
 
-## Phase 2: メインメニュー
+## Phase 2: 意図判定とメインメニュー
 
-AskUserQuestionで以下の選択肢を提示する。検出結果に基づいて推奨を表示する。
+### 意図が明確な場合（質問せずに直接実行）
+
+Skill起動時の引数やユーザーの指示から意図が読み取れる場合は、AskUserQuestionを使わずに該当カテゴリに直接進む。
+
+**直接実行の例:**
+- `/infra-maintenance Vercel初期設定` → カテゴリ3: Vercel管理へ直接遷移
+- `/infra-maintenance ヘルスチェック` → カテゴリ6: 環境状態確認へ直接遷移
+- `Neonのブランチを作成したい` → カテゴリ4: Neon管理へ直接遷移
+- `GitHub Secretsを一括設定して` → カテゴリ5: GitHub Secrets管理へ直接遷移
+- `環境変数を追加したい` → カテゴリ2: 環境変数管理へ直接遷移
+- `CIが失敗してる` → カテゴリ7: GitHub Actions CI/CD管理へ直接遷移
+- `ワークフローの実行状況を見たい` → カテゴリ7: GitHub Actions CI/CD管理へ直接遷移
+
+### 意図が不明確な場合のみメニューを表示
+
+引数がない、または意図が曖昧な場合のみ、AskUserQuestionで以下の選択肢を提示する。検出結果に基づいて推奨を表示する。
+
+#### 検出結果に基づく推奨ロジック
+
+Phase 1の検出結果から、推奨カテゴリにマーク（推奨）を付与してAskUserQuestionの選択肢に表示する。
+
+| 検出結果 | 推奨カテゴリ |
+|---------|------------|
+| `.env.keys`不在 | ローカル環境セットアップ |
+| 開発サーバー停止中 + `.env.keys`存在 | ローカル環境セットアップ |
+| vercel CLI未インストール or 未リンク | Vercel管理 |
+| neonctl未インストール | Neon管理 |
+| `.env.personal`不在 | 環境変数管理 |
+| 上記に該当しない | 環境状態確認（デフォルト） |
 
 | 選択肢 | 説明 |
 |--------|------|
@@ -101,6 +111,7 @@ AskUserQuestionで以下の選択肢を提示する。検出結果に基づい�
 | Neon管理 | 初期設定、ブランチ管理、接続文字列取得 |
 | GitHub Secrets管理 | 一覧表示、個別設定、一括設定 |
 | 環境状態確認 | 包括的ヘルスチェック |
+| GitHub Actions CI/CD管理 | ワークフロー状態確認、失敗調査、手動トリガー |
 
 ---
 
@@ -166,7 +177,14 @@ AskUserQuestionで以下の選択肢を提示する。検出結果に基づい�
 7. コミット案内
 
 #### 新規環境変数追加
-→ `docs/einja/instructions/environment-setup.md`の「新規環境変数を追加するとき」フローに従う
+1. AskUserQuestionで変数名・用途・対象環境（local/develop/production/preview）を確認
+2. 対象環境に応じた`.env.*`ファイルを特定
+3. 暗号化ファイルの場合: チーム共有設定変更と同じフロー（decrypt→編集→encrypt）
+4. 非暗号化ファイルの場合（.env/.env.personal）: 直接編集
+5. AskUserQuestion: 他環境への展開が必要か確認
+6. コミット案内（チーム共有設定の場合）
+
+> **詳細手順**: `docs/einja/instructions/environment-setup.md`の「新規環境変数を追加するとき」を参照
 
 ### 参照ドキュメント
 - `docs/einja/instructions/environment-setup.md`
@@ -199,8 +217,11 @@ AskUserQuestionで以下の選択肢を提示する。検出結果に基づい�
 > **注意**: 通常はGitHub Actionsが自動同期するため、初回セットアップ時のみ手動実行
 
 1. `.env.keys`からDOTENV_PRIVATE_KEY_*を抽出
-2. `vercel env rm` + `vercel env add` でVercelに同期
-3. 設定結果を `vercel env ls` で確認
+2. AskUserQuestionで同期対象を確認（値はマスク表示）
+3. 承認後、`vercel env rm` + `vercel env add` でVercelに同期
+4. 設定結果を `vercel env ls` で確認
+
+> **詳細手順**: `docs/einja/instructions/vercel-cli-reference.md`の「環境変数同期自動化」を参照
 
 #### デプロイ状態確認
 ```bash
@@ -225,7 +246,7 @@ vercel ls
 #### 初期設定
 1. NEON_API_KEY確認 → 未設定時はURL案内 + `.env.personal`保存
    - 取得URL: https://console.neon.tech/app/settings/api-keys
-   - **`neonctl auth`は対話専用のため不使用** → `--api-key`フラグまたは`NEON_API_KEY`環境変数で認証
+   - **`neonctl auth`は使用しない**（理由: `docs/einja/instructions/neon-cli-reference.md`「認証方式」参照）→ `--api-key`フラグまたは`NEON_API_KEY`環境変数で認証
 2. プロジェクト作成:
    ```bash
    neonctl projects create --name einja-management --region-id aws-ap-northeast-1 --api-key $NEON_API_KEY
@@ -288,7 +309,7 @@ gh secret list
 ```bash
 # dotenvx秘密鍵を自動抽出してGitHub Secretsに設定
 for key_name in PREVIEW PRODUCTION DEVELOP STAGING; do
-  value=$(grep "DOTENV_PRIVATE_KEY_${key_name}" .env.keys | cut -d'=' -f2 | tr -d '"'"'"')
+  value=$(grep "DOTENV_PRIVATE_KEY_${key_name}" .env.keys | cut -d'=' -f2 | tr -d "\"'")
   if [ -n "$value" ]; then
     gh secret set "DOTENV_PRIVATE_KEY_${key_name}" --body "$value"
     echo "✅ DOTENV_PRIVATE_KEY_${key_name} を設定しました"
@@ -378,8 +399,115 @@ gh run list --limit 5
   ✅ 最新CI: 成功 (2h ago)
 ```
 
+### 推奨アクション提案
+
+ヘルスチェック結果に❌がある場合、以下のルールで推奨アクションを提示する:
+
+| 検出結果 | 推奨アクション |
+|---------|--------------|
+| `.env.keys`不在 / CLI未インストール | → カテゴリ1（ローカル環境セットアップ） |
+| `.env.personal`不在 / トークン未設定 | → カテゴリ2（環境変数管理 > 個人トークン設定） |
+| Vercel未リンク / デプロイエラー | → カテゴリ3（Vercel管理） |
+| Neonブランチ取得失敗 | → カテゴリ4（Neon管理） |
+| GitHub Secrets不足 | → カテゴリ5（GitHub Secrets管理） |
+| CI失敗 | → カテゴリ7（GitHub Actions CI/CD管理 > 失敗調査） |
+
+❌が3個以上の場合は「初期セットアップが必要です。カテゴリ1を実行してください」と表示。
+
 ### 参照ドキュメント
 - `docs/einja/instructions/local-server-environment-and-worktree.md`（包括的ヘルスチェック）
+
+---
+
+## カテゴリ7: GitHub Actions CI/CD管理
+
+### サブメニュー
+- **ワークフロー状態確認**: 最新の実行結果一覧
+- **失敗調査**: 失敗したワークフローのログ分析
+- **手動トリガー**: ワークフローの手動実行
+- **ワークフロー一覧**: 利用可能なワークフロー確認
+
+### プロジェクトのワークフロー
+
+| ワークフロー | ファイル | トリガー | 用途 | 備考 |
+|------------|---------|---------|------|------|
+| デプロイ（安定ブランチ） | `deploy-stable-branches.yml` | push to main/develop | 本番・開発環境デプロイ + 環境変数同期 | DOTENV_PRIVATE_KEY_*を自動同期 |
+| PRプレビューデプロイ | `deploy-pr-preview.yml` | PR open/sync | PR毎のプレビュー環境作成 | Neonブランチ自動作成 |
+| PRプレビューDB削除 | `cleanup-pr-preview-db.yml` | schedule/manual | 孤立Neonブランチのクリーンアップ | PR未存在のブランチを自動削除 |
+| PRクローズ時クリーンアップ | `cleanup-pr-preview-on-close.yml` | PR close | PR関連リソース削除 | Neonブランチ + Vercel Preview削除 |
+| CLIリリース | `release-cli.yml` | manual | @einja/cli NPM公開 | workflow_dispatch対応 |
+| create-einja-appリリース | `release-create-einja-app.yml` | manual | create-einja-app NPM公開 | workflow_dispatch対応 |
+| Claude Code | `claude.yml` | issue comment | Claude Codeによる自動対応 | `/claude`コメントでトリガー |
+
+### 実行手順
+
+#### ワークフロー状態確認
+```bash
+# 最新の実行結果一覧
+gh run list --limit 10
+
+# 特定ワークフローの実行一覧
+gh run list --workflow=deploy-stable-branches.yml --limit 5
+
+# 実行中のワークフロー
+gh run list --status=in_progress
+```
+
+#### 失敗調査
+1. 失敗したワークフローの一覧を取得:
+   ```bash
+   gh run list --status=failure --limit 5
+   ```
+2. AskUserQuestionで調査対象のrun-idを選択
+3. 失敗したジョブのログを表示:
+   ```bash
+   gh run view <run-id> --log-failed
+   ```
+4. **ログ分析→アクション提案**: エラーパターンに基づいてカテゴリ遷移を提案
+
+| エラーパターン | 推奨アクション |
+|---------------|---------------|
+| `Secret not found: DOTENV_PRIVATE_KEY_*` | → カテゴリ5（GitHub Secrets管理）で一括設定 |
+| `vercel deploy failed` | → カテゴリ3（Vercel管理）で状態確認 |
+| `neonctl: authentication failed` | → カテゴリ5でNEON_API_KEY更新 |
+| `Permission denied` | → `.github/workflows/`のpermissions設定確認を案内 |
+| その他 | エラーログ全文を表示し、対処方法をAskUserQuestionで相談 |
+
+#### 手動トリガー
+```bash
+# workflow_dispatch対応ワークフローを手動実行
+gh workflow run <workflow-file> --ref <branch>
+
+# 入力パラメータ付き
+gh workflow run <workflow-file> --ref <branch> -f param1=value1
+
+# PRプレビューDBクリーンアップの手動実行
+gh workflow run cleanup-pr-preview-db.yml --ref main
+```
+
+#### ワークフロー一覧
+```bash
+# 利用可能なワークフロー一覧
+gh workflow list
+
+# 特定ワークフローの詳細
+gh workflow view <workflow-file>
+```
+
+### エラー時の対処
+
+| エラー | 対処 |
+|--------|------|
+| デプロイ失敗 | `gh run view <id> --log-failed` でログ確認 → 原因特定 |
+| Secrets不足 | カテゴリ5（GitHub Secrets管理）で設定 |
+| 環境変数同期失敗 | dotenvx秘密鍵のSecret設定を確認 |
+| Neonブランチ作成失敗 | NEON_API_KEY のSecret設定・有効期限を確認 |
+| Permission denied | ワークフローのpermissions設定を確認 |
+
+### 参照ドキュメント
+- `.github/workflows/` 内の各ワークフローファイル
+- `docs/einja/instructions/deployment-setup.md`
+- `docs/einja/steering/infrastructure/deployment.md`
 
 ---
 

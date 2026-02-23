@@ -26,9 +26,9 @@ allowed-tools:
 - **QAテスト（あなたが実施）**: 画面フロー、API連携、データ永続化等の統合動作確認
 
 **必須参照ドキュメント**:
-- `reference/failure-patterns.md` - 失敗原因分類の実践例（10パターン）
-- `reference/usage-patterns.md` - 利用パターン（5パターン）
-- `reference/troubleshooting.md` - トラブルシューティング（6ケース）
+- `references/failure-patterns.md` - 失敗原因分類の実践例（10パターン）
+- `references/usage-patterns.md` - 利用パターン（5パターン）
+- `references/troubleshooting.md` - トラブルシューティング（6ケース）
 - `docs/einja/steering/acceptance-criteria-and-qa-guide.md` - 価値あるテストの判定基準
 
 ---
@@ -299,9 +299,9 @@ AskUserQuestion:
 
 - `docs/einja/steering/acceptance-criteria-and-qa-guide.md` - QAテストの目的、失敗分類詳細、動作確認ツール使用法
 - `templates/qa-test-template.md` - QAテストファイルテンプレート
-- `reference/failure-patterns.md` - 失敗分類の実践例（10パターン）
-- `reference/usage-patterns.md` - 利用パターン（5パターン）
-- `reference/troubleshooting.md` - トラブルシューティング（6ケース）
+- `references/failure-patterns.md` - 失敗分類の実践例（10パターン）
+- `references/usage-patterns.md` - 利用パターン（5パターン）
+- `references/troubleshooting.md` - トラブルシューティング（6ケース）
 
 ---
 

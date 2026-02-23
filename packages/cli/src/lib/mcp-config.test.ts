@@ -300,14 +300,14 @@ describe("mcp-config", () => {
       // getTemplateMcpConfigのモックは複雑なので、直接ファイルシステムをモック
       vi.mocked(fs.pathExists).mockImplementation(async (p) => {
         const pathStr = String(p);
-        if (pathStr.includes("scaffolds")) return true; // テンプレート存在
+        if (pathStr.includes("presets")) return true; // テンプレート存在
         if (pathStr.endsWith(".mcp.json")) return true; // 既存ファイル存在
         return false;
       });
 
       vi.mocked(fs.readJson).mockImplementation(async (p) => {
         const pathStr = String(p);
-        if (pathStr.includes("scaffolds")) {
+        if (pathStr.includes("presets")) {
           // テンプレート
           return { mcpServers: { server1: { command: "template" } } };
         }

@@ -22,16 +22,10 @@ export function getPresetsPath(): string {
 /**
  * テンプレートディレクトリのパスを取得
  */
-export function getTemplatesPath(): string {
-  return path.join(getPackageRoot(), "scaffolds", "templates");
+export function getTemplatesPath(presetName = "default"): string {
+  return path.join(getPresetPath(presetName), "docs", "einja", "templates");
 }
 
-/**
- * スキャフォールドディレクトリのパスを取得
- */
-export function getScaffoldsPath(): string {
-  return path.join(getPackageRoot(), "scaffolds");
-}
 
 /**
  * 特定のプリセットのパスを取得

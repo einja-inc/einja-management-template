@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "fs-extra";
 import { z } from "zod";
-import { getScaffoldsPath } from "./file-system.js";
+import { getPresetPath } from "./file-system.js";
 
 // Zodスキーマ定義
 const McpServerConfigSchema = z
@@ -46,8 +46,8 @@ export interface SetupMcpConfigResult {
 }
 
 export async function getTemplateMcpConfig(): Promise<McpConfig | null> {
-  const scaffoldsPath = getScaffoldsPath();
-  const templatePath = path.join(scaffoldsPath, ".mcp.json");
+  const presetPath = getPresetPath("default");
+  const templatePath = path.join(presetPath, ".mcp.json");
   if (!(await fs.pathExists(templatePath))) {
     return null;
   }

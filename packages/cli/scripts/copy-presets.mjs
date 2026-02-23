@@ -9,14 +9,13 @@
  * - .claude/hooks/einja/
  * - .claude/settings.json
  * - .mcp.json
- * - docs/einja/steering/
- * - docs/einja/templates/
+ * - docs/einja/ (memory, cli除く)
  *
  * コピー先（CLI配布用）:
  * - packages/cli/presets/default/.claude/
- * - packages/cli/scaffolds/steering/
- * - packages/cli/scaffolds/.mcp.json
- * - packages/cli/templates/
+ * - packages/cli/presets/default/docs/einja/
+ * - packages/cli/presets/default/.mcp.json
+ * - packages/cli/presets/default/CLAUDE.md.template
  *
  * シンボリックリンク:
  * - プロジェクト原本のシンボリックリンクは symlinks.json に記録される
@@ -120,12 +119,12 @@ const mappings = [
 		basePath: ".claude/hooks/einja",
 		cleanParent: true, // hooks/ディレクトリ全体をクリーンアップ
 	},
-	// docs/einja全体（scaffoldsはシンボリックリンク非対象）
+	// docs/einja全体（presets/defaultに統合、sync + init両対応）
 	{
 		src: path.join(projectRoot, "docs/einja"),
-		dest: path.join(cliDir, "scaffolds"),
+		dest: path.join(cliDir, "presets/default/docs/einja"),
 		basePath: null, // シンボリックリンク記録対象外
-		exclude: ["memory"], // プロジェクト固有のメモリはコピーしない
+		exclude: ["memory", "cli"], // プロジェクト固有のメモリとcli/preset.yamlはコピーしない
 	},
 ];
 
@@ -140,7 +139,7 @@ const fileMappings = [
 	// .mcp.json
 	{
 		src: path.join(projectRoot, ".mcp.json"),
-		dest: path.join(cliDir, "scaffolds/.mcp.json"),
+		dest: path.join(cliDir, "presets/default/.mcp.json"),
 		required: false,
 	},
 	// preset.yaml（プリセット定義）

@@ -71,7 +71,7 @@ function generateTemplate() {
 	console.log(`  ✓ プレースホルダー変換: ${replacementCount} 箇所置換`);
 
 	// 出力先ディレクトリを作成
-	const outputPath = path.join(cliDir, "scaffolds/CLAUDE.md.template");
+	const outputPath = path.join(cliDir, "presets/default/CLAUDE.md.template");
 	const outputDir = path.dirname(outputPath);
 	fs.mkdirSync(outputDir, { recursive: true });
 

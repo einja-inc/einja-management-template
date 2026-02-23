@@ -3,7 +3,6 @@ import fs from "fs-extra";
 import type { PresetConfig, SymlinksConfig } from "../types/index.js";
 import {
   getPresetPath,
-  getScaffoldsPath,
   getTemplatesPath,
   processTemplateFile,
 } from "./file-system.js";
@@ -78,8 +77,8 @@ export async function generateClaudeMd(
   targetPath: string,
   variables: Record<string, string>
 ): Promise<void> {
-  const scaffoldsPath = getScaffoldsPath();
-  const templatePath = path.join(scaffoldsPath, "CLAUDE.md.template");
+  const presetPath = getPresetPath("default");
+  const templatePath = path.join(presetPath, "CLAUDE.md.template");
 
   if (!(await fs.pathExists(templatePath))) {
     return;
@@ -93,8 +92,8 @@ export async function generateClaudeMd(
  * ステアリングドキュメントをコピー
  */
 export async function copySteeringDocs(targetPath: string): Promise<void> {
-  const scaffoldsPath = getScaffoldsPath();
-  const steeringPath = path.join(scaffoldsPath, "steering");
+  const presetPath = getPresetPath("default");
+  const steeringPath = path.join(presetPath, "docs", "einja", "steering");
 
   if (!(await fs.pathExists(steeringPath))) {
     return;

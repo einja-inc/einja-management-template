@@ -527,6 +527,91 @@ pnpm build
 2. プロジェクトのREADME.md
 3. GitHub Issuesで既存の問題を検索
 4. チームメンバーに相談
+
+## Prisma単独セットアップ
+
+開発サーバー全体を起動せずにPrismaのみを操作する場合のコマンド:
+
+| コマンド | 説明 | 用途 |
+|---------|------|------|
+| `pnpm db:generate` | Prismaクライアント生成 | スキーマ変更後の型生成 |
+| `pnpm db:push` | スキーマをDBに反映 | プロトタイピング時（マイグレーション不使用） |
+| `pnpm db:migrate:deploy` | マイグレーション実行 | 本番環境・CI環境でのスキーマ適用 |
+| `pnpm db:migrate:dev` | マイグレーション作成・適用 | 開発時の新しいマイグレーション作成 |
+| `pnpm db:studio` | Prisma Studio起動 | ブラウザでのDB閲覧・編集 |
+
+### 使い分け
+
+- **開発中のスキーマ変更**: `db:push`（マイグレーションファイルを作成せずに即座に反映）
+- **マイグレーション確定時**: `db:migrate:dev`（マイグレーションファイルを生成）
+- **デプロイ時**: `db:migrate:deploy`（既存マイグレーションを適用）
+
+> **注意**: `db:push` はマイグレーション履歴を作成しません。チームで共有する変更は必ず `db:migrate:dev` でマイグレーションを作成してください。
+
+## 包括的ヘルスチェック
+
+開発環境の状態を一括で確認するためのチェック項目:
+
+### 1. ランタイム環境
+
+```bash
+# Node.jsバージョン（v22.16.0が期待値）
+node -v
+
+# pnpmバージョン
+pnpm -v
+
+# Volta確認
+volta list
+```
+
+### 2. Docker / PostgreSQL
+
+```bash
+# Dockerコンテナ状態
+docker-compose ps
+
+# PostgreSQL接続確認（ポート25432）
+docker-compose exec postgres pg_isready -U postgres -p 5432
+```
+
+### 3. 環境変数ファイル
+
+```bash
+# 必須ファイルの存在確認
+for f in .env .env.local .env.keys .env.personal; do
+  [ -f "$f" ] && echo "✅ $f" || echo "❌ $f が見つかりません"
+done
+
+# .env.personalの権限確認
+stat -f "%Lp" .env.personal 2>/dev/null | grep -q "600" && echo "✅ .env.personal: 権限OK (600)" || echo "⚠️ .env.personal: chmod 600 を実行してください"
+```
+
+### 4. Prismaスキーマ
+
+```bash
+# スキーマ検証
+pnpm db:generate
+
+# マイグレーション状態
+pnpm db:migrate:status 2>/dev/null || echo "マイグレーション状態の確認にはDB接続が必要です"
+```
+
+### 5. 開発サーバー
+
+```bash
+# サーバー状態確認
+pnpm dev:status
+```
+
+### 6. CLI ツール
+
+```bash
+# 各CLIの存在確認
+for cmd in gh vercel neonctl dotenvx; do
+  command -v $cmd >/dev/null 2>&1 && echo "✅ $cmd: $(command -v $cmd)" || echo "❌ $cmd: 未インストール"
+done
+```
 <!-- @einja:managed:end -->
 
 ---

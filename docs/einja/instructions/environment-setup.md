@@ -155,7 +155,6 @@ dotenvx decrypt -f .env.production
 ├── .env.local              # ローカル開発用（暗号化・Git追跡）★
 ├── .env.develop            # dev検証サーバー用（暗号化・Git追跡）
 ├── .env.production         # 本番環境用（暗号化・Git追跡）
-├── .env.ci                 # CI/CD用（暗号化・Git追跡）
 ├── .env.keys               # 秘密鍵（Git除外・1Password等で共有）
 ├── .env                    # .env.localを復号したもの（Git除外）
 └── .env.personal           # 個人用トークン（Git除外）
@@ -316,13 +315,13 @@ git push
 
 ```bash
 # CI用秘密鍵を登録
-gh secret set DOTENV_PRIVATE_KEY_CI --body "$(grep DOTENV_PRIVATE_KEY_CI .env.keys | cut -d= -f2)"
+gh secret set DOTENV_PRIVATE_KEY_CI --body "$(grep DOTENV_PRIVATE_KEY_CI .env.keys | cut -d= -f2 | tr -d '"'"'"')"
 
 # Preview用秘密鍵を登録（Preview環境を使う場合）
-gh secret set DOTENV_PRIVATE_KEY_PREVIEW --body "$(grep DOTENV_PRIVATE_KEY_PREVIEW .env.keys | cut -d= -f2)"
+gh secret set DOTENV_PRIVATE_KEY_PREVIEW --body "$(grep DOTENV_PRIVATE_KEY_PREVIEW .env.keys | cut -d= -f2 | tr -d '"'"'"')"
 
 # 本番用秘密鍵を登録（必要に応じて）
-gh secret set DOTENV_PRIVATE_KEY_PRODUCTION --body "$(grep DOTENV_PRIVATE_KEY_PRODUCTION .env.keys | cut -d= -f2)"
+gh secret set DOTENV_PRIVATE_KEY_PRODUCTION --body "$(grep DOTENV_PRIVATE_KEY_PRODUCTION .env.keys | cut -d= -f2 | tr -d '"'"'"')"
 ```
 
 ### Vercel環境変数への登録
@@ -489,6 +488,95 @@ dotenvx run -f .env -f .env.local -- <command>
 - [dotenvx公式ドキュメント](https://dotenvx.com/docs)
 - [dotenvx暗号化の仕組み](https://dotenvx.com/encryption)
 - [direnv公式ドキュメント](https://direnv.net/)
+
+## チーム共有設定変更フロー
+
+チーム全体で共有する環境変数（`.env.develop`, `.env.preview`, `.env.production` 等）を変更する手順:
+
+### 手順
+
+1. **復号化**: 暗号化されたファイルを復号
+   ```bash
+   dotenvx decrypt -f .env.develop --stdout > .env.develop.tmp
+   ```
+
+2. **編集**: 一時ファイルを編集
+   ```bash
+   # エディタで .env.develop.tmp を編集
+   ```
+
+3. **元ファイルに反映**: 編集内容を元ファイルにコピー
+   ```bash
+   cp .env.develop.tmp .env.develop
+   rm .env.develop.tmp
+   ```
+
+4. **再暗号化**: 変更を暗号化
+   ```bash
+   dotenvx encrypt -f .env.develop
+   ```
+
+5. **コミット**: 暗号化されたファイルをコミット
+   ```bash
+   git add .env.develop
+   git commit -m "chore: develop環境の環境変数を更新"
+   ```
+
+> **⚠️ 警告**: `.env.production` を編集する場合は、本番環境への影響を十分に確認してから行ってください。
+
+## 新規環境変数追加フロー
+
+プロジェクトに新しい環境変数を追加する手順:
+
+### 手順
+
+1. **`.env.example` にキーを追加**（デフォルト値またはプレースホルダー）
+   ```bash
+   # .env.example に追記
+   NEW_API_KEY=your-api-key-here
+   ```
+
+2. **各環境ファイルに追加**
+   - `.env.local` - ローカル開発用の値
+   - `.env.develop` - 開発環境用の値
+   - `.env.preview` - プレビュー環境用の値
+   - `.env.production` - 本番環境用の値
+   - `.env.staging` - ステージング環境用の値（該当する場合）
+
+3. **暗号化されたファイルを再暗号化**
+   ```bash
+   dotenvx encrypt -f .env.local
+   dotenvx encrypt -f .env.develop
+   dotenvx encrypt -f .env.preview
+   dotenvx encrypt -f .env.production
+   ```
+
+4. **デプロイ環境への同期**
+   - GitHub Secrets: 秘密鍵が変更された場合は [デプロイメントセットアップ](./deployment-setup.md) のセクション6を参照
+   - Vercel環境変数: 初回は手動同期、以降はGitHub Actionsが自動同期
+
+## .env.personal のセキュリティ
+
+`.env.personal` は個人のAPIトークン・キーを管理するファイルです。
+
+### 管理対象トークン
+
+| トークン | 取得先 | 用途 |
+|---------|-------|------|
+| `VERCEL_TOKEN` | [Vercel Dashboard](https://vercel.com/account/tokens) | Vercel CLI認証 |
+| `NEON_API_KEY` | [Neon Console](https://console.neon.tech/account/api-keys) | Neon CLI認証 |
+| `GITHUB_TOKEN` | [GitHub Settings](https://github.com/settings/tokens) | GitHub API認証 |
+
+### セキュリティルール
+
+- **Git管理対象外**: `.gitignore` で除外済み
+- **dotenvx暗号化対象外**: 個人ファイルのため暗号化不要
+- **権限設定**: ファイル作成後は必ず実行
+  ```bash
+  chmod 600 .env.personal
+  ```
+- **ローテーション推奨**: 90日ごとにトークンを更新することを推奨
+- **共有禁止**: 他の開発者とトークンを共有しないこと
 <!-- @einja:managed:end -->
 
 ---

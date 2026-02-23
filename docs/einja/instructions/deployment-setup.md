@@ -23,6 +23,88 @@
 
 ---
 
+## 0. ゼロからの統合初期構築フロー
+
+新しいプロジェクトまたは新しい開発者が環境を構築する際の統合フローです。
+
+### 前提条件
+
+以下のツール・アカウントが必要です:
+
+| ツール | インストール方法 | 用途 |
+|--------|----------------|------|
+| Volta | `curl https://get.volta.sh \| bash` | Node.jsバージョン管理 |
+| pnpm | `volta install pnpm` | パッケージ管理 |
+| Docker | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | PostgreSQL実行 |
+| GitHub CLI (`gh`) | `brew install gh` | GitHub操作 |
+| Vercel CLI | `pnpm add -g vercel` | Vercelデプロイ |
+| Neon CLI (`neonctl`) | `npm install -g neonctl` | Neonデータベース管理 |
+| dotenvx | `brew install dotenvx/brew/dotenvx` | 環境変数暗号化 |
+
+### 構築ステップ
+
+#### Step 1: リポジトリのクローンと依存関係インストール
+
+```bash
+git clone <repository-url>
+cd <project-name>
+pnpm install
+```
+
+#### Step 2: Neon初期設定
+
+1. [Neon Console](https://console.neon.tech/) でAPI Keyを取得
+2. `.env.personal` に `NEON_API_KEY=<取得したキー>` を設定
+3. プロジェクト作成・ブランチ設定
+
+詳細は [Neon CLI リファレンス](./neon-cli-reference.md) のセクション5「実践例」を参照。
+
+#### Step 3: Vercel初期設定
+
+1. [Vercel Dashboard](https://vercel.com/account/tokens) でトークンを取得
+2. `.env.personal` に `VERCEL_TOKEN=<取得したトークン>` を設定
+3. `vercel link --project=<プロジェクト名> --yes` でプロジェクト接続
+
+詳細は [Vercel CLI リファレンス](./vercel-cli-reference.md) を参照。
+
+#### Step 4: GitHub Secrets一括設定
+
+`.env.keys` から秘密鍵を自動抽出してGitHub Secretsに設定:
+
+```bash
+for key_name in PREVIEW PRODUCTION DEVELOP STAGING; do
+  value=$(grep "DOTENV_PRIVATE_KEY_${key_name}" .env.keys | cut -d'=' -f2 | tr -d '"'"'"')
+  [ -n "$value" ] && gh secret set "DOTENV_PRIVATE_KEY_${key_name}" --body "$value"
+done
+```
+
+詳細はセクション6「GitHub Secrets登録」を参照。
+
+#### Step 5: ローカル環境変数設定
+
+```bash
+pnpm env:update
+```
+
+ウィザードに従って個人トークンと環境変数を設定。
+詳細は [環境変数セットアップ](./environment-setup.md) を参照。
+
+#### Step 6: 初回起動
+
+```bash
+pnpm dev:setup    # 初回セットアップ（DB起動・マイグレーション含む）
+pnpm dev:bg       # 開発サーバー起動
+```
+
+#### Step 7: 動作確認
+
+- [ ] ローカル開発サーバーにアクセスできる
+- [ ] ログインが正常に動作する
+- [ ] PRを作成してCI（GitHub Actions）が正常に動作する
+- [ ] Preview環境にデプロイされる
+
+---
+
 ## 1. 必要なSecrets一覧
 
 ### 必須Secrets
@@ -104,16 +186,18 @@ pnpm env:update
 
 Preview環境用のDBブランチは以下のルールで自動作成されます：
 
-| PRブランチ名 | 作成されるDBブランチ名 | 親ブランチ |
-|------------|---------------------|----------|
-| `feature/user-auth` | `preview/feature-user-auth` | `main` |
-| `fix/login-bug` | `preview/fix-login-bug` | `main` |
-| `feat/dashboard` | `preview/feat-dashboard` | `main` |
+| 環境 | PR番号 | DBブランチ名 | 説明 |
+|------|-------|------------|------|
+| production | - | production | 本番環境 |
+| develop | - | development | 開発環境 |
+| preview | #123 | preview/pr-123 | PR番号から自動生成 |
 
 **重要**:
 - DBブランチ名はGitブランチ名から自動変換（`/`→`-`、小文字化）
 - プレフィックス `preview/` が自動付与
 - PR作成時に自動作成、PRクローズ時に自動削除
+
+> **Neon CLI/APIの詳細**: [Neon CLI リファレンス](./neon-cli-reference.md) を参照してください。
 
 ### Vercel Postgres
 
@@ -306,10 +390,10 @@ gh secret set RAILWAY_SERVICE_ID --body "サービスID"
 # 2. 「New repository secret」で以下を追加
 
 # --- 復号鍵（.env.keysから取得） ---
-gh secret set DOTENV_PRIVATE_KEY_PREVIEW --body "$(grep DOTENV_PRIVATE_KEY_PREVIEW .env.keys | cut -d'\"' -f2)"
-gh secret set DOTENV_PRIVATE_KEY_PRODUCTION --body "$(grep DOTENV_PRIVATE_KEY_PRODUCTION .env.keys | cut -d'\"' -f2)"
-gh secret set DOTENV_PRIVATE_KEY_DEVELOP --body "$(grep DOTENV_PRIVATE_KEY_DEVELOP .env.keys | cut -d'\"' -f2)"
-gh secret set DOTENV_PRIVATE_KEY_STAGING --body "$(grep DOTENV_PRIVATE_KEY_STAGING .env.keys | cut -d'\"' -f2)"
+gh secret set DOTENV_PRIVATE_KEY_PREVIEW --body "$(grep DOTENV_PRIVATE_KEY_PREVIEW .env.keys | cut -d= -f2 | tr -d '"'"'"')"
+gh secret set DOTENV_PRIVATE_KEY_PRODUCTION --body "$(grep DOTENV_PRIVATE_KEY_PRODUCTION .env.keys | cut -d= -f2 | tr -d '"'"'"')"
+gh secret set DOTENV_PRIVATE_KEY_DEVELOP --body "$(grep DOTENV_PRIVATE_KEY_DEVELOP .env.keys | cut -d= -f2 | tr -d '"'"'"')"
+gh secret set DOTENV_PRIVATE_KEY_STAGING --body "$(grep DOTENV_PRIVATE_KEY_STAGING .env.keys | cut -d= -f2 | tr -d '"'"'"')"
 
 # --- Vercel ---
 gh secret set VERCEL_TOKEN --body "取得したトークン"

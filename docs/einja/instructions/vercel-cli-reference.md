@@ -450,6 +450,75 @@ jobs:
 - [Vercel CLI公式ドキュメント](https://vercel.com/docs/cli)
 - [Vercel REST API公式ドキュメント](https://vercel.com/docs/rest-api)
 - [GitHub CLI公式ドキュメント](https://cli.github.com/manual/)
+
+## 自動化時の注意点
+
+### 非対話モード
+
+自動化スクリプトやClaude Code Skillから呼び出す場合、確認プロンプトをスキップする必要があります:
+
+| コマンド | 非対話オプション | 説明 |
+|---------|----------------|------|
+| `vercel link` | `--yes` | プロジェクトリンクの確認をスキップ |
+| `vercel deploy` | `--yes` | デプロイ確認をスキップ |
+| `vercel env add` | パイプ入力 | `echo "value" \| vercel env add NAME <environment>` （environment: production/preview/development 必須） |
+| `vercel env rm` | `--yes` | 削除確認をスキップ |
+
+### トークン認証
+
+CLIの対話的ログインではなく、トークンを使用して認証:
+
+```bash
+# 環境変数で認証
+export VERCEL_TOKEN="your-token"
+vercel --token $VERCEL_TOKEN <command>
+
+# または .env.personal から読み込み
+source .env.personal
+vercel --token $VERCEL_TOKEN <command>
+```
+
+### JSON出力について
+
+**注意**: Vercel CLI v35以降、`vercel ls` 等で `--json` フラグはサポートされていません。
+プログラマティックにVercelの情報を取得する場合は、REST APIを使用してください:
+
+```bash
+# REST APIによるプロジェクト情報取得
+curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v9/projects/<project-id>"
+
+# REST APIによるデプロイ一覧取得
+curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v6/deployments?projectId=<project-id>&limit=5"
+```
+
+## 環境変数同期自動化
+
+### 初回セットアップ時の手動同期
+
+**注意**: 通常はGitHub Actions (`deploy-stable-branches.yml`) が環境変数を自動同期します。
+以下の手順は**初回セットアップ時のみ**手動で実行してください。
+
+### .env.* からVercelへの環境変数同期
+
+暗号化された `.env.*` ファイルからEncryptedキーのみを抽出し、Vercelに同期するコマンド例:
+
+```bash
+# .env.production の暗号化キーをVercelのproduction環境に同期
+dotenvx decrypt -f .env.production --stdout | while IFS='=' read -r key value; do
+  # DOTENV_PUBLIC_KEY_ で始まるキーはスキップ
+  [[ "$key" == DOTENV_PUBLIC_KEY_* ]] && continue
+  # 空行やコメント行をスキップ
+  [[ -z "$key" || "$key" == \#* ]] && continue
+  echo "$value" | vercel env add "$key" production --yes 2>/dev/null || true
+done
+```
+
+### Neon CLI リファレンス
+
+Neon CLIの詳細は [Neon CLI リファレンス](./neon-cli-reference.md) を参照してください。
+
 <!-- @einja:managed:end -->
 
 ---

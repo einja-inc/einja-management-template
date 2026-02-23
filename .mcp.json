@@ -2,21 +2,34 @@
 	"mcpServers": {
 		"vibe_kanban": {
 			"command": "npx",
-			"args": ["-y", "vibe-kanban@latest", "--mcp"]
+			"args": [
+				"-y",
+				"vibe-kanban@latest",
+				"--mcp"
+			]
 		},
 		"codex": {
 			"type": "stdio",
 			"command": "codex",
-			"args": ["mcp-server"]
+			"args": [
+				"mcp-server"
+			]
 		},
 		"context7": {
 			"command": "npx",
-			"args": ["-y", "@upstash/context7-mcp"]
+			"args": [
+				"-y",
+				"@upstash/context7-mcp"
+			]
 		},
 		"playwright": {
 			"type": "stdio",
 			"command": "npx",
-			"args": ["-y", "@playwright/mcp", "--isolated"]
+			"args": [
+				"-y",
+				"@playwright/mcp",
+				"--isolated"
+			]
 		},
 		"serena": {
 			"type": "stdio",
@@ -29,7 +42,8 @@
 				"--context",
 				"claude-code",
 				"--open-web-dashboard",
-				"false"]
+				"false"
+			]
 		},
 		"github": {
 			"type": "http",
@@ -37,6 +51,13 @@
 			"headers": {
 				"Authorization": "Bearer ${GITHUB_TOKEN}"
 			}
+		},
+		"drawio": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@drawio/mcp@latest"
+			]
 		}
 	}
 }

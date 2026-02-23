@@ -14,6 +14,7 @@ const CATEGORY_MAPPING: Record<string, string> = {
   hooks: ".claude/hooks",
   docs: "docs/einja",
   env: ".",
+  tools: ".vscode",
 };
 
 /**
@@ -63,6 +64,24 @@ export class FileFilter {
           const exists = await fs.pathExists(projectPath);
           targets.push({
             path: envrcPath,
+            category,
+            templatePath,
+            exists,
+          });
+        }
+        continue;
+      }
+
+      // toolsカテゴリは.vscode/settings.jsonファイルのみを対象とする特別処理
+      if (category === "tools") {
+        const settingsPath = ".vscode/settings.json";
+        const templatePath = path.join(this.templateRoot, settingsPath);
+        const projectPath = path.join(this.projectRoot, settingsPath);
+
+        if (await fs.pathExists(templatePath)) {
+          const exists = await fs.pathExists(projectPath);
+          targets.push({
+            path: settingsPath,
             category,
             templatePath,
             exists,
@@ -163,6 +182,14 @@ export class FileFilter {
       // envカテゴリは.envrcファイルのみを対象とする特別処理
       if (category === "env") {
         if (filePath === ".envrc") {
+          return category;
+        }
+        continue;
+      }
+
+      // toolsカテゴリは.vscode/settings.jsonファイルのみ
+      if (category === "tools") {
+        if (filePath === ".vscode/settings.json") {
           return category;
         }
         continue;

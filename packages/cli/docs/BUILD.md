@@ -22,6 +22,7 @@ prebuild → build → postbuild
 | `.claude/commands/einja/` | `presets/default/.claude/commands/einja/` |
 | `.claude/skills/einja-*/` | `presets/default/.claude/skills/einja-*/` |
 | `.claude/hooks/einja/` | `presets/default/.claude/hooks/einja/` |
+| `.vscode/settings.json` | `presets/default/.vscode/settings.json` |
 | `docs/einja/steering/` | `scaffolds/steering/` |
 
 **フィルター**: `_` で始まるファイルはスキップされます（プレースホルダー用）

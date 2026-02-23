@@ -46,6 +46,10 @@ describe("FileCopier", () => {
       expect(copier.shouldSkip(".claude/agents/spec-requirements.md")).toBe(false);
       expect(copier.shouldSkip("docs/einja/steering/terminology.md")).toBe(false);
     });
+
+    it(".vscode/settings.jsonはsingleFileMappingに含まれるためスキップしない", () => {
+      expect(copier.shouldSkip(".vscode/settings.json")).toBe(false);
+    });
   });
 
   describe("scanSourceFiles", () => {
@@ -402,6 +406,33 @@ describe("FileCopier", () => {
             force: false,
           })
         ).rejects.toThrow(/ファイルの書き込みに失敗しました/);
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
+
+    it(".vscode/settings.jsonがsingleFileMappingでコピーされること", async () => {
+      // Given: .vscode/settings.jsonを作成
+      const vscodeDir = join(testDir, ".vscode");
+      mkdirSync(vscodeDir, { recursive: true });
+      writeFileSync(join(vscodeDir, "settings.json"), '{"test": true}');
+
+      const originalCwd = process.cwd();
+
+      try {
+        process.chdir(testDir);
+
+        // When: コピー実行
+        const result = await copier.copyToPreset({
+          preset,
+          dryRun: false,
+          force: false,
+        });
+
+        // Then: コピーされている
+        const copiedFile = result.files.find((f) => f.source === ".vscode/settings.json");
+        expect(copiedFile).toBeDefined();
+        expect(existsSync(join(presetDir, ".vscode", "settings.json"))).toBe(true);
       } finally {
         process.chdir(originalCwd);
       }

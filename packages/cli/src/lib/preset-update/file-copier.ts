@@ -96,6 +96,11 @@ export class FileCopier {
         destination: ".envrc",
         category: "env",
       },
+      {
+        source: ".vscode/settings.json",
+        destination: ".vscode/settings.json",
+        category: "tools",
+      },
     ];
 
   /**

@@ -15,7 +15,7 @@ CLIでターゲットリポジトリにファイルをインストールする�
 ### 解決策
 
 - `docs/` に実体ファイルを配置（人間が管理する正のドキュメント）
-- `.claude/skills/reference/` からシンボリックリンクで参照
+- `.claude/skills/references/` からシンボリックリンクで参照
 - CLIインストール時にこのリンク構造を自動再現
 
 ## アーキテクチャ
@@ -27,7 +27,7 @@ CLIでターゲットリポジトリにファイルをインストールする�
 │ プロジェクト原本                                                   │
 ├─────────────────────────────────────────────────────────────────┤
 │ docs/einja/steering/commit-rules.md         ← 実体              │
-│ .claude/skills/.../reference/commit-rules.md → ../docs/...     │
+│ .claude/skills/.../references/commit-rules.md → ../docs/...     │
 │                                              ↑ シンボリックリンク │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -47,7 +47,7 @@ CLIでターゲットリポジトリにファイルをインストールする�
 │ ターゲットリポジトリ                                              │
 ├─────────────────────────────────────────────────────────────────┤
 │ docs/einja/steering/commit-rules.md         ← 実体コピー         │
-│ .claude/skills/.../reference/commit-rules.md → ../docs/...     │
+│ .claude/skills/.../references/commit-rules.md → ../docs/...     │
 │                                              ↑ リンク再作成      │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -59,11 +59,11 @@ CLIでターゲットリポジトリにファイルをインストールする�
   "version": 1,
   "symlinks": [
     {
-      "link": ".claude/skills/einja-coding-standards/reference/commit-rules.md",
+      "link": ".claude/skills/einja-coding-standards/references/commit-rules.md",
       "target": "../../../../docs/einja/steering/commit-rules.md"
     },
     {
-      "link": ".claude/skills/einja-coding-standards/reference/testing-strategy.md",
+      "link": ".claude/skills/einja-coding-standards/references/testing-strategy.md",
       "target": "../../../../docs/einja/steering/development/testing-strategy.md"
     }
   ]

@@ -9,6 +9,7 @@
  * - .claude/hooks/einja/
  * - .claude/settings.json
  * - .mcp.json
+ * - .vscode/settings.json
  * - docs/einja/ (memory, cli除く)
  *
  * コピー先（CLI配布用）:
@@ -103,6 +104,16 @@ const mappings = [
 		basePath: ".claude/skills/einja-spec-context-loader",
 	},
 	{
+		src: path.join(projectRoot, ".claude/skills/einja-project-overview"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-project-overview"),
+		basePath: ".claude/skills/einja-project-overview",
+	},
+	{
+		src: path.join(projectRoot, ".claude/skills/einja-skill-creator"),
+		dest: path.join(cliDir, "presets/default/.claude/skills/einja-skill-creator"),
+		basePath: ".claude/skills/einja-skill-creator",
+	},
+	{
 		src: path.join(projectRoot, ".claude/skills/einja-task-commit"),
 		dest: path.join(cliDir, "presets/default/.claude/skills/einja-task-commit"),
 		basePath: ".claude/skills/einja-task-commit",
@@ -153,6 +164,12 @@ const fileMappings = [
 		src: path.join(projectRoot, ".envrc"),
 		dest: path.join(cliDir, "presets/default/.envrc"),
 		required: true,
+	},
+	// .vscode/settings.json
+	{
+		src: path.join(projectRoot, ".vscode/settings.json"),
+		dest: path.join(cliDir, "presets/default/.vscode/settings.json"),
+		required: false,
 	},
 ];
 

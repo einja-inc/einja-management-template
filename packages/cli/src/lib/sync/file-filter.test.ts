@@ -275,6 +275,16 @@ describe("FileFilter", () => {
       // Then: nullが返される
       expect(category).toBe(null);
     });
+
+    it(".vscode/settings.jsonはtoolsカテゴリとして判定されること", () => {
+      const category = fileFilter.getCategoryFromPath(".vscode/settings.json");
+      expect(category).toBe("tools");
+    });
+
+    it(".vscode/extensions.jsonはtoolsカテゴリとして判定されないこと", () => {
+      const category = fileFilter.getCategoryFromPath(".vscode/extensions.json");
+      expect(category).toBe(null);
+    });
   });
 
   describe("scanSyncTargets - envカテゴリ", () => {
@@ -299,6 +309,41 @@ describe("FileFilter", () => {
 
       // When: envカテゴリをスキャン
       const targets = await fileFilter.scanSyncTargets({ categories: ["env"] });
+
+      // Then: exists=trueになる
+      expect(targets.length).toBe(1);
+      expect(targets[0].exists).toBe(true);
+    });
+  });
+
+  describe("scanSyncTargets - toolsカテゴリ", () => {
+    it("toolsカテゴリで.vscode/settings.jsonファイルのみをスキャンすること", async () => {
+      // Given: テンプレートに.vscode/settings.jsonを作成
+      const vscodeDir = path.join(templateDir, ".vscode");
+      await fs.ensureDir(vscodeDir);
+      await fs.writeFile(path.join(vscodeDir, "settings.json"), '{"test": true}');
+      await fs.writeFile(path.join(vscodeDir, "extensions.json"), '{"test": true}');
+
+      // When: toolsカテゴリのみをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["tools"] });
+
+      // Then: settings.jsonのみが検出される
+      expect(targets.length).toBe(1);
+      expect(targets[0].path).toBe(".vscode/settings.json");
+      expect(targets[0].category).toBe("tools");
+    });
+
+    it("toolsカテゴリでローカルに.vscode/settings.jsonが存在する場合、exists=trueになること", async () => {
+      // Given: テンプレートとプロジェクトの両方に.vscode/settings.jsonを作成
+      const templateVscode = path.join(templateDir, ".vscode");
+      const projectVscode = path.join(projectDir, ".vscode");
+      await fs.ensureDir(templateVscode);
+      await fs.ensureDir(projectVscode);
+      await fs.writeFile(path.join(templateVscode, "settings.json"), '{"template": true}');
+      await fs.writeFile(path.join(projectVscode, "settings.json"), '{"local": true}');
+
+      // When: toolsカテゴリをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["tools"] });
 
       // Then: exists=trueになる
       expect(targets.length).toBe(1);

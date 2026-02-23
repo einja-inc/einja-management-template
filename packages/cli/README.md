@@ -96,6 +96,7 @@ npx @einja/dev-cli sync --only hooks
 - `hooks` - Git Hooks
 - `docs` - ステアリングドキュメント
 - `env` - 環境設定ファイル（`.envrc`）
+- `tools` - 開発ツール設定（`.vscode/settings.json`）
 
 **マーカーによる部分同期:**
 

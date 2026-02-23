@@ -13,7 +13,6 @@ logs/
 .env
 .env.*.local
 .idea/
-.vscode/settings.json
 .DS_Store
 Thumbs.db
 coverage/

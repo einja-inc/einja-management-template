@@ -173,6 +173,7 @@ npx create-einja-app add --dry-run
 
 ```
 my-project/
+├── .vscode/                     # VS Code設定（Biome統合）
 ├── apps/
 │   └── web/                      # Next.js 15アプリケーション
 │       ├── src/

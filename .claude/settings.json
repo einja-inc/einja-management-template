@@ -1,5 +1,6 @@
 {
   "includeCoAuthoredBy": false,
+  "plansDirectory": "docs/plans",
   "permissions": {
     "allow": [
       "Bash(npm:*)",

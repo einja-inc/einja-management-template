@@ -279,7 +279,8 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
           sourcePath,
           targetPath,
           syncMetadata,
-          packageJsonSections
+          packageJsonSections,
+          conflictStrategy
         );
 
         // アクションをマッピング（mergeAndWriteFile の戻り値を SyncResult の型に変換）

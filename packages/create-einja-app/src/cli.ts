@@ -3,8 +3,6 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createCommand } from "./commands/create.js";
-import { setupCommand } from "./commands/setup.js";
-import { addCommand } from "./commands/add.js";
 import { syncCommand } from "./commands/sync.js";
 
 // package.jsonからバージョン情報を読み込み
@@ -34,29 +32,6 @@ program
       }
     ) => {
       await createCommand(projectName, options);
-    }
-  );
-
-// setupコマンド
-program
-  .command("setup")
-  .description("Setup tools for existing project")
-  .action(async () => {
-    await setupCommand();
-  });
-
-// addコマンド
-program
-  .command("add")
-  .description("Add einja components to existing monorepo")
-  .option("--all", "Select all components")
-  .option("--dry-run", "Preview changes without making them")
-  .action(
-    async (options: { all?: boolean; dryRun?: boolean }) => {
-      await addCommand({
-        skipPrompts: options.all || false,
-        dryRun: options.dryRun || false,
-      });
     }
   );
 

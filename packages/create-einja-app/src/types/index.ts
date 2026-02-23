@@ -49,60 +49,6 @@ export type App = {
 };
 
 /**
- * セットアップ設定の型定義
- */
-export type SetupConfig = {
-  tools: ToolConfig;
-  conflictStrategy: ConflictStrategy;
-};
-
-/**
- * ツールセットアップオプションの型定義
- */
-export type ToolSetupOptions = {
-  targetDir: string;
-  conflictStrategy: ConflictStrategy;
-};
-
-/**
- * パッケージコンポーネントの型定義
- */
-export type PackageComponent = "front-core" | "server-core" | "config" | "ui";
-
-/**
- * アプリコンポーネントの型定義
- */
-export type AppComponent = "web";
-
-/**
- * 追加コンポーネントの型定義
- */
-export type AddComponentType = "packages" | "apps" | "config";
-
-/**
- * 追加設定の型定義
- */
-export type AddConfig = {
-  components: {
-    packages: boolean;
-    apps: boolean;
-    config: boolean;
-  };
-  packageComponents: PackageComponent[];
-  appComponents: AppComponent[];
-  dryRun: boolean;
-};
-
-/**
- * 追加オプションの型定義
- */
-export type AddOptions = {
-  targetDir: string;
-  templateDir: string;
-  config: AddConfig;
-};
-
-/**
  * JSONパス設定の型定義（.einja-sync.json用）
  */
 export type JsonPathsConfig = {
@@ -146,33 +92,8 @@ export type SyncCategoryConfig = {
   description: string;
   patterns: string[]; // globパターン
   defaultChecked?: boolean;
+  firstRunDefault?: boolean;
   requiresDetailSelection?: boolean; // apps/packagesで使用
-};
-
-/**
- * 同期詳細設定の型定義（apps/packages用）
- */
-export type SyncDetailConfig = {
-  category: "apps" | "packages";
-  items: Array<{
-    name: string;
-    path: string;
-    description: string;
-    defaultChecked?: boolean;
-  }>;
-};
-
-/**
- * package.json同期設定の型定義
- */
-export type PackageJsonSyncConfig = {
-  sections: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">;
-  strategy: {
-    scripts: "merge" | "replace";
-    dependencies: "merge" | "replace";
-    devDependencies: "merge" | "replace";
-    engines: "merge" | "replace";
-  };
 };
 
 /**

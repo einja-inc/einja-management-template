@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, basename } from "node:path";
-import type { SyncMetadata, JsonPathsConfig } from "../types/index.js";
+import type { SyncMetadata, JsonPathsConfig, ConflictStrategy } from "../types/index.js";
 import { ensureDir } from "./fs.js";
 import { mergePackageJsonDependencies } from "./package-json-merger.js";
 import * as logger from "./logger.js";
@@ -360,7 +360,8 @@ export async function mergeAndWriteFile(
   templatePath: string,
   targetPath: string,
   syncMetadata: SyncMetadata,
-  packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">
+  packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">,
+  conflictStrategy: ConflictStrategy = "merge"
 ): Promise<{
   action: "created" | "merged" | "skipped" | "overwritten";
   path: string;
@@ -368,6 +369,16 @@ export async function mergeAndWriteFile(
   const templateContent = readFileSync(templatePath, "utf-8");
   const targetExists = existsSync(targetPath);
   const existingContent = targetExists ? readFileSync(targetPath, "utf-8") : null;
+
+  // conflictStrategy による早期リターン（ファイルが既に存在する場合のみ）
+  if (targetExists && conflictStrategy === "skip") {
+    return { action: "skipped", path: targetPath };
+  }
+  if (targetExists && conflictStrategy === "overwrite") {
+    ensureDir(dirname(targetPath));
+    writeFileSync(targetPath, templateContent, "utf-8");
+    return { action: "overwritten", path: targetPath };
+  }
 
   // Given: ファイルがJSONかどうか判定
   const isJsonFile = targetPath.endsWith(".json");

@@ -2,9 +2,9 @@
 
 // src/cli.ts
 import { Command } from "commander";
-import { readFileSync as readFileSync5 } from "fs";
-import { fileURLToPath as fileURLToPath4 } from "url";
-import { dirname as dirname7, join as join17 } from "path";
+import { readFileSync as readFileSync4 } from "fs";
+import { fileURLToPath as fileURLToPath3 } from "url";
+import { dirname as dirname6, join as join6 } from "path";
 
 // src/commands/create.ts
 import { existsSync as existsSync3, readdirSync } from "fs";
@@ -167,62 +167,10 @@ import { fileURLToPath } from "url";
 // src/utils/fs.ts
 import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
-function writeWithStrategy(filePath, content, strategy) {
-  const exists = existsSync(filePath);
-  if (!exists) {
-    ensureDir(dirname(filePath));
-    writeFileSync(filePath, content, "utf-8");
-    return true;
-  }
-  switch (strategy) {
-    case "overwrite": {
-      writeFileSync(filePath, content, "utf-8");
-      return true;
-    }
-    case "merge": {
-      const existingContent = readFileSync(filePath, "utf-8");
-      const mergedContent = mergeContent(existingContent, content);
-      writeFileSync(filePath, mergedContent, "utf-8");
-      return true;
-    }
-    case "skip": {
-      return false;
-    }
-    default: {
-      const _exhaustiveCheck = strategy;
-      throw new Error(`Unknown strategy: ${_exhaustiveCheck}`);
-    }
-  }
-}
-function mergeContent(existing, newContent) {
-  if (existing.includes(newContent)) {
-    return existing;
-  }
-  return `${existing}
-${newContent}`;
-}
 function ensureDir(dirPath) {
   if (!existsSync(dirPath)) {
     mkdirSync(dirPath, { recursive: true });
   }
-}
-function appendToGitignore(targetDir, line) {
-  const gitignorePath = join(targetDir, ".gitignore");
-  if (!existsSync(gitignorePath)) {
-    writeFileSync(gitignorePath, `${line}
-`, "utf-8");
-    return;
-  }
-  const content = readFileSync(gitignorePath, "utf-8");
-  if (content.includes(line)) {
-    return;
-  }
-  appendFileSync(gitignorePath, `
-${line}
-`, "utf-8");
-}
-function fileExists(filePath) {
-  return existsSync(filePath);
 }
 
 // src/utils/logger.ts
@@ -588,586 +536,515 @@ async function createCommand(projectName, options) {
   }
 }
 
-// src/commands/setup.ts
-import { existsSync as existsSync4 } from "fs";
-import { join as join9 } from "path";
-import ora3 from "ora";
+// src/commands/sync.ts
+import { dirname as dirname5, join as join5 } from "path";
+import { fileURLToPath as fileURLToPath2 } from "url";
+import fsExtra3 from "fs-extra";
+import inquirer5 from "inquirer";
 
-// src/prompts/setup.ts
+// src/generators/sync.ts
+import { glob as glob2 } from "glob";
+var CATEGORY_PATTERNS = {
+  env: [".env*", ".envrc", ".volta", ".node-version"],
+  tools: ["biome.json", ".prettierrc*", ".editorconfig", ".vscode/**"],
+  git: [".gitignore", ".gitattributes"],
+  "git-hooks": [".husky/**"],
+  github: [".github/workflows/**", ".github/actions/**", ".github/dependabot.yml"],
+  docker: ["Dockerfile*", "docker-compose*.yml", ".dockerignore"],
+  monorepo: ["turbo.json", "pnpm-workspace.yaml"],
+  "root-config": ["package.json", "tsconfig.json"],
+  scripts: ["scripts/**"],
+  apps: ["apps/**"],
+  packages: ["packages/**"],
+  docs: ["README.md", "docs/**"]
+};
+var ENV_FILE_PROTECTION = {
+  protected: [".env.keys", ".env.personal"]
+};
+function isProtectedEnvFile(filePath) {
+  return ENV_FILE_PROTECTION.protected.some(
+    (pattern) => filePath.endsWith(pattern)
+  );
+}
+function extractPatternsFromCategories(categories, appsDetail, packagesDetail) {
+  const patterns = [];
+  for (const category of categories) {
+    const categoryPatterns = CATEGORY_PATTERNS[category];
+    if (!categoryPatterns) {
+      warn(`\u4E0D\u660E\u306A\u30AB\u30C6\u30B4\u30EA: ${category}`);
+      continue;
+    }
+    if (category === "apps" && appsDetail && appsDetail.length > 0) {
+      patterns.push(...appsDetail.map((app) => `apps/${app}/**`));
+    } else if (category === "packages" && packagesDetail && packagesDetail.length > 0) {
+      patterns.push(...packagesDetail.map((pkg) => `packages/${pkg}/**`));
+    } else {
+      patterns.push(...categoryPatterns);
+    }
+  }
+  return patterns;
+}
+async function collectSyncFiles(templateDir, categories, appsDetail, packagesDetail) {
+  try {
+    info("\u540C\u671F\u5BFE\u8C61\u30D5\u30A1\u30A4\u30EB\u3092\u53CE\u96C6\u4E2D...");
+    const patterns = extractPatternsFromCategories(
+      categories,
+      appsDetail,
+      packagesDetail
+    );
+    if (patterns.length === 0) {
+      warn("\u540C\u671F\u5BFE\u8C61\u306E\u30D1\u30BF\u30FC\u30F3\u304C\u3042\u308A\u307E\u305B\u3093");
+      return [];
+    }
+    const fileSet = /* @__PURE__ */ new Set();
+    for (const pattern of patterns) {
+      try {
+        const files = await glob2(pattern, {
+          cwd: templateDir,
+          dot: true,
+          // .で始まるファイルも含める
+          nodir: true
+          // ディレクトリは除外
+        });
+        for (const file of files) {
+          fileSet.add(file);
+        }
+      } catch (error2) {
+        warn(`\u30D1\u30BF\u30FC\u30F3 ${pattern} \u306E\u51E6\u7406\u4E2D\u306B\u30A8\u30E9\u30FC: ${error2}`);
+      }
+    }
+    const allFiles = Array.from(fileSet);
+    const filteredFiles = allFiles.filter((file) => {
+      if (isProtectedEnvFile(file)) {
+        info(`\u4FDD\u8B77\u5BFE\u8C61\u30D5\u30A1\u30A4\u30EB\u3092\u9664\u5916: ${file}`);
+        return false;
+      }
+      return true;
+    });
+    success(`${filteredFiles.length}\u500B\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u53CE\u96C6\u3057\u307E\u3057\u305F`);
+    return filteredFiles.sort();
+  } catch (error2) {
+    error(`\u30D5\u30A1\u30A4\u30EB\u53CE\u96C6\u4E2D\u306B\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F: ${error2}`);
+    throw error2;
+  }
+}
+
+// src/prompts/sync.ts
 import inquirer3 from "inquirer";
-async function promptSetupConfig() {
-  const answers = await inquirer3.prompt([
+import * as fs from "fs";
+import * as path from "path";
+var CATEGORY_CONFIGS = {
+  env: {
+    name: "\u74B0\u5883\u8A2D\u5B9A",
+    description: ".env*, .envrc, .volta, .node-version",
+    patterns: [".env*", ".envrc", ".volta", ".node-version"],
+    defaultChecked: true,
+    firstRunDefault: true
+  },
+  tools: {
+    name: "\u958B\u767A\u30C4\u30FC\u30EB",
+    description: "biome.json, .prettierrc, .editorconfig, .vscode/",
+    patterns: ["biome.json", ".prettierrc*", ".editorconfig", ".vscode/"],
+    defaultChecked: true,
+    firstRunDefault: true
+  },
+  git: {
+    name: "Git\u8A2D\u5B9A",
+    description: ".gitignore, .gitattributes",
+    patterns: [".gitignore", ".gitattributes"],
+    defaultChecked: false,
+    firstRunDefault: true
+  },
+  "git-hooks": {
+    name: "Git Hooks",
+    description: ".husky/",
+    patterns: [".husky/"],
+    defaultChecked: false,
+    firstRunDefault: true
+  },
+  github: {
+    name: "CI/CD",
+    description: ".github/workflows/, .github/actions/",
+    patterns: [".github/workflows/", ".github/actions/", ".github/dependabot.yml"],
+    defaultChecked: false
+  },
+  docker: {
+    name: "\u30B3\u30F3\u30C6\u30CA",
+    description: "Dockerfile*, docker-compose.yml, .dockerignore",
+    patterns: ["Dockerfile*", "docker-compose*.yml", ".dockerignore"],
+    defaultChecked: false
+  },
+  monorepo: {
+    name: "\u30E2\u30CE\u30EC\u30DD\u69CB\u6210",
+    description: "turbo.json, pnpm-workspace.yaml",
+    patterns: ["turbo.json", "pnpm-workspace.yaml"],
+    defaultChecked: false,
+    firstRunDefault: true
+  },
+  "root-config": {
+    name: "\u30EB\u30FC\u30C8\u8A2D\u5B9A",
+    description: "package.json, tsconfig.json",
+    patterns: ["package.json", "tsconfig.json"],
+    defaultChecked: false,
+    firstRunDefault: true
+  },
+  scripts: {
+    name: "\u30B9\u30AF\u30EA\u30D7\u30C8",
+    description: "scripts/ \u914D\u4E0B",
+    patterns: ["scripts/**"],
+    defaultChecked: false
+  },
+  apps: {
+    name: "\u30A2\u30D7\u30EA\u30B1\u30FC\u30B7\u30E7\u30F3",
+    description: "apps/ \u914D\u4E0B\uFF08\u6B21\u306E\u753B\u9762\u3067\u500B\u5225\u9078\u629E\uFF09",
+    patterns: ["apps/**"],
+    defaultChecked: false,
+    firstRunDefault: true,
+    requiresDetailSelection: true
+  },
+  packages: {
+    name: "\u5171\u901A\u30D1\u30C3\u30B1\u30FC\u30B8",
+    description: "packages/ \u914D\u4E0B\uFF08\u6B21\u306E\u753B\u9762\u3067\u500B\u5225\u9078\u629E\uFF09",
+    patterns: ["packages/**"],
+    defaultChecked: false,
+    firstRunDefault: true,
+    requiresDetailSelection: true
+  },
+  docs: {
+    name: "\u30C9\u30AD\u30E5\u30E1\u30F3\u30C8",
+    description: "README.md, docs/",
+    patterns: ["README.md", "docs/**"],
+    defaultChecked: false
+  }
+};
+function getAvailableApps(templateDir) {
+  const appsDir = path.join(templateDir, "apps");
+  try {
+    if (!fs.existsSync(appsDir)) {
+      return [];
+    }
+    return fs.readdirSync(appsDir, { withFileTypes: true }).filter((dirent) => dirent.isDirectory()).map((dirent) => dirent.name);
+  } catch (error2) {
+    console.error(`Error reading apps directory: ${error2}`);
+    return [];
+  }
+}
+function getAvailablePackages(templateDir) {
+  const packagesDir = path.join(templateDir, "packages");
+  try {
+    if (!fs.existsSync(packagesDir)) {
+      return [];
+    }
+    return fs.readdirSync(packagesDir, { withFileTypes: true }).filter((dirent) => dirent.isDirectory()).map((dirent) => dirent.name);
+  } catch (error2) {
+    console.error(`Error reading packages directory: ${error2}`);
+    return [];
+  }
+}
+async function promptSyncCategories(templateDir, isFirstRun = false) {
+  const categoryAnswers = await inquirer3.prompt([
     {
       type: "checkbox",
-      name: "tools",
-      message: "\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3059\u308B\u30C4\u30FC\u30EB\u3092\u9078\u629E\uFF08\u8907\u6570\u9078\u629E\u53EF\uFF09:",
-      choices: [
+      name: "categories",
+      message: "\u540C\u671F\u3059\u308B\u9805\u76EE\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\uFF08Space\u3067\u9078\u629E\u3001Enter\u3067\u78BA\u5B9A\uFF09:",
+      choices: Object.entries(CATEGORY_CONFIGS).map(([key, config]) => ({
+        name: `${config.name} - ${config.description}`,
+        value: key,
+        checked: isFirstRun ? config.firstRunDefault ?? config.defaultChecked ?? false : config.defaultChecked ?? false
+      }))
+    }
+  ]);
+  const selectedCategories = categoryAnswers.categories;
+  const hasApps = selectedCategories.includes("apps");
+  const hasPackages = selectedCategories.includes("packages");
+  const hasRootConfig = selectedCategories.includes("root-config");
+  let appsDetail;
+  let packagesDetail;
+  let packageJsonSections;
+  let conflictStrategy = "merge";
+  if (hasApps) {
+    const availableApps = getAvailableApps(templateDir);
+    if (availableApps.length > 0) {
+      const appsAnswers = await inquirer3.prompt([
         {
-          name: "direnv\uFF08\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u3054\u3068\u306E\u74B0\u5883\u5909\u6570\u7BA1\u7406\uFF09",
-          value: "direnv",
-          checked: true
-        },
-        {
-          name: "dotenvx\uFF08.env\u6697\u53F7\u5316\uFF09",
-          value: "dotenvx",
-          checked: true
-        },
-        {
-          name: "Volta\uFF08Node.js\u30D0\u30FC\u30B8\u30E7\u30F3\u7BA1\u7406\uFF09",
-          value: "volta",
-          checked: true
-        },
-        {
-          name: "Biome\uFF08Linter / Formatter\uFF09",
-          value: "biome",
-          checked: false
-        },
-        {
-          name: "Husky + lint-staged\uFF08Git hooks\uFF09",
-          value: "husky",
-          checked: false
+          type: "checkbox",
+          name: "apps",
+          message: "\u540C\u671F\u3059\u308B\u30A2\u30D7\u30EA\u30B1\u30FC\u30B7\u30E7\u30F3\u3092\u9078\u629E:",
+          choices: availableApps.map((app) => ({
+            name: app,
+            value: app,
+            checked: true
+          })),
+          validate: (input) => {
+            if (input.length === 0) {
+              return "\u5C11\u306A\u304F\u3068\u30821\u3064\u306E\u30A2\u30D7\u30EA\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044";
+            }
+            return true;
+          }
         }
-      ]
-    },
+      ]);
+      appsDetail = appsAnswers.apps;
+    } else {
+      console.warn("\u8B66\u544A: apps/ \u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u304C\u898B\u3064\u304B\u3089\u306A\u3044\u304B\u3001\u30A2\u30D7\u30EA\u304C\u5B58\u5728\u3057\u307E\u305B\u3093");
+      appsDetail = [];
+    }
+  }
+  if (hasPackages) {
+    const availablePackages = getAvailablePackages(templateDir);
+    if (availablePackages.length > 0) {
+      const packagesAnswers = await inquirer3.prompt([
+        {
+          type: "checkbox",
+          name: "packages",
+          message: "\u540C\u671F\u3059\u308B\u30D1\u30C3\u30B1\u30FC\u30B8\u3092\u9078\u629E:",
+          choices: availablePackages.map((pkg) => ({
+            name: pkg,
+            value: pkg,
+            checked: true
+          })),
+          validate: (input) => {
+            if (input.length === 0) {
+              return "\u5C11\u306A\u304F\u3068\u30821\u3064\u306E\u30D1\u30C3\u30B1\u30FC\u30B8\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044";
+            }
+            return true;
+          }
+        }
+      ]);
+      packagesDetail = packagesAnswers.packages;
+    } else {
+      console.warn("\u8B66\u544A: packages/ \u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u304C\u898B\u3064\u304B\u3089\u306A\u3044\u304B\u3001\u30D1\u30C3\u30B1\u30FC\u30B8\u304C\u5B58\u5728\u3057\u307E\u305B\u3093");
+      packagesDetail = [];
+    }
+  }
+  if (hasRootConfig) {
+    const packageJsonAnswers = await inquirer3.prompt([
+      {
+        type: "checkbox",
+        name: "sections",
+        message: "package.json\u306E\u540C\u671F\u30BB\u30AF\u30B7\u30E7\u30F3\u3092\u9078\u629E:",
+        choices: [
+          { name: "scripts\uFF08\u63A8\u5968\uFF09", value: "scripts", checked: true },
+          { name: "engines\uFF08\u63A8\u5968\uFF09", value: "engines", checked: true },
+          { name: "dependencies", value: "dependencies", checked: false },
+          { name: "devDependencies", value: "devDependencies", checked: false },
+          { name: "peerDependencies", value: "peerDependencies", checked: false }
+        ]
+      }
+    ]);
+    packageJsonSections = packageJsonAnswers.sections;
+  }
+  const strategyAnswers = await inquirer3.prompt([
     {
       type: "list",
       name: "conflictStrategy",
-      message: "\u65E2\u5B58\u30D5\u30A1\u30A4\u30EB\u304C\u3042\u308B\u5834\u5408\u306E\u52D5\u4F5C:",
+      message: "\u7AF6\u5408\u89E3\u6C7A\u6226\u7565\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044:",
       choices: [
-        {
-          name: "\u30DE\u30FC\u30B8\uFF08\u65E2\u5B58\u8A2D\u5B9A\u3092\u4FDD\u6301\u3057\u3064\u3064\u8FFD\u52A0\uFF09",
-          value: "merge"
-        },
-        {
-          name: "\u4E0A\u66F8\u304D",
-          value: "overwrite"
-        },
-        {
-          name: "\u30B9\u30AD\u30C3\u30D7",
-          value: "skip"
-        }
+        { name: "\u30DE\u30FC\u30AB\u30FC\u30D9\u30FC\u30B9\u30DE\u30FC\u30B8\uFF08\u63A8\u5968\uFF09", value: "merge" },
+        { name: "\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u3067\u4E0A\u66F8\u304D", value: "overwrite" },
+        { name: "\u65E2\u5B58\u30D5\u30A1\u30A4\u30EB\u512A\u5148", value: "skip" }
       ],
       default: "merge"
     }
   ]);
-  const toolsArray = answers.tools;
-  const tools = {
-    direnv: toolsArray.includes("direnv"),
-    dotenvx: toolsArray.includes("dotenvx"),
-    volta: toolsArray.includes("volta"),
-    biome: toolsArray.includes("biome"),
-    husky: toolsArray.includes("husky")
-  };
+  conflictStrategy = strategyAnswers.conflictStrategy;
   return {
-    tools,
-    conflictStrategy: answers.conflictStrategy
+    categories: selectedCategories,
+    appsDetail,
+    packagesDetail,
+    packageJsonSections,
+    conflictStrategy
   };
 }
 
-// src/generators/tools/direnv.ts
-import { join as join3 } from "path";
-import { execSync } from "child_process";
-import inquirer4 from "inquirer";
-var ENVRC_CONTENT = `# direnv configuration
-# Load .env if it exists
-dotenv_if_exists
-
-# Allow local overrides
-dotenv_if_exists .env.local
-`;
-var ENVRC_EXAMPLE_CONTENT = `# Example direnv configuration
-# Copy this file to .envrc and run 'direnv allow'
-
-# Load environment variables from .env
-dotenv_if_exists
-
-# Load local overrides
-dotenv_if_exists .env.local
-`;
-function setupDirenv(options) {
-  const { targetDir, conflictStrategy } = options;
-  const envrcPath = join3(targetDir, ".envrc");
-  const envrcExamplePath = join3(targetDir, ".envrc.example");
-  writeWithStrategy(envrcPath, ENVRC_CONTENT, conflictStrategy);
-  writeWithStrategy(envrcExamplePath, ENVRC_EXAMPLE_CONTENT, conflictStrategy);
-  appendToGitignore(targetDir, ".envrc");
+// src/utils/backup.ts
+import fsExtra2 from "fs-extra";
+import { join as join4, dirname as dirname3, relative as relative2 } from "path";
+var { copy, ensureDir: ensureDir2, readdir, remove, pathExists } = fsExtra2;
+function getTimestamp() {
+  const now = /* @__PURE__ */ new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
 }
-async function promptDirenvAllow(targetDir) {
+function parseBackupTimestamp(dirName) {
+  const match = dirName.match(/^\.einja-sync-backup-(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})$/);
+  if (!match || !match[1]) {
+    return null;
+  }
+  const timestampStr = match[1];
+  const parts = timestampStr.split("_");
+  if (parts.length !== 2) {
+    return null;
+  }
+  const [datePart, timePart] = parts;
+  if (!datePart || !timePart) {
+    return null;
+  }
+  const dateParts = datePart.split("-").map(Number);
+  const timeParts = timePart.split("-").map(Number);
+  if (dateParts.length !== 3 || timeParts.length !== 3) {
+    return null;
+  }
+  const [year, month, day] = dateParts;
+  const [hours, minutes, seconds] = timeParts;
+  if (year === void 0 || month === void 0 || day === void 0 || hours === void 0 || minutes === void 0 || seconds === void 0) {
+    return null;
+  }
+  return new Date(year, month - 1, day, hours, minutes, seconds);
+}
+async function createBackup(targetDir, filesToBackup) {
+  const timestamp = getTimestamp();
+  const backupDirName = `.einja-sync-backup-${timestamp}`;
+  const backupDir = join4(targetDir, backupDirName);
   try {
-    const { shouldAllow } = await inquirer4.prompt([
-      {
-        type: "confirm",
-        name: "shouldAllow",
-        message: "direnv allow \u3092\u5B9F\u884C\u3057\u307E\u3059\u304B\uFF1F\uFF08\u74B0\u5883\u5909\u6570\u3092\u6709\u52B9\u5316\u3057\u307E\u3059\uFF09",
-        default: true
+    await ensureDir2(backupDir);
+    for (const file of filesToBackup) {
+      const sourcePath = join4(targetDir, file);
+      const destPath = join4(backupDir, file);
+      if (!await pathExists(sourcePath)) {
+        continue;
       }
-    ]);
-    if (shouldAllow) {
-      try {
-        execSync("direnv allow", { cwd: targetDir, stdio: "inherit" });
-        success("direnv allow \u3092\u5B9F\u884C\u3057\u307E\u3057\u305F");
-      } catch (error2) {
-        warn("direnv allow \u306E\u5B9F\u884C\u306B\u5931\u6557\u3057\u307E\u3057\u305F");
-        info("\u5F8C\u3067\u624B\u52D5\u3067 'direnv allow' \u3092\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044");
-      }
-    } else {
-      info("direnv allow \u3092\u30B9\u30AD\u30C3\u30D7\u3057\u307E\u3057\u305F");
-      info("\u5F8C\u3067\u624B\u52D5\u3067 'direnv allow' \u3092\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044");
+      await ensureDir2(dirname3(destPath));
+      await copy(sourcePath, destPath);
     }
+    return backupDir;
   } catch (error2) {
-    info("direnv allow \u3092\u30B9\u30AD\u30C3\u30D7\u3057\u307E\u3057\u305F");
+    error(`\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u306E\u4F5C\u6210\u306B\u5931\u6557\u3057\u307E\u3057\u305F: ${error2 instanceof Error ? error2.message : String(error2)}`);
+    throw error2;
   }
 }
-
-// src/generators/tools/dotenvx.ts
-import { join as join5 } from "path";
-
-// src/utils/package-json.ts
-import { readFileSync as readFileSync3, writeFileSync as writeFileSync3 } from "fs";
-import { join as join4 } from "path";
-function readPackageJson(targetDir) {
-  const packageJsonPath2 = join4(targetDir, "package.json");
-  if (!fileExists(packageJsonPath2)) {
-    return {};
-  }
-  const content = readFileSync3(packageJsonPath2, "utf-8");
-  return JSON.parse(content);
-}
-function writePackageJson(targetDir, data) {
-  const packageJsonPath2 = join4(targetDir, "package.json");
-  const content = JSON.stringify(data, null, 2);
-  writeFileSync3(packageJsonPath2, `${content}
-`, "utf-8");
-}
-function addScripts(targetDir, scripts) {
-  const pkg = readPackageJson(targetDir);
-  pkg.scripts = { ...pkg.scripts, ...scripts };
-  writePackageJson(targetDir, pkg);
-}
-function addDependencies(targetDir, dependencies, dev = false) {
-  const pkg = readPackageJson(targetDir);
-  if (dev) {
-    pkg.devDependencies = { ...pkg.devDependencies, ...dependencies };
-  } else {
-    pkg.dependencies = { ...pkg.dependencies, ...dependencies };
-  }
-  writePackageJson(targetDir, pkg);
-}
-function addVoltaField(targetDir, nodeVersion, pnpmVersion) {
-  const pkg = readPackageJson(targetDir);
-  pkg.volta = {
-    node: nodeVersion,
-    pnpm: pnpmVersion
-  };
-  writePackageJson(targetDir, pkg);
-}
-function addLintStaged(targetDir, config) {
-  const pkg = readPackageJson(targetDir);
-  pkg["lint-staged"] = { ...pkg["lint-staged"], ...config };
-  writePackageJson(targetDir, pkg);
-}
-
-// src/generators/tools/dotenvx.ts
-var ENV_EXAMPLE_CONTENT = `# Environment variables template
-# Copy this file to .env and fill in the values
-
-# Database
-DATABASE_URL="postgresql://user:password@localhost:25432/dbname"
-
-# NextAuth
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-secret-here"
-
-# OAuth (if using)
-# GOOGLE_CLIENT_ID=""
-# GOOGLE_CLIENT_SECRET=""
-# GITHUB_CLIENT_ID=""
-# GITHUB_CLIENT_SECRET=""
-`;
-function setupDotenvx(options) {
-  const { targetDir, conflictStrategy } = options;
-  addDependencies(targetDir, {
-    "@dotenvx/dotenvx": "^1.29.0"
-  });
-  addScripts(targetDir, {
-    "env:encrypt": "dotenvx encrypt",
-    "env:decrypt": "dotenvx decrypt"
-  });
-  const envExamplePath = join5(targetDir, ".env.example");
-  writeWithStrategy(envExamplePath, ENV_EXAMPLE_CONTENT, conflictStrategy);
-}
-
-// src/generators/tools/volta.ts
-import { join as join6 } from "path";
-var NODE_VERSION = "22.16.0";
-var PNPM_VERSION = "9.15.0";
-var NODE_VERSION_CONTENT = `${NODE_VERSION}
-`;
-function setupVolta(options) {
-  const { targetDir, conflictStrategy } = options;
-  addVoltaField(targetDir, NODE_VERSION, PNPM_VERSION);
-  const nodeVersionPath = join6(targetDir, ".node-version");
-  writeWithStrategy(nodeVersionPath, NODE_VERSION_CONTENT, conflictStrategy);
-}
-
-// src/generators/tools/biome.ts
-import { join as join7 } from "path";
-var BIOME_CONFIG = `{
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
-  "files": {
-    "ignoreUnknown": false,
-    "ignore": ["node_modules", "dist", ".next", "out", "build", "coverage"]
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineEnding": "lf",
-    "lineWidth": 100
-  },
-  "organizeImports": {
-    "enabled": true
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true
+async function restoreFromBackup(backupDir, targetDir) {
+  try {
+    if (!await pathExists(backupDir)) {
+      error(`\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093: ${backupDir}`);
+      return false;
     }
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "double",
-      "trailingCommas": "es5",
-      "semicolons": "always",
-      "arrowParentheses": "always"
+    const files = await getAllFiles(backupDir);
+    for (const file of files) {
+      const sourcePath = join4(backupDir, file);
+      const destPath = join4(targetDir, file);
+      await ensureDir2(dirname3(destPath));
+      await copy(sourcePath, destPath, { overwrite: true });
+    }
+    return true;
+  } catch (error2) {
+    error(`\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u304B\u3089\u306E\u5FA9\u5143\u306B\u5931\u6557\u3057\u307E\u3057\u305F: ${error2 instanceof Error ? error2.message : String(error2)}`);
+    return false;
+  }
+}
+async function getAllFiles(dirPath, baseDir) {
+  const base = baseDir ?? dirPath;
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const fullPath = join4(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      const subFiles = await getAllFiles(fullPath, base);
+      files.push(...subFiles);
+    } else {
+      files.push(relative2(base, fullPath));
     }
   }
+  return files;
 }
-`;
-var VSCODE_SETTINGS = `{
-  "editor.defaultFormatter": "biomejs.biome",
-  "editor.formatOnSave": true,
-  "editor.codeActionsOnSave": {
-    "quickfix.biome": "explicit",
-    "source.organizeImports.biome": "explicit"
-  },
-  "[javascript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  }
-}
-`;
-function setupBiome(options) {
-  const { targetDir, conflictStrategy } = options;
-  const biomeConfigPath = join7(targetDir, "biome.json");
-  writeWithStrategy(biomeConfigPath, BIOME_CONFIG, conflictStrategy);
-  addDependencies(
-    targetDir,
-    {
-      "@biomejs/biome": "^1.9.4"
-    },
-    true
-  );
-  addScripts(targetDir, {
-    lint: "biome lint .",
-    "lint:fix": "biome lint --write .",
-    format: "biome format .",
-    "format:fix": "biome format --write ."
-  });
-  const vscodeDir = join7(targetDir, ".vscode");
-  ensureDir(vscodeDir);
-  const vscodeSettingsPath = join7(vscodeDir, "settings.json");
-  writeWithStrategy(vscodeSettingsPath, VSCODE_SETTINGS, conflictStrategy);
-}
-
-// src/generators/tools/husky.ts
-import { join as join8 } from "path";
-import { writeFileSync as writeFileSync4 } from "fs";
-var PRE_COMMIT_HOOK = `#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-pnpm lint-staged
-`;
-function setupHusky(options) {
-  const { targetDir } = options;
-  addDependencies(
-    targetDir,
-    {
-      husky: "^9.1.7",
-      "lint-staged": "^15.2.11"
-    },
-    true
-  );
-  addScripts(targetDir, {
-    prepare: "husky"
-  });
-  addLintStaged(targetDir, {
-    "*.{js,jsx,ts,tsx}": ["biome format --write", "biome lint --write"],
-    "*.{json,md,yml,yaml}": ["biome format --write"]
-  });
-  const huskyDir = join8(targetDir, ".husky");
-  ensureDir(huskyDir);
-  const preCommitPath = join8(huskyDir, "pre-commit");
-  writeFileSync4(preCommitPath, PRE_COMMIT_HOOK, { mode: 493 });
-}
-
-// src/commands/setup.ts
-async function setupCommand() {
-  const targetDir = process.cwd();
-  const packageJsonPath2 = join9(targetDir, "package.json");
-  if (!existsSync4(packageJsonPath2)) {
-    error("\u30A8\u30E9\u30FC: package.json\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093");
-    info("\u3053\u306E\u30B3\u30DE\u30F3\u30C9\u306F\u65E2\u5B58\u306E\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u3067\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044");
-    process.exit(1);
-  }
-  info("\u65E2\u5B58\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u3078\u306E\u30C4\u30FC\u30EB\u8FFD\u52A0\u3092\u958B\u59CB\u3057\u307E\u3059");
-  info("");
-  const config = await promptSetupConfig();
-  info("");
-  info("\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u958B\u59CB\u3057\u307E\u3059...");
-  info("");
-  const options = {
-    targetDir,
-    conflictStrategy: config.conflictStrategy
-  };
-  let setupCount = 0;
-  if (config.tools.direnv) {
-    const spin = ora3("direnv \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
-    try {
-      setupDirenv(options);
-      spin.succeed("direnv \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
-      setupCount++;
-    } catch (error2) {
-      spin.fail("direnv \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
-      error(
-        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
-      );
+async function listBackups(targetDir) {
+  try {
+    if (!await pathExists(targetDir)) {
+      return [];
     }
-  }
-  if (config.tools.dotenvx) {
-    const spin = ora3("dotenvx \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
-    try {
-      setupDotenvx(options);
-      spin.succeed("dotenvx \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
-      setupCount++;
-    } catch (error2) {
-      spin.fail("dotenvx \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
-      error(
-        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
-      );
-    }
-  }
-  if (config.tools.volta) {
-    const spin = ora3("Volta \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
-    try {
-      setupVolta(options);
-      spin.succeed("Volta \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
-      setupCount++;
-    } catch (error2) {
-      spin.fail("Volta \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
-      error(
-        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
-      );
-    }
-  }
-  if (config.tools.biome) {
-    const spin = ora3("Biome \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
-    try {
-      setupBiome(options);
-      spin.succeed("Biome \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
-      setupCount++;
-    } catch (error2) {
-      spin.fail("Biome \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
-      error(
-        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
-      );
-    }
-  }
-  if (config.tools.husky) {
-    const spin = ora3("Husky \u3092\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3057\u3066\u3044\u307E\u3059...").start();
-    try {
-      setupHusky(options);
-      spin.succeed("Husky \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5B8C\u4E86");
-      setupCount++;
-    } catch (error2) {
-      spin.fail("Husky \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u5931\u6557");
-      error(
-        error2 instanceof Error ? error2.message : "\u4E88\u671F\u3057\u306A\u3044\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F"
-      );
-    }
-  }
-  info("");
-  if (config.tools.direnv) {
-    await promptDirenvAllow(targetDir);
-    info("");
-  }
-  success(`\u2705 \u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u304C\u5B8C\u4E86\u3057\u307E\u3057\u305F\uFF01\uFF08${setupCount}\u500B\u306E\u30C4\u30FC\u30EB\uFF09`);
-  info("");
-  info("\u6B21\u306E\u30B9\u30C6\u30C3\u30D7:");
-  if (config.tools.direnv) {
-    info("  1. .envrc \u3092\u7DE8\u96C6\u3057\u3066\u74B0\u5883\u5909\u6570\u3092\u8A2D\u5B9A");
-    info("  2. direnv allow \u3092\u5B9F\u884C\uFF08\u307E\u3060\u306E\u5834\u5408\uFF09");
-  }
-  if (config.tools.dotenvx) {
-    info("  - .env.example \u3092\u30B3\u30D4\u30FC\u3057\u3066 .env \u3092\u4F5C\u6210");
-    info("  - \u5FC5\u8981\u306B\u5FDC\u3058\u3066 pnpm env:encrypt \u3067\u6697\u53F7\u5316");
-  }
-  if (config.tools.biome) {
-    info("  - pnpm lint \u3067\u30B3\u30FC\u30C9\u3092\u30C1\u30A7\u30C3\u30AF");
-    info("  - pnpm format:fix \u3067\u30D5\u30A9\u30FC\u30DE\u30C3\u30C8");
-  }
-  if (config.tools.husky) {
-    info("  - pnpm install \u3067Husky\u30D5\u30C3\u30AF\u3092\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB");
-  }
-  info("");
-  success("\u958B\u767A\u3092\u958B\u59CB\u3067\u304D\u307E\u3059\uFF01");
-}
-
-// src/commands/add.ts
-import { existsSync as existsSync6 } from "fs";
-import { readFile as readFile2 } from "fs/promises";
-import { dirname as dirname4, join as join13 } from "path";
-import { fileURLToPath as fileURLToPath2 } from "url";
-import ora4 from "ora";
-
-// src/prompts/add.ts
-import inquirer5 from "inquirer";
-function getDefaultAddConfig() {
-  return {
-    components: {
-      packages: true,
-      apps: true,
-      config: true
-    },
-    packageComponents: ["front-core", "server-core", "config", "ui"],
-    appComponents: ["web"],
-    dryRun: false
-  };
-}
-async function promptAddConfig(dryRun) {
-  const componentAnswers = await inquirer5.prompt([
-    {
-      type: "checkbox",
-      name: "components",
-      message: "\u8FFD\u52A0\u3059\u308B\u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8\u3092\u9078\u629E\uFF08Space\u3067\u9078\u629E\u3001Enter\u3067\u78BA\u5B9A\uFF09:",
-      choices: [
-        {
-          name: "packages/ - \u5171\u901A\u30D1\u30C3\u30B1\u30FC\u30B8\uFF08front-core, server-core, config, ui\uFF09",
-          value: "packages",
-          checked: true
-        },
-        {
-          name: "apps/ - \u30A2\u30D7\u30EA\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8",
-          value: "apps",
-          checked: true
-        },
-        {
-          name: "\u76F4\u4E0B\u8A2D\u5B9A\u30D5\u30A1\u30A4\u30EB - turbo.json, pnpm-workspace.yaml \u7B49",
-          value: "config",
-          checked: true
-        }
-      ]
-    }
-  ]);
-  const selectedComponents = componentAnswers.components;
-  const hasPackages = selectedComponents.includes("packages");
-  const hasApps = selectedComponents.includes("apps");
-  const hasConfig = selectedComponents.includes("config");
-  let packageComponents = [];
-  if (hasPackages) {
-    const packageAnswers = await inquirer5.prompt([
-      {
-        type: "checkbox",
-        name: "packages",
-        message: "\u8FFD\u52A0\u3059\u308B\u30D1\u30C3\u30B1\u30FC\u30B8\u3092\u9078\u629E:",
-        choices: [
-          {
-            name: "front-core - \u30D5\u30ED\u30F3\u30C8\u30A8\u30F3\u30C9\u5171\u901A\u5C64\uFF08\u8A8D\u8A3C\u8A2D\u5B9A\u3001hooks\u3001utils\uFF09",
-            value: "front-core",
-            checked: true
-          },
-          {
-            name: "server-core - \u30D0\u30C3\u30AF\u30A8\u30F3\u30C9\u5171\u901A\u5C64\uFF08Prisma\u3001\u30C9\u30E1\u30A4\u30F3\u30ED\u30B8\u30C3\u30AF\uFF09",
-            value: "server-core",
-            checked: true
-          },
-          {
-            name: "config - \u5171\u901A\u8A2D\u5B9A\uFF08Biome, TypeScript, Panda CSS\uFF09",
-            value: "config",
-            checked: true
-          },
-          {
-            name: "ui - \u5171\u901AUI\u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8\uFF08shadcn/ui\uFF09",
-            value: "ui",
-            checked: true
-          }
-        ],
-        validate: (input) => {
-          if (input.length === 0) {
-            return "\u5C11\u306A\u304F\u3068\u30821\u3064\u306E\u30D1\u30C3\u30B1\u30FC\u30B8\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044";
-          }
-          return true;
-        }
+    const entries = await readdir(targetDir, { withFileTypes: true });
+    const backups = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
       }
-    ]);
-    packageComponents = packageAnswers.packages;
-  }
-  let appComponents = [];
-  if (hasApps) {
-    const appAnswers = await inquirer5.prompt([
-      {
-        type: "checkbox",
-        name: "apps",
-        message: "\u8FFD\u52A0\u3059\u308B\u30A2\u30D7\u30EA\u3092\u9078\u629E:",
-        choices: [
-          {
-            name: "web - \u30E1\u30A4\u30F3\u7BA1\u7406\u753B\u9762\u30A2\u30D7\u30EA\uFF08Next.js + App Router\uFF09",
-            value: "web",
-            checked: true
-          }
-        ],
-        validate: (input) => {
-          if (input.length === 0) {
-            return "\u5C11\u306A\u304F\u3068\u30821\u3064\u306E\u30A2\u30D7\u30EA\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044";
-          }
-          return true;
-        }
+      const timestamp = parseBackupTimestamp(entry.name);
+      if (!timestamp) {
+        continue;
       }
-    ]);
-    appComponents = appAnswers.apps;
+      backups.push({
+        path: join4(targetDir, entry.name),
+        name: entry.name,
+        timestamp
+      });
+    }
+    backups.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return backups;
+  } catch (error2) {
+    error(`\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u4E00\u89A7\u306E\u53D6\u5F97\u306B\u5931\u6557\u3057\u307E\u3057\u305F: ${error2 instanceof Error ? error2.message : String(error2)}`);
+    return [];
   }
-  return {
-    components: {
-      packages: hasPackages,
-      apps: hasApps,
-      config: hasConfig
-    },
-    packageComponents,
-    appComponents,
-    dryRun
-  };
+}
+async function getLatestBackup(targetDir) {
+  const backups = await listBackups(targetDir);
+  return backups.length > 0 ? backups[0] ?? null : null;
 }
 
-// src/generators/partials/packages.ts
-import { readdir } from "fs/promises";
-import { join as join10 } from "path";
+// src/utils/git.ts
+import { execSync } from "child_process";
+function isGitRepository(targetDir) {
+  try {
+    const cwd = targetDir || process.cwd();
+    execSync("git rev-parse --is-inside-work-tree", {
+      cwd,
+      stdio: "ignore"
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+function hasUncommittedChanges(targetDir) {
+  if (!isGitRepository(targetDir)) {
+    warn("\u26A0\uFE0F  \u3053\u306E\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u306FGit\u30EA\u30DD\u30B8\u30C8\u30EA\u3067\u306F\u3042\u308A\u307E\u305B\u3093");
+    return false;
+  }
+  try {
+    const cwd = targetDir || process.cwd();
+    const output = execSync("git status --porcelain", {
+      cwd,
+      encoding: "utf-8"
+    });
+    return output.trim().length > 0;
+  } catch (error2) {
+    warn(`\u26A0\uFE0F  Git\u30B9\u30C6\u30FC\u30BF\u30B9\u78BA\u8A8D\u4E2D\u306B\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F: ${error2}`);
+    return false;
+  }
+}
+function checkGitStatusForSync(force, targetDir) {
+  if (!isGitRepository(targetDir)) {
+    warn("\u26A0\uFE0F  \u3053\u306E\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u306FGit\u30EA\u30DD\u30B8\u30C8\u30EA\u3067\u306F\u3042\u308A\u307E\u305B\u3093");
+    warn(
+      "   sync\u5B9F\u884C\u5F8C\u306E\u5DEE\u5206\u78BA\u8A8D\u306F `git diff` \u3067\u884C\u3046\u3053\u3068\u3092\u63A8\u5968\u3057\u307E\u3059"
+    );
+    return true;
+  }
+  if (hasUncommittedChanges(targetDir)) {
+    if (!force) {
+      error("\u274C \u672A\u30B3\u30DF\u30C3\u30C8\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059");
+      error(
+        "   \u5909\u66F4\u3092\u30B3\u30DF\u30C3\u30C8\u3057\u3066\u304B\u3089\u5B9F\u884C\u3059\u308B\u304B\u3001--force \u30D5\u30E9\u30B0\u3092\u4F7F\u7528\u3057\u3066\u304F\u3060\u3055\u3044"
+      );
+      process.exit(1);
+    }
+    warn("\u26A0\uFE0F  \u672A\u30B3\u30DF\u30C3\u30C8\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059\u304C\u3001--force \u306B\u3088\u308A\u7D9A\u884C\u3057\u307E\u3059");
+    warn(
+      "   \u554F\u984C\u304C\u767A\u751F\u3057\u305F\u5834\u5408\u306F `git checkout .` \u3067\u5FA9\u5143\u3067\u304D\u307E\u3059"
+    );
+  }
+  return true;
+}
 
 // src/utils/merger.ts
-import { readFileSync as readFileSync4, writeFileSync as writeFileSync5, existsSync as existsSync5 } from "fs";
-import { dirname as dirname3, basename } from "path";
+import { readFileSync as readFileSync3, writeFileSync as writeFileSync3, existsSync as existsSync5 } from "fs";
+import { dirname as dirname4, basename } from "path";
 
 // src/utils/package-json-merger.ts
-import inquirer6 from "inquirer";
+import inquirer4 from "inquirer";
 function hasVersionConflict(existingVersion, templateVersion) {
   if (existingVersion === templateVersion) {
     return false;
@@ -1206,7 +1083,7 @@ async function resolveVersionConflicts(conflicts) {
     warn(`  \u65E2\u5B58: ${conflict.existingVersion}`);
     warn(`  \u30C6\u30F3\u30D7\u30EC\u30FC\u30C8: ${conflict.templateVersion}
 `);
-    const answer = await inquirer6.prompt([
+    const answer = await inquirer4.prompt([
       {
         type: "list",
         name: "version",
@@ -1378,23 +1255,6 @@ function deepClone(value) {
   }
   return JSON.parse(JSON.stringify(value));
 }
-async function loadSyncMetadata(targetDir) {
-  const metadataPath = `${targetDir}/.einja-sync.json`;
-  if (!existsSync5(metadataPath)) {
-    return null;
-  }
-  try {
-    const content = readFileSync4(metadataPath, "utf-8");
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-async function saveSyncMetadata(targetDir, metadata) {
-  const metadataPath = `${targetDir}/.einja-sync.json`;
-  ensureDir(dirname3(metadataPath));
-  writeFileSync5(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");
-}
 async function mergePackageJson(existingContent, templateContent, packageJsonSections) {
   const existingPkg = JSON.parse(existingContent);
   const templatePkg = JSON.parse(templateContent);
@@ -1430,10 +1290,18 @@ async function mergePackageJson(existingContent, templateContent, packageJsonSec
   return `${JSON.stringify(result, null, 2)}
 `;
 }
-async function mergeAndWriteFile(templatePath, targetPath, syncMetadata, packageJsonSections) {
-  const templateContent = readFileSync4(templatePath, "utf-8");
+async function mergeAndWriteFile(templatePath, targetPath, syncMetadata, packageJsonSections, conflictStrategy = "merge") {
+  const templateContent = readFileSync3(templatePath, "utf-8");
   const targetExists = existsSync5(targetPath);
-  const existingContent = targetExists ? readFileSync4(targetPath, "utf-8") : null;
+  const existingContent = targetExists ? readFileSync3(targetPath, "utf-8") : null;
+  if (targetExists && conflictStrategy === "skip") {
+    return { action: "skipped", path: targetPath };
+  }
+  if (targetExists && conflictStrategy === "overwrite") {
+    ensureDir(dirname4(targetPath));
+    writeFileSync3(targetPath, templateContent, "utf-8");
+    return { action: "overwritten", path: targetPath };
+  }
   const isJsonFile = targetPath.endsWith(".json");
   const isPackageJson = basename(targetPath) === "package.json";
   let mergedContent;
@@ -1471,8 +1339,8 @@ async function mergeAndWriteFile(templatePath, targetPath, syncMetadata, package
     }
   }
   if (action !== "skipped") {
-    ensureDir(dirname3(targetPath));
-    writeFileSync5(targetPath, mergedContent, "utf-8");
+    ensureDir(dirname4(targetPath));
+    writeFileSync3(targetPath, mergedContent, "utf-8");
   }
   return { action, path: targetPath };
 }
@@ -1585,894 +1453,6 @@ function isPathSeed(filePath, keyPath, jsonPaths) {
   return seedPaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
 }
 
-// src/generators/partials/packages.ts
-async function addPackages(options, components, syncMetadata) {
-  const added = [];
-  const skipped = [];
-  const merged = [];
-  const { targetDir, templateDir, config } = options;
-  for (const component of components) {
-    const componentName = component === "front-core" ? "front-core" : component === "server-core" ? "server-core" : component === "config" ? "config" : "ui";
-    const srcDir = join10(templateDir, "packages", componentName);
-    const destDir = join10(targetDir, "packages", componentName);
-    info(`Adding package component: ${componentName}`);
-    await copyDirectory(
-      srcDir,
-      destDir,
-      { added, skipped, merged },
-      config.dryRun,
-      syncMetadata
-    );
-  }
-  return { added, skipped, merged };
-}
-async function copyDirectory(srcDir, destDir, result, dryRun, syncMetadata) {
-  const entries = await readdir(srcDir, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = join10(srcDir, entry.name);
-    const destPath = join10(destDir, entry.name);
-    if (entry.isDirectory()) {
-      await copyDirectory(srcPath, destPath, result, dryRun, syncMetadata);
-    } else {
-      if (!dryRun) {
-        const mergeResult = await mergeAndWriteFile(
-          srcPath,
-          destPath,
-          syncMetadata
-        );
-        if (mergeResult.action === "created") {
-          result.added.push(destPath);
-        } else if (mergeResult.action === "skipped") {
-          result.skipped.push(destPath);
-        } else if (mergeResult.action === "merged") {
-          result.merged.push(destPath);
-        }
-      } else {
-        result.skipped.push(destPath);
-      }
-    }
-  }
-}
-
-// src/generators/partials/apps.ts
-import { readdir as readdir2 } from "fs/promises";
-import { join as join11 } from "path";
-async function addApps(options, components, syncMetadata) {
-  const added = [];
-  const skipped = [];
-  const merged = [];
-  const { targetDir, templateDir, config } = options;
-  for (const component of components) {
-    const componentName = component === "web" ? "web" : component;
-    const srcDir = join11(templateDir, "apps", componentName);
-    const destDir = join11(targetDir, "apps", componentName);
-    info(`Adding app component: ${componentName}`);
-    await copyDirectory2(
-      srcDir,
-      destDir,
-      { added, skipped, merged },
-      config.dryRun,
-      syncMetadata
-    );
-  }
-  return { added, skipped, merged };
-}
-async function copyDirectory2(srcDir, destDir, result, dryRun, syncMetadata) {
-  const entries = await readdir2(srcDir, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = join11(srcDir, entry.name);
-    const destPath = join11(destDir, entry.name);
-    if (entry.isDirectory()) {
-      await copyDirectory2(srcPath, destPath, result, dryRun, syncMetadata);
-    } else {
-      if (!dryRun) {
-        const mergeResult = await mergeAndWriteFile(
-          srcPath,
-          destPath,
-          syncMetadata
-        );
-        if (mergeResult.action === "created") {
-          result.added.push(destPath);
-        } else if (mergeResult.action === "skipped") {
-          result.skipped.push(destPath);
-        } else if (mergeResult.action === "merged") {
-          result.merged.push(destPath);
-        }
-      } else {
-        result.skipped.push(destPath);
-      }
-    }
-  }
-}
-
-// src/generators/partials/config.ts
-import { readdir as readdir3, readFile } from "fs/promises";
-import { join as join12, relative as relative2, sep } from "path";
-async function addConfigFiles(options, syncMetadata) {
-  const added = [];
-  const skipped = [];
-  const merged = [];
-  const { targetDir, templateDir, config } = options;
-  info("Adding config files from template root");
-  const excludedPaths = /* @__PURE__ */ new Set([
-    ".claude",
-    "docs/einja",
-    "CLAUDE.md",
-    ".mcp.json",
-    "node_modules",
-    ".turbo",
-    "next-env.d.ts",
-    "styled-system",
-    "pnpm-lock.yaml",
-    "package-lock.json",
-    "packages",
-    "apps"
-  ]);
-  const gitignorePatterns = await loadGitignorePatterns(templateDir);
-  await copyConfigDirectory(
-    templateDir,
-    targetDir,
-    templateDir,
-    // rootDir として templateDir を渡す
-    { added, skipped, merged },
-    config.dryRun,
-    excludedPaths,
-    gitignorePatterns,
-    syncMetadata
-  );
-  return { added, skipped, merged };
-}
-async function loadGitignorePatterns(templateDir) {
-  const patterns = /* @__PURE__ */ new Set();
-  const gitignorePath = join12(templateDir, ".gitignore");
-  try {
-    const content = await readFile(gitignorePath, "utf-8");
-    const lines = content.split("\n");
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith("#")) {
-        const pattern = trimmed.startsWith("/") ? trimmed.slice(1) : trimmed;
-        patterns.add(pattern);
-      }
-    }
-  } catch {
-  }
-  return patterns;
-}
-async function copyConfigDirectory(srcDir, destDir, rootDir, result, dryRun, excludedPaths, gitignorePatterns, syncMetadata) {
-  const entries = await readdir3(srcDir, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = join12(srcDir, entry.name);
-    const destPath = join12(destDir, entry.name);
-    const rawRelativePath = relative2(rootDir, srcPath);
-    const relativePath = rawRelativePath.split(sep).join("/");
-    if (shouldExclude(relativePath, excludedPaths, gitignorePatterns)) {
-      continue;
-    }
-    if (entry.isDirectory()) {
-      await copyConfigDirectory(
-        srcPath,
-        destPath,
-        rootDir,
-        // rootDir を引き継ぐ
-        result,
-        dryRun,
-        excludedPaths,
-        gitignorePatterns,
-        syncMetadata
-      );
-    } else {
-      if (!dryRun) {
-        const mergeResult = await mergeAndWriteFile(
-          srcPath,
-          destPath,
-          syncMetadata
-        );
-        if (mergeResult.action === "created") {
-          result.added.push(destPath);
-        } else if (mergeResult.action === "skipped") {
-          result.skipped.push(destPath);
-        } else if (mergeResult.action === "merged") {
-          result.merged.push(destPath);
-        }
-      } else {
-        result.skipped.push(destPath);
-      }
-    }
-  }
-}
-function shouldExclude(relativePath, excludedPaths, gitignorePatterns) {
-  for (const excluded of excludedPaths) {
-    if (relativePath === excluded || relativePath.startsWith(`${excluded}/`)) {
-      return true;
-    }
-  }
-  for (const pattern of gitignorePatterns) {
-    if (matchPattern(relativePath, pattern)) {
-      return true;
-    }
-  }
-  return false;
-}
-function matchPattern(path2, pattern) {
-  if (pattern.endsWith("/")) {
-    const dirPattern = pattern.slice(0, -1);
-    return path2 === dirPattern || path2.startsWith(`${dirPattern}/`);
-  }
-  if (pattern.includes("*")) {
-    const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, ".*");
-    return new RegExp(`^${regexPattern}$`).test(path2);
-  }
-  return path2 === pattern || path2.startsWith(`${pattern}/`);
-}
-
-// src/commands/add.ts
-function getTemplatePath2(templateName) {
-  const __filename3 = fileURLToPath2(import.meta.url);
-  const __dirname3 = dirname4(__filename3);
-  const distPath = join13(__dirname3, "../templates", templateName);
-  const srcPath = join13(__dirname3, "../../templates", templateName);
-  if (existsSync6(distPath)) {
-    return distPath;
-  }
-  if (existsSync6(srcPath)) {
-    return srcPath;
-  }
-  return distPath;
-}
-async function loadTemplateSyncMetadata(templateDir) {
-  const syncFilePath = join13(templateDir, ".einja-sync.json");
-  try {
-    const content = await readFile2(syncFilePath, "utf-8");
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-function mergeSyncMetadata(template, existing) {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const jsonPaths = template?.jsonPaths ?? existing?.jsonPaths ?? { managed: {}, seed: {} };
-  return {
-    version: template?.version ?? existing?.version ?? "1.0.0",
-    lastSync: now,
-    templateVersion: template?.templateVersion ?? "1.0.0",
-    files: { ...existing?.files ?? {}, ...template?.files ?? {} },
-    jsonPaths
-  };
-}
-async function addCommand(options) {
-  try {
-    const targetDir = process.cwd();
-    let config;
-    if (options.skipPrompts) {
-      config = getDefaultAddConfig();
-      info("\u30C7\u30D5\u30A9\u30EB\u30C8\u8A2D\u5B9A\u3092\u4F7F\u7528\u3057\u307E\u3059\uFF08\u3059\u3079\u3066\u306E\u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8\u3092\u9078\u629E\uFF09");
-    } else {
-      config = await promptAddConfig(options.dryRun);
-    }
-    config.dryRun = options.dryRun;
-    if (config.dryRun) {
-      warn("dry-run\u30E2\u30FC\u30C9: \u5B9F\u969B\u306E\u30D5\u30A1\u30A4\u30EB\u64CD\u4F5C\u306F\u884C\u3044\u307E\u305B\u3093");
-      info("\n--- \u8FFD\u52A0\u4E88\u5B9A\u306E\u30B3\u30F3\u30DD\u30FC\u30CD\u30F3\u30C8 ---");
-      if (config.components.packages) {
-        info(
-          `- packages/: ${config.packageComponents.join(", ")}`
-        );
-      }
-      if (config.components.apps) {
-        info(`- apps/: ${config.appComponents.join(", ")}`);
-      }
-      if (config.components.config) {
-        info("- \u76F4\u4E0B\u8A2D\u5B9A\u30D5\u30A1\u30A4\u30EB: turbo.json, pnpm-workspace.yaml \u7B49");
-      }
-      info("---\n");
-    }
-    const templateDir = getTemplatePath2("default");
-    if (!existsSync6(templateDir)) {
-      throw new Error("\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093: default");
-    }
-    const templateMetadata = await loadTemplateSyncMetadata(templateDir);
-    const existingMetadata = await loadSyncMetadata(targetDir);
-    const syncMetadata = mergeSyncMetadata(templateMetadata, existingMetadata);
-    const addOptions = {
-      targetDir,
-      templateDir,
-      config
-    };
-    let totalAdded = 0;
-    let totalMerged = 0;
-    let totalSkipped = 0;
-    if (config.components.packages && config.packageComponents.length > 0) {
-      const spinner = ora4("\u30D1\u30C3\u30B1\u30FC\u30B8\u3092\u8FFD\u52A0\u4E2D...").start();
-      try {
-        const result = await addPackages(
-          addOptions,
-          config.packageComponents,
-          syncMetadata
-        );
-        totalAdded += result.added.length;
-        totalMerged += result.merged.length;
-        totalSkipped += result.skipped.length;
-        spinner.succeed(
-          `\u30D1\u30C3\u30B1\u30FC\u30B8\u3092\u8FFD\u52A0\u3057\u307E\u3057\u305F\uFF08\u8FFD\u52A0: ${result.added.length}, \u30DE\u30FC\u30B8: ${result.merged.length}, \u30B9\u30AD\u30C3\u30D7: ${result.skipped.length}\uFF09`
-        );
-      } catch (error2) {
-        spinner.fail("\u30D1\u30C3\u30B1\u30FC\u30B8\u306E\u8FFD\u52A0\u306B\u5931\u6557\u3057\u307E\u3057\u305F");
-        throw error2;
-      }
-    }
-    if (config.components.apps && config.appComponents.length > 0) {
-      const spinner = ora4("\u30A2\u30D7\u30EA\u3092\u8FFD\u52A0\u4E2D...").start();
-      try {
-        const result = await addApps(
-          addOptions,
-          config.appComponents,
-          syncMetadata
-        );
-        totalAdded += result.added.length;
-        totalMerged += result.merged.length;
-        totalSkipped += result.skipped.length;
-        spinner.succeed(
-          `\u30A2\u30D7\u30EA\u3092\u8FFD\u52A0\u3057\u307E\u3057\u305F\uFF08\u8FFD\u52A0: ${result.added.length}, \u30DE\u30FC\u30B8: ${result.merged.length}, \u30B9\u30AD\u30C3\u30D7: ${result.skipped.length}\uFF09`
-        );
-      } catch (error2) {
-        spinner.fail("\u30A2\u30D7\u30EA\u306E\u8FFD\u52A0\u306B\u5931\u6557\u3057\u307E\u3057\u305F");
-        throw error2;
-      }
-    }
-    if (config.components.config) {
-      const spinner = ora4("\u8A2D\u5B9A\u30D5\u30A1\u30A4\u30EB\u3092\u8FFD\u52A0\u4E2D...").start();
-      try {
-        const result = await addConfigFiles(addOptions, syncMetadata);
-        totalAdded += result.added.length;
-        totalMerged += result.merged.length;
-        totalSkipped += result.skipped.length;
-        spinner.succeed(
-          `\u8A2D\u5B9A\u30D5\u30A1\u30A4\u30EB\u3092\u8FFD\u52A0\u3057\u307E\u3057\u305F\uFF08\u8FFD\u52A0: ${result.added.length}, \u30DE\u30FC\u30B8: ${result.merged.length}, \u30B9\u30AD\u30C3\u30D7: ${result.skipped.length}\uFF09`
-        );
-      } catch (error2) {
-        spinner.fail("\u8A2D\u5B9A\u30D5\u30A1\u30A4\u30EB\u306E\u8FFD\u52A0\u306B\u5931\u6557\u3057\u307E\u3057\u305F");
-        throw error2;
-      }
-    }
-    if (!config.dryRun) {
-      syncMetadata.lastSync = (/* @__PURE__ */ new Date()).toISOString();
-      await saveSyncMetadata(targetDir, syncMetadata);
-    }
-    success("\n\u2713 \u8FFD\u52A0\u5B8C\u4E86\uFF01\n");
-    if (config.dryRun) {
-      info("\uFF08dry-run\u30E2\u30FC\u30C9\u306E\u305F\u3081\u3001\u5B9F\u969B\u306E\u5909\u66F4\u306F\u884C\u308F\u308C\u3066\u3044\u307E\u305B\u3093\uFF09\n");
-    }
-    info(`\u8FFD\u52A0\u3055\u308C\u305F\u30D5\u30A1\u30A4\u30EB: ${totalAdded}\u500B`);
-    info(`\u30DE\u30FC\u30B8\u3055\u308C\u305F\u30D5\u30A1\u30A4\u30EB: ${totalMerged}\u500B`);
-    info(`\u30B9\u30AD\u30C3\u30D7\u3055\u308C\u305F\u30D5\u30A1\u30A4\u30EB: ${totalSkipped}\u500B
-`);
-    const packageJsonPath2 = join13(targetDir, "package.json");
-    if (existsSync6(packageJsonPath2)) {
-      const packageJson2 = await import(packageJsonPath2);
-      const hasEinjaCli = packageJson2.default?.devDependencies?.["@einja/dev-cli"] || packageJson2.default?.dependencies?.["@einja/dev-cli"];
-      if (!hasEinjaCli) {
-        info("\u6B21\u306E\u30B9\u30C6\u30C3\u30D7:");
-        info("1. pnpm install");
-        info("2. pnpm dev:setup");
-        info("\n\u63A8\u5968:");
-        info("  einja\u958B\u767A\u652F\u63F4CLI (@einja/dev-cli) \u306E\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB:");
-        info("  pnpm add -D @einja/dev-cli\n");
-      } else {
-        info("\u6B21\u306E\u30B9\u30C6\u30C3\u30D7:");
-        info("1. pnpm install");
-        info("2. pnpm dev:setup\n");
-      }
-    } else {
-      info("\u6B21\u306E\u30B9\u30C6\u30C3\u30D7:");
-      info("1. pnpm install");
-      info("2. pnpm dev:setup\n");
-    }
-  } catch (error2) {
-    error("\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F:");
-    if (error2 instanceof Error) {
-      error(error2.message);
-    } else {
-      error(String(error2));
-    }
-    process.exit(1);
-  }
-}
-
-// src/commands/sync.ts
-import { dirname as dirname6, join as join16 } from "path";
-import { fileURLToPath as fileURLToPath3 } from "url";
-import fsExtra3 from "fs-extra";
-import inquirer8 from "inquirer";
-
-// src/generators/sync.ts
-import { glob as glob2 } from "glob";
-var CATEGORY_PATTERNS = {
-  env: [".env*", ".envrc", ".volta", ".node-version"],
-  tools: ["biome.json", ".prettierrc*", ".editorconfig", ".vscode/**"],
-  git: [".gitignore", ".gitattributes"],
-  "git-hooks": [".husky/**"],
-  github: [".github/workflows/**", ".github/actions/**", ".github/dependabot.yml"],
-  docker: ["Dockerfile*", "docker-compose*.yml", ".dockerignore"],
-  monorepo: ["turbo.json", "pnpm-workspace.yaml"],
-  "root-config": ["package.json", "tsconfig.json"],
-  scripts: ["scripts/**"],
-  apps: ["apps/**"],
-  packages: ["packages/**"],
-  docs: ["README.md", "docs/**"]
-};
-var ENV_FILE_PROTECTION = {
-  protected: [".env.keys", ".env.personal"]
-};
-function isProtectedEnvFile(filePath) {
-  return ENV_FILE_PROTECTION.protected.some(
-    (pattern) => filePath.endsWith(pattern)
-  );
-}
-function extractPatternsFromCategories(categories, appsDetail, packagesDetail) {
-  const patterns = [];
-  for (const category of categories) {
-    const categoryPatterns = CATEGORY_PATTERNS[category];
-    if (!categoryPatterns) {
-      warn(`\u4E0D\u660E\u306A\u30AB\u30C6\u30B4\u30EA: ${category}`);
-      continue;
-    }
-    if (category === "apps" && appsDetail && appsDetail.length > 0) {
-      patterns.push(...appsDetail.map((app) => `apps/${app}/**`));
-    } else if (category === "packages" && packagesDetail && packagesDetail.length > 0) {
-      patterns.push(...packagesDetail.map((pkg) => `packages/${pkg}/**`));
-    } else {
-      patterns.push(...categoryPatterns);
-    }
-  }
-  return patterns;
-}
-async function collectSyncFiles(templateDir, categories, appsDetail, packagesDetail) {
-  try {
-    info("\u540C\u671F\u5BFE\u8C61\u30D5\u30A1\u30A4\u30EB\u3092\u53CE\u96C6\u4E2D...");
-    const patterns = extractPatternsFromCategories(
-      categories,
-      appsDetail,
-      packagesDetail
-    );
-    if (patterns.length === 0) {
-      warn("\u540C\u671F\u5BFE\u8C61\u306E\u30D1\u30BF\u30FC\u30F3\u304C\u3042\u308A\u307E\u305B\u3093");
-      return [];
-    }
-    const fileSet = /* @__PURE__ */ new Set();
-    for (const pattern of patterns) {
-      try {
-        const files = await glob2(pattern, {
-          cwd: templateDir,
-          dot: true,
-          // .で始まるファイルも含める
-          nodir: true
-          // ディレクトリは除外
-        });
-        for (const file of files) {
-          fileSet.add(file);
-        }
-      } catch (error2) {
-        warn(`\u30D1\u30BF\u30FC\u30F3 ${pattern} \u306E\u51E6\u7406\u4E2D\u306B\u30A8\u30E9\u30FC: ${error2}`);
-      }
-    }
-    const allFiles = Array.from(fileSet);
-    const filteredFiles = allFiles.filter((file) => {
-      if (isProtectedEnvFile(file)) {
-        info(`\u4FDD\u8B77\u5BFE\u8C61\u30D5\u30A1\u30A4\u30EB\u3092\u9664\u5916: ${file}`);
-        return false;
-      }
-      return true;
-    });
-    success(`${filteredFiles.length}\u500B\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u53CE\u96C6\u3057\u307E\u3057\u305F`);
-    return filteredFiles.sort();
-  } catch (error2) {
-    error(`\u30D5\u30A1\u30A4\u30EB\u53CE\u96C6\u4E2D\u306B\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F: ${error2}`);
-    throw error2;
-  }
-}
-
-// src/prompts/sync.ts
-import inquirer7 from "inquirer";
-import * as fs from "fs";
-import * as path from "path";
-var CATEGORY_CONFIGS = {
-  env: {
-    name: "\u74B0\u5883\u8A2D\u5B9A",
-    description: ".env*, .envrc, .volta, .node-version",
-    patterns: [".env*", ".envrc", ".volta", ".node-version"],
-    defaultChecked: true
-  },
-  tools: {
-    name: "\u958B\u767A\u30C4\u30FC\u30EB",
-    description: "biome.json, .prettierrc, .editorconfig, .vscode/",
-    patterns: ["biome.json", ".prettierrc*", ".editorconfig", ".vscode/"],
-    defaultChecked: true
-  },
-  git: {
-    name: "Git\u8A2D\u5B9A",
-    description: ".gitignore, .gitattributes",
-    patterns: [".gitignore", ".gitattributes"],
-    defaultChecked: false
-  },
-  "git-hooks": {
-    name: "Git Hooks",
-    description: ".husky/",
-    patterns: [".husky/"],
-    defaultChecked: false
-  },
-  github: {
-    name: "CI/CD",
-    description: ".github/workflows/, .github/actions/",
-    patterns: [".github/workflows/", ".github/actions/", ".github/dependabot.yml"],
-    defaultChecked: false
-  },
-  docker: {
-    name: "\u30B3\u30F3\u30C6\u30CA",
-    description: "Dockerfile*, docker-compose.yml, .dockerignore",
-    patterns: ["Dockerfile*", "docker-compose*.yml", ".dockerignore"],
-    defaultChecked: false
-  },
-  monorepo: {
-    name: "\u30E2\u30CE\u30EC\u30DD\u69CB\u6210",
-    description: "turbo.json, pnpm-workspace.yaml",
-    patterns: ["turbo.json", "pnpm-workspace.yaml"],
-    defaultChecked: false
-  },
-  "root-config": {
-    name: "\u30EB\u30FC\u30C8\u8A2D\u5B9A",
-    description: "package.json, tsconfig.json",
-    patterns: ["package.json", "tsconfig.json"],
-    defaultChecked: false
-  },
-  scripts: {
-    name: "\u30B9\u30AF\u30EA\u30D7\u30C8",
-    description: "scripts/ \u914D\u4E0B",
-    patterns: ["scripts/**"],
-    defaultChecked: false
-  },
-  apps: {
-    name: "\u30A2\u30D7\u30EA\u30B1\u30FC\u30B7\u30E7\u30F3",
-    description: "apps/ \u914D\u4E0B\uFF08\u6B21\u306E\u753B\u9762\u3067\u500B\u5225\u9078\u629E\uFF09",
-    patterns: ["apps/**"],
-    defaultChecked: false,
-    requiresDetailSelection: true
-  },
-  packages: {
-    name: "\u5171\u901A\u30D1\u30C3\u30B1\u30FC\u30B8",
-    description: "packages/ \u914D\u4E0B\uFF08\u6B21\u306E\u753B\u9762\u3067\u500B\u5225\u9078\u629E\uFF09",
-    patterns: ["packages/**"],
-    defaultChecked: false,
-    requiresDetailSelection: true
-  },
-  docs: {
-    name: "\u30C9\u30AD\u30E5\u30E1\u30F3\u30C8",
-    description: "README.md, docs/",
-    patterns: ["README.md", "docs/**"],
-    defaultChecked: false
-  }
-};
-function getAvailableApps(templateDir) {
-  const appsDir = path.join(templateDir, "apps");
-  try {
-    if (!fs.existsSync(appsDir)) {
-      return [];
-    }
-    return fs.readdirSync(appsDir, { withFileTypes: true }).filter((dirent) => dirent.isDirectory()).map((dirent) => dirent.name);
-  } catch (error2) {
-    console.error(`Error reading apps directory: ${error2}`);
-    return [];
-  }
-}
-function getAvailablePackages(templateDir) {
-  const packagesDir = path.join(templateDir, "packages");
-  try {
-    if (!fs.existsSync(packagesDir)) {
-      return [];
-    }
-    return fs.readdirSync(packagesDir, { withFileTypes: true }).filter((dirent) => dirent.isDirectory()).map((dirent) => dirent.name);
-  } catch (error2) {
-    console.error(`Error reading packages directory: ${error2}`);
-    return [];
-  }
-}
-async function promptSyncCategories(templateDir) {
-  const categoryAnswers = await inquirer7.prompt([
-    {
-      type: "checkbox",
-      name: "categories",
-      message: "\u540C\u671F\u3059\u308B\u9805\u76EE\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\uFF08Space\u3067\u9078\u629E\u3001Enter\u3067\u78BA\u5B9A\uFF09:",
-      choices: Object.entries(CATEGORY_CONFIGS).map(([key, config]) => ({
-        name: `${config.name} - ${config.description}`,
-        value: key,
-        checked: config.defaultChecked ?? false
-      }))
-    }
-  ]);
-  const selectedCategories = categoryAnswers.categories;
-  const hasApps = selectedCategories.includes("apps");
-  const hasPackages = selectedCategories.includes("packages");
-  const hasRootConfig = selectedCategories.includes("root-config");
-  let appsDetail;
-  let packagesDetail;
-  let packageJsonSections;
-  let conflictStrategy = "merge";
-  if (hasApps) {
-    const availableApps = getAvailableApps(templateDir);
-    if (availableApps.length > 0) {
-      const appsAnswers = await inquirer7.prompt([
-        {
-          type: "checkbox",
-          name: "apps",
-          message: "\u540C\u671F\u3059\u308B\u30A2\u30D7\u30EA\u30B1\u30FC\u30B7\u30E7\u30F3\u3092\u9078\u629E:",
-          choices: availableApps.map((app) => ({
-            name: app,
-            value: app,
-            checked: true
-          })),
-          validate: (input) => {
-            if (input.length === 0) {
-              return "\u5C11\u306A\u304F\u3068\u30821\u3064\u306E\u30A2\u30D7\u30EA\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044";
-            }
-            return true;
-          }
-        }
-      ]);
-      appsDetail = appsAnswers.apps;
-    } else {
-      console.warn("\u8B66\u544A: apps/ \u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u304C\u898B\u3064\u304B\u3089\u306A\u3044\u304B\u3001\u30A2\u30D7\u30EA\u304C\u5B58\u5728\u3057\u307E\u305B\u3093");
-      appsDetail = [];
-    }
-  }
-  if (hasPackages) {
-    const availablePackages = getAvailablePackages(templateDir);
-    if (availablePackages.length > 0) {
-      const packagesAnswers = await inquirer7.prompt([
-        {
-          type: "checkbox",
-          name: "packages",
-          message: "\u540C\u671F\u3059\u308B\u30D1\u30C3\u30B1\u30FC\u30B8\u3092\u9078\u629E:",
-          choices: availablePackages.map((pkg) => ({
-            name: pkg,
-            value: pkg,
-            checked: true
-          })),
-          validate: (input) => {
-            if (input.length === 0) {
-              return "\u5C11\u306A\u304F\u3068\u30821\u3064\u306E\u30D1\u30C3\u30B1\u30FC\u30B8\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044";
-            }
-            return true;
-          }
-        }
-      ]);
-      packagesDetail = packagesAnswers.packages;
-    } else {
-      console.warn("\u8B66\u544A: packages/ \u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u304C\u898B\u3064\u304B\u3089\u306A\u3044\u304B\u3001\u30D1\u30C3\u30B1\u30FC\u30B8\u304C\u5B58\u5728\u3057\u307E\u305B\u3093");
-      packagesDetail = [];
-    }
-  }
-  if (hasRootConfig) {
-    const packageJsonAnswers = await inquirer7.prompt([
-      {
-        type: "checkbox",
-        name: "sections",
-        message: "package.json\u306E\u540C\u671F\u30BB\u30AF\u30B7\u30E7\u30F3\u3092\u9078\u629E:",
-        choices: [
-          { name: "scripts\uFF08\u63A8\u5968\uFF09", value: "scripts", checked: true },
-          { name: "engines\uFF08\u63A8\u5968\uFF09", value: "engines", checked: true },
-          { name: "dependencies", value: "dependencies", checked: false },
-          { name: "devDependencies", value: "devDependencies", checked: false }
-        ]
-      }
-    ]);
-    packageJsonSections = packageJsonAnswers.sections;
-  }
-  const strategyAnswers = await inquirer7.prompt([
-    {
-      type: "list",
-      name: "conflictStrategy",
-      message: "\u7AF6\u5408\u89E3\u6C7A\u6226\u7565\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044:",
-      choices: [
-        { name: "\u30DE\u30FC\u30AB\u30FC\u30D9\u30FC\u30B9\u30DE\u30FC\u30B8\uFF08\u63A8\u5968\uFF09", value: "merge" },
-        { name: "\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u3067\u4E0A\u66F8\u304D", value: "overwrite" },
-        { name: "\u65E2\u5B58\u30D5\u30A1\u30A4\u30EB\u512A\u5148", value: "skip" }
-      ],
-      default: "merge"
-    }
-  ]);
-  conflictStrategy = strategyAnswers.conflictStrategy;
-  return {
-    categories: selectedCategories,
-    appsDetail,
-    packagesDetail,
-    packageJsonSections,
-    conflictStrategy
-  };
-}
-
-// src/utils/backup.ts
-import fsExtra2 from "fs-extra";
-import { join as join15, dirname as dirname5, relative as relative3 } from "path";
-var { copy, ensureDir: ensureDir2, readdir: readdir4, remove, pathExists } = fsExtra2;
-function getTimestamp() {
-  const now = /* @__PURE__ */ new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
-}
-function parseBackupTimestamp(dirName) {
-  const match = dirName.match(/^\.einja-sync-backup-(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})$/);
-  if (!match || !match[1]) {
-    return null;
-  }
-  const timestampStr = match[1];
-  const parts = timestampStr.split("_");
-  if (parts.length !== 2) {
-    return null;
-  }
-  const [datePart, timePart] = parts;
-  if (!datePart || !timePart) {
-    return null;
-  }
-  const dateParts = datePart.split("-").map(Number);
-  const timeParts = timePart.split("-").map(Number);
-  if (dateParts.length !== 3 || timeParts.length !== 3) {
-    return null;
-  }
-  const [year, month, day] = dateParts;
-  const [hours, minutes, seconds] = timeParts;
-  if (year === void 0 || month === void 0 || day === void 0 || hours === void 0 || minutes === void 0 || seconds === void 0) {
-    return null;
-  }
-  return new Date(year, month - 1, day, hours, minutes, seconds);
-}
-async function createBackup(targetDir, filesToBackup) {
-  const timestamp = getTimestamp();
-  const backupDirName = `.einja-sync-backup-${timestamp}`;
-  const backupDir = join15(targetDir, backupDirName);
-  try {
-    await ensureDir2(backupDir);
-    for (const file of filesToBackup) {
-      const sourcePath = join15(targetDir, file);
-      const destPath = join15(backupDir, file);
-      if (!await pathExists(sourcePath)) {
-        continue;
-      }
-      await ensureDir2(dirname5(destPath));
-      await copy(sourcePath, destPath);
-    }
-    return backupDir;
-  } catch (error2) {
-    error(`\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u306E\u4F5C\u6210\u306B\u5931\u6557\u3057\u307E\u3057\u305F: ${error2 instanceof Error ? error2.message : String(error2)}`);
-    throw error2;
-  }
-}
-async function restoreFromBackup(backupDir, targetDir) {
-  try {
-    if (!await pathExists(backupDir)) {
-      error(`\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093: ${backupDir}`);
-      return false;
-    }
-    const files = await getAllFiles(backupDir);
-    for (const file of files) {
-      const sourcePath = join15(backupDir, file);
-      const destPath = join15(targetDir, file);
-      await ensureDir2(dirname5(destPath));
-      await copy(sourcePath, destPath, { overwrite: true });
-    }
-    return true;
-  } catch (error2) {
-    error(`\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u304B\u3089\u306E\u5FA9\u5143\u306B\u5931\u6557\u3057\u307E\u3057\u305F: ${error2 instanceof Error ? error2.message : String(error2)}`);
-    return false;
-  }
-}
-async function getAllFiles(dirPath, baseDir) {
-  const base = baseDir ?? dirPath;
-  const entries = await readdir4(dirPath, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const fullPath = join15(dirPath, entry.name);
-    if (entry.isDirectory()) {
-      const subFiles = await getAllFiles(fullPath, base);
-      files.push(...subFiles);
-    } else {
-      files.push(relative3(base, fullPath));
-    }
-  }
-  return files;
-}
-async function listBackups(targetDir) {
-  try {
-    if (!await pathExists(targetDir)) {
-      return [];
-    }
-    const entries = await readdir4(targetDir, { withFileTypes: true });
-    const backups = [];
-    for (const entry of entries) {
-      if (!entry.isDirectory()) {
-        continue;
-      }
-      const timestamp = parseBackupTimestamp(entry.name);
-      if (!timestamp) {
-        continue;
-      }
-      backups.push({
-        path: join15(targetDir, entry.name),
-        name: entry.name,
-        timestamp
-      });
-    }
-    backups.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    return backups;
-  } catch (error2) {
-    error(`\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u4E00\u89A7\u306E\u53D6\u5F97\u306B\u5931\u6557\u3057\u307E\u3057\u305F: ${error2 instanceof Error ? error2.message : String(error2)}`);
-    return [];
-  }
-}
-async function getLatestBackup(targetDir) {
-  const backups = await listBackups(targetDir);
-  return backups.length > 0 ? backups[0] ?? null : null;
-}
-
-// src/utils/git.ts
-import { execSync as execSync2 } from "child_process";
-function isGitRepository(targetDir) {
-  try {
-    const cwd = targetDir || process.cwd();
-    execSync2("git rev-parse --is-inside-work-tree", {
-      cwd,
-      stdio: "ignore"
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-function hasUncommittedChanges(targetDir) {
-  if (!isGitRepository(targetDir)) {
-    warn("\u26A0\uFE0F  \u3053\u306E\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u306FGit\u30EA\u30DD\u30B8\u30C8\u30EA\u3067\u306F\u3042\u308A\u307E\u305B\u3093");
-    return false;
-  }
-  try {
-    const cwd = targetDir || process.cwd();
-    const output = execSync2("git status --porcelain", {
-      cwd,
-      encoding: "utf-8"
-    });
-    return output.trim().length > 0;
-  } catch (error2) {
-    warn(`\u26A0\uFE0F  Git\u30B9\u30C6\u30FC\u30BF\u30B9\u78BA\u8A8D\u4E2D\u306B\u30A8\u30E9\u30FC\u304C\u767A\u751F\u3057\u307E\u3057\u305F: ${error2}`);
-    return false;
-  }
-}
-function checkGitStatusForSync(force, targetDir) {
-  if (!isGitRepository(targetDir)) {
-    warn("\u26A0\uFE0F  \u3053\u306E\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u306FGit\u30EA\u30DD\u30B8\u30C8\u30EA\u3067\u306F\u3042\u308A\u307E\u305B\u3093");
-    warn(
-      "   sync\u5B9F\u884C\u5F8C\u306E\u5DEE\u5206\u78BA\u8A8D\u306F `git diff` \u3067\u884C\u3046\u3053\u3068\u3092\u63A8\u5968\u3057\u307E\u3059"
-    );
-    return true;
-  }
-  if (hasUncommittedChanges(targetDir)) {
-    if (!force) {
-      error("\u274C \u672A\u30B3\u30DF\u30C3\u30C8\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059");
-      error(
-        "   \u5909\u66F4\u3092\u30B3\u30DF\u30C3\u30C8\u3057\u3066\u304B\u3089\u5B9F\u884C\u3059\u308B\u304B\u3001--force \u30D5\u30E9\u30B0\u3092\u4F7F\u7528\u3057\u3066\u304F\u3060\u3055\u3044"
-      );
-      process.exit(1);
-    }
-    warn("\u26A0\uFE0F  \u672A\u30B3\u30DF\u30C3\u30C8\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059\u304C\u3001--force \u306B\u3088\u308A\u7D9A\u884C\u3057\u307E\u3059");
-    warn(
-      "   \u554F\u984C\u304C\u767A\u751F\u3057\u305F\u5834\u5408\u306F `git checkout .` \u3067\u5FA9\u5143\u3067\u304D\u307E\u3059"
-    );
-  }
-  return true;
-}
-
 // src/commands/sync.ts
 var currentBackupDir;
 var isSyncing = false;
@@ -2486,7 +1466,7 @@ async function handleInterrupt() {
     info("\u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u304C\u4F5C\u6210\u3055\u308C\u3066\u3044\u306A\u3044\u305F\u3081\u3001\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u306F\u4E0D\u8981\u3067\u3059");
     process.exit(0);
   }
-  const answer = await inquirer8.prompt([
+  const answer = await inquirer5.prompt([
     {
       type: "confirm",
       name: "rollback",
@@ -2507,22 +1487,22 @@ async function handleInterrupt() {
   }
   process.exit(0);
 }
-function getTemplatePath3() {
-  const __filename3 = fileURLToPath3(import.meta.url);
-  const __dirname3 = dirname6(__filename3);
-  const { existsSync: existsSync8 } = fsExtra3;
-  const distPath = join16(__dirname3, "../templates/default");
-  const srcPath = join16(__dirname3, "../../templates/default");
-  if (existsSync8(distPath)) {
+function getTemplatePath2() {
+  const __filename3 = fileURLToPath2(import.meta.url);
+  const __dirname3 = dirname5(__filename3);
+  const { existsSync: existsSync6 } = fsExtra3;
+  const distPath = join5(__dirname3, "../templates/default");
+  const srcPath = join5(__dirname3, "../../templates/default");
+  if (existsSync6(distPath)) {
     return distPath;
   }
-  if (existsSync8(srcPath)) {
+  if (existsSync6(srcPath)) {
     return srcPath;
   }
   throw new Error("\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093");
 }
 async function syncCommand(options) {
-  const { existsSync: existsSync8 } = fsExtra3;
+  const { existsSync: existsSync6 } = fsExtra3;
   const sigintHandler = () => {
     handleInterrupt().catch((error2) => {
       error(`\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u4E2D\u306B\u30A8\u30E9\u30FC: ${error2}`);
@@ -2554,7 +1534,7 @@ async function syncCommand(options) {
     }
     const targetDir = process.cwd();
     checkGitStatusForSync(options.force || false, targetDir);
-    const templatePath = getTemplatePath3();
+    const templatePath = getTemplatePath2();
     let categories;
     let appsDetail;
     let packagesDetail;
@@ -2612,7 +1592,7 @@ async function syncCommand(options) {
     let backupDir;
     if (options.backup !== false) {
       info("\u{1F4BE} \u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u4F5C\u6210\u4E2D...");
-      const existingFiles = filesToSync.filter((file) => existsSync8(join16(targetDir, file)));
+      const existingFiles = filesToSync.filter((file) => existsSync6(join5(targetDir, file)));
       if (existingFiles.length > 0) {
         backupDir = await createBackup(targetDir, existingFiles);
         currentBackupDir = backupDir;
@@ -2641,9 +1621,9 @@ async function syncCommand(options) {
     };
     for (const file of filesToSync) {
       try {
-        const sourcePath = join16(templatePath, file);
-        const targetPath = join16(targetDir, file);
-        if (!existsSync8(sourcePath)) {
+        const sourcePath = join5(templatePath, file);
+        const targetPath = join5(targetDir, file);
+        if (!existsSync6(sourcePath)) {
           warn(`\u30B9\u30AD\u30C3\u30D7: ${file} (\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u30D5\u30A1\u30A4\u30EB\u304C\u5B58\u5728\u3057\u307E\u305B\u3093)`);
           result.skipped++;
           result.files.push({
@@ -2657,7 +1637,8 @@ async function syncCommand(options) {
           sourcePath,
           targetPath,
           syncMetadata,
-          packageJsonSections
+          packageJsonSections,
+          conflictStrategy
         );
         const mappedAction = mergeResult.action === "created" || mergeResult.action === "overwritten" ? "copied" : mergeResult.action;
         result.success++;
@@ -2706,26 +1687,15 @@ async function syncCommand(options) {
 }
 
 // src/cli.ts
-var __filename2 = fileURLToPath4(import.meta.url);
-var __dirname2 = dirname7(__filename2);
-var packageJsonPath = join17(__dirname2, "../package.json");
-var packageJson = JSON.parse(readFileSync5(packageJsonPath, "utf-8"));
+var __filename2 = fileURLToPath3(import.meta.url);
+var __dirname2 = dirname6(__filename2);
+var packageJsonPath = join6(__dirname2, "../package.json");
+var packageJson = JSON.parse(readFileSync4(packageJsonPath, "utf-8"));
 var program = new Command();
 program.name("create-einja-app").description("CLI tool to create new projects with Einja Management Template").version(packageJson.version);
 program.argument("[project-name]", "Project name").option("--skip-git", "Skip git initialization").option("--skip-install", "Skip package installation").action(
   async (projectName, options) => {
     await createCommand(projectName, options);
-  }
-);
-program.command("setup").description("Setup tools for existing project").action(async () => {
-  await setupCommand();
-});
-program.command("add").description("Add einja components to existing monorepo").option("--all", "Select all components").option("--dry-run", "Preview changes without making them").action(
-  async (options) => {
-    await addCommand({
-      skipPrompts: options.all || false,
-      dryRun: options.dryRun || false
-    });
   }
 );
 program.command("sync").description("Sync template files to existing project").option("--categories <categories>", "Comma-separated list of categories to sync").option("--all", "Sync all categories").option("--dry-run", "Preview changes without making them").option("--backup", "Create backup before syncing (default: true)", true).option("--rollback", "Rollback to previous backup").option("--force", "Force sync even with uncommitted changes").action(

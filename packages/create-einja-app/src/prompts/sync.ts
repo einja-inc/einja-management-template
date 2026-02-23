@@ -10,7 +10,7 @@ export type SyncPromptResult = {
   categories: SyncCategory[];
   appsDetail?: string[];
   packagesDetail?: string[];
-  packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "engines">;
+  packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">;
   conflictStrategy: "merge" | "overwrite" | "skip";
 };
 
@@ -23,24 +23,28 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
     description: ".env*, .envrc, .volta, .node-version",
     patterns: [".env*", ".envrc", ".volta", ".node-version"],
     defaultChecked: true,
+    firstRunDefault: true,
   },
   tools: {
     name: "開発ツール",
     description: "biome.json, .prettierrc, .editorconfig, .vscode/",
     patterns: ["biome.json", ".prettierrc*", ".editorconfig", ".vscode/"],
     defaultChecked: true,
+    firstRunDefault: true,
   },
   git: {
     name: "Git設定",
     description: ".gitignore, .gitattributes",
     patterns: [".gitignore", ".gitattributes"],
     defaultChecked: false,
+    firstRunDefault: true,
   },
   "git-hooks": {
     name: "Git Hooks",
     description: ".husky/",
     patterns: [".husky/"],
     defaultChecked: false,
+    firstRunDefault: true,
   },
   github: {
     name: "CI/CD",
@@ -59,12 +63,14 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
     description: "turbo.json, pnpm-workspace.yaml",
     patterns: ["turbo.json", "pnpm-workspace.yaml"],
     defaultChecked: false,
+    firstRunDefault: true,
   },
   "root-config": {
     name: "ルート設定",
     description: "package.json, tsconfig.json",
     patterns: ["package.json", "tsconfig.json"],
     defaultChecked: false,
+    firstRunDefault: true,
   },
   scripts: {
     name: "スクリプト",
@@ -77,6 +83,7 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
     description: "apps/ 配下（次の画面で個別選択）",
     patterns: ["apps/**"],
     defaultChecked: false,
+    firstRunDefault: true,
     requiresDetailSelection: true,
   },
   packages: {
@@ -84,6 +91,7 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
     description: "packages/ 配下（次の画面で個別選択）",
     patterns: ["packages/**"],
     defaultChecked: false,
+    firstRunDefault: true,
     requiresDetailSelection: true,
   },
   docs: {
@@ -149,10 +157,12 @@ function getAvailablePackages(templateDir: string): string[] {
 /**
  * カテゴリ選択プロンプトを実行（5段階）
  * @param templateDir - テンプレートディレクトリのパス
+ * @param isFirstRun - 初回実行かどうか
  * @returns SyncPromptResult - 同期設定
  */
 export async function promptSyncCategories(
   templateDir: string,
+  isFirstRun = false,
 ): Promise<SyncPromptResult> {
   // ステージ1: 大カテゴリ選択
   const categoryAnswers = await inquirer.prompt([
@@ -163,7 +173,9 @@ export async function promptSyncCategories(
       choices: Object.entries(CATEGORY_CONFIGS).map(([key, config]) => ({
         name: `${config.name} - ${config.description}`,
         value: key,
-        checked: config.defaultChecked ?? false,
+        checked: isFirstRun
+          ? (config.firstRunDefault ?? config.defaultChecked ?? false)
+          : (config.defaultChecked ?? false),
       })),
     },
   ]);
@@ -175,7 +187,7 @@ export async function promptSyncCategories(
 
   let appsDetail: string[] | undefined;
   let packagesDetail: string[] | undefined;
-  let packageJsonSections: Array<"scripts" | "dependencies" | "devDependencies" | "engines"> | undefined;
+  let packageJsonSections: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines"> | undefined;
   let conflictStrategy: "merge" | "overwrite" | "skip" = "merge";
 
   // ステージ2: apps詳細選択（appsが選択された場合のみ）
@@ -248,10 +260,11 @@ export async function promptSyncCategories(
           { name: "engines（推奨）", value: "engines", checked: true },
           { name: "dependencies", value: "dependencies", checked: false },
           { name: "devDependencies", value: "devDependencies", checked: false },
+          { name: "peerDependencies", value: "peerDependencies", checked: false },
         ],
       },
     ]);
-    packageJsonSections = packageJsonAnswers.sections as Array<"scripts" | "dependencies" | "devDependencies" | "engines">;
+    packageJsonSections = packageJsonAnswers.sections as Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">;
   }
 
   // ステージ5: 競合解決戦略選択

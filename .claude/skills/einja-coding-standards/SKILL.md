@@ -30,9 +30,10 @@ description: "TypeScript/React/Next.jsのコーディング規約とベストプ
 
 各カテゴリの詳細な規約は以下を参照してください：
 
-- [TypeScript規約](./reference/typescript-rules.md) - 型安全性、型定義、禁止事項
-- [命名規則](./reference/naming-conventions.md) - 変数・関数・型の命名規則
-- [禁止事項](./reference/prohibited-patterns.md) - 絶対に使用禁止のパターン
+- [TypeScript規約](./references/typescript-rules.md) - 型安全性、型定義、禁止事項
+- [命名規則](./references/naming-conventions.md) - 変数・関数・型の命名規則
+- [禁止事項](./references/prohibited-patterns.md) - 絶対に使用禁止のパターン
+- [インポートパス規約](./references/import-conventions.md) - パッケージ間・アプリ内のインポートルール
 
 ## クイックリファレンス
 

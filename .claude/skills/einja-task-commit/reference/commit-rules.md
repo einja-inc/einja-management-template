@@ -1,1 +1,0 @@
-../../../../docs/einja/steering/commit-rules.md

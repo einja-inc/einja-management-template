@@ -1,1 +1,0 @@
-../../../../docs/einja/steering/acceptance-criteria-and-qa-guide.md

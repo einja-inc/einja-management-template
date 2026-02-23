@@ -32,9 +32,9 @@ description: "Reactコンポーネントの設計原則と実装ガイドライ�
 
 各カテゴリの詳細な規約は以下を参照してください：
 
-- [ディレクトリ構造](./reference/directory-structure.md) - ファイル配置とディレクトリ設計
-- [Props設計パターン](./reference/props-patterns.md) - Props設計とイベントハンドリング
-- [スタイリングガイド](./reference/styling-guide.md) - Tailwind CSSを使用したスタイリング規約
+- [ディレクトリ構造](./references/directory-structure.md) - ファイル配置とディレクトリ設計
+- [Props設計パターン](./references/props-patterns.md) - Props設計とイベントハンドリング
+- [スタイリングガイド](./references/styling-guide.md) - Tailwind CSSを使用したスタイリング規約
 
 ## クイックリファレンス
 

@@ -120,10 +120,10 @@ Skill: general-context-loader
 | **コンポーネント設計** | component-design |
 
 **詳細規約が必要な場合**（Readツールで読み込み）:
-- 命名規則: `.claude/skills/einja-coding-standards/reference/naming-conventions.md`
-- 禁止パターン: `.claude/skills/einja-coding-standards/reference/prohibited-patterns.md`
-- TypeScript規約: `.claude/skills/einja-coding-standards/reference/typescript-rules.md`
-- スタイリング: `.claude/skills/einja-component-design/reference/styling-guide.md`
+- 命名規則: `.claude/skills/einja-coding-standards/references/naming-conventions.md`
+- 禁止パターン: `.claude/skills/einja-coding-standards/references/prohibited-patterns.md`
+- TypeScript規約: `.claude/skills/einja-coding-standards/references/typescript-rules.md`
+- スタイリング: `.claude/skills/einja-component-design/references/styling-guide.md`
 
 ### 2. 実装方針の策定
 

@@ -151,7 +151,7 @@ QA テスト結果記録のテンプレートです。
 - 実施結果とステータス
 - 失敗時の原因分類と推奨アクション
 
-**保存場所**: `docs/specs/tasks/[task-dir]/qa-tests/phaseN/X-Y.md`
+**保存場所**: `docs/specs/issues/[issue番号]-[機能名]/qa-tests/story{N}.md`
 
 ## 関連ドキュメント
 

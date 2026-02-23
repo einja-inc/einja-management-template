@@ -169,7 +169,7 @@ AskUserQuestion:
 1. spec-qa-generatorエージェントで作成
    - requirements.mdとdesign.mdの内容を参照
    - **シナリオテスト（scenarios.md）**: 複数タスクをまたぐ継続操作フローのテスト仕様
-   - **フェーズ別テスト仕様**: 各タスクグループのテスト仕様
+   - **Story別テスト仕様**: 各ユーザーストーリー（AC単位）のテスト仕様
    - 受け入れ基準（AC）との対応付け
 2. **ユーザーに内容確認を依頼**
    - 作成したqa-tests/ディレクトリの構成と概要を提示
@@ -283,7 +283,9 @@ AskUserQuestion:
         ├── design.md        # 設計書（技術詳細）
         └── qa-tests/        # QAテスト仕様
             ├── scenarios.md # シナリオテスト（複数タスクをまたぐフロー）
-            └── phase{N}.md  # 各フェーズのテスト仕様
+            ├── story{N}.md  # 各ストーリーのテスト仕様（AC単位）
+            └── evidence/    # エビデンス（スクリーンショット等）
+                └── story{N}/ # ストーリー別
 
 （注: タスク一覧はGitHub Issueに記述）
 ```
@@ -305,7 +307,9 @@ AskUserQuestion:
         │   └── quality.md           # 品質と運用
         └── qa-tests/                # QAテスト仕様
             ├── scenarios.md         # シナリオテスト（複数タスクをまたぐフロー）
-            └── phase{N}.md          # 各フェーズのテスト仕様
+            ├── story{N}.md          # 各ストーリーのテスト仕様（AC単位）
+            └── evidence/            # エビデンス（スクリーンショット等）
+                └── story{N}/        # ストーリー別
 
 （注: タスク一覧はGitHub Issueに記述）
 ```

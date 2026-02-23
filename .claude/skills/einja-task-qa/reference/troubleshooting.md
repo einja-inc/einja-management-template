@@ -34,7 +34,7 @@ QA実行時によくある問題と対処法。
 **対処法**:
 1. `ls -la {spec_dir}/qa-tests/` で権限確認
 2. `chmod -R u+w {spec_dir}/qa-tests/` で権限変更
-3. 不在時は `mkdir -p {spec_dir}/qa-tests/phase{N}/evidence/`
+3. 不在時は `mkdir -p {spec_dir}/qa-tests/evidence/story{N}/`
 
 ---
 

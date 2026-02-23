@@ -21,9 +21,9 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
 
 **必須パラメータ**:
 - `spec_dir`: spec ディレクトリのパス（例: `/docs/specs/issues/auth/issue21-login-feature/`）
-- `task_group_id`: タスクグループID（例: `1.1`）
+- `ac_ids`: 対象AC番号（例: `AC1.1, AC1.2`）
 
-**入力形式**: `{spec_dir} --task-group-id {task_group_id}`
+**入力形式**: 自然言語でAC情報を指定
 
 ---
 
@@ -67,8 +67,8 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
 
 ### ステップ4: qa-tests/ からのテスト仕様抽出
 
-1. タスクグループIDからテストファイルを特定
-   - 例: `1.1` → `qa-tests/phase1/1-1.md`
+1. AC番号からストーリー番号を特定し、テストファイルを参照
+   - 例: AC1.1 → Story 1 → `qa-tests/story1.md`、AC2.3 → Story 2 → `qa-tests/story2.md`
 2. scenarios.md から該当タスクのシナリオテストを確認
 3. 以下の情報を抽出:
    - **テストシナリオ**: 実行すべきテストケース
@@ -86,7 +86,7 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
 
 ### spec 情報
 - **ディレクトリ**: {spec_dir}
-- **タスクグループ**: {task_group_id}
+- **対象AC**: {ac_ids}
 
 ### 要件
 #### 機能要件
@@ -126,7 +126,7 @@ interface Example {
 
 ### テスト仕様
 #### 対象テストファイル
-- `qa-tests/phase{N}/{X}-{Y}.md`
+- `qa-tests/story{N}.md`（該当ACセクション）
 
 #### シナリオテスト
 - **シナリオ1**: [概要] - 実施タイミング: [Step X-Y]

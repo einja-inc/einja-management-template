@@ -212,7 +212,7 @@ Issue #123 のPhase 99 タスク（タスクグループ 99.1）を実行して�
    - 各 AC に対して、Given/When/Then に基づくテストシナリオを作成
    - Integration: API + DB + ミドルウェアの連携テスト
    - Browser: Playwright MCP を使用したユーザーシナリオテスト
-   - QA 仕様書（`qa-tests/phaseN/X-Y.md`）に記録
+   - QA 仕様書（`qa-tests/story{N}.md`）に記録
 
 3. **SUCCESS 判定基準**
    - **検証レベルが「Integration」「Browser」の全ての AC が満たされた場合のみ**、SUCCESS 判定
@@ -272,11 +272,11 @@ task-qa は以下の基準で失敗原因を分類し、適切な戻し先を決
 
 ## QA仕様書の作成・更新フロー
 
-### 初回実行時（qa-tests/phaseN/X-Y.md が存在しない場合）
+### 初回実行時（qa-tests/story{N}.md が存在しない場合）
 
 1. **ファイルの新規作成**
-   - タスクグループ番号に基づいて `qa-tests/phaseN/X-Y.md` を新規作成
-   - 例: タスクグループ1.1 → `qa-tests/phase1/1-1.md`
+   - タスクメタデータの「実装AC」からストーリー番号を特定し、`qa-tests/story{N}.md` を新規作成
+   - 例: 実装AC が AC1.1, AC1.2 → `qa-tests/story1.md`
 
 2. **受け入れ基準の抽出**
    - `requirements.md` の各ユーザーストーリー配下の「受け入れ基準」セクションから各ACを抽出
@@ -303,10 +303,10 @@ task-qa は以下の基準で失敗原因を分類し、適切な戻し先を決
 **ステータス: [✅ SUCCESS / ❌ FAILURE / ⚠️ PARTIAL]**
 ```
 
-### 2回目以降の実行時（qa-tests/phaseN/X-Y.md が既に存在する場合）
+### 2回目以降の実行時（qa-tests/story{N}.md が既に存在する場合）
 
 1. **既存ファイルの読み込み**
-   - `qa-tests/phaseN/X-Y.md` を読み込む
+   - `qa-tests/story{N}.md` を読み込む
 
 2. **更新対象の特定**
    - 「実施結果」セクションのみを更新対象とする

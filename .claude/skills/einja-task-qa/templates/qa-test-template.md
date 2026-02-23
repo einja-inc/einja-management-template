@@ -1,8 +1,8 @@
-# Phase {phase_num}-{group_num}: {task_name} QAテスト結果
+# Story {N}: {ストーリー名} QAテスト結果
 
-## テスト対象タスク
-- **タスクID**: {開始タスクID}～{終了タスクID}
-- **タスク名**: {task_name}
+## テスト対象
+- **ストーリー**: Story {N} - {ストーリー名}
+- **対象AC**: AC{N}.1〜AC{N}.M
 - **実装日**: {date}
 - **テスター**: {tester}
 - **最終更新**: {date}
@@ -50,11 +50,11 @@ pnpm typecheck
 
 ---
 
-## タスク {task_id}: {task_name}
+## AC{N}.1: {ACの1文要約}
 
 ### 受け入れ条件
 <!-- requirements.md から該当ACの受け入れ条件を転記 -->
-- AC{N}.{M}: {Given-When-Then形式の基準}
+- AC{N}.1: {Given-When-Then形式の基準}
 
 ### テストシナリオ
 
@@ -70,7 +70,7 @@ pnpm typecheck
 - 「-」は手順のみで確認項目がない場合に使用
 - 備考欄はテストの区切りや注意事項を記載
 
-### 全体ステータス: - （未実施）
+### ステータス: - （未実施）
 
 #### 主な問題点
 - （実施後に記載）
@@ -79,26 +79,26 @@ pnpm typecheck
 - （実施後に記載）
 
 #### エビデンス
-- ログファイル: `qa-tests/phase{phase_num}/evidence/{task_id}-{evidence_id}.log`
-- スクリーンショット: `qa-tests/phase{phase_num}/evidence/{task_id}-{evidence_id}.png`
+- ログファイル: `qa-tests/evidence/story{N}/AC{N}-1-{evidence_id}.log`
+- スクリーンショット: `qa-tests/evidence/story{N}/AC{N}-1-{evidence_id}.png`
 
 ---
 
-<!-- 追加のタスクがある場合は上記セクションを繰り返す -->
+<!-- 追加のACがある場合は上記セクションを繰り返す -->
 
 ---
 
 ## 統合テスト結果サマリー
 
-### フェーズ{phase_num}-{group_num}全体結果
+### Story {N} 全体結果
 - **全体ステータス**: - （未実施）
-- **完了タスク**: 0/{total_tasks}
+- **完了AC**: 0/{total_acs}
 - **テスト合格率**: 0% (0/0)
 
 ### 修正が必要な項目
 - （実施後に記載）
 
-### 次フェーズへの引き継ぎ事項
+### 次ストーリーへの引き継ぎ事項
 - （実施後に記載）
 
 ### 改善提案

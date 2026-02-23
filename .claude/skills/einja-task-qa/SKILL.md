@@ -37,9 +37,9 @@ allowed-tools:
 
 ### ステップ0: 引数の解析と初期化
 
-**入力形式**: `{spec_dir} [--task-group-id {task_group_id}]`
+**入力形式**: 自然言語でAC指定（task-executerから呼び出される）
 
-**例**: `docs/specs/tasks/user-auth/ --task-group-id 1.1`
+**例**: `docs/specs/issues/issue42-magic-link/ のstory1.mdにあるAC1.1, AC1.2のテストを実行してください`
 
 **TODOリストの作成**: TodoWriteツールで8ステップのTODOを作成してください。
 
@@ -94,9 +94,11 @@ AskUserQuestion:
 
 **前提**: テスト仕様は `spec-qa-generator` が作成済み。task-qaは**実行のみ**を担当。
 
-1. **テスト仕様ファイルの特定**: タスクグループID "1.1" → `qa-tests/phase1/1-1.md`
-2. **シナリオテストの確認**: `qa-tests/scenarios.md` で該当タスクの実施タイミングを確認
-3. **テスト仕様の読み込み**: テストシナリオ、確認項目、期待値を把握
+1. **テスト仕様ファイルの特定**: 自然言語で指定されたAC番号からStoryを判定
+   - 例: 「AC1.1, AC1.2のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
+   - 例: 「AC2.3のテストを実行」→ `qa-tests/story2.md`
+2. **シナリオテストの確認**: `qa-tests/scenarios.md` で該当ACの実施タイミングを確認
+3. **テスト仕様の読み込み**: story{N}.md内の該当ACセクションからテストシナリオ、確認項目、期待値を把握
 
 **エラー時**: テスト仕様が存在しない場合は失敗分類B（要件齟齬）→ spec-qa-generatorで作成が必要
 
@@ -207,7 +209,7 @@ AskUserQuestion:
 既存のテスト仕様ファイルに実施結果を記録します。
 
 1. **結果欄の更新**: 各テストシナリオの「結果」列を ✅/❌/⚠️ で更新
-2. **エビデンス保存**: `qa-tests/phase{N}/evidence/` にスクリーンショット、ログを保存
+2. **エビデンス保存**: `qa-tests/evidence/story{N}/` にスクリーンショット、ログを保存
 3. **実行ログの記載**: scenarios.md の該当シナリオに実行ログを追記
 
 ---
@@ -221,7 +223,7 @@ AskUserQuestion:
   "status": "SUCCESS" | "FAILURE" | "PARTIAL",
   "failureCategory": "A" | "B" | "C" | "D" | null,
   "nextAction": "finisher" | "executer" | "qa-retry",
-  "qaTestFile": "qa-tests/phase1/1-1.md",
+  "qaTestFile": "qa-tests/story1.md",
   "testSummary": {
     "total": 17,
     "passed": 12,
@@ -253,17 +255,17 @@ AskUserQuestion:
 ```
 {spec_dir}/
 └── qa-tests/
-    ├── phase1/
-    │   ├── 1-1.md
-    │   ├── 1-2.md
-    │   └── evidence/
-    ├── phase2/
-    │   └── ...
-    └── phase3/
-        └── ...
+    ├── scenarios.md
+    ├── story1.md
+    ├── story2.md
+    ├── story3.md
+    └── evidence/
+        ├── story1/
+        ├── story2/
+        └── story3/
 ```
 
-**パス規則**: タスクグループID "2.3" → `qa-tests/phase2/2-3.md`
+**パス規則**: AC番号 "AC2.3" → Story番号 2 → `qa-tests/story2.md`（AC2.3セクション）
 
 ---
 

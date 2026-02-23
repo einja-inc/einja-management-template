@@ -47,6 +47,6 @@ GitHub Actionsで自動QA実行（将来実装）
 ## パターン5: 手動QAレビュー
 
 ```
-ユーザー: "タスク1.1のQA結果を見せて"
-  → qa-tests/phase1/1-1.md読み込み → 結果サマリー表示
+ユーザー: "Story 1のQA結果を見せて"
+  → qa-tests/story1.md読み込み → 結果サマリー表示
 ```

@@ -69,8 +69,10 @@ spec が不完全です。以下のファイルが不足しています:
 
 ```
 Skill: spec-context-loader
-引数: {spec_dir} --task-group-id {task_group_id}
+引数: {spec_dir} のstory{N}.mdにあるAC{X}.{Y}, AC{X}.{Z}のテストを実行してください
 ```
+
+> **例**: `docs/specs/issues/sprint1/issue21-user-auth/ のstory1.mdにあるAC1.1, AC1.2のテストを実行してください`
 
 取得内容:
 - `requirements.md` から該当タスクの要件
@@ -267,9 +269,9 @@ function slugify(text: string): string {
 ### 5. 修正記録の作成
 
 #### 5.1 記録ファイルパスの決定
-- **単一タスク**: `modifications/phaseN/X-Y.md`
-  - 例: タスク `1.1.3` → `modifications/phase1/1-1.md`
-  - 例: タスク `2.3.1` → `modifications/phase2/2-3.md`
+- **単一タスク**: `modifications/task-{X}-{Y}.md`
+  - 例: タスクグループ `1.1` → `modifications/task-1-1.md`
+  - 例: タスクグループ `2.3` → `modifications/task-2-3.md`
 - **複数タスク**: 各タスクごとに個別の修正記録を作成
 
 #### 5.2 記録内容
@@ -304,7 +306,7 @@ function slugify(text: string): string {
 3. [実装した主要機能3]
 
 ### 修正記録
-✅ modifications/phaseN/X-Y.md に記録しました
+✅ modifications/task-{X}-{Y}.md に記録しました
 ```
 
 **複数タスクの場合**:
@@ -316,11 +318,11 @@ function slugify(text: string): string {
 #### タスク1.1.4: Turborepoパイプライン設定
 - 新規作成: 1個
 - 編集: 2個
-- 修正記録: ✅ modifications/phase1/1-1.md
+- 修正記録: ✅ modifications/task-1-1.md
 
 #### タスク1.2.2: Biome設定ファイル作成
 - 新規作成: 1個
-- 修正記録: ✅ modifications/phase1/1-2.md
+- 修正記録: ✅ modifications/task-1-2.md
 
 ### 全体サマリー
 - **総ファイル作成**: 2個

@@ -36,9 +36,9 @@
 |------|-------------|--------|--------|
 | ローカル開発 | `.env.local` → `.env` + `.env.personal` | ✅ | `.env.local`のみ |
 | dev検証 | `.env.develop` | ✅ | ✅ |
+| staging | `.env.staging` | ✅ | ✅ |
 | preview | `.env.preview`（Neon環境変数含む） | ✅ | ✅ |
 | 本番 | `.env.production` | ✅ | ✅ |
-| CI/CD | `.env.ci` | ✅ | ✅ |
 
 **ポイント**: ローカル開発も暗号化ファイル(`.env.local`)を使用。`pnpm dev:setup`で復号して`.env`を生成。
 
@@ -169,9 +169,9 @@ A: `.env` は毎回再生成されますが、秘密情報は `.env.local`（暗
 | `.env.personal.example` | ✅ | ❌ | 個人用トークンのテンプレート |
 | `.env.local` | ✅ | ✅ | ローカル開発用（チーム共有） |
 | `.env.develop` | ✅ | ✅ | dev検証サーバー用 |
+| `.env.staging` | ✅ | ✅ | ステージング環境用 |
 | `.env.preview` | ✅ | ✅ | Preview環境用（Neon環境変数含む） |
 | `.env.production` | ✅ | ✅ | 本番環境用 |
-| `.env.ci` | ✅ | ✅ | CI/CD用 |
 | `.env.keys` | ❌ | - | 全環境の秘密鍵（1Password等で共有） |
 | `.env` | ❌ | ❌ | `.env.local`を復号したもの |
 | `.env.personal` | ❌ | ❌ | 個人固有のトークン |
@@ -184,9 +184,9 @@ A: `.env` は毎回再生成されますが、秘密情報は `.env.local`（暗
 ├── .env.personal.example   # 個人用トークンテンプレート（Git追跡）
 ├── .env.local              # ローカル開発用・暗号化済み（Git追跡）★
 ├── .env.develop            # dev検証・暗号化済み（Git追跡）
+├── .env.staging            # ステージング環境・暗号化済み（Git追跡）
 ├── .env.preview            # Preview環境・暗号化済み（Git追跡・Neon環境変数含む）
 ├── .env.production         # 本番・暗号化済み（Git追跡）
-├── .env.ci                 # CI/CD・暗号化済み（Git追跡）
 ├── .env.keys               # 秘密鍵（Git除外・1Password等で共有）
 ├── .env                    # .env.localを復号したもの（Git除外）
 └── .env.personal           # 個人用トークン（Git除外）
@@ -279,7 +279,7 @@ dotenvx採用により、GitHub Secretsは**環境ごとに1つの秘密鍵の�
 
 | Secret名 | 用途 |
 |---------|------|
-| `DOTENV_PRIVATE_KEY_CI` | CI/CD環境の復号 |
+| `DOTENV_PRIVATE_KEY_STAGING` | ステージング環境の復号 |
 | `DOTENV_PRIVATE_KEY_PREVIEW` | Preview環境の復号（Neon環境変数含む） |
 | `DOTENV_PRIVATE_KEY_PRODUCTION` | 本番デプロイ時の復号 |
 

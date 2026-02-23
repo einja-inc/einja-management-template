@@ -46,6 +46,24 @@ export NEON_API_KEY=your_api_key
 neonctl projects list --api-key your_api_key
 ```
 
+#### `neonctl auth` を使用しない理由
+
+`neonctl auth` はNeon CLIの対話的認証コマンドですが、以下の理由からClaude CodeのSkill実行では使用しません。
+
+| 理由 | 説明 |
+|------|------|
+| **ブラウザ認証が必要** | `neonctl auth` はブラウザを開いてOAuth認証を行います。Claude Codeの自動実行環境ではブラウザ操作ができません。 |
+| **トークンの二重管理** | `neonctl auth` で認証するとトークンがCLI内部（`~/.neonctl/credentials.json` 等）に保存されます。`.env.personal` の `NEON_API_KEY` との二重管理になり、どちらが使われるか混乱します。 |
+| **再現性の欠如** | 環境変数ベースの認証は設定ファイルで管理でき、再現性が高いです。`neonctl auth` は対話的な操作のため、自動化スクリプトに組み込めません。 |
+
+#### 推奨認証方式
+
+| 方式 | コマンド例 | 用途 |
+|------|----------|------|
+| `--api-key` フラグ | `neonctl branches list --api-key $NEON_API_KEY` | コマンド単発実行 |
+| `NEON_API_KEY` 環境変数 | `export NEON_API_KEY=...` → `neonctl branches list` | セッション内で複数コマンド実行 |
+| `neonctl auth` | `neonctl auth` | **非推奨**（手動操作専用、Skill実行では不使用） |
+
 **自動化時の推奨方法**:
 - `NEON_API_KEY` 環境変数の使用
 - `--api-key` フラグは冗長になるため非推奨（環境変数で十分）

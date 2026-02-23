@@ -543,7 +543,43 @@ dotenvx run -f .env -f .env.local -- <command>
    - `.env.production` - 本番環境用の値
    - `.env.staging` - ステージング環境用の値（該当する場合）
 
-3. **暗号化されたファイルを再暗号化**
+3. **暗号化ファイルの編集**
+   暗号化されたファイル（`.env.local`, `.env.develop`, `.env.production`, `.env.preview`）を編集する場合：
+   ```bash
+   # 復号してテンポラリファイルに出力
+   dotenvx decrypt -f .env.local --stdout > .env.local.tmp
+
+   # エディタで編集
+   vi .env.local.tmp  # または好みのエディタ
+
+   # 元ファイルを削除して編集済みファイルをリネーム
+   rm .env.local
+   mv .env.local.tmp .env.local
+
+   # 再暗号化
+   dotenvx encrypt -f .env.local
+   ```
+
+   **注意**: 同じ手順を他の環境ファイルにも適用してください。
+
+4. **非暗号化ファイルの編集**
+   非暗号化ファイル（`.env`, `.env.personal`）は直接編集可能：
+   ```bash
+   # .env.personal を直接編集（GITHUB_TOKEN等の個人トークン）
+   vi .env.personal
+
+   # .env は通常 .env.local から自動生成されるため、直接編集は非推奨
+   # .env.local を編集して pnpm dev:setup を再実行する
+   ```
+
+5. **環境固有の変数かどうかを確認**
+   新規変数が以下に該当する場合、他環境への展開要否を確認：
+   - **全環境共通**: すべての環境ファイルに同じ値を追加
+   - **環境固有**: 該当環境のみに追加（例: `PRODUCTION_ONLY_FLAG=true`）
+   - **開発専用**: `.env.local`, `.env.develop`, `.env.preview` のみに追加
+
+6. **暗号化ファイルの再暗号化**
+   編集が完了したら、すべての環境ファイルを再暗号化：
    ```bash
    dotenvx encrypt -f .env.local
    dotenvx encrypt -f .env.develop
@@ -551,9 +587,33 @@ dotenvx run -f .env -f .env.local -- <command>
    dotenvx encrypt -f .env.production
    ```
 
-4. **デプロイ環境への同期**
-   - GitHub Secrets: 秘密鍵が変更された場合は [デプロイメントセットアップ](./deployment-setup.md) のセクション6を参照
-   - Vercel環境変数: 初回は手動同期、以降はGitHub Actionsが自動同期
+7. **デプロイ環境への同期**
+   新規環境変数をCI/CDやホスティングサービスに反映させる必要がある場合：
+
+   - **GitHub Secrets（CI/CD用）**:
+     秘密鍵が変更された場合は [デプロイメントセットアップ](./deployment-setup.md) のセクション6を参照
+     ```bash
+     # 新規Secretの追加
+     gh secret set NEW_API_KEY --body "your-api-key-value"
+     ```
+
+   - **Vercel環境変数（本番/プレビュー用）**:
+     初回は手動同期、以降はGitHub Actionsが自動同期
+     ```bash
+     # Vercel CLIで設定
+     vercel env add NEW_API_KEY production
+     vercel env add NEW_API_KEY preview
+     ```
+
+   - **詳細手順**: [deployment-setup.md](./deployment-setup.md) を参照
+
+8. **コミット**
+   暗号化ファイルと `.env.example` の変更をコミット：
+   ```bash
+   git add .env.example .env.local .env.develop .env.preview .env.production
+   git commit -m "chore: NEW_API_KEY 環境変数を追加"
+   git push
+   ```
 
 ## .env.personal のセキュリティ
 

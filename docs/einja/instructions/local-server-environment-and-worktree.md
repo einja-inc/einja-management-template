@@ -424,6 +424,20 @@ docker compose ps
 4. **ポート番号を確認**:
    `worktree.config.json`の`postgres.port`が正しいか確認してください。
 
+### `pnpm dev:setup` 失敗時の診断
+
+`pnpm dev:setup` コマンドが失敗した場合、以下のテーブルでエラーパターンを診断し、対処してください。
+
+| エラーパターン | 診断 | 対処 |
+|---------------|------|------|
+| `ENOENT: no such file or directory, open '.env.keys'` | `.env.keys`不在 | メインworktreeからコピー、または1Password等から取得して手動配置 |
+| `Error: connect ECONNREFUSED 127.0.0.1:25432` | PostgreSQL未起動 | `docker compose up -d postgres` → 10秒待機 → `docker compose exec postgres pg_isready` |
+| `prisma:error Error in schema` | Prismaスキーマエラー | エラーメッセージを確認し、`packages/server-core/prisma/schema.prisma`を修正 |
+| `Node.js version mismatch` / `Unsupported engine` | Node.jsバージョン不一致 | `volta install node@22` または `fnm use 22` |
+| `pnpm: command not found` | pnpm未インストール | `volta install pnpm@10` または `npm i -g pnpm@10` |
+| `EACCES: permission denied` | ファイル権限エラー | 対象ファイルの権限確認（`ls -la`）、必要に応じて`chmod`で修正 |
+| `Cannot find module` | 依存関係不足 | `pnpm install` を再実行、`node_modules`を削除して再インストール |
+
 ### Prismaマイグレーションが失敗する
 
 **症状**: `Error: P1001: Can't reach database server`

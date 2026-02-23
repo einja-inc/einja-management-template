@@ -1,3 +1,4 @@
+<!-- @einja:managed:start -->
 # Vercel CLI/API リファレンス
 
 ## 概要
@@ -449,3 +450,13 @@ jobs:
 - [Vercel CLI公式ドキュメント](https://vercel.com/docs/cli)
 - [Vercel REST API公式ドキュメント](https://vercel.com/docs/rest-api)
 - [GitHub CLI公式ドキュメント](https://cli.github.com/manual/)
+<!-- @einja:managed:end -->
+
+---
+
+<!-- @einja:seed:start id="vercel-cli-reference-project" -->
+## プロジェクト固有の設定
+
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:seed:end -->

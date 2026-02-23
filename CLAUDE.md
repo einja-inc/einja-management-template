@@ -477,8 +477,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 | `.claude/skills/einja-*/` | `presets/default/.claude/skills/einja-*/` | 単純コピー |
 | `.claude/hooks/einja/` | `presets/default/.claude/hooks/einja/` | 単純コピー |
 | `.claude/settings.json` | `presets/default/.claude/settings.json` | 単純コピー |
-| `docs/einja/steering/` | `scaffolds/steering/` | 単純コピー |
-| `CLAUDE.md` | `scaffolds/CLAUDE.md.template` | **変換生成** |
+| `docs/einja/` (memory,cli除く) | `presets/default/docs/einja/` | 単純コピー（sync + init対象） |
+| `CLAUDE.md` | `presets/default/CLAUDE.md.template` | **変換生成** |
 
 **コピー先のファイルは直接編集禁止**（ビルド時に上書きされる）
 <!-- @einja:excluded:end -->

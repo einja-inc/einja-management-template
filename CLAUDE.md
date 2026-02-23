@@ -9,6 +9,7 @@
 2. **根本原因の追求**: 一時的な回避策ではなく、根本原因を特定して他の開発者、他のAgentプロセスでも再現性のある修正をする
 3. **影響範囲の最小化**: 変更は必要な箇所のみ。関係ないコードに触れない
 4. **直接実装の禁止**: あなたは絶対に直接実装を行わない。すべての作業はsubagentに委託し、可能な限り並行で呼び出す。サブエージェントの出力はユーザにも見える場所に出力すること
+5. **実装品質の自己検証**: 複雑な変更では完了前に「よりエレガントな方法はないか」を自問する。ただし単純な修正には不要
 
 ## サブエージェント委託ルール
 
@@ -66,6 +67,7 @@
 | 技術的な軽微エラー（lint、型エラー、テスト修正） | サブエージェントが自律修正。再承認不要 |
 | 設計変更が必要なブロッカー | **即座に停止**。ユーザーに報告し再計画 |
 | 要件の曖昧さが判明 | **即座に停止**。AskUserQuestionで確認 |
+| 想定外の事態全般 | **即座に停止**。計画や想定と違う事実が発覚した場合、再計画 |
 
 ## gitコンフリクト発生時の対応
 
@@ -105,18 +107,24 @@
 
 ## プロジェクト概要
 
-Turborepoモノレポ構成（pnpm workspaces）。詳細は以下を参照:
-- `.claude/skills/einja-project-overview/SKILL.md` - 構成、技術スタック
-- `.claude/skills/einja-coding-standards/SKILL.md` - コーディング規約、インポートパス規約
-- `.claude/skills/einja-infra-maintenance/SKILL.md` - 開発環境セットアップ、サーバー管理
+Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は以下のSkillを参照:
+- `einja-project-overview` - 構成、技術スタック、頻出コマンド
+- `einja-coding-standards` - コーディング規約、インポートパス規約
+- `einja-infra-maintenance` - 開発環境セットアップ、サーバー管理
 
-### 頻出コマンド
-- `pnpm dev:bg` / `pnpm dev:stop` - 開発サーバー起動/停止
-- `pnpm build` - プロダクションビルド
-- `pnpm lint:fix && pnpm format:fix` - コード自動修正
-- `pnpm typecheck` - 型チェック
-- `pnpm test` - テスト実行
-- `pnpm prepush` - プッシュ前チェック（lint + typecheck + test）
+## マネージドディレクトリ（編集禁止）
+
+`docs/einja/` は `@einja/dev-cli` パッケージで管理されている。`einja sync` で同期されるため、以下のルールを厳守すること。
+
+| ディレクトリ | 操作 | 理由 |
+|------------|------|------|
+| `docs/einja/steering/` | **読み取り専用** | CLI同期で上書きされる |
+| `docs/einja/templates/` | **読み取り専用** | CLI同期で上書きされる |
+| `docs/einja/instructions/` | **読み取り専用** | CLI同期で上書きされる |
+| `docs/einja/example/` | **読み取り専用** | CLI同期で上書きされる |
+| `docs/einja/memory/` | **読み書き可** | プロジェクト固有の学習記録（同期対象外） |
+
+**禁止事項**: `docs/einja/` 配下に新規ファイル・ディレクトリを作成しないこと（`memory/` 内を除く）
 
 ## AskUserQuestion ツールの使用
 
@@ -139,7 +147,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細は以下を参照:
 - 番号付きリスト: 詳細説明が必要な場合
 - 推奨オプションには `（推奨）` と理由を付記
 
-## サブエージェント結果報告のルール
+## 報告ルール
 
 ### 出力形式
 各エージェント定義の `skills: [output-format]` により、出力テンプレートは自動ロードされます。プロンプトへのテンプレート埋め込みは不要です。
@@ -147,6 +155,11 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細は以下を参照:
 ### 結果表示の原則
 - サブエージェントの最終出力は**そのまま全文**をユーザーに表示する
 - 省略・要約・言い換えは**禁止**
+
+### 進捗報告の原則
+- 複数ステップのタスクでは、各ステップ完了時にユーザーへ進捗を報告する
+- 完了した作業と次のステップを簡潔に示す
+- 問題が発生した場合は即座に共有する
 
 ## 学習ループ
 
@@ -170,23 +183,11 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細は以下を参照:
 - [ ] 変更ファイルがディスク上に実在する（`grep`や`Read`で確認。サブエージェント報告を鵜呑みにしない）
 - [ ] `pnpm prepush`（lint + typecheck + test）が通る
 - [ ] 動作確認済み（API→curl、画面→Playwright MCP、スクリプト→実行確認）
+- [ ] `git diff` で意図しない変更が混入していないことを確認（`git diff --stat` で変更ファイル一覧を確認）
 
 ### 禁止事項
 - サブエージェントの「完了」報告のみで完了判定しない
 - 検証をスキップして完了宣言しない
-
-## 追加指示
-
-以下のドキュメントも参照して作業を進めてください:
-
-- @.claude/skills/einja-coding-standards/SKILL.md - コーディング規約
-- @.claude/skills/einja-component-design/SKILL.md - コンポーネント設計ガイドライン
-- @docs/einja/steering/commit-rules.md - コミットルール・ブランチ戦略
-- @docs/einja/steering/development/testing-strategy.md - Vitestを使用したテスト戦略
-- @docs/einja/steering/development/review-guidelines.md - コードレビューのガイドライン
-- @docs/einja/memory/decisions.md - 過去の意思決定記録（セッション跨ぎで継承）
-- @docs/einja/memory/patterns.md - 再利用可能なパターン（セッション跨ぎで継承）
-- @.claude/skills/einja-playwright-mcp/SKILL.md - Playwright MCP動作確認ガイドライン
 
 <!-- @einja:excluded:start -->
 ## このリポジトリ限定の設定

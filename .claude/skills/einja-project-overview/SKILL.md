@@ -24,3 +24,12 @@ description: "プロジェクトの全体構成・技術スタックの参照ハ
 - [coding-standards](../einja-coding-standards/SKILL.md) - コーディング規約（インポートパス規約含む）
 - [infra-maintenance](../einja-infra-maintenance/SKILL.md) - 開発環境セットアップ・サーバー管理
 - [component-design](../einja-component-design/SKILL.md) - コンポーネント設計ガイドライン
+
+## 頻出コマンド
+
+- `pnpm dev:bg` / `pnpm dev:stop` - 開発サーバー起動/停止
+- `pnpm build` - プロダクションビルド
+- `pnpm lint:fix && pnpm format:fix` - コード自動修正
+- `pnpm typecheck` - 型チェック
+- `pnpm test` - テスト実行
+- `pnpm prepush` - プッシュ前チェック（lint + typecheck + test）

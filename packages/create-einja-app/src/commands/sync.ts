@@ -9,6 +9,9 @@ import { createBackup, getLatestBackup, restoreFromBackup } from "../utils/backu
 import { checkGitStatusForSync } from "../utils/git.js";
 import * as logger from "../utils/logger.js";
 import { mergeAndWriteFile } from "../utils/merger.js";
+import { validatePlaceholders } from "../utils/placeholder-validator.js";
+import { detectProjectConfig } from "../utils/project-detector.js";
+import type { TemplateVariables } from "../generators/template.js";
 
 // 同期処理中のバックアップ情報を保持
 let currentBackupDir: string | undefined;
@@ -198,6 +201,62 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     logger.info(`同期対象: ${filesToSync.length}個のファイル`);
 
     // ========================================
+    // d-2) プロジェクト設定の検出（テンプレート変数置換用）
+    // ========================================
+    let templateVariables: TemplateVariables | undefined;
+
+    logger.info("🔍 プロジェクト設定を検出中...");
+    const detectedConfig = await detectProjectConfig(targetDir);
+
+    if (detectedConfig) {
+      // 検出成功
+      templateVariables = {
+        projectName: detectedConfig.projectName,
+        packageName: detectedConfig.packageScope,
+        description: `${detectedConfig.projectName} - Einja Management Template`,
+      };
+      logger.info(`  ✓ プロジェクト名: ${detectedConfig.projectName}`);
+      logger.info(`  ✓ パッケージスコープ: ${detectedConfig.packageScope}`);
+    } else {
+      // 検出失敗 → 対話的に入力を求める
+      logger.warn("⚠️ プロジェクト設定を自動検出できませんでした");
+
+      const inputAnswers = await inquirer.prompt([
+        {
+          type: "input",
+          name: "projectName",
+          message: "プロジェクト名を入力してください:",
+          validate: (input: string) => {
+            if (!input.trim()) {
+              return "プロジェクト名は必須です";
+            }
+            return true;
+          },
+        },
+        {
+          type: "input",
+          name: "packageScope",
+          message: "パッケージスコープを入力してください（例: @mycompany）:",
+          validate: (input: string) => {
+            if (!input.trim()) {
+              return "パッケージスコープは必須です";
+            }
+            if (!input.startsWith("@")) {
+              return "パッケージスコープは @ で始まる必要があります（例: @mycompany）";
+            }
+            return true;
+          },
+        },
+      ]);
+
+      templateVariables = {
+        projectName: inputAnswers.projectName as string,
+        packageName: inputAnswers.packageScope as string,
+        description: `${inputAnswers.projectName} - Einja Management Template`,
+      };
+    }
+
+    // ========================================
     // e) Dry-run モード
     // ========================================
     if (options.dryRun) {
@@ -274,13 +333,14 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
           continue;
         }
 
-        // マージまたはコピー（packageJsonSections を渡す）
+        // マージまたはコピー（packageJsonSections と templateVariables を渡す）
         const mergeResult = await mergeAndWriteFile(
           sourcePath,
           targetPath,
           syncMetadata,
           packageJsonSections,
-          conflictStrategy
+          conflictStrategy,
+          templateVariables
         );
 
         // アクションをマッピング（mergeAndWriteFile の戻り値を SyncResult の型に変換）
@@ -308,7 +368,24 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     }
 
     // ========================================
-    // h) 結果レポート
+    // h) 置換漏れ検証
+    // ========================================
+    const syncedFiles = result.files
+      .filter((f) => f.action === "copied" || f.action === "merged")
+      .map((f) => f.path);
+
+    if (syncedFiles.length > 0) {
+      const validation = await validatePlaceholders(targetDir, syncedFiles);
+      if (!validation.isValid) {
+        logger.warn("\n⚠ テンプレート変数の置換漏れを検出:");
+        for (const v of validation.violations) {
+          logger.warn(`  ${v.filePath}:${v.line} — ${v.placeholder}`);
+        }
+      }
+    }
+
+    // ========================================
+    // i) 結果レポート
     // ========================================
     logger.info("\n📊 同期結果:");
     logger.info(`  成功: ${result.success}ファイル`);

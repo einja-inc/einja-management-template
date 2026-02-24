@@ -26,18 +26,81 @@ const CATEGORY_PATTERNS: Record<SyncCategory, string[]> = {
  * これらのファイルは同期対象外（暗号化キーと個人設定）
  */
 const ENV_FILE_PROTECTION = {
-  protected: [".env.keys", ".env.personal"],
+  // 同期から保護するファイル（秘密鍵・暗号化済み値を含む）
+  protected: [
+    ".env.keys",
+    ".env.personal",
+    ".env.develop",
+    ".env.local",
+    ".env.production",
+    ".env.staging",
+    ".env.preview",
+  ],
+  // 同期を許可するファイル（テンプレート・例示ファイル）
+  allowed: [
+    ".env.example",
+    ".env.personal.example",
+    ".envrc",
+  ],
 };
 
 /**
- * envファイルが保護対象かチェック
+ * 同期から除外するファイルパターン
+ * ユーザー固有のデータやビルド生成物を除外
+ */
+const SYNC_EXCLUDE_PATTERNS = [
+  "**/prisma/schema.prisma",      // DBモデルはユーザー固有
+  "**/prisma/migrations/**",      // マイグレーション履歴
+  "pnpm-lock.yaml",               // lockfile は sync すべきでない
+  "**/node_modules/**",           // 依存関係
+  "**/.git/**",                   // Git内部
+];
+
+/**
+ * envファイルが保護対象かチェック（ホワイトリスト方式）
  * @param filePath - ファイルパス
  * @returns 保護対象の場合 true
  */
 function isProtectedEnvFile(filePath: string): boolean {
-  return ENV_FILE_PROTECTION.protected.some((pattern) =>
-    filePath.endsWith(pattern)
-  );
+  const fileName = filePath.split("/").pop() ?? "";
+
+  // allowedリストに含まれる場合は保護しない（同期を許可）
+  if (ENV_FILE_PROTECTION.allowed.some((pattern) => fileName === pattern)) {
+    return false;
+  }
+
+  // protectedリストに含まれる場合は保護（同期を拒否）
+  if (ENV_FILE_PROTECTION.protected.some((pattern) => fileName === pattern)) {
+    return true;
+  }
+
+  // .env で始まるファイルはデフォルトで保護（allowedにない限り）
+  if (fileName.startsWith(".env")) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * ファイルが除外パターンにマッチするかチェック
+ * @param filePath - ファイルパス
+ * @returns 除外対象の場合 true
+ */
+function isExcludedFile(filePath: string): boolean {
+  for (const pattern of SYNC_EXCLUDE_PATTERNS) {
+    // 簡易的なパターンマッチング（glob 互換）
+    const regexPattern = pattern
+      .replace(/\*\*/g, ".*")  // ** → 任意のディレクトリ
+      .replace(/\*/g, "[^/]*") // * → 任意の文字（ただし / 以外）
+      .replace(/\./g, "\\.");  // . → エスケープ
+
+    const regex = new RegExp(`^${regexPattern}$`);
+    if (regex.test(filePath)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -149,12 +212,18 @@ export async function collectSyncFiles(
       }
     }
 
-    // 3. 保護対象ファイルを除外
+    // 3. 保護対象ファイルと除外パターンを除外
     const allFiles = Array.from(fileSet);
     const filteredFiles = allFiles.filter((file) => {
       // 保護対象envファイルを除外
       if (isProtectedEnvFile(file)) {
         logger.info(`保護対象ファイルを除外: ${file}`);
+        return false;
+      }
+
+      // 除外パターンにマッチするファイルを除外
+      if (isExcludedFile(file)) {
+        logger.info(`除外パターンにマッチ: ${file}`);
         return false;
       }
 

@@ -4,6 +4,7 @@ import type { SyncMetadata, JsonPathsConfig, ConflictStrategy } from "../types/i
 import { ensureDir } from "./fs.js";
 import { mergePackageJsonDependencies } from "./package-json-merger.js";
 import * as logger from "./logger.js";
+import { replacePlaceholders, type TemplateVariables } from "../generators/template.js";
 
 /**
  * マーカーベースのテキストマージを行う
@@ -354,6 +355,8 @@ async function mergePackageJson(
  * @param targetPath - ターゲットファイルのパス
  * @param syncMetadata - 同期メタデータ
  * @param packageJsonSections - 同期対象のpackage.jsonセクション（指定がない場合は全セクション）
+ * @param conflictStrategy - 競合戦略（デフォルト: "merge"）
+ * @param templateVariables - テンプレート変数（オプショナル）
  * @returns マージ結果
  */
 export async function mergeAndWriteFile(
@@ -361,12 +364,19 @@ export async function mergeAndWriteFile(
   targetPath: string,
   syncMetadata: SyncMetadata,
   packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">,
-  conflictStrategy: ConflictStrategy = "merge"
+  conflictStrategy: ConflictStrategy = "merge",
+  templateVariables?: TemplateVariables
 ): Promise<{
   action: "created" | "merged" | "skipped" | "overwritten";
   path: string;
 }> {
-  const templateContent = readFileSync(templatePath, "utf-8");
+  let templateContent = readFileSync(templatePath, "utf-8");
+
+  // テンプレート変数が指定されている場合は置換を実行
+  if (templateVariables) {
+    templateContent = replacePlaceholders(templateContent, templateVariables);
+  }
+
   const targetExists = existsSync(targetPath);
   const existingContent = targetExists ? readFileSync(targetPath, "utf-8") : null;
 

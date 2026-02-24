@@ -66,7 +66,7 @@ function getAuthExcludePatterns(authMethod: string): string[] {
  * @param variables - 置換する変数
  * @returns 置換後の内容
  */
-function replacePlaceholders(
+export function replacePlaceholders(
   content: string,
   variables: TemplateVariables
 ): string {

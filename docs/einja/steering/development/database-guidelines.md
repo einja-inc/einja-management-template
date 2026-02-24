@@ -232,8 +232,57 @@ model NewFeature {
 ---
 
 <!-- @einja:seed:start id="database-guidelines-project" -->
-## プロジェクト固有の設定
+## プロジェクト固有: Prismaスキーマ編集ルール
 
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
+### model名の命名規則
+
+- モデル名は**アッパーキャメルケース**（例: `UserProfile`, `OrderItem`）
+- `@@map()` でスネークケースのテーブル名を指定する
+
+```prisma
+model UserProfile {
+  // ...
+  @@map("user_profiles")
+}
+```
+
+### カラム名の命名規則
+
+- カラム名は**キャメルケース**（例: `customerId`, `firstName`）
+- `@map()` でスネークケースのDB名を指定する
+
+```prisma
+customerId String @map("customer_id")
+```
+
+### 必須・非必須の判定
+
+- 指示されている、自明である、または他データソースによって確実に判定できる場合のみ設定する
+- **推測で決定しない**。不明な場合は必ずユーザーに確認すること
+
+### IDの採番
+
+- `id` は **cuid** で自動採番を原則とする
+
+```prisma
+id String @id @default(cuid()) @map("id")
+```
+
+### createdAt / updatedAt
+
+- 原則としてすべてのテーブルに適用する
+- `@db.Timestamptz(6)` を必ず明示する（PostgreSQL/Prisma公式推奨）
+
+```prisma
+createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+updatedAt DateTime @updatedAt      @db.Timestamptz(6) @map("updated_at")
+```
+
+### 外部キーの削除ポリシー
+
+- 外部キーを持つリレーションは、基本的に `onDelete: Cascade` の適用を検討する
+
+```prisma
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+```
 <!-- @einja:seed:end -->

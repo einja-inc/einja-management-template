@@ -80,8 +80,8 @@ pnpm typecheck
 - （実施後に記載）
 
 #### エビデンス
-- ログファイル: `qa-tests/phaseX/evidence/X-Y-1-*.log`
-- スクリーンショット: `qa-tests/phaseX/evidence/X-Y-1-*.png`
+- ログファイル: `qa-tests/evidence/story{N}/AC{N}-{M}-*.log`
+- スクリーンショット: `qa-tests/evidence/story{N}/AC{N}-{M}-*.png`
 
 ---
 

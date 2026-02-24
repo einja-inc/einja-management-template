@@ -86,7 +86,6 @@ export async function validatePlaceholders(
       }
     } catch {
       // ファイル読み込み失敗時はスキップして続行
-      continue;
     }
   }
 

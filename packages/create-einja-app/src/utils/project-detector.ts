@@ -74,7 +74,7 @@ export async function detectProjectConfig(
           if (pkg.name) {
             // スコープの抽出（例: "@mycompany/web" → "@mycompany"）
             const match = pkg.name.match(/^(@[^/]+)\//);
-            if (match && match[1]) {
+            if (match?.[1]) {
               const detectedScope = match[1];
 
               // 既にスコープが検出されている場合は一致を検証
@@ -90,12 +90,10 @@ export async function detectProjectConfig(
           }
         } catch {
           // パースエラーは無視して次のファイルへ
-          continue;
         }
       }
     } catch {
       // ディレクトリ読み込みエラーは無視
-      continue;
     }
   }
 

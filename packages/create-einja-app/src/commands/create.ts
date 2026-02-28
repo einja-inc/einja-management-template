@@ -1,10 +1,10 @@
 import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import ora from "ora";
-import { promptProjectConfig, type ProjectConfig } from "../prompts/project.js";
-import { generateTemplate } from "../generators/template.js";
-import { execPostSetup } from "../generators/post-setup.js";
-import * as logger from "../utils/logger.js";
+import { promptProjectConfig, type ProjectConfig } from "@/prompts/project.js";
+import { generateTemplate } from "@/generators/template.js";
+import { execPostSetup } from "@/generators/post-setup.js";
+import * as logger from "@/utils/logger.js";
 
 /**
  * ディレクトリが空かどうかを確認

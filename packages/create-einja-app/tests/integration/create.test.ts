@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createCommand } from "../../src/commands/create.js";
+import { createCommand } from "@/commands/create.js";
 
 // inquirerをモックして、全てのプロンプトをスキップ
 vi.mock("inquirer", () => ({

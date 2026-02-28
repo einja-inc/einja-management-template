@@ -2,9 +2,9 @@
 
 // src/cli.ts
 import { Command } from "commander";
-import { readFileSync as readFileSync4 } from "fs";
+import { readFileSync as readFileSync5 } from "fs";
 import { fileURLToPath as fileURLToPath3 } from "url";
-import { dirname as dirname6, join as join6 } from "path";
+import { dirname as dirname6, join as join8 } from "path";
 
 // src/commands/create.ts
 import { existsSync as existsSync3, readdirSync } from "fs";
@@ -537,7 +537,7 @@ async function createCommand(projectName, options) {
 }
 
 // src/commands/sync.ts
-import { dirname as dirname5, join as join5 } from "path";
+import { dirname as dirname5, join as join7 } from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
 import fsExtra3 from "fs-extra";
 import inquirer5 from "inquirer";
@@ -559,12 +559,57 @@ var CATEGORY_PATTERNS = {
   docs: ["README.md", "docs/**"]
 };
 var ENV_FILE_PROTECTION = {
-  protected: [".env.keys", ".env.personal"]
+  // 同期から保護するファイル（秘密鍵・暗号化済み値を含む）
+  protected: [
+    ".env.keys",
+    ".env.personal",
+    ".env.develop",
+    ".env.local",
+    ".env.production",
+    ".env.staging",
+    ".env.preview"
+  ],
+  // 同期を許可するファイル（テンプレート・例示ファイル）
+  allowed: [
+    ".env.example",
+    ".env.personal.example",
+    ".envrc"
+  ]
 };
+var SYNC_EXCLUDE_PATTERNS = [
+  "**/prisma/schema.prisma",
+  // DBモデルはユーザー固有
+  "**/prisma/migrations/**",
+  // マイグレーション履歴
+  "pnpm-lock.yaml",
+  // lockfile は sync すべきでない
+  "**/node_modules/**",
+  // 依存関係
+  "**/.git/**"
+  // Git内部
+];
 function isProtectedEnvFile(filePath) {
-  return ENV_FILE_PROTECTION.protected.some(
-    (pattern) => filePath.endsWith(pattern)
-  );
+  const fileName = filePath.split("/").pop() ?? "";
+  if (ENV_FILE_PROTECTION.allowed.some((pattern) => fileName === pattern)) {
+    return false;
+  }
+  if (ENV_FILE_PROTECTION.protected.some((pattern) => fileName === pattern)) {
+    return true;
+  }
+  if (fileName.startsWith(".env")) {
+    return true;
+  }
+  return false;
+}
+function isExcludedFile(filePath) {
+  for (const pattern of SYNC_EXCLUDE_PATTERNS) {
+    const regexPattern = pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*").replace(/\./g, "\\.");
+    const regex = new RegExp(`^${regexPattern}$`);
+    if (regex.test(filePath)) {
+      return true;
+    }
+  }
+  return false;
 }
 function extractPatternsFromCategories(categories, appsDetail, packagesDetail) {
   const patterns = [];
@@ -617,6 +662,10 @@ async function collectSyncFiles(templateDir, categories, appsDetail, packagesDet
     const filteredFiles = allFiles.filter((file) => {
       if (isProtectedEnvFile(file)) {
         info(`\u4FDD\u8B77\u5BFE\u8C61\u30D5\u30A1\u30A4\u30EB\u3092\u9664\u5916: ${file}`);
+        return false;
+      }
+      if (isExcludedFile(file)) {
+        info(`\u9664\u5916\u30D1\u30BF\u30FC\u30F3\u306B\u30DE\u30C3\u30C1: ${file}`);
         return false;
       }
       return true;
@@ -1290,8 +1339,11 @@ async function mergePackageJson(existingContent, templateContent, packageJsonSec
   return `${JSON.stringify(result, null, 2)}
 `;
 }
-async function mergeAndWriteFile(templatePath, targetPath, syncMetadata, packageJsonSections, conflictStrategy = "merge") {
-  const templateContent = readFileSync3(templatePath, "utf-8");
+async function mergeAndWriteFile(templatePath, targetPath, syncMetadata, packageJsonSections, conflictStrategy = "merge", templateVariables) {
+  let templateContent = readFileSync3(templatePath, "utf-8");
+  if (templateVariables) {
+    templateContent = replacePlaceholders(templateContent, templateVariables);
+  }
   const targetExists = existsSync5(targetPath);
   const existingContent = targetExists ? readFileSync3(targetPath, "utf-8") : null;
   if (targetExists && conflictStrategy === "skip") {
@@ -1453,6 +1505,138 @@ function isPathSeed(filePath, keyPath, jsonPaths) {
   return seedPaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
 }
 
+// src/utils/placeholder-validator.ts
+import { readFile } from "fs/promises";
+import { join as join5 } from "path";
+var PLACEHOLDER_PATTERNS = [
+  "@repo/",
+  "{{packageName}}",
+  "{{projectName}}",
+  "{{description}}"
+];
+var BINARY_EXTENSIONS = /* @__PURE__ */ new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".ico",
+  ".svg",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".eot",
+  ".zip",
+  ".tar",
+  ".gz",
+  ".pdf",
+  ".mp4",
+  ".mp3"
+]);
+var EXCLUDED_DIRS = ["node_modules/", ".git/", "dist/", ".next/"];
+function isBinaryFile(filePath) {
+  const lastDot = filePath.lastIndexOf(".");
+  if (lastDot === -1) return false;
+  const ext = filePath.substring(lastDot).toLowerCase();
+  return BINARY_EXTENSIONS.has(ext);
+}
+function isExcludedDir(filePath) {
+  return EXCLUDED_DIRS.some((dir) => filePath.includes(dir));
+}
+async function validatePlaceholders(targetDir, filePaths) {
+  const violations = [];
+  for (const filePath of filePaths) {
+    if (isBinaryFile(filePath) || isExcludedDir(filePath)) {
+      continue;
+    }
+    try {
+      const fullPath = join5(targetDir, filePath);
+      const content = await readFile(fullPath, "utf-8");
+      const lines = content.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i] ?? "";
+        for (const pattern of PLACEHOLDER_PATTERNS) {
+          if (line.includes(pattern)) {
+            violations.push({
+              filePath,
+              line: i + 1,
+              placeholder: pattern,
+              context: line.trim()
+            });
+          }
+        }
+      }
+    } catch {
+    }
+  }
+  return {
+    isValid: violations.length === 0,
+    violations
+  };
+}
+
+// src/utils/project-detector.ts
+import { readFileSync as readFileSync4, existsSync as existsSync6, readdirSync as readdirSync3, statSync } from "fs";
+import { join as join6 } from "path";
+async function detectProjectConfig(targetDir) {
+  let projectName = null;
+  let packageScope = null;
+  const rootPackageJsonPath = join6(targetDir, "package.json");
+  if (existsSync6(rootPackageJsonPath)) {
+    try {
+      const rootPkg = JSON.parse(
+        readFileSync4(rootPackageJsonPath, "utf-8")
+      );
+      if (rootPkg.name) {
+        projectName = rootPkg.name;
+      }
+    } catch {
+    }
+  }
+  const candidateDirs = [join6(targetDir, "apps"), join6(targetDir, "packages")];
+  for (const dir of candidateDirs) {
+    if (!existsSync6(dir)) {
+      continue;
+    }
+    try {
+      const entries = readdirSync3(dir);
+      for (const entry of entries) {
+        const entryPath = join6(dir, entry);
+        if (!statSync(entryPath).isDirectory()) {
+          continue;
+        }
+        const pkgJsonPath = join6(entryPath, "package.json");
+        if (!existsSync6(pkgJsonPath)) {
+          continue;
+        }
+        try {
+          const pkg = JSON.parse(
+            readFileSync4(pkgJsonPath, "utf-8")
+          );
+          if (pkg.name) {
+            const match = pkg.name.match(/^(@[^/]+)\//);
+            if (match?.[1]) {
+              const detectedScope = match[1];
+              if (packageScope && packageScope !== detectedScope) {
+                console.warn(
+                  `\u8B66\u544A: \u7570\u306A\u308B\u30B9\u30B3\u30FC\u30D7\u304C\u691C\u51FA\u3055\u308C\u307E\u3057\u305F\uFF08${packageScope} vs ${detectedScope}\uFF09\u3002\u6700\u521D\u306B\u898B\u3064\u304B\u3063\u305F ${packageScope} \u3092\u4F7F\u7528\u3057\u307E\u3059\u3002`
+                );
+              } else if (!packageScope) {
+                packageScope = detectedScope;
+              }
+            }
+          }
+        } catch {
+        }
+      }
+    } catch {
+    }
+  }
+  if (projectName && packageScope) {
+    return { projectName, packageScope };
+  }
+  return null;
+}
+
 // src/commands/sync.ts
 var currentBackupDir;
 var isSyncing = false;
@@ -1490,19 +1674,19 @@ async function handleInterrupt() {
 function getTemplatePath2() {
   const __filename3 = fileURLToPath2(import.meta.url);
   const __dirname3 = dirname5(__filename3);
-  const { existsSync: existsSync6 } = fsExtra3;
-  const distPath = join5(__dirname3, "../templates/default");
-  const srcPath = join5(__dirname3, "../../templates/default");
-  if (existsSync6(distPath)) {
+  const { existsSync: existsSync7 } = fsExtra3;
+  const distPath = join7(__dirname3, "../templates/default");
+  const srcPath = join7(__dirname3, "../../templates/default");
+  if (existsSync7(distPath)) {
     return distPath;
   }
-  if (existsSync6(srcPath)) {
+  if (existsSync7(srcPath)) {
     return srcPath;
   }
   throw new Error("\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u30C7\u30A3\u30EC\u30AF\u30C8\u30EA\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093");
 }
 async function syncCommand(options) {
-  const { existsSync: existsSync6 } = fsExtra3;
+  const { existsSync: existsSync7 } = fsExtra3;
   const sigintHandler = () => {
     handleInterrupt().catch((error2) => {
       error(`\u30AF\u30EA\u30FC\u30F3\u30A2\u30C3\u30D7\u4E2D\u306B\u30A8\u30E9\u30FC: ${error2}`);
@@ -1579,6 +1763,52 @@ async function syncCommand(options) {
       return;
     }
     info(`\u540C\u671F\u5BFE\u8C61: ${filesToSync.length}\u500B\u306E\u30D5\u30A1\u30A4\u30EB`);
+    let templateVariables;
+    info("\u{1F50D} \u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u8A2D\u5B9A\u3092\u691C\u51FA\u4E2D...");
+    const detectedConfig = await detectProjectConfig(targetDir);
+    if (detectedConfig) {
+      templateVariables = {
+        projectName: detectedConfig.projectName,
+        packageName: detectedConfig.packageScope,
+        description: `${detectedConfig.projectName} - Einja Management Template`
+      };
+      info(`  \u2713 \u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u540D: ${detectedConfig.projectName}`);
+      info(`  \u2713 \u30D1\u30C3\u30B1\u30FC\u30B8\u30B9\u30B3\u30FC\u30D7: ${detectedConfig.packageScope}`);
+    } else {
+      warn("\u26A0\uFE0F \u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u8A2D\u5B9A\u3092\u81EA\u52D5\u691C\u51FA\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F");
+      const inputAnswers = await inquirer5.prompt([
+        {
+          type: "input",
+          name: "projectName",
+          message: "\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u540D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044:",
+          validate: (input) => {
+            if (!input.trim()) {
+              return "\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u540D\u306F\u5FC5\u9808\u3067\u3059";
+            }
+            return true;
+          }
+        },
+        {
+          type: "input",
+          name: "packageScope",
+          message: "\u30D1\u30C3\u30B1\u30FC\u30B8\u30B9\u30B3\u30FC\u30D7\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\uFF08\u4F8B: @mycompany\uFF09:",
+          validate: (input) => {
+            if (!input.trim()) {
+              return "\u30D1\u30C3\u30B1\u30FC\u30B8\u30B9\u30B3\u30FC\u30D7\u306F\u5FC5\u9808\u3067\u3059";
+            }
+            if (!input.startsWith("@")) {
+              return "\u30D1\u30C3\u30B1\u30FC\u30B8\u30B9\u30B3\u30FC\u30D7\u306F @ \u3067\u59CB\u307E\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059\uFF08\u4F8B: @mycompany\uFF09";
+            }
+            return true;
+          }
+        }
+      ]);
+      templateVariables = {
+        projectName: inputAnswers.projectName,
+        packageName: inputAnswers.packageScope,
+        description: `${inputAnswers.projectName} - Einja Management Template`
+      };
+    }
     if (options.dryRun) {
       info("\n\u{1F4CB} \u540C\u671F\u30D7\u30EC\u30D3\u30E5\u30FC (--dry-run)\n");
       for (const file of filesToSync) {
@@ -1592,7 +1822,7 @@ async function syncCommand(options) {
     let backupDir;
     if (options.backup !== false) {
       info("\u{1F4BE} \u30D0\u30C3\u30AF\u30A2\u30C3\u30D7\u4F5C\u6210\u4E2D...");
-      const existingFiles = filesToSync.filter((file) => existsSync6(join5(targetDir, file)));
+      const existingFiles = filesToSync.filter((file) => existsSync7(join7(targetDir, file)));
       if (existingFiles.length > 0) {
         backupDir = await createBackup(targetDir, existingFiles);
         currentBackupDir = backupDir;
@@ -1621,9 +1851,9 @@ async function syncCommand(options) {
     };
     for (const file of filesToSync) {
       try {
-        const sourcePath = join5(templatePath, file);
-        const targetPath = join5(targetDir, file);
-        if (!existsSync6(sourcePath)) {
+        const sourcePath = join7(templatePath, file);
+        const targetPath = join7(targetDir, file);
+        if (!existsSync7(sourcePath)) {
           warn(`\u30B9\u30AD\u30C3\u30D7: ${file} (\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u30D5\u30A1\u30A4\u30EB\u304C\u5B58\u5728\u3057\u307E\u305B\u3093)`);
           result.skipped++;
           result.files.push({
@@ -1638,7 +1868,8 @@ async function syncCommand(options) {
           targetPath,
           syncMetadata,
           packageJsonSections,
-          conflictStrategy
+          conflictStrategy,
+          templateVariables
         );
         const mappedAction = mergeResult.action === "created" || mergeResult.action === "overwritten" ? "copied" : mergeResult.action;
         result.success++;
@@ -1655,6 +1886,16 @@ async function syncCommand(options) {
           reason: error2 instanceof Error ? error2.message : "\u4E0D\u660E\u306A\u30A8\u30E9\u30FC"
         });
         error(`  \u2717 ${file}: ${error2}`);
+      }
+    }
+    const syncedFiles = result.files.filter((f) => f.action === "copied" || f.action === "merged").map((f) => f.path);
+    if (syncedFiles.length > 0) {
+      const validation = await validatePlaceholders(targetDir, syncedFiles);
+      if (!validation.isValid) {
+        warn("\n\u26A0 \u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u5909\u6570\u306E\u7F6E\u63DB\u6F0F\u308C\u3092\u691C\u51FA:");
+        for (const v of validation.violations) {
+          warn(`  ${v.filePath}:${v.line} \u2014 ${v.placeholder}`);
+        }
       }
     }
     info("\n\u{1F4CA} \u540C\u671F\u7D50\u679C:");
@@ -1689,8 +1930,8 @@ async function syncCommand(options) {
 // src/cli.ts
 var __filename2 = fileURLToPath3(import.meta.url);
 var __dirname2 = dirname6(__filename2);
-var packageJsonPath = join6(__dirname2, "../package.json");
-var packageJson = JSON.parse(readFileSync4(packageJsonPath, "utf-8"));
+var packageJsonPath = join8(__dirname2, "../package.json");
+var packageJson = JSON.parse(readFileSync5(packageJsonPath, "utf-8"));
 var program = new Command();
 program.name("create-einja-app").description("CLI tool to create new projects with Einja Management Template").version(packageJson.version);
 program.argument("[project-name]", "Project name").option("--skip-git", "Skip git initialization").option("--skip-install", "Skip package installation").action(

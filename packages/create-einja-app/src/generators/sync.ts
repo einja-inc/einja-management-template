@@ -1,6 +1,6 @@
 import { glob } from "glob";
-import type { SyncCategory } from "../types/index.js";
-import * as logger from "../utils/logger.js";
+import type { SyncCategory } from "@/types/index.js";
+import * as logger from "@/utils/logger.js";
 
 /**
  * カテゴリとファイルパターンのマッピング

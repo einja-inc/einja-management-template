@@ -1,5 +1,5 @@
 import inquirer from "inquirer";
-import type { ProjectConfig, WorktreeConfig, App } from "../types/index.js";
+import type { ProjectConfig, WorktreeConfig, App } from "@/types/index.js";
 
 export type { ProjectConfig, WorktreeConfig, App };
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { generateTemplate } from "../../../src/generators/template.js";
-import type { ProjectConfig } from "../../../src/prompts/project.js";
+import { generateTemplate } from "@/generators/template.js";
+import type { ProjectConfig } from "@/prompts/project.js";
 
 describe("generateTemplate", { concurrent: false }, () => {
   const testDir = join(process.cwd(), "test-temp");

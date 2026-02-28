@@ -7,7 +7,7 @@ import {
   ensureDir,
   appendToGitignore,
   fileExists,
-} from "../../../src/utils/fs.js";
+} from "@/utils/fs.js";
 
 describe("fs utils", () => {
   let testDir: string;

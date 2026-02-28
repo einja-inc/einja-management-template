@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
-import type { ConflictStrategy } from "../types/index.js";
+import type { ConflictStrategy } from "@/types/index.js";
 
 /**
  * 競合戦略に基づいてファイルを書き込む

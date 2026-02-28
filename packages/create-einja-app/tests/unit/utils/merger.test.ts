@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { mergeTextWithMarkers, mergeJson } from "../../../src/utils/merger.js";
-import type { JsonPathsConfig } from "../../../src/types/index.js";
+import { mergeTextWithMarkers, mergeJson } from "@/utils/merger.js";
+import type { JsonPathsConfig } from "@/types/index.js";
 
 describe("mergeTextWithMarkers", () => {
   describe("マーカーなしの場合", () => {
@@ -145,50 +145,50 @@ Footer`;
     });
   });
 
-  describe("@einja:seedマーカー", () => {
-    it("seedマーカー内はローカル優先（変更されない）", () => {
-      // Given: seedマーカー内にユーザー変更がある
-      const templateContent = `Before seed
-<!-- @einja:seed:start id="custom" -->
-Template seed content
-<!-- @einja:seed:end -->
-After seed`;
+  describe("@einja:project-privateマーカー", () => {
+    it("project-privateマーカー内はローカル優先（変更されない）", () => {
+      // Given: project-privateマーカー内にユーザー変更がある
+      const templateContent = `Before project-private
+<!-- @einja:project-private:start id="custom" -->
+Template project-private content
+<!-- @einja:project-private:end -->
+After project-private`;
 
-      const existingContent = `Before seed
-<!-- @einja:seed:start id="custom" -->
+      const existingContent = `Before project-private
+<!-- @einja:project-private:start id="custom" -->
 User custom content
-<!-- @einja:seed:end -->
-After seed`;
+<!-- @einja:project-private:end -->
+After project-private`;
 
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: seed内はローカルが優先される
+      // Then: project-private内はローカルが優先される
       expect(result).toContain("User custom content");
-      expect(result).not.toContain("Template seed content");
-      expect(result).toContain("Before seed");
-      expect(result).toContain("After seed");
+      expect(result).not.toContain("Template project-private content");
+      expect(result).toContain("Before project-private");
+      expect(result).toContain("After project-private");
     });
 
     it("テンプレートにのみseedセクションが存在する場合は末尾に追加される", () => {
       // Given: テンプレートにseedがあるがローカルにはない
-      const templateContent = `Before seed
-<!-- @einja:seed:start id="new-section" -->
-New seed content
-<!-- @einja:seed:end -->
-After seed`;
+      const templateContent = `Before project-private
+<!-- @einja:project-private:start id="new-section" -->
+New project-private content
+<!-- @einja:project-private:end -->
+After project-private`;
 
-      const existingContent = `Before seed
-After seed`;
+      const existingContent = `Before project-private
+After project-private`;
 
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: テンプレートのseedセクションが末尾に追加される
-      expect(result).toContain("Before seed");
-      expect(result).toContain("After seed");
-      expect(result).toContain("New seed content");
-      expect(result).toContain("<!-- @einja:seed:start id=\"new-section\" -->");
+      // Then: テンプレートのproject-privateセクションが末尾に追加される
+      expect(result).toContain("Before project-private");
+      expect(result).toContain("After project-private");
+      expect(result).toContain("New project-private content");
+      expect(result).toContain("<!-- @einja:project-private:start id=\"new-section\" -->");
     });
 
     it("ローカルにのみ存在するseedセクションが保持される", () => {
@@ -196,17 +196,17 @@ After seed`;
       const templateContent = "Template content";
 
       const existingContent = `Existing content
-<!-- @einja:seed:start id="local-only" -->
+<!-- @einja:project-private:start id="local-only" -->
 Local custom content
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: ローカルのseedセクションが保持される
+      // Then: ローカルのproject-privateセクションが保持される
       expect(result).toContain("Existing content");
       expect(result).toContain("Local custom content");
-      expect(result).toContain("<!-- @einja:seed:start id=\"local-only\" -->");
+      expect(result).toContain("<!-- @einja:project-private:start id=\"local-only\" -->");
     });
 
     it("テンプレートにのみmanagedセクションが存在する場合は末尾に追加される", () => {
@@ -337,29 +337,29 @@ Old Section 2
       expect(result).toContain("Section 2");
     });
 
-    it("managedとseedブロック間の空行が保持される", () => {
-      // Given: managedとseedブロックが空行で区切られている
+    it("managedとproject-privateブロック間の空行が保持される", () => {
+      // Given: managedとproject-privateブロックが空行で区切られている
       const templateContent = `<!-- @einja:managed:start id="managed" -->
 Managed content
 <!-- @einja:managed:end -->
 
-<!-- @einja:seed:start id="seed" -->
-Seed content
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:start id="seed" -->
+Project-private content
+<!-- @einja:project-private:end -->`;
 
       const existingContent = `<!-- @einja:managed:start id="managed" -->
 Old managed
 <!-- @einja:managed:end -->
 
-<!-- @einja:seed:start id="seed" -->
-User seed
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:start id="seed" -->
+User project-private
+<!-- @einja:project-private:end -->`;
 
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
       // Then: セクション間の空行が保持される
-      expect(result).toContain("<!-- @einja:managed:end -->\n\n<!-- @einja:seed:start");
+      expect(result).toContain("<!-- @einja:managed:end -->\n\n<!-- @einja:project-private:start");
     });
 
     it("複数の空行が正しく保持される", () => {
@@ -409,15 +409,15 @@ Old content
       expect(result).toBe(templateContent);
     });
 
-    it("ファイルが先頭seedマーカーで始まる場合、先頭に空行が追加されない", () => {
-      // Given: ファイルが先頭seedマーカーで始まる
-      const templateContent = `<!-- @einja:seed:start id="config" -->
-Seed content
-<!-- @einja:seed:end -->`;
+    it("ファイルが先頭project-privateマーカーで始まる場合、先頭に空行が追加されない", () => {
+      // Given: ファイルが先頭project-privateマーカーで始まる
+      const templateContent = `<!-- @einja:project-private:start id="config" -->
+Project-private content
+<!-- @einja:project-private:end -->`;
 
-      const existingContent = `<!-- @einja:seed:start id="config" -->
+      const existingContent = `<!-- @einja:project-private:start id="config" -->
 User content
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
@@ -433,17 +433,17 @@ User content
 Section 1 template
 <!-- @einja:managed:end -->
 Middle unmanaged
-<!-- @einja:seed:start id="section2" -->
+<!-- @einja:project-private:start id="section2" -->
 Section 2 template
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       const existingContent = `<!-- @einja:managed:start id="section1" -->
 Section 1 old
 <!-- @einja:managed:end -->
 Middle user
-<!-- @einja:seed:start id="section2" -->
+<!-- @einja:project-private:start id="section2" -->
 Section 2 user
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
@@ -456,17 +456,17 @@ Section 2 user
     });
   });
 
-  describe("managedとseedの混在", () => {
-    it("managedとseedマーカーが混在している場合、それぞれ正しく処理される", () => {
-      // Given: managedとseedが混在
+  describe("managedとproject-privateの混在", () => {
+    it("managedとproject-privateマーカーが混在している場合、それぞれ正しく処理される", () => {
+      // Given: managedとproject-privateが混在
       const templateContent = `Header
 <!-- @einja:managed:start id="main-content" -->
 Template managed
 <!-- @einja:managed:end -->
 Middle
-<!-- @einja:seed:start id="config" -->
-Template seed
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="config" -->
+Template project-private
+<!-- @einja:project-private:end -->
 Footer`;
 
       const existingContent = `User header
@@ -474,22 +474,22 @@ Footer`;
 Old managed
 <!-- @einja:managed:end -->
 User middle
-<!-- @einja:seed:start id="config" -->
-User seed
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="config" -->
+User project-private
+<!-- @einja:project-private:end -->
 User footer`;
 
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: ID付きmanagedは上書き、seedとunmanagedはローカル優先
+      // Then: ID付きmanagedは上書き、project-privateとunmanagedはローカル優先
       expect(result).toContain("Template managed");
-      expect(result).toContain("User seed");
+      expect(result).toContain("User project-private");
       expect(result).toContain("User header");
       expect(result).toContain("User middle");
       expect(result).toContain("User footer");
       expect(result).not.toContain("Old managed");
-      expect(result).not.toContain("Template seed");
+      expect(result).not.toContain("Template project-private");
       expect(result).not.toContain("Header");
       expect(result).not.toContain("Middle");
       expect(result).not.toContain("Footer");
@@ -521,20 +521,20 @@ other_key: user_other_value`;
       expect(result).toContain("other_key: user_other_value");
     });
 
-    it("YAMLコメント形式のseedマーカーが正しく処理される", () => {
-      // Given: YAMLコメント形式のseedマーカー
-      const templateContent = `# @einja:seed:start id="custom"
+    it("YAMLコメント形式のproject-privateマーカーが正しく処理される", () => {
+      // Given: YAMLコメント形式のproject-privateマーカー
+      const templateContent = `# @einja:project-private:start id="custom"
 custom_key: template_value
-# @einja:seed:end`;
+# @einja:project-private:end`;
 
-      const existingContent = `# @einja:seed:start id="custom"
+      const existingContent = `# @einja:project-private:start id="custom"
 custom_key: user_value
-# @einja:seed:end`;
+# @einja:project-private:end`;
 
       // When: マージ実行
       const result = mergeTextWithMarkers(templateContent, existingContent);
 
-      // Then: seed内はローカルが優先される
+      // Then: project-private内はローカルが優先される
       expect(result).toContain("custom_key: user_value");
       expect(result).not.toContain("custom_key: template_value");
     });
@@ -552,7 +552,7 @@ describe("mergeJson", () => {
       const existingJson = null;
       const jsonPaths: JsonPathsConfig = {
         managed: {},
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行
@@ -584,7 +584,7 @@ describe("mergeJson", () => {
         managed: {
           "package.json": ["version", "dependencies"],
         },
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行
@@ -597,8 +597,8 @@ describe("mergeJson", () => {
       expect(result.name).toBe("user-name");
     });
 
-    it("seedパスの値はローカルに存在しない場合のみコピーされる", () => {
-      // Given: seedパス指定
+    it("project-privateパスの値はローカルに存在しない場合のみコピーされる", () => {
+      // Given: project-privateパス指定
       const templateJson = {
         scripts: {
           dev: "next dev",
@@ -617,7 +617,7 @@ describe("mergeJson", () => {
 
       const jsonPaths: JsonPathsConfig = {
         managed: {},
-        seed: {
+        "project-private": {
           "package.json": ["scripts", "customConfig"],
         },
       };
@@ -644,7 +644,7 @@ describe("mergeJson", () => {
 
       const jsonPaths: JsonPathsConfig = {
         managed: {},
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行
@@ -685,7 +685,7 @@ describe("mergeJson", () => {
         managed: {
           "package.json": ["scripts.dev", "scripts.build"],
         },
-        seed: {
+        "project-private": {
           "package.json": ["scripts.custom"],
         },
       };
@@ -727,7 +727,7 @@ describe("mergeJson", () => {
         managed: {
           "package.json": ["scripts"],
         },
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行
@@ -771,7 +771,7 @@ describe("mergeJson", () => {
         managed: {
           "package.json": ["config.database.port"],
         },
-        seed: {
+        "project-private": {
           "package.json": ["config.cache.ttl"],
         },
       };
@@ -796,8 +796,8 @@ describe("mergeJson", () => {
   });
 
   describe("複雑なケース", () => {
-    it("managedとseedが混在する場合、それぞれ正しく処理される", () => {
-      // Given: managedとseed混在
+    it("managedとproject-privateが混在する場合、それぞれ正しく処理される", () => {
+      // Given: managedとproject-private混在
       const templateJson = {
         version: "2.0.0", // managed
         scripts: {
@@ -825,7 +825,7 @@ describe("mergeJson", () => {
         managed: {
           "package.json": ["version"],
         },
-        seed: {
+        "project-private": {
           "package.json": ["scripts"],
         },
       };
@@ -855,7 +855,7 @@ describe("mergeJson", () => {
 
       const jsonPaths: JsonPathsConfig = {
         managed: {},
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行
@@ -867,7 +867,7 @@ describe("mergeJson", () => {
     });
 
     it("空オブジェクトが正しく処理される", () => {
-      // Given: 空のmanaged/seedパス
+      // Given: 空のmanaged/project-privateパス
       const templateJson = {
         name: "template",
       };
@@ -878,7 +878,7 @@ describe("mergeJson", () => {
 
       const jsonPaths: JsonPathsConfig = {
         managed: {},
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行
@@ -910,7 +910,7 @@ describe("mergeJson", () => {
 
       const jsonPaths: JsonPathsConfig = {
         managed: {},
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行
@@ -942,7 +942,7 @@ describe("mergeJson", () => {
         managed: {
           "package.json": ["dependencies"],
         },
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行
@@ -967,7 +967,7 @@ describe("mergeJson", () => {
 
       const jsonPaths: JsonPathsConfig = {
         managed: {},
-        seed: {
+        "project-private": {
           "package.json": ["scripts"],
         },
       };
@@ -998,7 +998,7 @@ describe("mergeJson", () => {
 
       const jsonPaths: JsonPathsConfig = {
         managed: {},
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行
@@ -1027,7 +1027,7 @@ describe("mergeJson", () => {
 
       const jsonPaths: JsonPathsConfig = {
         managed: {},
-        seed: {},
+        "project-private": {},
       };
 
       // When: マージ実行

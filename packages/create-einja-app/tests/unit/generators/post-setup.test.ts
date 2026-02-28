@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { execPostSetup } from "../../../src/generators/post-setup.js";
-import type { ProjectConfig } from "../../../src/types/index.js";
+import { execPostSetup } from "@/generators/post-setup.js";
+import type { ProjectConfig } from "@/types/index.js";
 
 // execaとinquirerをモック化
 vi.mock("execa", () => ({

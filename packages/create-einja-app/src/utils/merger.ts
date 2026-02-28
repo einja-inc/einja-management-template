@@ -1,10 +1,10 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, basename } from "node:path";
-import type { SyncMetadata, JsonPathsConfig, ConflictStrategy } from "../types/index.js";
-import { ensureDir } from "./fs.js";
-import { mergePackageJsonDependencies } from "./package-json-merger.js";
-import * as logger from "./logger.js";
-import { replacePlaceholders, type TemplateVariables } from "../generators/template.js";
+import type { SyncMetadata, JsonPathsConfig, ConflictStrategy } from "@/types/index.js";
+import { ensureDir } from "@/utils/fs.js";
+import { mergePackageJsonDependencies } from "@/utils/package-json-merger.js";
+import * as logger from "@/utils/logger.js";
+import { replacePlaceholders, type TemplateVariables } from "@/generators/template.js";
 
 /**
  * マーカーベースのテキストマージを行う
@@ -29,15 +29,15 @@ export function mergeTextWithMarkers(
 
   // マーカーがなければ既存優先
   const hasMarkers = templateSections.some(
-    (s) => s.type === "managed" || s.type === "seed"
+    (s) => s.type === "managed" || s.type === "project-private"
   );
   if (!hasMarkers) {
     return existingContent;
   }
 
-  // When: ID付きmanaged/seedセクションをMapで管理
+  // When: ID付きmanaged/project-privateセクションをMapで管理
   const templateManagedById = new Map<string, MarkerSection>();
-  const templateSeedById = new Map<string, MarkerSection>();
+  const templateProjectPrivateById = new Map<string, MarkerSection>();
   const templateManagedWithoutId: MarkerSection[] = [];
   const processedTemplateIds = new Set<string>();
 
@@ -46,8 +46,8 @@ export function mergeTextWithMarkers(
       templateManagedById.set(section.id, section);
     } else if (section.type === "managed") {
       templateManagedWithoutId.push(section);
-    } else if (section.type === "seed" && section.id) {
-      templateSeedById.set(section.id, section);
+    } else if (section.type === "project-private" && section.id) {
+      templateProjectPrivateById.set(section.id, section);
     }
   }
 
@@ -73,8 +73,8 @@ export function mergeTextWithMarkers(
         }
       }
       // ID付きでテンプレートにマッチなし → 削除（resultに追加しない）
-    } else if (localSection.type === "seed") {
-      // seed: ローカル優先
+    } else if (localSection.type === "project-private") {
+      // project-private: ローカル優先
       if (localSection.id) {
         processedTemplateIds.add(localSection.id);
       }
@@ -98,10 +98,10 @@ export function mergeTextWithMarkers(
     result.push(section.content);
   }
 
-  // When: テンプレートにのみ存在するID付きseedセクションを末尾に追加
-  for (const [id, section] of templateSeedById) {
+  // When: テンプレートにのみ存在するID付きproject-privateセクションを末尾に追加
+  for (const [id, section] of templateProjectPrivateById) {
     if (!processedTemplateIds.has(id)) {
-      // テンプレートにのみ存在するID付きseedセクションを追加
+      // テンプレートにのみ存在するID付きproject-privateセクションを追加
       result.push(section.content);
     }
   }
@@ -119,7 +119,7 @@ export function mergeTextWithMarkers(
  *
  * @param templateJson - テンプレートのJSON
  * @param existingJson - 既存のJSON（存在しない場合はnull）
- * @param jsonPaths - managed/seedパスの設定
+ * @param jsonPaths - managed/project-privateパスの設定
  * @param filePath - ファイルパス（例: "package.json"）
  * @returns マージ後のJSON
  */
@@ -150,7 +150,7 @@ export function mergeJson(
  *
  * @param template - テンプレートオブジェクト
  * @param existing - 既存オブジェクト
- * @param jsonPaths - managed/seedパスの設定
+ * @param jsonPaths - managed/project-privateパスの設定
  * @param filePath - ファイルパス
  * @param currentPath - 現在のキーパス（例: "scripts.dev"）
  * @returns マージ後のオブジェクト
@@ -174,9 +174,9 @@ function deepMergeWithPaths(
       // Then: managedパスはテンプレート値でディープコピーして上書き
       result[key] = deepClone(templateValue);
     }
-    // Given: このパスがseedに含まれるか確認
-    else if (isPathSeed(filePath, keyPath, jsonPaths)) {
-      // Given: seedパスでオブジェクトの場合、子キーもディープマージ
+    // Given: このパスがproject-privateに含まれるか確認
+    else if (isPathProjectPrivate(filePath, keyPath, jsonPaths)) {
+      // Given: project-privateパスでオブジェクトの場合、子キーもディープマージ
       if (
         typeof templateValue === "object" &&
         templateValue !== null &&
@@ -185,7 +185,7 @@ function deepMergeWithPaths(
         existingValue !== null &&
         !Array.isArray(existingValue)
       ) {
-        // Then: seedパス内でもディープマージ（既存にないキーのみ追加）
+        // Then: project-privateパス内でもディープマージ（既存にないキーのみ追加）
         result[key] = deepMergeWithPaths(
           templateValue as Record<string, unknown>,
           existingValue as Record<string, unknown>,
@@ -194,7 +194,7 @@ function deepMergeWithPaths(
           keyPath
         );
       } else if (!(key in existing)) {
-        // Then: seedパスはローカル優先（キーが存在しない場合のみディープコピーして追加）
+        // Then: project-privateパスはローカル優先（キーが存在しない場合のみディープコピーして追加）
         result[key] = deepClone(templateValue);
       }
       // 既存値がある場合は何もしない（既存値を保持）
@@ -418,7 +418,7 @@ export async function mergeAndWriteFile(
       const existingJson = existingContent
         ? (JSON.parse(existingContent) as Record<string, unknown>)
         : null;
-      const jsonPaths = syncMetadata.jsonPaths || { managed: {}, seed: {} };
+      const jsonPaths = syncMetadata.jsonPaths || { managed: {}, "project-private": {} };
       // ファイルパスからファイル名を抽出（例: "/path/to/package.json" → "package.json"）
       const fileName = targetPath.split("/").pop() || "package.json";
       const mergedJson = mergeJson(templateJson, existingJson, jsonPaths, fileName);
@@ -454,7 +454,7 @@ export async function mergeAndWriteFile(
  * マーカーセクションの型定義
  */
 interface MarkerSection {
-  type: "managed" | "seed" | "unmanaged";
+  type: "managed" | "project-private" | "unmanaged";
   startLine: number;
   endLine: number;
   content: string;
@@ -470,7 +470,7 @@ interface MarkerSection {
 function parseMarkers(content: string): MarkerSection[] {
   const lines = content.split("\n");
   const sections: MarkerSection[] = [];
-  let currentType: "managed" | "seed" | "unmanaged" = "unmanaged";
+  let currentType: "managed" | "project-private" | "unmanaged" = "unmanaged";
   let currentStartLine = 1;
   let currentContent: string[] = [];
   let currentId: string | undefined;
@@ -515,7 +515,7 @@ function parseMarkers(content: string): MarkerSection[] {
       // When: マーカー終了行を追加
       currentContent.push(line);
 
-      // When: managed/seedセクションを保存
+      // When: managed/project-privateセクションを保存
       sections.push({
         type: currentType,
         startLine: currentStartLine,
@@ -558,7 +558,7 @@ function parseMarkers(content: string): MarkerSection[] {
  */
 function parseStartMarker(
   line: string
-): { type: "managed" | "seed"; id?: string } | null {
+): { type: "managed" | "project-private"; id?: string } | null {
   // Markdown managed
   const markdownManagedPattern =
     /^<!--\s*@einja:managed:start(?:\s+id="([^"]+)")?\s*-->$/;
@@ -567,12 +567,20 @@ function parseStartMarker(
     return { type: "managed", id: match[1] || undefined };
   }
 
-  // Markdown seed
+  // Markdown project-private
+  const markdownProjectPrivatePattern =
+    /^<!--\s*@einja:project-private:start(?:\s+id="([^"]+)")?\s*-->$/;
+  match = line.match(markdownProjectPrivatePattern);
+  if (match) {
+    return { type: "project-private", id: match[1] || undefined };
+  }
+
+  // Markdown seed (legacy)
   const markdownSeedPattern =
     /^<!--\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*-->$/;
   match = line.match(markdownSeedPattern);
   if (match) {
-    return { type: "seed", id: match[1] || undefined };
+    return { type: "project-private", id: match[1] || undefined };
   }
 
   // YAML/JSON managed
@@ -582,11 +590,18 @@ function parseStartMarker(
     return { type: "managed", id: match[1] || undefined };
   }
 
-  // YAML/JSON seed
+  // YAML/JSON project-private
+  const yamlProjectPrivatePattern = /^\s*#\s*@einja:project-private:start(?:\s+id="([^"]+)")?\s*$/;
+  match = line.match(yamlProjectPrivatePattern);
+  if (match) {
+    return { type: "project-private", id: match[1] || undefined };
+  }
+
+  // YAML/JSON seed (legacy)
   const yamlSeedPattern = /^\s*#\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*$/;
   match = line.match(yamlSeedPattern);
   if (match) {
-    return { type: "seed", id: match[1] || undefined };
+    return { type: "project-private", id: match[1] || undefined };
   }
 
   return null;
@@ -598,15 +613,20 @@ function parseStartMarker(
  * @param line - 行内容
  * @returns マーカー種別またはnull
  */
-function parseEndMarker(line: string): "managed" | "seed" | null {
+function parseEndMarker(line: string): "managed" | "project-private" | null {
   // Markdown managed
   if (/^<!--\s*@einja:managed:end\s*-->$/.test(line)) {
     return "managed";
   }
 
-  // Markdown seed
+  // Markdown project-private
+  if (/^<!--\s*@einja:project-private:end\s*-->$/.test(line)) {
+    return "project-private";
+  }
+
+  // Markdown seed (legacy)
   if (/^<!--\s*@einja:seed:end\s*-->$/.test(line)) {
-    return "seed";
+    return "project-private";
   }
 
   // YAML/JSON managed
@@ -614,9 +634,14 @@ function parseEndMarker(line: string): "managed" | "seed" | null {
     return "managed";
   }
 
-  // YAML/JSON seed
+  // YAML/JSON project-private
+  if (/^\s*#\s*@einja:project-private:end\s*$/.test(line)) {
+    return "project-private";
+  }
+
+  // YAML/JSON seed (legacy)
   if (/^\s*#\s*@einja:seed:end\s*$/.test(line)) {
-    return "seed";
+    return "project-private";
   }
 
   return null;
@@ -645,19 +670,19 @@ function isPathManaged(
 }
 
 /**
- * パスがseedに含まれるかチェック
+ * パスがproject-privateに含まれるかチェック
  *
  * @param filePath - ファイルパス（例: "package.json"）
  * @param keyPath - チェックするキーパス（例: "scripts.custom"）
  * @param jsonPaths - JSONパス設定
- * @returns seedに含まれる場合true
+ * @returns project-privateに含まれる場合true
  */
-function isPathSeed(
+function isPathProjectPrivate(
   filePath: string,
   keyPath: string,
   jsonPaths: JsonPathsConfig
 ): boolean {
-  const seedPaths = jsonPaths.seed[filePath] || [];
-  // keyPath が seedPaths のいずれかで始まるかチェック
-  return seedPaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
+  const projectPrivatePaths = jsonPaths["project-private"][filePath] || [];
+  // keyPath が projectPrivatePaths のいずれかで始まるかチェック
+  return projectPrivatePaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
 }

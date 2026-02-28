@@ -2,8 +2,8 @@ import { execa, execaSync } from "execa";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import ora from "ora";
-import type { ProjectConfig } from "../types/index.js";
-import * as logger from "../utils/logger.js";
+import type { ProjectConfig } from "@/types/index.js";
+import * as logger from "@/utils/logger.js";
 
 /**
  * PostSetupOptions型

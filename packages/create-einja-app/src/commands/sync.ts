@@ -2,16 +2,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import fsExtra from "fs-extra";
 import inquirer from "inquirer";
-import { collectSyncFiles } from "../generators/sync.js";
-import { promptSyncCategories } from "../prompts/sync.js";
-import type { SyncCategory, SyncMetadata, SyncOptions, SyncResult } from "../types/index.js";
-import { createBackup, getLatestBackup, restoreFromBackup } from "../utils/backup.js";
-import { checkGitStatusForSync } from "../utils/git.js";
-import * as logger from "../utils/logger.js";
-import { mergeAndWriteFile } from "../utils/merger.js";
-import { validatePlaceholders } from "../utils/placeholder-validator.js";
-import { detectProjectConfig } from "../utils/project-detector.js";
-import type { TemplateVariables } from "../generators/template.js";
+import { collectSyncFiles } from "@/generators/sync.js";
+import { promptSyncCategories } from "@/prompts/sync.js";
+import type { SyncCategory, SyncMetadata, SyncOptions, SyncResult } from "@/types/index.js";
+import { createBackup, getLatestBackup, restoreFromBackup } from "@/utils/backup.js";
+import { checkGitStatusForSync } from "@/utils/git.js";
+import * as logger from "@/utils/logger.js";
+import { mergeAndWriteFile } from "@/utils/merger.js";
+import { validatePlaceholders } from "@/utils/placeholder-validator.js";
+import { detectProjectConfig } from "@/utils/project-detector.js";
+import type { TemplateVariables } from "@/generators/template.js";
 
 // 同期処理中のバックアップ情報を保持
 let currentBackupDir: string | undefined;
@@ -305,7 +305,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       files: {},
       jsonPaths: {
         managed: {},
-        seed: {},
+        "project-private": {},
       },
     };
 

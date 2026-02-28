@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeTextWithMarkers } from "../../src/utils/merger.js";
+import { mergeTextWithMarkers } from "@/utils/merger.js";
 
 describe("mergeTextWithMarkers - ID安全性テスト", () => {
   it("テンプレートの先頭に新しいID付きmanagedセクションが追加された場合、IDなしセクションはテンプレートで上書きされる", () => {

@@ -129,7 +129,7 @@ $ npx create-einja-app add
 
 ファイルの競合は以下のマーカーベースで処理されます：
 - `@einja:managed` - テンプレートで上書き
-- `@einja:seed` - ローカル優先（初回のみコピー）
+- `@einja:project-private` - ローカル優先（初回のみコピー）
 - マーカーなし - 既存ファイル優先
 
 **JSONマージ設定 (.einja-sync.json):**

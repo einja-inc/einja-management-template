@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { runPostSyncActions } from "../../../src/utils/post-sync-actions.js";
-import type { SyncCategory, SyncResult } from "../../../src/types/index.js";
+import { runPostSyncActions } from "@/utils/post-sync-actions.js";
+import type { SyncCategory, SyncResult } from "@/types/index.js";
 
 // モック対象モジュール
 vi.mock("node:child_process", () => ({
@@ -18,7 +18,7 @@ vi.mock("inquirer", () => ({
   },
 }));
 
-vi.mock("../../../src/utils/logger.js", () => ({
+vi.mock("@/utils/logger.js", () => ({
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
 import { execSync } from "node:child_process";
 import { chmodSync, existsSync } from "node:fs";
 import inquirer from "inquirer";
-import * as logger from "../../../src/utils/logger.js";
+import * as logger from "@/utils/logger.js";
 
 describe("runPostSyncActions", () => {
   const targetDir = "/test/target/dir";

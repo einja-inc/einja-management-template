@@ -2,8 +2,8 @@ import { execSync } from "node:child_process";
 import { chmodSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import inquirer from "inquirer";
-import type { SyncCategory, SyncResult } from "../types/index.js";
-import * as logger from "./logger.js";
+import type { SyncCategory, SyncResult } from "@/types/index.js";
+import * as logger from "@/utils/logger.js";
 
 /**
  * direnvコマンドが利用可能かチェック

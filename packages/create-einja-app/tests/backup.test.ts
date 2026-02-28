@@ -7,7 +7,7 @@ import {
   getLatestBackup,
   listBackups,
   restoreFromBackup,
-} from "../src/utils/backup.js";
+} from "@/utils/backup.js";
 
 const testDir = join(__dirname, "test-backup-dir");
 

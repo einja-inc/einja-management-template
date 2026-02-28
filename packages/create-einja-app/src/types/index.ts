@@ -53,7 +53,7 @@ export type App = {
  */
 export type JsonPathsConfig = {
   managed: Record<string, string[]>;
-  seed: Record<string, string[]>;
+  "project-private": Record<string, string[]>;
 };
 
 /**

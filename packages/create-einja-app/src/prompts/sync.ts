@@ -1,7 +1,7 @@
 import inquirer from "inquirer";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { SyncCategory, SyncCategoryConfig } from "../types/index.js";
+import type { SyncCategory, SyncCategoryConfig } from "@/types/index.js";
 
 /**
  * 同期プロンプト結果の型定義

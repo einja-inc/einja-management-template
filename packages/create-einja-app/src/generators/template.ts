@@ -3,9 +3,9 @@ const { copySync, readFileSync, writeFileSync, existsSync, removeSync } = fsExtr
 import { glob } from "glob";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ProjectConfig } from "../prompts/project.js";
-import { ensureDir } from "../utils/fs.js";
-import * as logger from "../utils/logger.js";
+import type { ProjectConfig } from "@/prompts/project.js";
+import { ensureDir } from "@/utils/fs.js";
+import * as logger from "@/utils/logger.js";
 
 /**
  * TemplateVariables型

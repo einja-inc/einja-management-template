@@ -3,7 +3,7 @@ import inquirer from "inquirer";
 import {
   promptProjectConfig,
   type ProjectConfig,
-} from "../../../src/prompts/project";
+} from "@/prompts/project";
 
 // inquirerのpromptメソッドをモック化
 vi.mock("inquirer");

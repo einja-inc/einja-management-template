@@ -49,8 +49,8 @@ export interface TaskLoopOptions {
 /** ポーリング間隔（ミリ秒） */
 const POLLING_INTERVAL_MS = 15_000;
 
-/** 親Issue自動Doneタイムアウト（ミリ秒） */
-const PARENT_DONE_TIMEOUT_MS = 120_000;
+/** 親Issue Done確認前待機時間（ミリ秒） */
+const PARENT_DONE_CHECK_WAIT_MS = 15_000;
 
 /**
  * 現在日時を YYYY/MM/DD HH:mm:ss 形式で取得
@@ -468,26 +468,24 @@ async function checkAndHandlePhaseCompletion(
 }
 
 /**
- * 親IssueのDone状態を待機（タイムアウト付きフォールバック）
+ * 親IssueのDone状態を確認（15秒待機後に1回チェック）
  */
 async function waitForParentIssueDone(
   vibeKanban: VibeKanbanClient,
   parentIssueId: string,
   phaseNumber: number
 ): Promise<void> {
-  const start = Date.now();
+  // 15秒待機後に1回チェック（vibe-kanban v0.1.18では自動Done化が動作しないため）
+  await sleep(PARENT_DONE_CHECK_WAIT_MS);
 
-  while (Date.now() - start < PARENT_DONE_TIMEOUT_MS) {
-    const issue = await vibeKanban.getTask(parentIssueId);
-    if (issue?.status === "Done") {
-      console.log(`   ✅ 親Issue Done確認: Phase ${phaseNumber}`);
-      return;
-    }
-    await sleep(15_000);
+  const issue = await vibeKanban.getTask(parentIssueId);
+  if (issue?.status === "Done") {
+    console.log(`   ✅ 親Issue Done確認: Phase ${phaseNumber}`);
+    return;
   }
 
-  // タイムアウト: 手動でDoneに更新
-  console.warn(`   ⚠️ 親Issue Phase ${phaseNumber} の自動Done検知がタイムアウト。手動更新します。`);
+  // 自動Done化されていない場合は手動でDoneに更新
+  console.log(`   ℹ️ 親Issue Phase ${phaseNumber} を手動Doneにします。`);
   try {
     await vibeKanban.updateTask(parentIssueId, "Done");
     console.log(`   ✅ 親Issue 手動Done完了: Phase ${phaseNumber}`);

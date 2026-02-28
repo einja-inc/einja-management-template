@@ -1,6 +1,6 @@
 import path from "node:path";
 import fs from "fs-extra";
-import type { PresetConfig, SymlinksConfig } from "../types/index.js";
+import type { PresetConfig, SymlinksConfig } from "@/types/index.js";
 import {
   getPresetPath,
   getTemplatesPath,
@@ -101,6 +101,46 @@ export async function copySteeringDocs(targetPath: string): Promise<void> {
 
   await fs.ensureDir(targetPath);
   await fs.copy(steeringPath, targetPath);
+}
+
+/**
+ * プリセットのサブディレクトリをコピー
+ * @param targetPath - コピー先のパス
+ * @param presetSubPath - プリセット内の相対パス（例: "scripts", "docs/einja/instructions"）
+ */
+export async function copyPresetDirectory(
+  targetPath: string,
+  presetSubPath: string
+): Promise<void> {
+  const presetPath = getPresetPath("default");
+  const srcPath = path.join(presetPath, presetSubPath);
+
+  if (!(await fs.pathExists(srcPath))) {
+    return;
+  }
+
+  await fs.ensureDir(targetPath);
+  await fs.copy(srcPath, targetPath);
+}
+
+/**
+ * プリセットの単一ファイルをコピー
+ * @param targetPath - コピー先のファイルパス
+ * @param presetSubPath - プリセット内の相対パス（例: ".envrc"）
+ */
+export async function copyPresetFile(
+  targetPath: string,
+  presetSubPath: string
+): Promise<void> {
+  const presetPath = getPresetPath("default");
+  const srcPath = path.join(presetPath, presetSubPath);
+
+  if (!(await fs.pathExists(srcPath))) {
+    return;
+  }
+
+  await fs.ensureDir(path.dirname(targetPath));
+  await fs.copy(srcPath, targetPath);
 }
 
 /**

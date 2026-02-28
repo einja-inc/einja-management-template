@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type { Preset } from "../../types/preset-update.js";
+import type { Preset } from "@/types/preset-update.js";
 
 /**
  * プリセット発見モジュール

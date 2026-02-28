@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { SyncMetadata } from "../../types/sync.js";
+import type { SyncMetadata } from "@/types/sync.js";
 import { MetadataManager } from "./metadata-manager.js";
 
 describe("MetadataManager", () => {
@@ -24,6 +24,31 @@ describe("MetadataManager", () => {
       expect(metadata).toHaveProperty("templateVersion", "0.1.0");
       expect(metadata).toHaveProperty("lastSync");
       expect(metadata).toHaveProperty("files", {});
+    });
+
+    it("旧 jsonPaths.seed を jsonPaths['project-private'] にマイグレーションする", async () => {
+      const oldMetadata = {
+        version: "1.0.0",
+        lastSync: "2025-01-01T00:00:00.000Z",
+        templateVersion: "0.2.0",
+        files: {},
+        jsonPaths: {
+          managed: { "package.json": ["scripts"] },
+          seed: { "tsconfig.json": ["compilerOptions.paths"] },
+        },
+      };
+
+      await fs.writeFile(
+        path.join(tempDir, ".einja-sync.json"),
+        JSON.stringify(oldMetadata),
+        "utf-8"
+      );
+
+      const metadata = await manager.load();
+
+      expect(metadata.jsonPaths).toBeDefined();
+      expect(metadata.jsonPaths!["project-private"]).toEqual({ "tsconfig.json": ["compilerOptions.paths"] });
+      expect((metadata.jsonPaths as any).seed).toBeUndefined();
     });
 
     it("メタデータファイルが存在する場合、読み込んで返す", async () => {
@@ -177,6 +202,66 @@ describe("MetadataManager", () => {
         createHash("sha256").update(newContent, "utf8").digest("hex")
       );
       expect(updated.files[filePath].hash).not.toBe("old-hash");
+    });
+  });
+
+  describe("removeFiles", () => {
+    it("指定したファイルをメタデータから削除する", () => {
+      const metadata: SyncMetadata = {
+        version: "1.0.0",
+        lastSync: "2025-01-01T00:00:00.000Z",
+        templateVersion: "0.1.0",
+        files: {
+          "file1.txt": {
+            hash: "hash1",
+            syncedAt: "2025-01-01T00:00:00.000Z",
+          },
+          "file2.txt": {
+            hash: "hash2",
+            syncedAt: "2025-01-01T00:00:00.000Z",
+          },
+          "file3.txt": {
+            hash: "hash3",
+            syncedAt: "2025-01-01T00:00:00.000Z",
+          },
+        },
+      };
+
+      const result = manager.removeFiles(metadata, ["file1.txt", "file3.txt"]);
+
+      expect(Object.keys(result.files)).toEqual(["file2.txt"]);
+      expect(result.files["file2.txt"].hash).toBe("hash2");
+    });
+
+    it("元のメタデータを変更しない（イミュータブル）", () => {
+      const metadata: SyncMetadata = {
+        version: "1.0.0",
+        lastSync: "2025-01-01T00:00:00.000Z",
+        templateVersion: "0.1.0",
+        files: {
+          "file1.txt": {
+            hash: "hash1",
+            syncedAt: "2025-01-01T00:00:00.000Z",
+          },
+        },
+      };
+
+      manager.removeFiles(metadata, ["file1.txt"]);
+
+      expect(metadata.files["file1.txt"]).toBeDefined();
+    });
+
+    it("存在しないファイルを指定してもエラーにならない", () => {
+      const metadata: SyncMetadata = {
+        version: "1.0.0",
+        lastSync: "2025-01-01T00:00:00.000Z",
+        templateVersion: "0.1.0",
+        files: {},
+      };
+
+      const result = manager.removeFiles(metadata, ["nonexistent.txt"]);
+
+      expect(Object.keys(result.files)).toHaveLength(0);
     });
   });
 });

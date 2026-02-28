@@ -9,7 +9,7 @@
 | マーカー | 用途 | sync時の動作 |
 |---------|------|-------------|
 | `@einja:managed` | 共通ルール（常に最新を維持） | 常に上書き |
-| `@einja:seed` | プロジェクト固有テンプレート | 初回のみ追加、以降は保持 |
+| `@einja:project-private` | プロジェクト固有テンプレート | 初回のみ追加、以降は保持 |
 
 ## マーカー形式
 
@@ -42,19 +42,19 @@ shared_config:
 <!-- @einja:managed:end -->
 ```
 
-### @einja:seed（初回のみ追加）
+### @einja:project-private（初回のみ追加）
 
 プロジェクト固有の設定を追記する場所として使用します。初回sync時のみ追加され、以降の編集内容は保持されます。
 
 **ID属性は必須です。** 見出しは変更されやすいため、IDで安定した識別を行います。
 
 ```markdown
-<!-- @einja:seed:start id="commit-rules-project" -->
+<!-- @einja:project-private:start id="commit-rules-project" -->
 ## プロジェクト固有のコミットルール
 
 <!-- このセクションはプロジェクト固有のルールを追記する場所です -->
 <!-- 例: 特定のプレフィックス追加、承認フロー、例外事項など -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:end -->
 ```
 
 ## 配置ルール
@@ -79,11 +79,11 @@ shared_config:
 
 ---
 
-<!-- @einja:seed:start id="xxx-project" -->
+<!-- @einja:project-private:start id="xxx-project" -->
 ## プロジェクト固有の設定
 
 <!-- ここにプロジェクト固有の内容を追記 -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:end -->
 ```
 
 ### 禁止パターン（ネスト）
@@ -94,9 +94,9 @@ shared_config:
 <!-- @einja:managed:start -->
 ## セクション1
 
-<!-- @einja:seed:start id="xxx" -->  <!-- ❌ エラー: ネスト禁止 -->
+<!-- @einja:project-private:start id="xxx" -->  <!-- ❌ エラー: ネスト禁止 -->
 ...
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:end -->
 
 <!-- @einja:managed:end -->
 ```
@@ -155,10 +155,10 @@ sync実行前にマーカーのバリデーションを行います：
 ❌ マーカーバリデーションエラーが見つかりました:
 
 📄 docs/einja/steering/commit-rules.md
-   L15: @einja:seedマーカーにはid属性が必須です (seed_without_id)
+   L15: @einja:project-privateマーカーにはid属性が必須です (seed_without_id)
 
 📄 docs/einja/steering/architecture.md
-   L8: @einja:managedマーカー内に@einja:seedマーカーをネストすることは許可されていません (nested)
+   L8: @einja:managedマーカー内に@einja:project-privateマーカーをネストすることは許可されていません (nested)
 
 合計 2 件のエラーが見つかりました
 マーカーを修正してから再度ビルドしてください
@@ -185,16 +185,16 @@ sync実行前にマーカーのバリデーションを行います：
 
 ```markdown
 <!-- 既存 -->
-<!-- @einja:seed:start id="commit-rules-project" -->
+<!-- @einja:project-private:start id="commit-rules-project" -->
 ## プロジェクト固有のコミットルール
 （ユーザーの編集内容）
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:end -->
 
 <!-- 新規追加 -->
-<!-- @einja:seed:start id="commit-rules-approval-flow" -->
+<!-- @einja:project-private:start id="commit-rules-approval-flow" -->
 ## 承認フローのカスタマイズ
 （新しいテンプレート内容）
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:end -->
 ```
 
 ## 関連ファイル

@@ -1,4 +1,4 @@
-import type { JsonPathsConfig } from "../../types/sync.js";
+import type { JsonPathsConfig } from "@/types/sync.js";
 
 /**
  * JSONファイルのマージ処理を行うクラス
@@ -8,7 +8,7 @@ export class JsonProcessor {
   /**
    * JSONをマージする
    * - managed パス: テンプレート値で上書き
-   * - seed パス: ローカル優先（キーが存在しない場合のみコピー）
+   * - project-private パス: ローカル優先（キーが存在しない場合のみコピー）
    * - その他: ディープマージ（テンプレートの新規キーも追加）
    *
    * @param templateJson - テンプレート版のJSON
@@ -128,10 +128,10 @@ export class JsonProcessor {
       if (this.isPathManaged(filePath, keyPath, jsonPaths)) {
         // managed: テンプレートで上書き
         result[key] = this.deepClone(templateValue);
-      } else if (this.isPathSeed(filePath, keyPath, jsonPaths)) {
-        // seed: オブジェクトの場合はディープマージ（既存にないキーのみ追加）
+      } else if (this.isPathProjectPrivate(filePath, keyPath, jsonPaths)) {
+        // project-private: オブジェクトの場合はディープマージ（既存にないキーのみ追加）
         if (this.isObject(templateValue) && this.isObject(existing[key])) {
-          // seedパス内でもディープマージ（既存にないキーのみ追加）
+          // project-privateパス内でもディープマージ（既存にないキーのみ追加）
           result[key] = this.deepMergeWithPaths(
             templateValue as Record<string, unknown>,
             existing[key] as Record<string, unknown>,
@@ -140,7 +140,7 @@ export class JsonProcessor {
             keyPath
           );
         } else if (!(key in existing)) {
-          // seedパスはローカル優先（キーが存在しない場合のみ追加）
+          // project-privateパスはローカル優先（キーが存在しない場合のみ追加）
           result[key] = this.deepClone(templateValue);
         }
         // 既存値がある場合は何もしない（既存値を保持）
@@ -179,17 +179,17 @@ export class JsonProcessor {
   }
 
   /**
-   * パスがseedかどうか判定
+   * パスがproject-privateかどうか判定
    *
    * @param filePath - ファイルパス
    * @param keyPath - JSONパス
    * @param jsonPaths - JSONパス設定
-   * @returns seedの場合true
+   * @returns project-privateの場合true
    */
-  private isPathSeed(filePath: string, keyPath: string, jsonPaths: JsonPathsConfig): boolean {
-    const seedPaths = jsonPaths.seed[filePath] || [];
-    // keyPath が seedPaths のいずれかで始まるかチェック
-    return seedPaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
+  private isPathProjectPrivate(filePath: string, keyPath: string, jsonPaths: JsonPathsConfig): boolean {
+    const projectPrivatePaths = jsonPaths["project-private"][filePath] || [];
+    // keyPath が projectPrivatePaths のいずれかで始まるかチェック
+    return projectPrivatePaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
   }
 
   /**

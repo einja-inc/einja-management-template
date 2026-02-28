@@ -11,6 +11,7 @@
  * - .mcp.json
  * - .vscode/settings.json
  * - docs/einja/ (memory, cli除く)
+ * - scripts/
  *
  * コピー先（CLI配布用）:
  * - packages/cli/presets/default/.claude/
@@ -59,34 +60,9 @@ const mappings = [
 	},
 	// スキル（einja-* パターン）
 	{
-		src: path.join(projectRoot, ".claude/skills/einja-api-development"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-api-development"),
-		basePath: ".claude/skills/einja-api-development",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-backend-architecture"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-backend-architecture"),
-		basePath: ".claude/skills/einja-backend-architecture",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-coding-standards"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-coding-standards"),
-		basePath: ".claude/skills/einja-coding-standards",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-component-design"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-component-design"),
-		basePath: ".claude/skills/einja-component-design",
-	},
-	{
 		src: path.join(projectRoot, ".claude/skills/einja-conflict-resolver"),
 		dest: path.join(cliDir, "presets/default/.claude/skills/einja-conflict-resolver"),
 		basePath: ".claude/skills/einja-conflict-resolver",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-frontend-development"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-frontend-development"),
-		basePath: ".claude/skills/einja-frontend-development",
 	},
 	{
 		src: path.join(projectRoot, ".claude/skills/einja-general-context-loader"),
@@ -136,6 +112,12 @@ const mappings = [
 		dest: path.join(cliDir, "presets/default/docs/einja"),
 		basePath: null, // シンボリックリンク記録対象外
 		exclude: ["memory", "cli"], // プロジェクト固有のメモリとcli/preset.yamlはコピーしない
+	},
+	// scripts（プロジェクトユーティリティ）
+	{
+		src: path.join(projectRoot, "scripts"),
+		dest: path.join(cliDir, "presets/default/scripts"),
+		basePath: null, // シンボリックリンク記録対象外
 	},
 ];
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Conflict } from "../../types/sync.js";
+import type { Conflict } from "@/types/sync.js";
 import { ConflictReporter } from "./conflict-reporter.js";
 
 describe("ConflictReporter", () => {

@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { getAllPresets } from "../lib/preset.js";
+import { getAllPresets } from "@/lib/preset.js";
 
 export async function listCommand(): Promise<void> {
   console.log(chalk.blue("\n📦 利用可能なプリセット\n"));

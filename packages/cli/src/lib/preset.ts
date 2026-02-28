@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "fs-extra";
 import yaml from "js-yaml";
-import type { Preset, PresetConfig } from "../types/index.js";
+import type { Preset, PresetConfig } from "@/types/index.js";
 import { getPresetPath, getPresetsPath } from "./file-system.js";
 
 /**

@@ -3,19 +3,21 @@ import chalk from "chalk";
 import fs from "fs-extra";
 import inquirer from "inquirer";
 import ora from "ora";
-import { checkAndInstallDependencies } from "../lib/dependency-checker.js";
-import { backupDirectory } from "../lib/file-system.js";
-import { setupMcpConfig } from "../lib/mcp-config.js";
+import { checkAndInstallDependencies } from "@/lib/dependency-checker.js";
+import { backupDirectory } from "@/lib/file-system.js";
+import { setupMcpConfig } from "@/lib/mcp-config.js";
 import {
   copyDocTemplates,
+  copyPresetDirectory,
+  copyPresetFile,
   copySteeringDocs,
   createSymlinks,
   generateClaudeDirectory,
   generateClaudeMd,
-} from "../lib/merger.js";
-import { detectPackageManager } from "../lib/package-manager.js";
-import { loadPreset, presetExists } from "../lib/preset.js";
-import type { InitOptions } from "../types/index.js";
+} from "@/lib/merger.js";
+import { detectPackageManager } from "@/lib/package-manager.js";
+import { loadPreset, presetExists } from "@/lib/preset.js";
+import type { InitOptions } from "@/types/index.js";
 
 export async function initCommand(options: InitOptions): Promise<void> {
   const spinner = ora();
@@ -26,6 +28,11 @@ export async function initCommand(options: InitOptions): Promise<void> {
   const templatesDir = path.join(einjaDocsDir, "templates");
   const steeringDir = path.join(einjaDocsDir, "steering");
   const claudeMdPath = path.join(cwd, "CLAUDE.md");
+  const instructionsDir = path.join(einjaDocsDir, "instructions");
+  const exampleDir = path.join(einjaDocsDir, "example");
+  const scriptsDir = path.join(cwd, "scripts");
+  const envrcPath = path.join(cwd, ".envrc");
+  const vscodeSettingsPath = path.join(cwd, ".vscode", "settings.json");
 
   console.log(chalk.blue("\n🚀 Einja Claude CLI - .claude セットアップ\n"));
 
@@ -50,6 +57,11 @@ export async function initCommand(options: InitOptions): Promise<void> {
     console.log("  - settings.json をマージ・生成");
     console.log(`  - ${templatesDir} にドキュメントテンプレートをコピー`);
     console.log(`  - ${steeringDir} にステアリングドキュメントをコピー`);
+    console.log(`  - ${instructionsDir} にinstructionsドキュメントをコピー`);
+    console.log(`  - ${exampleDir} にexampleドキュメントをコピー`);
+    console.log(`  - ${scriptsDir} にスクリプトをコピー`);
+    console.log(`  - ${envrcPath} をコピー`);
+    console.log(`  - ${vscodeSettingsPath} をコピー`);
     console.log(`  - ${claudeMdPath} を生成`);
     console.log("  - シンボリックリンクを作成（symlinks.json に基づく）");
     console.log("    リンク先パスはインストール時に自動計算");
@@ -120,6 +132,66 @@ export async function initCommand(options: InitOptions): Promise<void> {
     spinner.succeed(`ステアリングドキュメント: ${steeringDir}`);
   } catch (error) {
     spinner.fail("ステアリングドキュメントのセットアップに失敗しました");
+    console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+  }
+
+  // 6A. instructionsドキュメントをコピー
+  spinner.start("instructionsドキュメントをセットアップ中...");
+
+  try {
+    await copyPresetDirectory(instructionsDir, "docs/einja/instructions");
+    spinner.succeed(`instructionsドキュメント: ${instructionsDir}`);
+  } catch (error) {
+    spinner.fail("instructionsドキュメントのセットアップに失敗しました");
+    console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+  }
+
+  // 6B. exampleドキュメントをコピー
+  spinner.start("exampleドキュメントをセットアップ中...");
+
+  try {
+    await copyPresetDirectory(exampleDir, "docs/einja/example");
+    spinner.succeed(`exampleドキュメント: ${exampleDir}`);
+  } catch (error) {
+    spinner.fail("exampleドキュメントのセットアップに失敗しました");
+    console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+  }
+
+  // 6C. scriptsディレクトリをコピー
+  spinner.start("スクリプトをセットアップ中...");
+
+  try {
+    await copyPresetDirectory(scriptsDir, "scripts");
+    spinner.succeed(`スクリプト: ${scriptsDir}`);
+  } catch (error) {
+    spinner.fail("スクリプトのセットアップに失敗しました");
+    console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+  }
+
+  // 6D. .envrcをコピー
+  spinner.start(".envrcをセットアップ中...");
+
+  try {
+    await copyPresetFile(envrcPath, ".envrc");
+    spinner.succeed(`.envrc: ${envrcPath}`);
+  } catch (error) {
+    spinner.fail(".envrcのセットアップに失敗しました");
+    console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+  }
+
+  // 6E. .vscode/settings.jsonをコピー
+  spinner.start(".vscode/settings.jsonをセットアップ中...");
+
+  try {
+    await copyPresetFile(vscodeSettingsPath, ".vscode/settings.json");
+    spinner.succeed(`.vscode/settings.json: ${vscodeSettingsPath}`);
+  } catch (error) {
+    spinner.fail(".vscode/settings.jsonのセットアップに失敗しました");
     console.error(chalk.red(error instanceof Error ? error.message : String(error)));
     process.exit(1);
   }
@@ -229,6 +301,11 @@ export async function initCommand(options: InitOptions): Promise<void> {
   console.log("  - .claude/           Claude Code設定");
   console.log("  - docs/einja/templates/    ドキュメントテンプレート");
   console.log("  - docs/einja/steering/     ステアリングドキュメント");
+  console.log("  - docs/einja/instructions/ 操作手順書");
+  console.log("  - docs/einja/example/      サンプル・参考例");
+  console.log("  - scripts/           ユーティリティスクリプト");
+  console.log("  - .envrc             環境設定");
+  console.log("  - .vscode/           エディタ設定");
   console.log("  - CLAUDE.md          プロジェクト設定");
   if (mcpSetupSuccess) {
     console.log("  - .mcp.json          MCPサーバー設定");

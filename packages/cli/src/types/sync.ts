@@ -12,11 +12,11 @@ export const FileMetadataSchema = z.object({
 /**
  * JSON パス設定の Zod スキーマ
  * managed: テンプレート値で上書き
- * seed: ローカル優先（キーが存在しない場合のみコピー）
+ * project-private: ローカル優先（キーが存在しない場合のみコピー）
  */
 export const JsonPathsConfigSchema = z.object({
   managed: z.record(z.string(), z.array(z.string())),
-  seed: z.record(z.string(), z.array(z.string())),
+  "project-private": z.record(z.string(), z.array(z.string())),
 });
 
 /**
@@ -104,7 +104,7 @@ export interface MergeResult {
 /**
  * マーカーセクションの種別
  */
-export type MarkerSectionType = "managed" | "unmanaged" | "seed";
+export type MarkerSectionType = "managed" | "unmanaged" | "project-private";
 
 /**
  * マーカーエラーの種別
@@ -113,7 +113,7 @@ export type MarkerErrorType =
   | "unpaired_start"
   | "unpaired_end"
   | "nested"
-  | "seed_without_id"
+  | "project_private_without_id"
   | "duplicate_id";
 
 /**
@@ -128,7 +128,7 @@ export interface MarkerSection {
   endLine: number;
   /** セクション内容 */
   content: string;
-  /** セクションID（managedまたはseedマーカーにID属性がある場合） */
+  /** セクションID（managedまたはproject-privateマーカーにID属性がある場合） */
   id?: string;
 }
 
@@ -190,6 +190,10 @@ export interface JsonOutput {
     conflicts: number;
     /** スキップされたファイル数 */
     skipped: number;
+    /** 孤児検出数 */
+    orphansDetected?: number;
+    /** 孤児削除数 */
+    orphansDeleted?: number;
   };
   /** ファイル情報の配列 */
   files: JsonFileInfo[];
@@ -200,4 +204,32 @@ export interface JsonOutput {
     /** 同期実行日時 */
     syncedAt: string;
   };
+  /** 孤児ファイル情報 */
+  orphans?: OrphanFile[];
+}
+
+/**
+ * 孤児ファイルの型定義
+ */
+export interface OrphanFile {
+  /** ファイルパス */
+  path: string;
+  /** カテゴリ */
+  category: string | null;
+  /** ディスク上に実在するか */
+  exists: boolean;
+}
+
+/**
+ * 孤児レポートの型定義
+ */
+export interface OrphanReport {
+  /** 孤児が存在するか */
+  hasOrphans: boolean;
+  /** 孤児ファイル一覧 */
+  orphans: OrphanFile[];
+  /** 孤児ファイル総数 */
+  total: number;
+  /** ディスク上に実在する孤児の数 */
+  existingCount: number;
 }

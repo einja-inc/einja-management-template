@@ -3,10 +3,10 @@ import type {
   MarkerErrorType,
   MarkerSection,
   MarkerValidationResult,
-} from "../../types/sync.js";
+} from "@/types/sync.js";
 
 /**
- * @einja:managedおよび@einja:seedマーカーの処理を行うクラス
+ * @einja:managedおよび@einja:project-privateマーカーの処理を行うクラス
  * マーカーをパースしてセクションを分離し、検証・置換処理を提供します。
  */
 export class MarkerProcessor {
@@ -18,11 +18,11 @@ export class MarkerProcessor {
   private static readonly MARKDOWN_MANAGED_END_PATTERN = /^<!--\s*@einja:managed:end\s*-->$/;
 
   /**
-   * Markdownファイル用のseedマーカーパターン（ID属性はオプショナルだが、検証で必須チェック）
+   * Markdownファイル用のproject-privateマーカーパターン（ID属性はオプショナルだが、検証で必須チェック）
    */
-  private static readonly MARKDOWN_SEED_START_PATTERN =
-    /^<!--\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*-->$/;
-  private static readonly MARKDOWN_SEED_END_PATTERN = /^<!--\s*@einja:seed:end\s*-->$/;
+  private static readonly MARKDOWN_PROJECT_PRIVATE_START_PATTERN =
+    /^<!--\s*@einja:project-private:start(?:\s+id="([^"]+)")?\s*-->$/;
+  private static readonly MARKDOWN_PROJECT_PRIVATE_END_PATTERN = /^<!--\s*@einja:project-private:end\s*-->$/;
 
   /**
    * YAML/JSONファイル用のmanagedマーカーパターン（ID属性オプショナル）
@@ -32,22 +32,36 @@ export class MarkerProcessor {
   private static readonly YAML_MANAGED_END_PATTERN = /^\s*#\s*@einja:managed:end\s*$/;
 
   /**
-   * YAML/JSONファイル用のseedマーカーパターン（ID属性はオプショナルだが、検証で必須チェック）
+   * YAML/JSONファイル用のproject-privateマーカーパターン（ID属性はオプショナルだが、検証で必須チェック）
    */
-  private static readonly YAML_SEED_START_PATTERN =
+  private static readonly YAML_PROJECT_PRIVATE_START_PATTERN =
+    /^\s*#\s*@einja:project-private:start(?:\s+id="([^"]+)")?\s*$/;
+  private static readonly YAML_PROJECT_PRIVATE_END_PATTERN = /^\s*#\s*@einja:project-private:end\s*$/;
+
+  /**
+   * レガシーMarkdownファイル用のseedマーカーパターン（後方互換）
+   */
+  private static readonly MARKDOWN_LEGACY_SEED_START_PATTERN =
+    /^<!--\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*-->$/;
+  private static readonly MARKDOWN_LEGACY_SEED_END_PATTERN = /^<!--\s*@einja:seed:end\s*-->$/;
+
+  /**
+   * レガシーYAML/JSONファイル用のseedマーカーパターン（後方互換）
+   */
+  private static readonly YAML_LEGACY_SEED_START_PATTERN =
     /^\s*#\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*$/;
-  private static readonly YAML_SEED_END_PATTERN = /^\s*#\s*@einja:seed:end\s*$/;
+  private static readonly YAML_LEGACY_SEED_END_PATTERN = /^\s*#\s*@einja:seed:end\s*$/;
 
   /**
    * ファイル内容をパースしてマーカーセクションに分離する
    *
    * @param content - ファイル内容
-   * @returns セクション配列（managed/seed/unmanagedが配置される）
+   * @returns セクション配列（managed/project-private/unmanagedが配置される）
    */
   parseMarkers(content: string): MarkerSection[] {
     const lines = content.split("\n");
     const sections: MarkerSection[] = [];
-    let currentType: "managed" | "seed" | "unmanaged" = "unmanaged";
+    let currentType: "managed" | "project-private" | "unmanaged" = "unmanaged";
     let currentStartLine = 1;
     let currentContent: string[] = [];
     let currentId: string | undefined;
@@ -75,7 +89,7 @@ export class MarkerProcessor {
           });
         }
 
-        // managed/seedセクション開始
+        // managed/project-privateセクション開始
         currentType = startMarker.type;
         currentId = startMarker.id;
         currentStartLine = lineNumber;
@@ -92,7 +106,7 @@ export class MarkerProcessor {
         // マーカー終了行を追加
         currentContent.push(line);
 
-        // managed/seedセクションを保存
+        // managed/project-privateセクションを保存
         sections.push({
           type: currentType,
           startLine: currentStartLine,
@@ -136,9 +150,9 @@ export class MarkerProcessor {
   validateMarkers(content: string): MarkerValidationResult {
     const lines = content.split("\n");
     const errors: MarkerError[] = [];
-    const startMarkers: Array<{ line: number; type: "managed" | "seed"; id?: string }> = [];
+    const startMarkers: Array<{ line: number; type: "managed" | "project-private"; id?: string }> = [];
     const seenIds = new Set<string>();
-    let currentMarkerType: "managed" | "seed" | null = null;
+    let currentMarkerType: "managed" | "project-private" | null = null;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -157,12 +171,12 @@ export class MarkerProcessor {
           continue;
         }
 
-        // seedマーカーにID必須チェック
-        if (startMarker.type === "seed" && !startMarker.id) {
+        // project-privateマーカーにID必須チェック
+        if (startMarker.type === "project-private" && !startMarker.id) {
           errors.push({
             line: lineNumber,
-            message: "@einja:seedマーカーにはid属性が必須です",
-            type: "seed_without_id",
+            message: "@einja:project-privateマーカーにはid属性が必須です",
+            type: "project_private_without_id",
           });
         }
 
@@ -273,17 +287,23 @@ export class MarkerProcessor {
    * @param line - 行内容
    * @returns マーカー情報（種別、ID）またはnull
    */
-  private parseStartMarker(line: string): { type: "managed" | "seed"; id?: string } | null {
+  private parseStartMarker(line: string): { type: "managed" | "project-private"; id?: string } | null {
     // Markdown managed
     let match = line.match(MarkerProcessor.MARKDOWN_MANAGED_START_PATTERN);
     if (match) {
       return { type: "managed", id: match[1] };
     }
 
-    // Markdown seed
-    match = line.match(MarkerProcessor.MARKDOWN_SEED_START_PATTERN);
+    // Markdown project-private
+    match = line.match(MarkerProcessor.MARKDOWN_PROJECT_PRIVATE_START_PATTERN);
     if (match) {
-      return { type: "seed", id: match[1] };
+      return { type: "project-private", id: match[1] };
+    }
+
+    // Markdown legacy seed（後方互換）
+    match = line.match(MarkerProcessor.MARKDOWN_LEGACY_SEED_START_PATTERN);
+    if (match) {
+      return { type: "project-private", id: match[1] };
     }
 
     // YAML managed
@@ -292,10 +312,16 @@ export class MarkerProcessor {
       return { type: "managed", id: match[1] };
     }
 
-    // YAML seed
-    match = line.match(MarkerProcessor.YAML_SEED_START_PATTERN);
+    // YAML project-private
+    match = line.match(MarkerProcessor.YAML_PROJECT_PRIVATE_START_PATTERN);
     if (match) {
-      return { type: "seed", id: match[1] };
+      return { type: "project-private", id: match[1] };
+    }
+
+    // YAML legacy seed（後方互換）
+    match = line.match(MarkerProcessor.YAML_LEGACY_SEED_START_PATTERN);
+    if (match) {
+      return { type: "project-private", id: match[1] };
     }
 
     return null;
@@ -307,15 +333,20 @@ export class MarkerProcessor {
    * @param line - 行内容
    * @returns マーカー種別またはnull
    */
-  private parseEndMarker(line: string): "managed" | "seed" | null {
+  private parseEndMarker(line: string): "managed" | "project-private" | null {
     // Markdown managed
     if (MarkerProcessor.MARKDOWN_MANAGED_END_PATTERN.test(line)) {
       return "managed";
     }
 
-    // Markdown seed
-    if (MarkerProcessor.MARKDOWN_SEED_END_PATTERN.test(line)) {
-      return "seed";
+    // Markdown project-private
+    if (MarkerProcessor.MARKDOWN_PROJECT_PRIVATE_END_PATTERN.test(line)) {
+      return "project-private";
+    }
+
+    // Markdown legacy seed（後方互換）
+    if (MarkerProcessor.MARKDOWN_LEGACY_SEED_END_PATTERN.test(line)) {
+      return "project-private";
     }
 
     // YAML managed
@@ -323,9 +354,14 @@ export class MarkerProcessor {
       return "managed";
     }
 
-    // YAML seed
-    if (MarkerProcessor.YAML_SEED_END_PATTERN.test(line)) {
-      return "seed";
+    // YAML project-private
+    if (MarkerProcessor.YAML_PROJECT_PRIVATE_END_PATTERN.test(line)) {
+      return "project-private";
+    }
+
+    // YAML legacy seed（後方互換）
+    if (MarkerProcessor.YAML_LEGACY_SEED_END_PATTERN.test(line)) {
+      return "project-private";
     }
 
     return null;
@@ -349,5 +385,75 @@ export class MarkerProcessor {
    */
   private isEndMarker(line: string): boolean {
     return this.parseEndMarker(line) !== null;
+  }
+
+  /**
+   * コンテンツからproject-privateセクションを抽出して返す
+   *
+   * @param content - ファイル内容
+   * @returns project-privateセクションの配列（id、content）
+   */
+  extractProjectPrivateSections(content: string): Array<{ id: string; content: string }> {
+    const sections = this.parseMarkers(content);
+    return sections
+      .filter((s) => s.type === "project-private" && s.id)
+      .map((s) => ({ id: s.id!, content: s.content }));
+  }
+
+  /**
+   * コンテンツからproject-privateセクションを除去した本文を返す
+   *
+   * @param content - ファイル内容
+   * @returns project-privateセクションを除去した本文
+   */
+  stripProjectPrivateSections(content: string): string {
+    const sections = this.parseMarkers(content);
+    const nonPpSections = sections.filter((s) => s.type !== "project-private");
+    return nonPpSections.map((s) => s.content).join("\n");
+  }
+
+  /**
+   * 本文の末尾にproject-privateセクションを再付加する
+   *
+   * @param content - 本文内容
+   * @param ppSections - project-privateセクションの配列
+   * @returns project-privateセクションを再付加した内容
+   */
+  reattachProjectPrivateSections(
+    content: string,
+    ppSections: Array<{ id: string; content: string }>
+  ): string {
+    if (ppSections.length === 0) return content;
+    const lines = [content];
+    // 末尾が空行でなければ追加
+    if (!content.endsWith("\n\n")) {
+      lines.push("");
+    }
+    for (const pp of ppSections) {
+      lines.push(pp.content);
+    }
+    return lines.join("\n");
+  }
+
+  /**
+   * ファイル内容にmanagedマーカーが含まれるかチェック
+   *
+   * @param content - ファイル内容
+   * @returns managedマーカーが存在する場合true
+   */
+  hasManagedMarkers(content: string): boolean {
+    return content.includes("@einja:managed:start");
+  }
+
+  /**
+   * 旧 @einja:seed マーカーを @einja:project-private に自動マイグレーション
+   *
+   * @param content - ファイル内容
+   * @returns マイグレーション後の内容
+   */
+  migrateLegacySeedMarkers(content: string): string {
+    return content
+      .replace(/@einja:seed:start/g, "@einja:project-private:start")
+      .replace(/@einja:seed:end/g, "@einja:project-private:end");
   }
 }

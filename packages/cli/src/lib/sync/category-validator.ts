@@ -6,7 +6,7 @@
 /**
  * 有効なカテゴリのリスト
  */
-export const VALID_CATEGORIES = ["commands", "agents", "skills", "hooks", "docs", "env", "tools"] as const;
+export const VALID_CATEGORIES = ["commands", "agents", "skills", "hooks", "docs", "scripts", "env", "tools"] as const;
 
 /**
  * カテゴリの型定義
@@ -22,6 +22,7 @@ export const CATEGORY_DESCRIPTIONS: Record<ValidCategory, string> = {
   skills: "Claude Code スキル (.claude/skills/)",
   hooks: "Claude Code フック (.claude/hooks/)",
   docs: "ドキュメント (docs/einja/)",
+  scripts: "ユーティリティスクリプト (scripts/)",
   env: "環境設定ファイル (.envrc)",
   tools: "開発ツール設定 (.vscode/settings.json)",
 };

@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { JsonOutput, SyncMetadata } from "../types/sync.js";
+import type { JsonOutput, SyncMetadata } from "@/types/sync.js";
 import { syncCommand } from "./sync.js";
 
 // モジュールモック

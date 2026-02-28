@@ -88,6 +88,7 @@ describe("category-validator", () => {
       expect(message).toContain("無効なカテゴリ: invalid-category");
       expect(message).toContain("有効なカテゴリは以下のいずれかです:");
       expect(message).toContain("commands - Claude Code コマンド");
+      expect(message).toContain("scripts - ユーティリティスクリプト");
       expect(message).toContain("tools - 開発ツール設定");
     });
 
@@ -97,13 +98,14 @@ describe("category-validator", () => {
       expect(message).toContain("無効なカテゴリ: invalid1, invalid2, invalid3");
       expect(message).toContain("有効なカテゴリは以下のいずれかです:");
       expect(message).toContain("commands - Claude Code コマンド");
+      expect(message).toContain("scripts - ユーティリティスクリプト");
       expect(message).toContain("tools - 開発ツール設定");
     });
   });
 
   describe("VALID_CATEGORIES", () => {
     it("全ての有効なカテゴリが定義されている", () => {
-      expect(VALID_CATEGORIES).toEqual(["commands", "agents", "skills", "hooks", "docs", "env", "tools"]);
+      expect(VALID_CATEGORIES).toEqual(["commands", "agents", "skills", "hooks", "docs", "scripts", "env", "tools"]);
     });
   });
 

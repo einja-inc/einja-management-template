@@ -45,6 +45,7 @@ program
   .option("-y, --yes", "確認プロンプトをスキップ")
   .option("-j, --json", "JSON形式で結果を出力")
   .option("--no-backup", "変更前にバックアップを作成しない")
+  .option("--clean", "テンプレートから削除されたファイル（孤児）を削除")
   .option("--skip-deps", "依存関係のチェック・インストールをスキップ")
   .action(syncCommand);
 

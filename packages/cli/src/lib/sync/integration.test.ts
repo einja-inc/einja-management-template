@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { Conflict } from "../../types/sync.js";
+import type { Conflict } from "@/types/sync.js";
 import { ConflictReporter } from "./conflict-reporter.js";
 import { DiffEngine } from "./diff-engine.js";
 import { MarkerProcessor } from "./marker-processor.js";
-import { SeedSynchronizer } from "./seed-synchronizer.js";
+import { ProjectPrivateSynchronizer } from "./project-private-synchronizer.js";
 
 /**
  * タスクグループ1.3: 3方向マージエンジンとコンフリクト検出の統合テスト
@@ -385,21 +385,21 @@ Line 3`;
 });
 
 /**
- * MarkerProcessor と SeedSynchronizer の統合テスト
+ * MarkerProcessor と ProjectPrivateSynchronizer の統合テスト
  *
  * 検証シナリオ:
- * - 初回sync → seedセクションが追加される
- * - 2回目sync → seedセクションが保持される（上書きされない）
- * - seedセクション削除後のsync → 空のテンプレートが再追加される
- * - seedセクション内を編集後のsync → 編集内容が保持される
+ * - 初回sync → project-privateセクションが追加される
+ * - 2回目sync → project-privateセクションが保持される（上書きされない）
+ * - project-privateセクション削除後のsync → 空のテンプレートが再追加される
+ * - project-privateセクション内を編集後のsync → 編集内容が保持される
  */
-describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
+describe("MarkerProcessor と ProjectPrivateSynchronizer の統合テスト", () => {
   const markerProcessor = new MarkerProcessor();
-  const seedSynchronizer = new SeedSynchronizer();
+  const projectPrivateSynchronizer = new ProjectPrivateSynchronizer();
 
   describe("sync フロー全体のテスト", () => {
-    it("初回sync: ローカルにseedがない場合、テンプレートのseedが追加される", () => {
-      // Given: ローカルファイル（seedなし）
+    it("初回sync: ローカルにproject-privateがない場合、テンプレートのproject-privateが追加される", () => {
+      // Given: ローカルファイル（project-privateなし）
       const localContent = `# ドキュメント
 
 <!-- @einja:managed:start -->
@@ -412,7 +412,7 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 
 ローカル固有の内容です。`;
 
-      // Given: テンプレートファイル（managedとseedあり）
+      // Given: テンプレートファイル（managedとproject-privateあり）
       const templateContent = `# ドキュメント
 
 <!-- @einja:managed:start -->
@@ -423,18 +423,18 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 
 ---
 
-<!-- @einja:seed:start id="project-settings" -->
+<!-- @einja:project-private:start id="project-settings" -->
 ## プロジェクト固有の設定
 
 <!-- ここにプロジェクト固有の内容を追加 -->
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       // When: managed同期を実行
       const localSections = markerProcessor.parseMarkers(localContent);
       const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
 
-      // When: seed同期を実行
-      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+      // When: project-private同期を実行
+      const result = projectPrivateSynchronizer.syncProjectPrivateSections(afterManagedSync, templateContent);
 
       // Then: managedセクションはテンプレートで更新される
       expect(result).toContain("これは更新された共通ルールです。");
@@ -444,14 +444,14 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
       expect(result).toContain("## ローカル固有のセクション");
       expect(result).toContain("ローカル固有の内容です。");
 
-      // Then: seedセクションが追加される
-      expect(result).toContain('<!-- @einja:seed:start id="project-settings" -->');
+      // Then: project-privateセクションが追加される
+      expect(result).toContain('<!-- @einja:project-private:start id="project-settings" -->');
       expect(result).toContain("## プロジェクト固有の設定");
-      expect(result).toContain("<!-- @einja:seed:end -->");
+      expect(result).toContain("<!-- @einja:project-private:end -->");
     });
 
-    it("2回目sync: 既存のseedセクションは上書きされない", () => {
-      // Given: ローカルファイル（編集済みseedあり）
+    it("2回目sync: 既存のproject-privateセクションは上書きされない", () => {
+      // Given: ローカルファイル（編集済みproject-privateあり）
       const localContent = `# ドキュメント
 
 <!-- @einja:managed:start -->
@@ -462,14 +462,14 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 
 ---
 
-<!-- @einja:seed:start id="project-settings" -->
+<!-- @einja:project-private:start id="project-settings" -->
 ## プロジェクト固有の設定
 
 このプロジェクトではXXXを使用します。
 カスタム設定が追加されています。
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
-      // Given: テンプレートファイル（空のseedテンプレート）
+      // Given: テンプレートファイル（空のproject-privateテンプレート）
       const templateContent = `# ドキュメント
 
 <!-- @einja:managed:start -->
@@ -480,30 +480,30 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 
 ---
 
-<!-- @einja:seed:start id="project-settings" -->
+<!-- @einja:project-private:start id="project-settings" -->
 ## プロジェクト固有の設定
 
 <!-- ここにプロジェクト固有の内容を追加 -->
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       // When: managed同期を実行
       const localSections = markerProcessor.parseMarkers(localContent);
       const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
 
-      // When: seed同期を実行
-      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+      // When: project-private同期を実行
+      const result = projectPrivateSynchronizer.syncProjectPrivateSections(afterManagedSync, templateContent);
 
       // Then: managedセクションは更新される
       expect(result).toContain("これは更新された共通ルールです（新機能追加）。");
 
-      // Then: seedセクションのローカル編集内容は保持される
+      // Then: project-privateセクションのローカル編集内容は保持される
       expect(result).toContain("このプロジェクトではXXXを使用します。");
       expect(result).toContain("カスタム設定が追加されています。");
       expect(result).not.toContain("<!-- ここにプロジェクト固有の内容を追加 -->");
     });
 
-    it("seedセクション削除後のsync: 空のテンプレートが再追加される", () => {
-      // Given: ローカルファイル（seedを削除した状態）
+    it("project-privateセクション削除後のsync: 空のテンプレートが再追加される", () => {
+      // Given: ローカルファイル（project-privateを削除した状態）
       const localContent = `# ドキュメント
 
 <!-- @einja:managed:start -->
@@ -516,7 +516,7 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 
 ユーザーの独自コンテンツ`;
 
-      // Given: テンプレートファイル（seedあり）
+      // Given: テンプレートファイル（project-privateあり）
       const templateContent = `# ドキュメント
 
 <!-- @einja:managed:start -->
@@ -527,81 +527,81 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 
 ---
 
-<!-- @einja:seed:start id="project-settings" -->
+<!-- @einja:project-private:start id="project-settings" -->
 ## プロジェクト固有の設定
 
 <!-- ここにプロジェクト固有の内容を追加 -->
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       // When: managed同期を実行
       const localSections = markerProcessor.parseMarkers(localContent);
       const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
 
-      // When: seed同期を実行
-      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+      // When: project-private同期を実行
+      const result = projectPrivateSynchronizer.syncProjectPrivateSections(afterManagedSync, templateContent);
 
       // Then: ユーザーが追加したセクションは保持される
       expect(result).toContain("## ユーザーが追加したセクション");
       expect(result).toContain("ユーザーの独自コンテンツ");
 
-      // Then: 空のseedテンプレートが再追加される
-      expect(result).toContain('<!-- @einja:seed:start id="project-settings" -->');
+      // Then: 空のproject-privateテンプレートが再追加される
+      expect(result).toContain('<!-- @einja:project-private:start id="project-settings" -->');
       expect(result).toContain("## プロジェクト固有の設定");
       expect(result).toContain("<!-- ここにプロジェクト固有の内容を追加 -->");
-      expect(result).toContain("<!-- @einja:seed:end -->");
+      expect(result).toContain("<!-- @einja:project-private:end -->");
     });
 
-    it("新しいseedセクションがテンプレートに追加された場合、既存seedは保持しつつ新seedが追加される", () => {
-      // Given: ローカルファイル（seed-1のみ、編集済み）
+    it("新しいproject-privateセクションがテンプレートに追加された場合、既存project-privateは保持しつつ新project-privateが追加される", () => {
+      // Given: ローカルファイル（pp-1のみ、編集済み）
       const localContent = `# ドキュメント
 
 <!-- @einja:managed:start -->
 ## 共通ルール
 <!-- @einja:managed:end -->
 
-<!-- @einja:seed:start id="seed-1" -->
+<!-- @einja:project-private:start id="pp-1" -->
 ## 設定1
 
 ローカルで編集された設定1
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
-      // Given: テンプレートファイル（seed-1とseed-2）
+      // Given: テンプレートファイル（pp-1とpp-2）
       const templateContent = `# ドキュメント
 
 <!-- @einja:managed:start -->
 ## 共通ルール（更新）
 <!-- @einja:managed:end -->
 
-<!-- @einja:seed:start id="seed-1" -->
+<!-- @einja:project-private:start id="pp-1" -->
 ## 設定1
 
 テンプレートの設定1
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:end -->
 
-<!-- @einja:seed:start id="seed-2" -->
+<!-- @einja:project-private:start id="pp-2" -->
 ## 設定2（新規）
 
-新しいseedセクション
-<!-- @einja:seed:end -->`;
+新しいproject-privateセクション
+<!-- @einja:project-private:end -->`;
 
       // When: managed同期を実行
       const localSections = markerProcessor.parseMarkers(localContent);
       const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
 
-      // When: seed同期を実行
-      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+      // When: project-private同期を実行
+      const result = projectPrivateSynchronizer.syncProjectPrivateSections(afterManagedSync, templateContent);
 
       // Then: managedは更新される
       expect(result).toContain("## 共通ルール（更新）");
 
-      // Then: 既存のseed-1はローカル編集内容が保持される
+      // Then: 既存のpp-1はローカル編集内容が保持される
       expect(result).toContain("ローカルで編集された設定1");
       expect(result).not.toContain("テンプレートの設定1");
 
-      // Then: 新しいseed-2は追加される
-      expect(result).toContain('<!-- @einja:seed:start id="seed-2" -->');
+      // Then: 新しいpp-2は追加される
+      expect(result).toContain('<!-- @einja:project-private:start id="pp-2" -->');
       expect(result).toContain("## 設定2（新規）");
-      expect(result).toContain("新しいseedセクション");
+      expect(result).toContain("新しいproject-privateセクション");
     });
   });
 
@@ -614,9 +614,9 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 共通部分
 <!-- @einja:managed:end -->
 
-<!-- @einja:seed:start id="custom" -->
+<!-- @einja:project-private:start id="custom" -->
 カスタム部分
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       const templateContent = `# ドキュメント
 
@@ -624,9 +624,9 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 共通部分（更新）
 <!-- @einja:managed:end -->
 
-<!-- @einja:seed:start id="custom" -->
+<!-- @einja:project-private:start id="custom" -->
 カスタム部分テンプレート
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       // When: バリデーションを実行
       const localValidation = markerProcessor.validateMarkers(localContent);
@@ -639,7 +639,7 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
       // When: sync実行
       const localSections = markerProcessor.parseMarkers(localContent);
       const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
-      const result = seedSynchronizer.syncSeeds(afterManagedSync, templateContent);
+      const result = projectPrivateSynchronizer.syncProjectPrivateSections(afterManagedSync, templateContent);
 
       // Then: 正しく同期される
       expect(result).toContain("共通部分（更新）");
@@ -648,32 +648,32 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
     });
 
     it("バリデーションエラー時はsyncを実行しない", () => {
-      // Given: 不正なマーカー構造のファイル（seedにIDなし）
+      // Given: 不正なマーカー構造のファイル（project-privateにIDなし）
       const invalidContent = `# ドキュメント
 
-<!-- @einja:seed:start -->
+<!-- @einja:project-private:start -->
 カスタム部分
-<!-- @einja:seed:end -->`;
+<!-- @einja:project-private:end -->`;
 
       // When: バリデーションを実行
       const validation = markerProcessor.validateMarkers(invalidContent);
 
       // Then: バリデーション失敗
       expect(validation.valid).toBe(false);
-      expect(validation.errors.some((e) => e.type === "seed_without_id")).toBe(true);
+      expect(validation.errors.some((e) => e.type === "project_private_without_id")).toBe(true);
 
       // syncは実行しない（呼び出さない）
     });
 
     it("ネストエラーの検出", () => {
-      // Given: managed内にseedがネストされている不正な構造
+      // Given: managed内にproject-privateがネストされている不正な構造
       const invalidContent = `# ドキュメント
 
 <!-- @einja:managed:start -->
 共通部分
-<!-- @einja:seed:start id="nested" -->
-ネストされたseed
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="nested" -->
+ネストされたproject-private
+<!-- @einja:project-private:end -->
 <!-- @einja:managed:end -->`;
 
       // When: バリデーションを実行
@@ -694,7 +694,7 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 共通ルールです。`;
 
       // When: マーカーなしファイルの同期
-      const result = seedSynchronizer.syncUnmarkedFile(localExists, templateContent);
+      const result = projectPrivateSynchronizer.syncUnmarkedFile(localExists, templateContent);
 
       // Then: テンプレート内容が返される
       expect(result).toBe(templateContent);
@@ -708,10 +708,237 @@ describe("MarkerProcessor と SeedSynchronizer の統合テスト", () => {
 共通ルールです。`;
 
       // When: マーカーなしファイルの同期
-      const result = seedSynchronizer.syncUnmarkedFile(localExists, templateContent);
+      const result = projectPrivateSynchronizer.syncUnmarkedFile(localExists, templateContent);
 
       // Then: nullが返される（ローカルをそのまま保持）
       expect(result).toBeNull();
+    });
+  });
+});
+
+/**
+ * legacy @einja:seed E2Eマイグレーションテスト
+ *
+ * 旧 @einja:seed マーカーが @einja:project-private に正しくマイグレーションされ、
+ * 既存のsyncフロー（parseMarkers → replaceManaged → syncProjectPrivateSections 等）で
+ * 期待通りに処理されることを検証する。
+ */
+describe("legacy @einja:seed E2Eマイグレーション", () => {
+  const markerProcessor = new MarkerProcessor();
+  const projectPrivateSynchronizer = new ProjectPrivateSynchronizer();
+  const diffEngine = new DiffEngine();
+
+  /**
+   * hasMarkers相当のヘルパー関数
+   * ファイル内容にeinja管理マーカーが含まれるか判定する
+   */
+  function hasMarkers(content: string): boolean {
+    return (
+      content.includes("@einja:managed:start") ||
+      content.includes("@einja:project-private:start") ||
+      content.includes("@einja:seed:start")
+    );
+  }
+
+  describe("hasMarkers() 相当のテスト", () => {
+    it("@einja:seed:start を含む → true", () => {
+      const content = `# ドキュメント
+
+<!-- @einja:seed:start id="setting" -->
+シード内容
+<!-- @einja:seed:end -->`;
+
+      expect(hasMarkers(content)).toBe(true);
+    });
+
+    it("@einja:project-private:start を含む → true", () => {
+      const content = `# ドキュメント
+
+<!-- @einja:project-private:start id="setting" -->
+PP内容
+<!-- @einja:project-private:end -->`;
+
+      expect(hasMarkers(content)).toBe(true);
+    });
+
+    it("@einja:managed:start のみ → true", () => {
+      const content = `# ドキュメント
+
+<!-- @einja:managed:start -->
+管理部分
+<!-- @einja:managed:end -->`;
+
+      expect(hasMarkers(content)).toBe(true);
+    });
+
+    it("マーカーなし → false", () => {
+      const content = `# ドキュメント
+
+通常のテキストです。マーカーは含まれていません。`;
+
+      expect(hasMarkers(content)).toBe(false);
+    });
+  });
+
+  describe("E2Eマイグレーションフロー", () => {
+    it("legacy seed入力 → マイグレーション → parseMarkers → replaceManaged → 正常出力", () => {
+      // Given: ローカルファイル（managed + legacy seed を含むMarkdown）
+      const localContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール
+
+旧バージョンの共通ルールです。
+<!-- @einja:managed:end -->
+
+<!-- @einja:seed:start id="project-config" -->
+## プロジェクト固有設定
+
+ユーザーが編集したプロジェクト設定です。
+<!-- @einja:seed:end -->`;
+
+      // Given: テンプレートファイル（managed + project-private）
+      const templateContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+## 共通ルール
+
+新バージョンの共通ルールです。
+<!-- @einja:managed:end -->
+
+<!-- @einja:project-private:start id="project-config" -->
+## プロジェクト固有設定
+
+<!-- デフォルトの設定テンプレート -->
+<!-- @einja:project-private:end -->`;
+
+      // When: legacy seedマーカーをマイグレーション
+      const migrated = markerProcessor.migrateLegacySeedMarkers(localContent);
+
+      // When: managed同期を実行
+      const localSections = markerProcessor.parseMarkers(migrated);
+      const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
+
+      // When: project-private同期を実行
+      const result = projectPrivateSynchronizer.syncProjectPrivateSections(afterManagedSync, templateContent);
+
+      // Then: managed部分はテンプレートで置換される
+      expect(result).toContain("新バージョンの共通ルールです。");
+      expect(result).not.toContain("旧バージョンの共通ルールです。");
+
+      // Then: project-private部分はローカル版（ユーザー編集内容）を保持
+      expect(result).toContain("ユーザーが編集したプロジェクト設定です。");
+      expect(result).not.toContain("<!-- デフォルトの設定テンプレート -->");
+    });
+
+    it("legacy seed + managed混在 → マイグレーション後にmanaged置換 + PP保持", () => {
+      // Given: ローカルファイル（managed + legacy seed混在）
+      const localContent = `<!-- @einja:managed:start -->
+旧managed
+<!-- @einja:managed:end -->
+
+<!-- @einja:seed:start id="pp" -->
+ユーザー内容
+<!-- @einja:seed:end -->`;
+
+      // Given: テンプレートファイル
+      const templateContent = `<!-- @einja:managed:start -->
+新managed
+<!-- @einja:managed:end -->
+
+<!-- @einja:project-private:start id="pp" -->
+デフォルト
+<!-- @einja:project-private:end -->`;
+
+      // When: migrate → parse → replaceManaged → syncProjectPrivateSections
+      const migrated = markerProcessor.migrateLegacySeedMarkers(localContent);
+      const localSections = markerProcessor.parseMarkers(migrated);
+      const afterManagedSync = markerProcessor.replaceManaged(localSections, templateContent);
+      const result = projectPrivateSynchronizer.syncProjectPrivateSections(afterManagedSync, templateContent);
+
+      // Then: managed=新版
+      expect(result).toContain("新managed");
+      expect(result).not.toContain("旧managed");
+
+      // Then: project-private=ユーザー内容のまま
+      expect(result).toContain("ユーザー内容");
+      expect(result).not.toContain("デフォルト");
+    });
+
+    it("legacy seed（managedなし）→ マイグレーション後に3方向マージ + PP保持", () => {
+      // Given: ローカルファイル（本文 + legacy seed）
+      const localContent = `# ガイド
+
+ローカルで追加した行です。
+
+<!-- @einja:seed:start id="notes" -->
+ユーザーのメモ
+<!-- @einja:seed:end -->`;
+
+      // Given: テンプレートファイル（更新された本文 + project-private）
+      const templateContent = `# ガイド
+
+テンプレートで更新された行です。
+
+<!-- @einja:project-private:start id="notes" -->
+デフォルトメモ
+<!-- @einja:project-private:end -->`;
+
+      // Given: ベースファイル（元の本文 + project-private）
+      const baseContent = `# ガイド
+
+元の行です。
+
+<!-- @einja:project-private:start id="notes" -->
+デフォルトメモ
+<!-- @einja:project-private:end -->`;
+
+      // When: legacy seedマーカーをマイグレーション
+      const migrated = markerProcessor.migrateLegacySeedMarkers(localContent);
+
+      // When: syncProjectPrivateOnlyFileで3方向マージ + PP保持
+      const result = projectPrivateSynchronizer.syncProjectPrivateOnlyFile(
+        migrated,
+        templateContent,
+        baseContent,
+        diffEngine
+      );
+
+      // Then: 本文はテンプレート更新が反映される
+      expect(result.content).toContain("テンプレートで更新された行です。");
+
+      // Then: PP部分はローカル版（ユーザーのメモ）が保持される
+      expect(result.content).toContain("ユーザーのメモ");
+      expect(result.content).not.toContain("デフォルトメモ");
+    });
+
+    it("validateMarkers() + migration: legacy seed → マイグレーション → バリデーション通過", () => {
+      // Given: legacy seedマーカーを含むファイル
+      const legacyContent = `# ドキュメント
+
+<!-- @einja:managed:start -->
+共通部分
+<!-- @einja:managed:end -->
+
+<!-- @einja:seed:start id="custom" -->
+カスタム部分
+<!-- @einja:seed:end -->`;
+
+      // When: マイグレーションを実行
+      const migrated = markerProcessor.migrateLegacySeedMarkers(legacyContent);
+
+      // Then: マイグレーション後のマーカーが正しい形式になっている
+      expect(migrated).toContain("@einja:project-private:start");
+      expect(migrated).toContain("@einja:project-private:end");
+      expect(migrated).not.toContain("@einja:seed:start");
+      expect(migrated).not.toContain("@einja:seed:end");
+
+      // When: バリデーションを実行
+      const validation = markerProcessor.validateMarkers(migrated);
+
+      // Then: バリデーション通過
+      expect(validation.valid).toBe(true);
+      expect(validation.errors).toHaveLength(0);
     });
   });
 });

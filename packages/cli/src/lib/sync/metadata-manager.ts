@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "fs-extra";
-import type { BaseContent, FileMetadata, SyncMetadata } from "../../types/sync.js";
-import { SyncMetadataSchema } from "../../types/sync.js";
+import type { BaseContent, FileMetadata, SyncMetadata } from "@/types/sync.js";
+import { SyncMetadataSchema } from "@/types/sync.js";
 import { HashCache } from "./hash-cache.js";
 
 /**
@@ -29,6 +29,13 @@ export class MetadataManager {
 
       const content = await fs.readFile(this.metadataPath, "utf-8");
       const data = JSON.parse(content);
+
+      // マイグレーション: jsonPaths.seed → jsonPaths["project-private"]
+      if (data.jsonPaths && "seed" in data.jsonPaths && !("project-private" in data.jsonPaths)) {
+        data.jsonPaths["project-private"] = data.jsonPaths.seed;
+        delete data.jsonPaths.seed;
+      }
+
       return this.validate(data);
     } catch (error) {
       if (error instanceof Error) {
@@ -135,6 +142,20 @@ export class MetadataManager {
    */
   clearHashCache(): void {
     this.hashCache.clear();
+  }
+
+  /**
+   * メタデータから指定ファイルのエントリを削除する
+   */
+  removeFiles(metadata: SyncMetadata, filePaths: string[]): SyncMetadata {
+    const updatedFiles = { ...metadata.files };
+    for (const filePath of filePaths) {
+      delete updatedFiles[filePath];
+    }
+    return {
+      ...metadata,
+      files: updatedFiles,
+    };
   }
 
   /**

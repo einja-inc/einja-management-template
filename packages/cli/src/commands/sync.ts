@@ -4,30 +4,31 @@ import chalk from "chalk";
 import fs from "fs-extra";
 import inquirer from "inquirer";
 import ora from "ora";
-import { checkAndInstallDependencies } from "../lib/dependency-checker.js";
-import { detectPackageManager } from "../lib/package-manager.js";
-import { loadPreset } from "../lib/preset.js";
-import { BackupManager } from "../lib/sync/backup-manager.js";
-import { BatchProcessor } from "../lib/sync/batch-processor.js";
+import { checkAndInstallDependencies } from "@/lib/dependency-checker.js";
+import { detectPackageManager } from "@/lib/package-manager.js";
+import { loadPreset } from "@/lib/preset.js";
+import { BackupManager } from "@/lib/sync/backup-manager.js";
+import { BatchProcessor } from "@/lib/sync/batch-processor.js";
 import {
   createValidationErrorMessage,
   validateCategories,
-} from "../lib/sync/category-validator.js";
-import { ConflictReporter } from "../lib/sync/conflict-reporter.js";
-import { DiffEngine } from "../lib/sync/diff-engine.js";
-import { FileFilter } from "../lib/sync/file-filter.js";
-import { JsonProcessor } from "../lib/sync/json-processor.js";
-import { MarkerProcessor } from "../lib/sync/marker-processor.js";
-import { MetadataManager } from "../lib/sync/metadata-manager.js";
-import { SeedSynchronizer } from "../lib/sync/seed-synchronizer.js";
-import type { SyncOptions } from "../types/index.js";
-import type { JsonFileInfo, JsonOutput, SyncTarget } from "../types/sync.js";
+} from "@/lib/sync/category-validator.js";
+import { ConflictReporter } from "@/lib/sync/conflict-reporter.js";
+import { OrphanCleaner } from "@/lib/sync/orphan-cleaner.js";
+import { DiffEngine } from "@/lib/sync/diff-engine.js";
+import { FileFilter } from "@/lib/sync/file-filter.js";
+import { JsonProcessor } from "@/lib/sync/json-processor.js";
+import { MarkerProcessor } from "@/lib/sync/marker-processor.js";
+import { MetadataManager } from "@/lib/sync/metadata-manager.js";
+import { ProjectPrivateSynchronizer } from "@/lib/sync/project-private-synchronizer.js";
+import type { SyncOptions } from "@/types/index.js";
+import type { JsonFileInfo, JsonOutput, SyncTarget } from "@/types/sync.js";
 
 /**
  * ファイル内容にマーカーが含まれているかチェック
  */
 function hasMarkers(content: string): boolean {
-  return content.includes("@einja:managed:start") || content.includes("@einja:seed:start");
+  return content.includes("@einja:managed:start") || content.includes("@einja:project-private:start") || content.includes("@einja:seed:start");
 }
 
 /**
@@ -36,14 +37,14 @@ function hasMarkers(content: string): boolean {
  * @param localContent - ローカルファイルの内容
  * @param templateContent - テンプレートファイルの内容
  * @param markerProcessor - MarkerProcessorインスタンス
- * @param seedSynchronizer - SeedSynchronizerインスタンス
+ * @param projectPrivateSynchronizer - ProjectPrivateSynchronizerインスタンス
  * @returns マージ後の内容
  */
 function mergeWithMarkers(
   localContent: string,
   templateContent: string,
   markerProcessor: MarkerProcessor,
-  seedSynchronizer: SeedSynchronizer
+  projectPrivateSynchronizer: ProjectPrivateSynchronizer
 ): string {
   // 1. ローカルのセクションをパース
   const localSections = markerProcessor.parseMarkers(localContent);
@@ -51,8 +52,8 @@ function mergeWithMarkers(
   // 2. managedセクションをテンプレート版で置換
   const afterManaged = markerProcessor.replaceManaged(localSections, templateContent);
 
-  // 3. seedセクションを同期（ローカルに存在しないseedを追加）
-  const finalContent = seedSynchronizer.syncSeeds(afterManaged, templateContent);
+  // 3. project-privateセクションを同期（ローカルに存在しないproject-privateを追加）
+  const finalContent = projectPrivateSynchronizer.syncProjectPrivateSections(afterManaged, templateContent);
 
   return finalContent;
 }
@@ -111,8 +112,9 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   const backupManager = new BackupManager(cwd);
   const batchProcessor = new BatchProcessor(10); // バッチサイズ: 10ファイル
   const markerProcessor = new MarkerProcessor();
-  const seedSynchronizer = new SeedSynchronizer();
+  const projectPrivateSynchronizer = new ProjectPrivateSynchronizer();
   const jsonProcessor = new JsonProcessor();
+  const orphanCleaner = new OrphanCleaner(cwd, fileFilter);
 
   // 3. メタデータ読み込み
   spinner.start("メタデータを読み込み中...");
@@ -148,11 +150,98 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     .filter((result) => result.changed)
     .map((result) => result.target);
 
+  // 孤児検出（常に実行）
+  const currentTemplateFiles = targets.map((t) => t.path);
+  const orphans = await orphanCleaner.detectOrphans(metadata, currentTemplateFiles, categories);
+  const orphanReport = orphanCleaner.createReport(orphans);
+
   // --force オプション時は全ファイルを対象にする
   const filesToProcess = options.force ? targets : changedFiles;
 
-  if (filesToProcess.length === 0) {
+  if (filesToProcess.length === 0 && !orphanReport.hasOrphans) {
     log(chalk.green("\n✅ すでに最新です"), options);
+    return;
+  }
+
+  // 変更ファイルなし & 孤児のみの場合
+  if (filesToProcess.length === 0 && orphanReport.hasOrphans) {
+    spinner.succeed("✓ 変更ファイルなし");
+
+    if (options.dryRun) {
+      log(orphanCleaner.formatReport(orphanReport), options);
+      if (!options.clean) {
+        log(orphanCleaner.formatHelpMessage(), options);
+      }
+      return;
+    }
+
+    // --clean 時: 孤児削除処理へ進む
+    if (options.clean) {
+      const existingOrphans = orphanReport.orphans.filter((o) => o.exists);
+
+      if (existingOrphans.length > 0) {
+        log(orphanCleaner.formatReport(orphanReport), options);
+
+        // 確認プロンプト（--yes でスキップ）
+        let proceedClean = options.yes ?? false;
+        if (!options.yes) {
+          const { confirm } = await inquirer.prompt([
+            {
+              type: "confirm",
+              name: "confirm",
+              message: `${existingOrphans.length}ファイルを削除します。続行しますか？`,
+              default: false,
+            },
+          ]);
+          proceedClean = confirm;
+        }
+
+        if (proceedClean) {
+          // バックアップ作成
+          if (options.backup !== false) {
+            const orphanPaths = existingOrphans.map((o) => o.path);
+            await backupManager.backupFiles(orphanPaths);
+          }
+
+          // ファイル削除
+          let deletedCount = 0;
+          for (const orphan of existingOrphans) {
+            // パストラバーサル防御
+            const normalized = path.normalize(orphan.path);
+            if (normalized.includes('..') || path.isAbsolute(normalized)) {
+              log(`  ⚠️  スキップ（不正なパス）: ${orphan.path}`, options);
+              continue;
+            }
+
+            const fullPath = path.join(cwd, orphan.path);
+            await fs.remove(fullPath);
+            log(`  🗑️  削除: ${orphan.path}`, options);
+            deletedCount++;
+          }
+
+          // メタデータから削除
+          const orphanPaths = orphanReport.orphans.map((o) => o.path);
+          const cleanedMetadata = metadataManager.removeFiles(metadata, orphanPaths);
+          Object.assign(metadata, cleanedMetadata);
+          await metadataManager.save(metadata);
+
+          log(chalk.green(`\n✅ 孤児削除完了: ${deletedCount}ファイル`), options);
+        }
+      } else {
+        // ディスク上に存在しない孤児のみ → メタデータだけクリーン
+        const orphanPaths = orphanReport.orphans.map((o) => o.path);
+        const cleanedMetadata = metadataManager.removeFiles(metadata, orphanPaths);
+        Object.assign(metadata, cleanedMetadata);
+        await metadataManager.save(metadata);
+        log(chalk.green("\n✅ 孤児メタデータをクリーンアップしました"), options);
+      }
+      return;
+    }
+
+    // --clean なし: 警告表示のみ
+    log(chalk.green("\n✅ すでに最新です"), options);
+    log(orphanCleaner.formatReport(orphanReport), options);
+    log(orphanCleaner.formatHelpMessage(), options);
     return;
   }
 
@@ -198,7 +287,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
             // jsonPathsの取得（メタデータに存在しない場合はデフォルト値）
             const jsonPaths = metadata.jsonPaths || {
               managed: {},
-              seed: {},
+              "project-private": {},
             };
 
             // ファイル名のみを抽出（create-einja-appの登録形式に合わせる）
@@ -261,6 +350,14 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       log(conflictReporter.formatHelpMessage(), options);
     } else {
       log(chalk.green("✅ コンフリクトは検出されませんでした。\n"), options);
+    }
+
+    // 孤児レポート表示
+    if (orphanReport.hasOrphans) {
+      log(orphanCleaner.formatReport(orphanReport), options);
+      if (!options.clean) {
+        log(orphanCleaner.formatHelpMessage(), options);
+      }
     }
 
     return;
@@ -328,7 +425,15 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     }
 
     // 既存ファイルの内容を読み込み
-    const localContent = await fs.readFile(projectPath, "utf-8");
+    let localContent = await fs.readFile(projectPath, "utf-8");
+
+    // 自動マイグレーション: 旧@einja:seedを検出したら@einja:project-privateに変換
+    if (localContent.includes("@einja:seed:")) {
+      const migratedContent = markerProcessor.migrateLegacySeedMarkers(localContent);
+      // マイグレーション結果をファイルに書き戻す
+      await fs.writeFile(projectPath, migratedContent, "utf-8");
+      localContent = migratedContent;
+    }
 
     // JSONファイルの場合はJsonProcessorを使用
     if (target.path.endsWith(".json")) {
@@ -339,7 +444,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         // jsonPathsの取得（メタデータに存在しない場合はデフォルト値）
         const jsonPaths = metadata.jsonPaths || {
           managed: {},
-          seed: {},
+          "project-private": {},
         };
 
         // ファイル名のみを抽出（create-einja-appの登録形式に合わせる）
@@ -380,6 +485,35 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     const localHasMarkers = hasMarkers(localContent);
 
     if (templateHasMarkers || localHasMarkers) {
+      // project-privateのみ（managedなし）のファイル処理
+      const hasManaged = localContent.includes("@einja:managed:start") ||
+                         templateContent.includes("@einja:managed:start");
+      const hasProjectPrivate = localContent.includes("@einja:project-private:start") ||
+                                localContent.includes("@einja:seed:start") ||
+                                templateContent.includes("@einja:project-private:start") ||
+                                templateContent.includes("@einja:seed:start");
+
+      if (!hasManaged && hasProjectPrivate) {
+        // managedなしファイル: 3方向マージ + project-private保持
+        const fileMetadata = metadata.files[target.path];
+        const baseContent = fileMetadata
+          ? (await metadataManager.getBaseContent(target.templatePath)).content
+          : "";
+
+        const result = projectPrivateSynchronizer.syncProjectPrivateOnlyFile(
+          localContent, templateContent, baseContent, diffEngine
+        );
+
+        return {
+          target,
+          templateContent,
+          mergeContent: result.content,
+          success: result.success,
+          conflicts: result.conflicts,
+          action: "merged" as const,
+        };
+      }
+
       // マーカーベースのマージ
       // 1. マーカーバリデーション
       const templateValidation = markerProcessor.validateMarkers(templateContent);
@@ -408,7 +542,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         localContent,
         templateContent,
         markerProcessor,
-        seedSynchronizer
+        projectPrivateSynchronizer
       );
 
       return {
@@ -495,6 +629,58 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
   spinner.succeed("ファイルマージ完了");
 
+  // 孤児削除処理（--clean 時のみ）
+  let orphansDeleted = 0;
+  if (options.clean && orphanReport.hasOrphans) {
+    const existingOrphans = orphanReport.orphans.filter((o) => o.exists);
+
+    if (existingOrphans.length > 0) {
+      log(orphanCleaner.formatReport(orphanReport), options);
+
+      // 確認プロンプト（--yes でスキップ）
+      let proceedClean = options.yes ?? false;
+      if (!options.yes) {
+        const { confirm } = await inquirer.prompt([
+          {
+            type: "confirm",
+            name: "confirm",
+            message: `${existingOrphans.length}ファイルを削除します。続行しますか？`,
+            default: false,
+          },
+        ]);
+        proceedClean = confirm;
+      }
+
+      if (proceedClean) {
+        // バックアップ作成
+        if (options.backup !== false) {
+          const orphanPaths = existingOrphans.map((o) => o.path);
+          await backupManager.backupFiles(orphanPaths);
+        }
+
+        // ファイル削除
+        for (const orphan of existingOrphans) {
+          // パストラバーサル防御
+          const normalized = path.normalize(orphan.path);
+          if (normalized.includes('..') || path.isAbsolute(normalized)) {
+            log(`  ⚠️  スキップ（不正なパス）: ${orphan.path}`, options);
+            continue;
+          }
+
+          const fullPath = path.join(cwd, orphan.path);
+          await fs.remove(fullPath);
+          log(`  🗑️  削除: ${orphan.path}`, options);
+          orphansDeleted++;
+        }
+
+        // メタデータから削除
+        const orphanPaths = orphanReport.orphans.map((o) => o.path);
+        const cleanedMetadata = metadataManager.removeFiles(metadata, orphanPaths);
+        Object.assign(metadata, cleanedMetadata);
+      }
+    }
+  }
+
   // 10. メタデータ保存
   await metadataManager.save(metadata);
 
@@ -512,12 +698,15 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         succeeded: successCount,
         conflicts: conflictReport.totalConflicts,
         skipped: skipCount,
+        orphansDetected: orphanReport.total,
+        orphansDeleted,
       },
       files: jsonFiles,
       metadata: {
         version: metadata.version,
         syncedAt: new Date().toISOString(),
       },
+      orphans: orphanReport.hasOrphans ? orphanReport.orphans : undefined,
     };
     // JSON出力は標準出力へ
     console.log(JSON.stringify(jsonOutput, null, 2));
@@ -533,6 +722,16 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     if (conflictReport.hasConflicts) {
       log(conflictReporter.formatReport(conflictReport), options);
       log(conflictReporter.formatHelpMessage(), options);
+    }
+
+    // 孤児レポート
+    if (orphanReport.hasOrphans) {
+      if (options.clean && orphansDeleted > 0) {
+        log(`  - 孤児削除: ${orphansDeleted}ファイル`, options);
+      } else {
+        log(orphanCleaner.formatReport(orphanReport), options);
+        log(orphanCleaner.formatHelpMessage(), options);
+      }
     }
   }
 

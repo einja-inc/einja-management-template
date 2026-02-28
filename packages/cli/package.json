@@ -27,8 +27,8 @@
     "format": "biome format ./src",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
-    "preset:update": "tsx ../../scripts/cli-template-update.ts",
-    "scaffold:update": "tsx ../../scripts/template-update.ts"
+    "preset:update": "tsx ../../scripts/_cli-template-update.ts",
+    "scaffold:update": "tsx ../../scripts/_template-update.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

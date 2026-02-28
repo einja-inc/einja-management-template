@@ -1,5 +1,5 @@
 import { diff3Merge } from "node-diff3";
-import type { Conflict, MergeResult } from "../../types/sync.js";
+import type { Conflict, MergeResult } from "@/types/sync.js";
 
 /**
  * 3方向マージエンジン

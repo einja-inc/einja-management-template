@@ -6,7 +6,7 @@ import type {
   CopyResult,
   Preset,
   SourceFile,
-} from "../../types/preset-update.js";
+} from "@/types/preset-update.js";
 
 /**
  * ディレクトリマッピング定義

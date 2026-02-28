@@ -2,7 +2,7 @@ import path from "node:path";
 import fs from "fs-extra";
 import { glob } from "glob";
 import ignore from "ignore";
-import type { ScanOptions, SyncTarget } from "../../types/sync.js";
+import type { ScanOptions, SyncTarget } from "@/types/sync.js";
 
 /**
  * カテゴリマッピング
@@ -13,6 +13,7 @@ const CATEGORY_MAPPING: Record<string, string> = {
   skills: ".claude/skills",
   hooks: ".claude/hooks",
   docs: "docs/einja",
+  scripts: "scripts",
   env: ".",
   tools: ".vscode",
 };

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ValidationResult } from "../../types/preset-update.js";
+import type { ValidationResult } from "@/types/preset-update.js";
 
 /**
  * CLIリポジトリ検出モジュール

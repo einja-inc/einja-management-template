@@ -1,4 +1,4 @@
-import type { Conflict } from "../../types/sync.js";
+import type { Conflict } from "@/types/sync.js";
 
 /**
  * コンフリクト報告結果

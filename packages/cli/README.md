@@ -30,6 +30,93 @@ npx @einja/dev-cli init
 
 > **ポイント**: 設定を更新したいだけなら`sync`を使ってください。`init --force`はユーザーカスタマイズ（seedセクション）を上書きします。
 
+### 利用シーンのフロー
+
+#### シナリオ1: ゼロから新規プロジェクト作成
+
+```mermaid
+sequenceDiagram
+    participant U as ユーザー
+    participant C as create-einja-app
+    participant D as @einja/dev-cli
+
+    U->>C: npx create-einja-app my-project
+    activate C
+    C->>C: 対話プロンプト（名前・認証・ツール）
+    C->>C: テンプレート展開<br/>apps/, packages/, docker-compose,<br/>package.json, tsconfig, turbo.json...
+    C->>C: git init + pnpm install
+    C->>D: npx @einja/dev-cli init --force --no-backup
+    activate D
+    D->>D: .claude/ 生成
+    D->>D: docs/einja/ コピー
+    D->>D: CLAUDE.md 生成
+    D->>D: .mcp.json セットアップ
+    D->>D: symlinks 作成
+    D->>D: 依存関係インストール
+    D-->>C: 完了
+    deactivate D
+    C-->>U: プロジェクト作成完了
+    deactivate C
+```
+
+#### シナリオ2: テンプレート更新の取り込み
+
+```mermaid
+sequenceDiagram
+    participant U as ユーザー
+    participant C as create-einja-app
+    participant D as @einja/dev-cli
+
+    Note over U: CLIバージョンアップ後
+
+    U->>C: npx create-einja-app sync
+    activate C
+    C->>C: アプリ設定を差分マージ<br/>turbo.json, biome.json,<br/>docker-compose, .github/ 等
+    C-->>U: アプリ設定が最新に
+    deactivate C
+
+    U->>D: npx @einja/dev-cli sync
+    activate D
+    D->>D: AI環境を差分マージ<br/>.claude/, docs/einja/,<br/>CLAUDE.md, .mcp.json 等
+    D-->>U: AI環境が最新に
+    deactivate D
+
+    Note over C,D: 管轄が分離しているため順不同・独立
+```
+
+#### シナリオ3: 既存プロジェクトに新規導入
+
+```mermaid
+sequenceDiagram
+    participant U as ユーザー
+    participant D as @einja/dev-cli
+    participant C as create-einja-app
+
+    Note over U: 既にコードがあるプロジェクト
+
+    U->>D: npx @einja/dev-cli init
+    activate D
+    D->>D: .claude/ 生成
+    D->>D: docs/einja/ コピー
+    D->>D: CLAUDE.md 生成
+    D->>D: .mcp.json マージ（既存設定を保持）
+    D->>D: 依存関係チェック
+    D-->>U: AI開発環境セットアップ完了
+    deactivate D
+
+    alt アプリ設定も部分導入したい場合
+        U->>C: npx create-einja-app sync<br/>--categories tools,env,git
+        activate C
+        C->>C: 選択したカテゴリのみマージ<br/>biome.json, .envrc, .gitignore
+        C-->>U: 部分導入完了
+        deactivate C
+    end
+```
+
+#### シナリオ4: 定期的なアップデート
+
+シナリオ2と同じ。`dev-cli sync` と `create-einja-app sync` を必要に応じて実行。
+
 ## インストール
 
 ```bash
@@ -95,6 +182,7 @@ npx @einja/dev-cli sync --only hooks
 - `skills` - スキル定義
 - `hooks` - Git Hooks
 - `docs` - ステアリングドキュメント
+- `scripts` - ユーティリティスクリプト
 - `env` - 環境設定ファイル（`.envrc`）
 - `tools` - 開発ツール設定（`.vscode/settings.json`）
 
@@ -102,7 +190,7 @@ npx @einja/dev-cli sync --only hooks
 
 ファイルには、同期動作を制御するマーカーがあります：
 - `@einja:managed` - 常にテンプレート版で上書き（共通ルール）
-- `@einja:seed` - 初回のみ追加、以降はローカル編集を保持（プロジェクト固有設定）
+- `@einja:project-private` - 初回のみ追加、以降はローカル編集を保持（プロジェクト固有設定）
 - `@einja:excluded` - テンプレートのみに存在し、syncでコピーされない（テンプレート専用設定）
 
 詳細は [マーカー仕様書](docs/MARKER_SPECIFICATION.md) を参照してください。

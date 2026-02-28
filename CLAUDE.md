@@ -11,6 +11,15 @@
 4. **直接実装の禁止**: あなたは絶対に直接実装を行わない。すべての作業はsubagentに委託し、可能な限り並行で呼び出す。サブエージェントの出力はユーザにも見える場所に出力すること
 5. **実装品質の自己検証**: 複雑な変更では完了前に「よりエレガントな方法はないか」を自問する。ただし単純な修正には不要
 
+## Agent Teams の使用制限
+
+**Agent Teams（`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`）はユーザーが明示的にチーム編成を指示した場合のみ使用すること。**
+
+- 通常のタスクではサブエージェント（`Task`ツール）を使用する
+- 「チームで」「複数agentで並列に」等の明示的な指示があった場合のみAgent Teamsを起動する
+- チーム実行時は `einja-team-exec` Skillの手順に従う
+- 判断に迷う場合はサブエージェントを使用する（デフォルト動作）
+
 ## サブエージェント委託ルール
 
 #### カスタムサブエージェント（直接委託）
@@ -31,6 +40,7 @@
 | `einja-task-commit` | コミット・プッシュ |
 | `einja-conflict-resolver` | gitコンフリクト解消 |
 | `einja-skill-creator` | Skill作成・更新 |
+| `einja-skill-advisor` | 作業前のSkill作成必要性評価（Plan/spec-create時に自動起動） |
 | `einja-infra-maintenance` | インフラ環境セットアップ・メンテナンス |
 | `einja:task-exec` | タスクグループ実行 |
 | `einja:spec-create` | 仕様書作成 |
@@ -41,9 +51,15 @@
 
 ### 必須フロー
 1. 問題・要件を調査・分析する
-2. 修正計画を `docs/plans/` に作成し提示する
-3. **ユーザーの明示的な承認を得る**
-4. 承認後、`docs/plans/todo-{plan名}.md` で進捗管理しながら実装を開始する
+2. 修正計画を `docs/plans/` に作成する
+3. `einja-skill-advisor` で「Skill を先に作るべきか」を自動評価する
+   - 計画の内容・スコープを見て判断（全体像が見えた状態で評価）
+   - 推奨判定 → AskUserQuestion でユーザーに提案
+   - 承認 → 計画の TODO-0 に Skill 作成を追加
+   - 不要判定 → そのまま次へ進む
+   - ※ スキップ基準に該当する場合は評価自体を省略
+4. 計画をユーザーに提示し、**明示的な承認を得る**
+5. 承認後、`docs/plans/todo-{plan名}.md` で進捗管理しながら実装を開始する（TODO-0 があれば Skill 作成から）
 
 ### 例外（承認不要）
 - 読み取り専用操作（質問への回答、情報調査、コード調査）
@@ -109,7 +125,7 @@
 
 Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は以下のSkillを参照:
 - `einja-project-overview` - 構成、技術スタック、頻出コマンド
-- `einja-coding-standards` - コーディング規約、インポートパス規約
+- `docs/einja/steering/development/coding-standards.md` - コーディング規約、インポートパス規約
 - `einja-infra-maintenance` - 開発環境セットアップ、サーバー管理
 
 ## マネージドディレクトリ（編集禁止）
@@ -189,6 +205,10 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 - サブエージェントの「完了」報告のみで完了判定しない
 - 検証をスキップして完了宣言しない
 
+<!-- @einja:project-private:start id="claude-md-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->
+
 <!-- @einja:excluded:start -->
 ## このリポジトリ限定の設定
 
@@ -203,6 +223,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `einja cli` `@einja/dev-cli` `公開` `リリース` `publish` `release` | `.claude/skills/dev-cli-release/SKILL.md` |
 | `create-einja-app` | `.claude/skills/create-einja-app-release/SKILL.md` |
 | `インフラ` `環境変数管理` `Vercel` `Neon` `デプロイ設定` `GitHub Secrets` `環境セットアップ` `GitHub Actions` `CI/CD` `ワークフロー` | `.claude/skills/einja-infra-maintenance/SKILL.md` |
+| `Skill作るべき？` `Skill化` `skill-advisor` `Skill-first` | `.claude/skills/einja-skill-advisor/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 
@@ -218,6 +239,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `.vscode/settings.json` | `presets/default/.vscode/settings.json` | 単純コピー |
 | `docs/einja/` (memory,cli除く) | `presets/default/docs/einja/` | 単純コピー（sync + init対象） |
 | `CLAUDE.md` | `presets/default/CLAUDE.md.template` | **変換生成** |
+| `scripts/` (`_`プレフィクス除く) | `presets/default/scripts/` | 単純コピー |
 
 **コピー先のファイルは直接編集禁止**（ビルド時に上書きされる）
 <!-- @einja:excluded:end -->

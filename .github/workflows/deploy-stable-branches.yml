@@ -42,6 +42,7 @@ jobs:
     outputs:
       web: ${{ steps.filter.outputs.web }}
       admin: ${{ steps.filter.outputs.admin }}
+      deploy_matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,6 +63,7 @@ jobs:
               - 'turbo.json'
               - 'tsconfig.json'
               - '.env.*'
+              - '.github/workflows/**'
             admin:
               - 'apps/admin/**'
               - 'packages/admin-ui/**'
@@ -73,6 +75,19 @@ jobs:
               - 'turbo.json'
               - 'tsconfig.json'
               - '.env.*'
+              - '.github/workflows/**'
+
+      - name: Build deploy matrix
+        id: matrix
+        run: |
+          MATRIX='[]'
+          if [ "${{ steps.filter.outputs.web }}" = "true" ]; then
+            MATRIX=$(echo "$MATRIX" | jq -c '. + [{"app": "web"}]')
+          fi
+          if [ "${{ steps.filter.outputs.admin }}" = "true" ]; then
+            MATRIX=$(echo "$MATRIX" | jq -c '. + [{"app": "admin"}]')
+          fi
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   migrate:
     needs: ci
@@ -102,43 +117,24 @@ jobs:
   # Web/Adminデプロイ（並列実行・変更検知付き）
   deploy:
     needs: [ci, migrate, changes]
-    if: always() && needs.ci.result == 'success' && needs.changes.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
+    if: always() && needs.ci.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') && needs.changes.result == 'success' && needs.changes.outputs.deploy_matrix != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        app: [web, admin]
+        include: ${{ fromJSON(needs.changes.outputs.deploy_matrix) }}
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
     steps:
-      # 変更検知によるスキップ判定
-      - name: Check if deploy is needed
-        id: check
-        run: |
-          case "${{ matrix.app }}" in
-            web)   CHANGED="${{ needs.changes.outputs.web }}" ;;
-            admin) CHANGED="${{ needs.changes.outputs.admin }}" ;;
-          esac
-          if [ "$CHANGED" = "true" ]; then
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-            echo "${{ matrix.app }}: changes detected, will deploy"
-          else
-            echo "should_deploy=false" >> $GITHUB_OUTPUT
-            echo "${{ matrix.app }}: no changes detected, skipping deploy"
-          fi
-
       - uses: actions/checkout@v4
-        if: steps.check.outputs.should_deploy == 'true'
 
       - name: Setup Environment
-        if: steps.check.outputs.should_deploy == 'true'
         uses: ./.github/actions/setup
 
       - name: Resolve Vercel Project ID
-        if: steps.check.outputs.should_deploy == 'true'
         id: resolve
         run: |
           case "${{ matrix.app }}" in
@@ -147,16 +143,13 @@ jobs:
           esac
 
       - name: Set VERCEL_PROJECT_ID
-        if: steps.check.outputs.should_deploy == 'true'
         run: echo "VERCEL_PROJECT_ID=${{ steps.resolve.outputs.project_id }}" >> $GITHUB_ENV
 
       - name: Install Vercel CLI
-        if: steps.check.outputs.should_deploy == 'true'
         run: pnpm add -g vercel@latest
 
       # ブランチ判定 — 環境変数を $GITHUB_ENV に書き出す
       - name: Determine environment
-        if: steps.check.outputs.should_deploy == 'true'
         run: |
           BRANCH="${GITHUB_REF##*/}"
           case "$BRANCH" in
@@ -183,7 +176,7 @@ jobs:
 
       # Extract alias domain（自アプリ分のみ）
       - name: Extract alias domain
-        if: steps.check.outputs.should_deploy == 'true' && env.DEPLOY_RUN_ALIAS == 'true'
+        if: env.DEPLOY_RUN_ALIAS == 'true'
         run: |
           case "${{ matrix.app }}" in
             web)
@@ -203,39 +196,35 @@ jobs:
 
       # Vercel pull
       - name: Pull Vercel Environment
-        if: steps.check.outputs.should_deploy == 'true'
         run: vercel pull --yes --environment=${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
 
-      # Vercel環境変数の自動同期（encrypted-only方式：dotenvxで管理しているもの = Vercelに同期すべきもの）
+      # Vercel環境変数の自動同期（mainのみ — develop/stagingは--env注入）
       - name: Sync environment variables to Vercel
-        if: steps.check.outputs.should_deploy == 'true'
+        if: github.ref_name == 'main'
         run: |
-          # dotenvxファイルから encrypted: を含むキー名を抽出
-          ENCRYPTED_KEYS=$(grep 'encrypted:' ${{ env.DEPLOY_DOTENV_FILE }} | sed 's/=.*//')
-
-          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c "
-            for key in $ENCRYPTED_KEYS; do
-              value=\$(printenv \"\$key\" 2>/dev/null || true)
-              if [ -n \"\$value\" ]; then
-                echo \"Syncing \$key to Vercel (${{ env.DEPLOY_VERCEL_ENV }})...\"
-                echo \"\$value\" | vercel env rm \"\$key\" ${{ env.DEPLOY_VERCEL_ENV }} --yes --token=\$VERCEL_TOKEN 2>/dev/null || true
-                echo \"\$value\" | vercel env add \"\$key\" ${{ env.DEPLOY_VERCEL_ENV }} --token=\$VERCEL_TOKEN
+          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
+            grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" ${{ env.DEPLOY_DOTENV_FILE }} | cut -d= -f1 | while read -r key; do
+              case "$key" in
+                NEON_*) continue ;;
+              esac
+              value="${!key}"
+              if [ -n "$value" ]; then
+                echo "Syncing $key to Vercel (${{ env.DEPLOY_VERCEL_ENV }})..."
+                echo "$value" | vercel env rm "$key" ${{ env.DEPLOY_VERCEL_ENV }} --yes --token=$VERCEL_TOKEN 2>/dev/null || true
+                echo "$value" | vercel env add "$key" ${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
               fi
             done
-          "
+          '
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
-          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
-          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
 
       # Re-pull after sync
-      - name: Re-pull Vercel Environment
-        if: steps.check.outputs.should_deploy == 'true'
+      - name: Re-pull Vercel Environment after sync
+        if: github.ref_name == 'main'
         run: vercel pull --yes --environment=${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
 
       # Vercel build (dotenvxでアプリ環境変数を注入)
       - name: Build Project
-        if: steps.check.outputs.should_deploy == 'true'
         run: |
           npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- \
             vercel build ${{ env.DEPLOY_PROD_FLAG }} --token=$VERCEL_TOKEN
@@ -246,14 +235,31 @@ jobs:
 
       # Vercel deploy
       - name: Deploy to Vercel
-        if: steps.check.outputs.should_deploy == 'true'
         id: deploy
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt ${{ env.DEPLOY_PROD_FLAG }} --token=$VERCEL_TOKEN)
-          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
-          echo "Deployed to: $DEPLOY_URL"
+          npx dotenvx run -f $DEPLOY_DOTENV_FILE -- bash -c '
+            declare -a ENV_FLAGS=()
+            while IFS= read -r key; do
+              case "$key" in
+                NEON_*|VERCEL_ALIAS_DOMAIN_*|DOTENV_PUBLIC_KEY_*) continue ;;
+              esac
+              value="${!key}"
+              if [ -n "$value" ]; then
+                echo "::add-mask::${value}"
+              fi
+              ENV_FLAGS+=("--env" "${key}=${value}")
+            done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$DEPLOY_DOTENV_FILE" | cut -d= -f1)
+
+            echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
+            DEPLOY_URL=$(vercel deploy --prebuilt $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          '
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
 
       # Alias (develop/stagingのみ)
       - name: Set Vercel alias
-        if: steps.check.outputs.should_deploy == 'true' && env.DEPLOY_RUN_ALIAS == 'true'
+        if: env.DEPLOY_RUN_ALIAS == 'true'
         run: vercel alias ${{ steps.deploy.outputs.url }} "${{ env.VERCEL_ALIAS_DOMAIN }}" --token=$VERCEL_TOKEN

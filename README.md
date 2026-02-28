@@ -408,8 +408,8 @@ rm -rf .turbo apps/*/.turbo packages/*/.turbo
 
 詳細は以下のドキュメントを参照してください：
 
-- [コーディング規約](./.claude/skills/einja-coding-standards/SKILL.md)
-- [コンポーネント設計ガイドライン](./.claude/skills/einja-component-design/SKILL.md)
+- [コーディング規約](./docs/einja/steering/development/coding-standards.md)
+- [コンポーネント設計ガイドライン](./docs/einja/steering/development/component-design.md)
 - [テスト戦略](./docs/einja/steering/development/testing-strategy.md)
 - [コードレビューガイドライン](./docs/einja/steering/development/review-guidelines.md)
 - [コミットルール](./docs/einja/steering/commit-rules.md)

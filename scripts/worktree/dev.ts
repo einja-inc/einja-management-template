@@ -11,8 +11,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
-import type { AppConfig, WorktreeConfig } from "../../packages/config/src/worktree-config.js";
-import { loadWorktreeConfig } from "../../packages/config/src/worktree-config-loader.js";
+import type { AppConfig, WorktreeConfig } from "../lib/worktree-config.js";
+import { loadWorktreeConfig } from "../lib/worktree-config.js";
 
 /** 設定を保持するグローバル変数 */
 let config: WorktreeConfig;

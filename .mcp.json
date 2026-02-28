@@ -32,18 +32,8 @@
 			]
 		},
 		"serena": {
-			"type": "stdio",
-			"command": "uvx",
-			"args": [
-				"--from",
-				"git+https://github.com/oraios/serena",
-				"serena",
-				"start-mcp-server",
-				"--context",
-				"claude-code",
-				"--open-web-dashboard",
-				"false"
-			]
+			"type": "http",
+			"url": "http://127.0.0.1:${SERENA_PORT:-9850}/mcp"
 		},
 		"github": {
 			"type": "http",

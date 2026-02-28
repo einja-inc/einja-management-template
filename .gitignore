@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Python
+**/__pycache__
+
 # dependencies
 **/node_modules
 /.pnp
@@ -84,6 +87,7 @@ modifications/
 
 # Serena設定（個人用）
 **/.serena/
+.serena-port
 
 # Playwright MCP一時ファイル
 /tmp/

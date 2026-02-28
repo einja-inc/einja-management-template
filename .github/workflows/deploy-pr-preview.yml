@@ -261,26 +261,6 @@ jobs:
             echo "name=$PROJECT_NAME" >> $GITHUB_OUTPUT
           fi
 
-      # Vercel環境変数の自動同期（encrypted-only方式：dotenvxで管理しているもの = Vercelに同期すべきもの）
-      - name: Sync environment variables to Vercel
-        run: |
-          # .env.previewから encrypted: を含むキー名を抽出
-          # NEON_*とDATABASE_*を除外（Neon APIから動的取得・--envで注入するため）
-          ENCRYPTED_KEYS=$(grep 'encrypted:' $GITHUB_WORKSPACE/.env.preview | sed 's/=.*//' | grep -vE '^(NEON_|DATABASE_)')
-
-          npx dotenvx run -f $GITHUB_WORKSPACE/.env.preview -- bash -c "
-            for key in $ENCRYPTED_KEYS; do
-              value=\$(printenv \"\$key\" 2>/dev/null || true)
-              if [ -n \"\$value\" ]; then
-                echo \"Syncing \$key to Vercel (preview)...\"
-                echo \"\$value\" | vercel env rm \"\$key\" preview --yes --token=\$VERCEL_TOKEN 2>/dev/null || true
-                echo \"\$value\" | vercel env add \"\$key\" preview --token=\$VERCEL_TOKEN
-              fi
-            done
-          "
-        env:
-          DOTENV_PRIVATE_KEY_PREVIEW: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
-
       # NOTE: dotenvxはデフォルトで既存の環境変数を上書きしない
       # env:で設定したDATABASE_URLがNeonブランチのURLとして優先される
       - name: Build Project (apps/${{ matrix.app }})
@@ -291,13 +271,32 @@ jobs:
           DOTENV_PRIVATE_KEY_PREVIEW: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
           DATABASE_URL: ${{ steps.db-urls.outputs.db_url_pooled }}
 
-      # Vercel Deploy（ランタイムにもDATABASE_URLを渡す）
       - name: Deploy to Vercel
         id: deploy
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt --token=$VERCEL_TOKEN \
-            --env DATABASE_URL="${{ steps.db-urls.outputs.db_url_pooled }}")
-          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          npx dotenvx run -f $GITHUB_WORKSPACE/.env.preview -- bash -c '
+            declare -a ENV_FLAGS=()
+            while IFS= read -r key; do
+              case "$key" in
+                NEON_*|DOTENV_PUBLIC_KEY_*) continue ;;
+              esac
+              value="${!key}"
+              if [ -n "$value" ]; then
+                echo "::add-mask::${value}"
+              fi
+              ENV_FLAGS+=("--env" "${key}=${value}")
+            done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$GITHUB_WORKSPACE/.env.preview" | cut -d= -f1)
+
+            # DATABASE_URLはNeon APIから取得した値を注入（.env.previewには含まれない）
+            ENV_FLAGS+=("--env" "DATABASE_URL=${DATABASE_URL}")
+
+            echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
+            DEPLOY_URL=$(vercel deploy --prebuilt "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          '
+        env:
+          DOTENV_PRIVATE_KEY_PREVIEW: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
+          DATABASE_URL: ${{ steps.db-urls.outputs.db_url_pooled }}
 
       - name: Set Vercel alias
         if: steps.project-name.outputs.name != ''

@@ -10,10 +10,36 @@ Skillパッケージャー - Skillフォルダの配布可能な.skillファイ�
     python package_skill.py .claude/skills/einja-my-skill ./dist
 """
 
+import fnmatch
 import sys
 import zipfile
 from pathlib import Path
-from quick_validate import validate_skill
+try:
+    from scripts.quick_validate import validate_skill
+except ImportError:
+    from quick_validate import validate_skill
+
+# パッケージ化時に除外するパターン
+EXCLUDE_DIRS = {"__pycache__", "node_modules"}
+EXCLUDE_GLOBS = {"*.pyc"}
+EXCLUDE_FILES = {".DS_Store"}
+# Skillルート直下のみ除外するディレクトリ
+ROOT_EXCLUDE_DIRS = {"evals"}
+
+
+def should_exclude(rel_path: Path) -> bool:
+    """パスをパッケージから除外すべきかチェック。"""
+    parts = rel_path.parts
+    if any(part in EXCLUDE_DIRS for part in parts):
+        return True
+    # rel_pathはskill_path.parentからの相対パス。parts[0]がSkillフォルダ名、
+    # parts[1]（存在する場合）が最初のサブディレクトリ
+    if len(parts) > 1 and parts[1] in ROOT_EXCLUDE_DIRS:
+        return True
+    name = rel_path.name
+    if name in EXCLUDE_FILES:
+        return True
+    return any(fnmatch.fnmatch(name, pat) for pat in EXCLUDE_GLOBS)
 
 
 def package_skill(skill_path, output_dir=None):
@@ -66,13 +92,16 @@ def package_skill(skill_path, output_dir=None):
     # .skillファイル（zip形式）を作成
     try:
         with zipfile.ZipFile(skill_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # Skillディレクトリを走査
+            # Skillディレクトリを走査し、ビルドアーティファクトを除外
             for file_path in skill_path.rglob('*'):
-                if file_path.is_file():
-                    # zip内の相対パスを計算
-                    arcname = file_path.relative_to(skill_path.parent)
-                    zipf.write(file_path, arcname)
-                    print(f"  追加: {arcname}")
+                if not file_path.is_file():
+                    continue
+                arcname = file_path.relative_to(skill_path.parent)
+                if should_exclude(arcname):
+                    print(f"  スキップ: {arcname}")
+                    continue
+                zipf.write(file_path, arcname)
+                print(f"  追加: {arcname}")
 
         print(f"\n✅ Skillを正常にパッケージ化しました: {skill_filename}")
         return skill_filename

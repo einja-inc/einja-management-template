@@ -205,3 +205,7 @@ description: "サブエージェントの統一出力形式を定義"
 - **エラーステータス**: ❌ FAILURE / ⚠️ PARTIAL
 - **エラー内容**: 具体的なエラーメッセージ
 - **次のアクション**: 推奨される対処方法
+
+<!-- @einja:project-private:start id="einja-output-format-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

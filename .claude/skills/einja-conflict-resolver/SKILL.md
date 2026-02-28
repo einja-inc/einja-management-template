@@ -188,3 +188,7 @@ git status
 ---
 
 **最終更新**: 2025-01-05
+
+<!-- @einja:project-private:start id="einja-conflict-resolver-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

@@ -99,3 +99,7 @@ TDDは**1タスク内のサブタスク**として記載（3タスク分割で�
 
 - [タスク管理ガイドライン](../../../docs/einja/steering/task-management.md) - フォーマット定義（Single Source of Truth）
 - [spec-tasks-generator サブエージェント](../../agents/einja/specs/spec-tasks-generator.md) - 呼び出し元
+
+<!-- @einja:project-private:start id="einja-task-spec-generator-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

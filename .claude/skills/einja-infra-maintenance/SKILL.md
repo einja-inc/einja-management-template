@@ -214,7 +214,8 @@ Phase 1の検出結果から、推奨カテゴリにマーク（推奨）を付�
 5. プロジェクトID取得・表示
 
 #### 環境変数同期
-> **注意**: 通常はGitHub Actionsが自動同期するため、初回セットアップ時のみ手動実行
+> **注意**: CI/CDではmainブランチのみ`vercel env add`で自動同期。develop/staging/PRは`--env`実行時注入。
+> 以下の手動同期は**初回セットアップ時のみ**実行。
 
 1. `.env.keys`からDOTENV_PRIVATE_KEY_*を抽出
 2. AskUserQuestionで同期対象を確認（値はマスク表示）
@@ -431,8 +432,8 @@ gh run list --limit 5
 
 | ワークフロー | ファイル | トリガー | 用途 | 備考 |
 |------------|---------|---------|------|------|
-| デプロイ（安定ブランチ） | `deploy-stable-branches.yml` | push to main/develop | 本番・開発環境デプロイ + 環境変数同期 | DOTENV_PRIVATE_KEY_*を自動同期 |
-| PRプレビューデプロイ | `deploy-pr-preview.yml` | PR open/sync | PR毎のプレビュー環境作成 | Neonブランチ自動作成 |
+| デプロイ（安定ブランチ） | `deploy-stable-branches.yml` | push to main/develop/staging | 動的マトリクス → 変更アプリのみデプロイ | mainのみenv sync、他は`--env`実行時注入 |
+| PRプレビューデプロイ | `deploy-pr-preview.yml` | PR open/sync | PR毎のプレビュー環境作成 | `--env`実行時注入（env sync廃止） |
 | PRプレビューDB削除 | `cleanup-pr-preview-db.yml` | schedule/manual | 孤立Neonブランチのクリーンアップ | PR未存在のブランチを自動削除 |
 | PRクローズ時クリーンアップ | `cleanup-pr-preview-on-close.yml` | PR close | PR関連リソース削除 | Neonブランチ + Vercel Preview削除 |
 | CLIリリース | `release-cli.yml` | manual | @einja/cli NPM公開 | workflow_dispatch対応 |
@@ -555,7 +556,8 @@ gh workflow view <workflow-file>
 
 ### 競合回避ルール
 
-- **環境変数同期**: Skillでは初回セットアップ時のみ手動同期。以降は`deploy-stable-branches.yml`が自動同期
+- **環境変数同期**: `vercel env add`によるVercel環境変数ストアへの書き込みはmainブランチのみ。develop/staging/PRは`vercel deploy --env`で実行時注入（並行デプロイ間の競合防止）
+- **初回セットアップ**: Skillでは初回セットアップ時のみ手動同期。以降はGitHub Actionsが自動管理
 - **Neonブランチクリーンアップ**: `cleanup-pr-preview-db.yml`が定期実行。Skillでは手動クリーンアップは提供しない
 - **GitHub Secrets更新**: Skillで設定した値はワークフローでそのまま使用される（同じdotenvxコマンド体系）
 
@@ -570,3 +572,7 @@ gh workflow view <workflow-file>
 | トークンローテーション | 手順書にドキュメント化のみで十分 | `environment-setup.md`を参照 |
 | Vercelカスタム環境操作 | API仕様の安定性要調査 | 安定確認後に追加 |
 | Neon孤立ブランチ手動クリーンアップ | 既存ワークフローに任せる | `cleanup-pr-preview-db.yml`が担当 |
+
+<!-- @einja:project-private:start id="einja-infra-maintenance-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

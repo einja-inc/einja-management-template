@@ -19,11 +19,11 @@ description: "プロジェクトの全体構成・技術スタックの参照ハ
 
 @docs/einja/steering/architecture.md
 
-## 関連Skill
+## 関連ドキュメント
 
-- [coding-standards](../einja-coding-standards/SKILL.md) - コーディング規約（インポートパス規約含む）
+- `docs/einja/steering/development/coding-standards.md` - コーディング規約（インポートパス規約含む）
 - [infra-maintenance](../einja-infra-maintenance/SKILL.md) - 開発環境セットアップ・サーバー管理
-- [component-design](../einja-component-design/SKILL.md) - コンポーネント設計ガイドライン
+- `docs/einja/steering/development/component-design.md` - コンポーネント設計ガイドライン
 
 ## 頻出コマンド
 
@@ -33,3 +33,7 @@ description: "プロジェクトの全体構成・技術スタックの参照ハ
 - `pnpm typecheck` - 型チェック
 - `pnpm test` - テスト実行
 - `pnpm prepush` - プッシュ前チェック（lint + typecheck + test）
+
+<!-- @einja:project-private:start id="einja-project-overview-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

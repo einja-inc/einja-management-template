@@ -124,3 +124,7 @@
 
 - [タスク管理ガイドライン](../../../docs/einja/steering/task-management.md) - フォーマット定義（Single Source of Truth）
 - [spec-tasks-validator サブエージェント](../../agents/einja/specs/spec-tasks-validator.md) - 呼び出し元
+
+<!-- @einja:project-private:start id="einja-task-spec-validator-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

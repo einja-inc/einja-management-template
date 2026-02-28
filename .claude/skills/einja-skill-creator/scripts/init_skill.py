@@ -103,30 +103,24 @@ Claudeの処理と思考を導くためにコンテキストに読み込まれ�
 
 **不要なディレクトリは削除できます。** すべてのSkillが3種類のリソースすべてを必要とするわけではありません。
 
-## einja固有の注意事項
+<!-- @einja:excluded:start -->
+## プロジェクト固有セクションの記入
 
-### マネージドセクション
+SKILL.md等のmdファイルの末尾には以下を記入する:
 
-一部のドキュメントでマネージドセクションを使用する場合：
+<!-- @einja:project-private:start id="unique-id" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->
+<!-- @einja:excluded:end -->
 
-```markdown
-<!-- @einja:managed:start -->
-この内容は`einja sync`で上書きされる
-<!-- @einja:managed:end -->
+---
 
-<!-- @einja:seed:start id="unique-id" -->
-プロジェクト固有の内容をここに追記
-<!-- @einja:seed:end -->
-```
+<!-- @einja:project-private:start id="{skill_name}-project" -->
+## プロジェクト固有の設定
 
-### ビルドシステム連携
-
-einja management templateでは、`.claude/skills/einja-*/` 内のファイルはビルド時に自動的に `presets/default/` にコピーされます。
-
-### 関連Skill
-
-- [einja-output-format](../einja-output-format/SKILL.md) - サブエージェント出力形式
-- [einja-coding-standards](../einja-coding-standards/SKILL.md) - コーディング規約
+<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
+<!-- einja syncで上書きされません -->
+<!-- @einja:project-private:end -->
 """
 
 EXAMPLE_SCRIPT = '''#!/usr/bin/env python3

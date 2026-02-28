@@ -252,3 +252,7 @@ interface Example {
 ---
 
 **最終更新**: 2025-01-10
+
+<!-- @einja:project-private:start id="einja-general-context-loader-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

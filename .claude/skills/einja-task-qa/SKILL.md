@@ -306,3 +306,7 @@ AskUserQuestion:
 ---
 
 **最終更新**: 2025-12-20
+
+<!-- @einja:project-private:start id="einja-task-qa-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

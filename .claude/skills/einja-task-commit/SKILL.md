@@ -267,3 +267,7 @@ EOF
 ---
 
 **最終更新**: 2026-01-10
+
+<!-- @einja:project-private:start id="einja-task-commit-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

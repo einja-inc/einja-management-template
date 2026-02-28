@@ -37,6 +37,8 @@
 **必読**:
 - **[フロントエンド開発ガイド](development/frontend-development.md)** ⭐ - Tanstack Query、React Hook Form
 - **[API開発ガイド](development/api-development.md)** - Hono Clientの使い方
+- **[コンポーネント設計](development/component-design.md)** - ディレクトリ構造、Props設計
+- **[コーディング規約](development/coding-standards.md)** - TypeScript/React命名規則
 
 **参考**:
 - **[コードレビューガイドライン](review-guidelines.md)**
@@ -93,6 +95,9 @@
 | [バックエンドアーキテクチャ](development/backend-architecture.md) | ディレクトリ構造、4層アーキテクチャ、デザインパターン | バックエンド開発者 |
 | [API開発ガイド](development/api-development.md) | Hono API実装、エラーハンドリング、Hono Client | 全開発者 |
 | [フロントエンド開発ガイド](development/frontend-development.md) | Tanstack Query、React Hook Form、コンポーネント設計 | フロントエンド開発者 |
+| [コーディング規約](development/coding-standards.md) | TypeScript/React命名規則、禁止パターン、インポート規約 | 全開発者 |
+| [コンポーネント設計](development/component-design.md) | ディレクトリ構造、Props設計、スタイリング | フロントエンド開発者 |
+| [Playwright動作確認](development/playwright-guidelines.md) | 一時ファイル管理、ブラウザ設定 | QA、開発者 |
 
 ### データベース
 | ドキュメント | 説明 | 対象者 |
@@ -162,12 +167,12 @@
 | マーカー | 説明 |
 |---------|------|
 | `@einja:managed` | CLIの更新時に自動で最新化される共通ルール部分 |
-| `@einja:seed` | 初回のみ追加され、以降は編集内容が保持されるプロジェクト固有部分 |
+| `@einja:project-private` | 初回のみ追加され、以降は編集内容が保持されるプロジェクト固有部分 |
 | `@einja:excluded` | テンプレートのみに存在し、syncでコピーされない部分 |
 
 ### プロジェクト固有の追記
 
-各ファイルの末尾にある`@einja:seed`セクションに、プロジェクト固有のルールや設定を追記できます。このセクションは`einja sync`実行時も上書きされません。
+各ファイルの末尾にある`@einja:project-private`セクションに、プロジェクト固有のルールや設定を追記できます。このセクションは`einja sync`実行時も上書きされません。
 
 詳細な仕様は [CLIのマーカー仕様書](https://github.com/einja-inc/einja-management-template/blob/main/packages/cli/docs/MARKER_SPECIFICATION.md) を参照してください。
 
@@ -204,11 +209,6 @@ pnpm einja:sync --dry-run
 より良いドキュメントを一緒に作りましょう！
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="steering-readme-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="steering-readme-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

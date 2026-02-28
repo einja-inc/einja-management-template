@@ -218,11 +218,6 @@ git push
 コミットルールの遵守は、プロジェクトの履歴管理とレビュープロセスの効率化に直結します。全ての開発者・AIアシスタントは、これらのルールを例外なく厳守してください。
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="commit-rules-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="commit-rules-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

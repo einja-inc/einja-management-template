@@ -595,11 +595,6 @@ neonctl branches delete $BRANCH_ID --project-id $PROJECT_ID
 - [neonctl CLI公式ドキュメント](https://neon.tech/docs/reference/neon-cli)
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="neon-cli-reference-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場合はここに記載 -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="neon-cli-reference-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

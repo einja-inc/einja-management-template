@@ -513,11 +513,6 @@ pnpm task:loop <issue番号> --branch <ブランチ> # ベースブランチ指�
 - タスク仕様書の内容をfeature仕様書とsteering仕様書に反映
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="task-management-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="task-management-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

@@ -444,11 +444,6 @@ PRがマージされるとタスクは自動的にDoneになります。
 ```
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="development-workflow-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="development-workflow-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

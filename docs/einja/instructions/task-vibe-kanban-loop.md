@@ -555,11 +555,6 @@ startTaskAttempt(agentPrompt, executor, repos, issueId)
 - [ブランチ運用戦略](../steering/branch-strategy.md) - ブランチ命名規則、同期フロー、ワークフロー図
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="task-vibe-kanban-loop-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="task-vibe-kanban-loop-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

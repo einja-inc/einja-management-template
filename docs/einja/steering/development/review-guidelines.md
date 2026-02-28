@@ -371,11 +371,6 @@ task-reviewerエージェントは以下の4観点を**Taskツールで並列に
 - **トレードオフの考慮**: パフォーマンス、可読性、保守性のバランスを考慮
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="review-guidelines-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="review-guidelines-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

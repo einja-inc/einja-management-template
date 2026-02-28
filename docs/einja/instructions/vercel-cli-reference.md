@@ -463,6 +463,7 @@ jobs:
 | `vercel deploy` | `--yes` | デプロイ確認をスキップ |
 | `vercel env add` | パイプ入力 | `echo "value" \| vercel env add NAME <environment>` （environment: production/preview/development 必須） |
 | `vercel env rm` | `--yes` | 削除確認をスキップ |
+| `vercel deploy` | `--env KEY=VALUE` | `vercel deploy --prebuilt --env KEY1=VAL1 --env KEY2=VAL2` （CI/CDでは`--env`で全encrypted変数を実行時注入） |
 
 ### トークン認証
 
@@ -495,10 +496,21 @@ curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
 
 ## 環境変数同期自動化
 
+### CI/CDでの自動同期
+
+GitHub Actions (`deploy-stable-branches.yml`) が環境変数を自動管理します:
+
+| ブランチ | 方式 | 説明 |
+|---------|------|------|
+| main | `vercel env add` + `vercel deploy --env` | Vercel環境変数ストアに同期 + 実行時注入 |
+| develop/staging | `vercel deploy --env` のみ | 実行時注入のみ（`vercel env add`は使用しない） |
+| PR Preview | `vercel deploy --env` のみ | 実行時注入のみ（並行PR競合防止） |
+
+**設計意図**: `vercel env add`によるVercel環境変数ストアへの書き込みはmainブランチのみ。develop/staging/PRは`vercel deploy --env`で環境変数を実行時注入し、並行デプロイ間の競合を防止する。
+
 ### 初回セットアップ時の手動同期
 
-**注意**: 通常はGitHub Actions (`deploy-stable-branches.yml`) が環境変数を自動同期します。
-以下の手順は**初回セットアップ時のみ**手動で実行してください。
+**注意**: 以下の手順は**初回セットアップ時のみ**手動で実行してください。
 
 ### .env.* からVercelへの環境変数同期
 
@@ -521,11 +533,6 @@ Neon CLIの詳細は [Neon CLI リファレンス](./neon-cli-reference.md) を�
 
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="vercel-cli-reference-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="vercel-cli-reference-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

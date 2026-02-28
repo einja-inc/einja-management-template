@@ -427,11 +427,6 @@ QAテスト仕様書では、以下の表形式で手順を記述します：
 - 「-」は手順のみで確認項目がない場合に使用
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="acceptance-criteria-and-qa-guide-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="acceptance-criteria-and-qa-guide-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

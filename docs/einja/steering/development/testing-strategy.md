@@ -894,11 +894,6 @@ describe('UserUseCase', () => {
 すべてのテストは、このガイドラインに従って実装してください。
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="testing-strategy-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="testing-strategy-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

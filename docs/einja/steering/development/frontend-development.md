@@ -1760,11 +1760,6 @@ export function PostCreateForm() {
 このガイドラインに従うことで、高速で保守性の高いモダンなWebアプリケーションを構築できます。
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="frontend-development-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="frontend-development-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

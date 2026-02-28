@@ -639,11 +639,6 @@ dotenvx run -f .env -f .env.local -- <command>
 - **共有禁止**: 他の開発者とトークンを共有しないこと
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="environment-setup-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="environment-setup-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

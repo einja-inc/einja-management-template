@@ -302,11 +302,6 @@ dotenvx採用により、GitHub Secretsは**環境ごとに1つの秘密鍵の�
 - [デプロイセットアップ手順](../../instructions/deployment-setup.md)
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="environment-variables-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="environment-variables-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

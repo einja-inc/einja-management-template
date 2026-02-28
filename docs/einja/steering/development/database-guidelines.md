@@ -231,7 +231,7 @@ model NewFeature {
 
 ---
 
-<!-- @einja:seed:start id="database-guidelines-project" -->
+<!-- @einja:project-private:start id="database-guidelines-project" -->
 ## プロジェクト固有: Prismaスキーマ編集ルール
 
 ### model名の命名規則
@@ -285,4 +285,4 @@ updatedAt DateTime @updatedAt      @db.Timestamptz(6) @map("updated_at")
 ```prisma
 user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 ```
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:end -->

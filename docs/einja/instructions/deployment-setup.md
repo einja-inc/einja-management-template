@@ -599,11 +599,6 @@ gh secret set TURBO_TOKEN --body "new-token"
 - [GitHub Actions - Encrypted secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="deployment-setup-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="deployment-setup-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

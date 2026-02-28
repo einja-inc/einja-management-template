@@ -482,11 +482,6 @@ export function calculatePorts(branchName: string): WorktreePorts {
 - **[CI/CDパイプライン](infrastructure/ci-cd.md)** - ビルド・デプロイ自動化
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="architecture-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="architecture-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

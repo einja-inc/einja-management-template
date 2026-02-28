@@ -530,7 +530,7 @@ pnpm build
 環境構築が完了したら、以下のドキュメントも参照してください：
 
 - **[タスク実行ガイド](./task-execute.md)**: /task-execコマンドの使用方法
-- **[コーディング規約](../../../.claude/skills/einja-coding-standards/SKILL.md)**: コードスタイルと規約
+- **[コーディング規約](../steering/development/coding-standards.md)**: コードスタイルと規約
 - **[テストガイドライン](../einja/steering/development/testing-strategy.md)**: Vitestを使用したテスト戦略
 
 ## 質問・サポート
@@ -626,13 +626,75 @@ for cmd in gh vercel neonctl dotenvx; do
   command -v $cmd >/dev/null 2>&1 && echo "✅ $cmd: $(command -v $cmd)" || echo "❌ $cmd: 未インストール"
 done
 ```
+
+### 7. MCP Server (Serena)
+
+Serena MCPサーバーは **1プロジェクト1インスタンス** で共有され、worktree間でも再利用されます。
+
+#### 自動起動の仕組み
+
+```
+cd プロジェクト → direnv → ensure-serena.sh → Serena起動 → .mcp.json(http)で接続
+```
+
+1. `direnv` が `.envrc` を読み込む
+2. `.envrc` が `scripts/ensure-serena.sh` を `source` する
+3. スクリプトが `.serena-port` を確認し、必要に応じて起動
+4. `SERENA_PORT` 環境変数がエクスポートされる
+5. `.mcp.json` の `http://127.0.0.1:${SERENA_PORT:-9850}/mcp` で接続
+
+#### `.serena-port` ファイル仕様
+
+プロジェクトルートに自動生成される管理ファイル（`.gitignore` 対象）。
+
+- **形式**: `PORT PID`（スペース区切り、例: `9850 12345`）
+- **PIDベース所有権管理**: `kill -0 PID` でプロセス生存を確認
+  - PID生存 → 再利用（ポートをエクスポートして終了）
+  - PID死亡 → ファイル削除 → 新規起動
+
+> **なぜcurlではなくPIDか**: MCP streamable-http の `/mcp` はPOST専用。GETの `curl -sf` は405を返し「未起動」と誤判定するため、PIDチェックでプロトコル非依存の判定を行う。
+
+#### ポート自動解決
+
+- デフォルト: `9850`
+- ポート衝突時: `+1` で10回まで試行（9850〜9859）
+- 全ポート使用中: 警告メッセージを出力（direnvはブロックしない）
+
+#### 手動操作
+
+```bash
+# 状態確認
+cat .serena-port  # PORT PID を表示
+
+# 停止
+./scripts/stop-serena.sh
+
+# 再起動
+./scripts/stop-serena.sh && direnv reload
+
+# 再起動（direnv経由）
+direnv reload
+```
+
+#### トラブルシューティング
+
+| 症状 | 原因 | 対処 |
+|------|------|------|
+| Serena接続エラー | プロセスが停止している | `direnv reload` で再起動 |
+| ポートが意図と違う | 別プロセスが使用中 | `lsof -i :9850` で確認、不要なら停止 |
+| ゾンビ `.serena-port` | プロセスが異常終了 | `rm .serena-port && direnv reload` |
+| uvx not found | uv未インストール | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+
+#### `.env.personal` でのオーバーライド
+
+デフォルトポートを変更したい場合:
+
+```bash
+# .env.personal に追記
+SERENA_PORT=9851
+```
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="local-server-environment-and-worktree-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="local-server-environment-and-worktree-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

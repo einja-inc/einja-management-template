@@ -363,11 +363,6 @@ git push origin タスクブランチ名
 - [開発ワークフロー](development-workflow.md) - 仕様書作成からタスク実行までの全体フロー
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="branch-strategy-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="branch-strategy-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

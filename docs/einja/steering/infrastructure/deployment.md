@@ -155,7 +155,7 @@ graph LR
 
 | ワークフロー | ファイル | トリガー | 用途 |
 |------------|---------|---------|------|
-| **Deploy Stable** | `deploy-stable-branches.yml` | push to main/develop/staging | CI → 本番・開発・ステージング環境デプロイ |
+| **Deploy Stable** | `deploy-stable-branches.yml` | push to main/develop/staging | CI → 動的マトリクス → 変更アプリのみデプロイ（`--env`実行時注入） |
 | **PR Preview** | `deploy-pr-preview.yml` | PR opened/sync/closed | CI → Neonブランチ作成 → プレビューデプロイ |
 | **PR Close Cleanup** | `cleanup-pr-preview-on-close.yml` | PR closed | Neonブランチの即座削除（PR close時） |
 | **Cleanup DB** | `cleanup-pr-preview-db.yml` | 毎日00:00 UTC / 手動 | 孤立したNeonブランチ削除 |
@@ -258,9 +258,8 @@ sequenceDiagram
     rect rgb(240, 255, 240)
         Note over Actions,Vercel: Vercel デプロイ
         Actions->>Vercel: vercel pull
-        Actions->>Vercel: 環境変数同期 (encrypted-only)
         Actions->>Vercel: vercel build (DATABASE_URL=pooled)
-        Actions->>Vercel: vercel deploy --prebuilt
+        Actions->>Vercel: vercel deploy --prebuilt --env（全encrypted変数を実行時注入）
         Vercel-->>Actions: Preview URL
     end
 
@@ -308,10 +307,12 @@ sequenceDiagram
     rect rgb(240, 255, 240)
         Note over Actions,Vercel: Vercel デプロイ
         Actions->>Vercel: vercel pull
-        Actions->>Vercel: 環境変数同期 (encrypted-only)
-        Actions->>Vercel: vercel pull (Re-pull: 同期後の最新化)
+        alt mainブランチのみ
+            Actions->>Vercel: 環境変数同期 (encrypted-only, vercel env add)
+            Actions->>Vercel: vercel pull (Re-pull: 同期後の最新化)
+        end
         Actions->>Vercel: vercel build [--prod]
-        Actions->>Vercel: vercel deploy --prebuilt [--prod]
+        Actions->>Vercel: vercel deploy --prebuilt --env [--prod]（全encrypted変数を実行時注入）
         Vercel-->>Actions: Deploy URL
     end
 
@@ -383,15 +384,15 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     A[git push main] --> B[deploy-stable-branches.yml]
-    B --> C[CI Checks]
-    C --> D{成功?}
+    B --> C[CI Checks + 変更検知]
+    C --> D{成功 & 変更あり?}
     D -->|Yes| E[dotenvx復号化]
-    D -->|No| X[失敗通知]
+    D -->|No| X[スキップ]
     E --> F[Vercel Pull]
-    F --> G[環境変数同期]
+    F --> G[環境変数同期 vercel env add]
     G --> H[DB Migrate]
     H --> I[Vercel Build]
-    I --> J[Vercel Deploy --prod]
+    I --> J[Vercel Deploy --prod --env]
     J --> K[完了]
 
     style A fill:#4CAF50
@@ -413,19 +414,18 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[git push develop] --> B[deploy-stable-branches.yml]
-    B --> C[CI Checks]
-    C --> D{成功?}
+    B --> C[CI Checks + 変更検知]
+    C --> D{成功 & 変更あり?}
     D -->|Yes| E[dotenvx復号化]
-    D -->|No| X[失敗通知]
+    D -->|No| X[スキップ]
     E --> F[Vercel Pull]
-    F --> G[環境変数同期]
-    G --> H[Vercel Build]
-    H --> I[Vercel Deploy]
-    I --> J[Alias設定]
-    J --> K[完了]
+    F --> G[Vercel Build]
+    G --> H[Vercel Deploy --env]
+    H --> I[Alias設定]
+    I --> J[完了]
 
     style A fill:#2196F3
-    style K fill:#2196F3
+    style J fill:#2196F3
 ```
 
 **設定**:
@@ -443,20 +443,19 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[git push staging] --> B[deploy-stable-branches.yml]
-    B --> C[CI Checks]
-    C --> D{成功?}
+    B --> C[CI Checks + 変更検知]
+    C --> D{成功 & 変更あり?}
     D -->|Yes| E[dotenvx復号化]
-    D -->|No| X[失敗通知]
+    D -->|No| X[スキップ]
     E --> F[Vercel Pull]
-    F --> G[環境変数同期]
-    G --> H[DB Migrate]
-    H --> I[Vercel Build]
-    I --> J[Vercel Deploy]
-    J --> K[Alias設定]
-    K --> L[完了]
+    F --> G[DB Migrate]
+    G --> H[Vercel Build]
+    H --> I[Vercel Deploy --env]
+    I --> J[Alias設定]
+    J --> K[完了]
 
     style A fill:#FF9800
-    style L fill:#FF9800
+    style K fill:#FF9800
 ```
 
 **設定**:
@@ -506,12 +505,12 @@ flowchart TD
 
 > **⚠️ 同時PR運用時の注意**
 >
-> テンプレートでは`vercel deploy --env DATABASE_URL=...`でデプロイ単位で
-> DATABASE_URLを注入しています。これにより、同時に複数のPRがプレビュー
-> デプロイされても、それぞれのPRが固有のNeonブランチDBを参照します。
+> テンプレートでは`vercel deploy --env KEY=VALUE`でデプロイ単位で
+> 全encrypted環境変数（DATABASE_URL含む）を実行時注入しています。
+> これにより、同時に複数のPRがプレビューデプロイされても、
+> それぞれのPRが固有のNeonブランチDBを参照し、環境変数の競合が発生しません。
 >
-> もし`vercel env add DATABASE_URL`方式を使用すると、Vercel Projectの
-> preview環境変数が上書きされ、同時PRで競合するリスクがあります。
+> PR環境では`vercel env add`は使用しません（並行PR間の競合を防ぐため）。
 
 ---
 
@@ -528,12 +527,13 @@ flowchart TD
 
 ワークフローは **encrypted-only方式** で同期対象を制御:
 
-| ワークフロー | 同期対象 | 除外 | 説明 |
-|------------|---------|------|------|
-| PR Preview | `.env.preview` 内の `encrypted:` キー | `NEON_*`, `DATABASE_*` | dotenvxで管理しているもの = Vercelに同期すべきもの |
-| Stable Branches | `.env.{env}` 内の `encrypted:` キー | なし | dotenvxで管理している全キーを同期 |
+| ワークフロー | 方式 | 同期対象 | 除外 | 説明 |
+|------------|------|---------|------|------|
+| PR Preview | `--env`実行時注入 | `.env.preview` 内の `encrypted:` キー | `NEON_*`, `DOTENV_PUBLIC_KEY_*` | `vercel env add`は使用しない（並行PR競合防止） |
+| Stable (main) | `vercel env add` + `--env`実行時注入 | `.env.production` 内の `encrypted:` キー | `NEON_*` | mainのみVercel環境変数ストアに同期 |
+| Stable (develop/staging) | `--env`実行時注入 | `.env.{env}` 内の `encrypted:` キー | `NEON_*`, `VERCEL_ALIAS_DOMAIN_*`, `DOTENV_PUBLIC_KEY_*` | `vercel env add`は使用しない |
 
-**設計意図**: dotenvxの暗号化ファイル内の `encrypted:` を含む行のキー名のみを対象とし、「dotenvxで管理 = Vercelに同期」の意図を明確にする。ブラックリスト方式（全env走査）ではシステム変数混入や新変数追加時の漏れリスクがあるため廃止。
+**設計意図**: `vercel env add`によるVercel環境変数ストアへの書き込みはmainブランチのみに限定。develop/staging/PRは`vercel deploy --env`による実行時注入で環境変数を渡し、並行デプロイ間の競合を防止する。
 
 ---
 
@@ -688,11 +688,6 @@ sequenceDiagram
 - [Vercel CLI/APIリファレンス](../../instructions/vercel-cli-reference.md)
 <!-- @einja:managed:end -->
 
----
-
-<!-- @einja:seed:start id="deployment-project" -->
-## プロジェクト固有の設定
-
-<!-- このセクションはプロジェクト固有の内容を追記する場所です -->
-<!-- einja syncで上書きされません -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:start id="deployment-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

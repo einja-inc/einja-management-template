@@ -1,4 +1,4 @@
-<!-- @einja:seed:start id="patterns" -->
+<!-- @einja:project-private:start id="patterns" -->
 # 再利用パターン（Patterns）
 
 このファイルには、プロジェクトで発見・確立された再利用可能なパターン（How）を記録します。
@@ -25,4 +25,4 @@
 ## 記録
 
 <!-- ここにパターンを追加 -->
-<!-- @einja:seed:end -->
+<!-- @einja:project-private:end -->

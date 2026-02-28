@@ -148,3 +148,7 @@ spec-tasks-generator に差し戻し、上記エラーを修正した新しい�
 - [タスク管理ガイドライン](../../../docs/einja/steering/task-management.md) - フォーマット定義
 - [task-spec-validator Skill](../../skills/einja-task-spec-validator/SKILL.md) - 検証ロジック
 - [spec-tasks-generator](./spec-tasks-generator.md) - タスク生成元
+
+<!-- @einja:project-private:start id="specs-spec-tasks-validator-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

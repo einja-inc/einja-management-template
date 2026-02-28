@@ -503,3 +503,7 @@ export const alertVariants = cva(
 - **一貫性**: デザインシステムの統一性を維持
 - **保守性**: 将来の変更に強い構造
 - **コラボレーション**: デザイナーとの密な連携
+
+<!-- @einja:project-private:start id="design-engineer-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

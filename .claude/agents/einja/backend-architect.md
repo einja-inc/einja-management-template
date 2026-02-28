@@ -1131,3 +1131,7 @@ erDiagram
 - **拡張性**: 将来の変更に対応できる設計
 - **保守性**: 長期的な運用を考慮
 - **型安全性**: TypeScriptの型システムを最大活用
+
+<!-- @einja:project-private:start id="backend-architect-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

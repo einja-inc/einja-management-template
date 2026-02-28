@@ -319,4 +319,6 @@ pnpm --filter @repo/web panda codegen
 pnpm typecheck
 ```
 
----
+<!-- @einja:project-private:start id="frontend-implement-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

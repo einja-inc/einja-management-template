@@ -461,3 +461,7 @@ QAテスト仕様を最終化する前に、以下を確認：
 ## 言語
 
 明確でプロフェッショナルな日本語で記述。技術用語（API、Playwright等）は英語保持。
+
+<!-- @einja:project-private:start id="specs-spec-qa-generator-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

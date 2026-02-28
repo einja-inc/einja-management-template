@@ -446,3 +446,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ```
 /update-docs-by-task-specs docs/specs/tasks/monorepo/20251104-monorepo-turborepo-nextjs-setup docs/specs/tasks/auth/20251105-login-feature
 ```
+
+<!-- @einja:project-private:start id="update-docs-by-task-specs-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

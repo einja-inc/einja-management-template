@@ -1,6 +1,6 @@
 ---
 description: "GitHub Issueのタスクグループを実行するコマンド。ARGUMENTS: Issue番号（必須、#123形式）とタスクグループ番号（必須、1.1形式）"
-allowed-tools: Task, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, WebFetch, mcp__github__*, mcp__serena__*
+allowed-tools: Task, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, Skill, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, WebFetch, mcp__github__*, mcp__serena__*
 ---
 
 # タスク実行コマンド
@@ -36,7 +36,7 @@ $ARGUMENTSから以下を解析：
 
 | Phase番号 | 判定 | 処理フロー |
 |-----------|------|-----------|
-| 1〜98 | 通常タスク | task-executer → task-reviewer → task-qa → einja-task-commit Skill |
+| 1〜98 | 通常タスク | Issueパース → spec読込 → TaskCreate登録 → 並列実行 → task-reviewer → task-qa → einja-task-commit Skill |
 | 99 | ドキュメント反映タスク | docs-updater → einja-task-commit Skill |
 
 ### 通常タスクのフロー（Phase 1〜98）
@@ -45,10 +45,15 @@ $ARGUMENTSから以下を解析：
 ┌─────────────────────────────────────────────────────────┐
 │                    品質保証ループ                        │
 │                                                         │
-│  task-executer → task-reviewer → task-qa               │
-│       ↑              │              │                   │
-│       └──────────────┴──────────────┘                   │
-│          （MAJOR/テスト失敗時は自動的に戻る）             │
+│  Issueパース → specパス特定 → TaskCreate登録            │
+│       ↓                                                 │
+│  依存関係ベース並列実行:                                │
+│       task-executer × N（独立タスク並列）               │
+│       ↓ 全タスク完了                                    │
+│  task-reviewer → task-qa                                │
+│       ↑              │                                  │
+│       └──────────────┘                                  │
+│          （MAJOR/テスト失敗時は該当タスクのみ再実行）    │
 │                                                         │
 │  QA合格後 ↓                                             │
 │  ┌─────────────────────────────────────────────┐       │
@@ -101,21 +106,104 @@ $ARGUMENTSから以下を解析：
 
 各フェーズ完了後、サブエージェントの出力を表示したら即座に次のフェーズへ進む。ユーザーの応答は待たない。
 
-### 1. 実装フェーズ（task-executer）
-- 要件定義・設計書に基づいた実装を実行
-- 完了後、出力を表示して即座にレビューフェーズへ
+### Step 0: 入力解析
 
-### 2. レビューフェーズ（task-reviewer）
+$ARGUMENTSからIssue番号とタスクグループ番号を解析する（現行通り）。
+
+### Step 1: Issueフェッチ + タスク解析
+
+1. `gh issue view {issue番号} --json body,title` でIssue本文を取得
+2. 指定タスクグループ（X.Y）配下のタスク（X.Y.Z）をパース
+3. 各タスクのメタデータを抽出:
+   - タスク名
+   - 要件（Story番号）
+   - 依存関係（なし / X.Y.Z形式）
+   - 完了条件
+   - 対応設計セクション名
+   - シナリオテスト
+
+### Step 2: spec読み込み + AC抽出
+
+**目的**: task-executerから spec/Issue 読み込み責務を移管し、親が一括で行う。
+
+1. **specディレクトリを探索**: `docs/specs/issues/*/issue{N}-*/` パターンで検索
+2. **存在チェック**:
+   - 完全なspec（requirements.md + design.md + qa-tests/） → 次へ
+   - 部分的spec → エラー終了（`/einja:spec-create` の実行を案内）
+   - specなし → `einja-general-context-loader` Skill を呼び出してコンテキスト収集
+3. **requirements.md を読み込み**、各タスクのメタデータ（`**要件**: Story X`）に基づいてACを抽出
+   - ACはGiven/When/Then形式で小さい（~50-100トークン/AC）ので直接保持
+4. **design.md はパスのみ特定**（内容は読み込まない）
+   - 各タスクの`**対応設計**: design.md「セクション名」`からセクション名を記録
+
+### Step 3: TaskCreate登録
+
+各タスクを `TaskCreate` で登録し、依存関係を設定する。
+
+**TaskCreate の形式**:
+```
+TaskCreate:
+  subject: "X.Y.Z タスク名"
+  description: |
+    ## 受け入れ基準（抽出済み）
+    - AC1.2: Given: ... When: ... Then: ...
+    - AC1.3: Given: ... When: ... Then: ...
+    ## 設計参照
+    {specパス}/design.md → 「セクション名」セクション
+    ## 完了条件
+    （Issueから抽出した完了条件 + ACを満たす）
+    ## 参考（追加情報が必要な場合）
+    - requirements.md: {specパス}/requirements.md
+    - design.md: {specパス}/design.md
+  activeForm: "タスクX.Y.Zを実装中"
+```
+
+**依存関係の設定**:
+- `TaskUpdate` の `addBlockedBy` で依存関係を設定
+- `**依存関係**: X.Y.Z` → 対応するTaskのIDを `addBlockedBy` に設定
+- `**依存関係**: なし` → ブロックなし
+- `**依存関係**: X.Y`（タスクグループ依存） → グループ外依存のため事前に完了済みと想定
+
+**タスク番号→TaskID のマッピングテーブル**を保持し、依存関係解決に使用する。
+
+### Step 4: 依存関係ベース並列実行ループ
+
+```
+while (未完了タスクが存在):
+  1. TaskList で未完了タスクを確認
+  2. blockedBy が空かつ pending のタスクを収集
+  3. 収集したタスクを TaskUpdate で in_progress に設定
+  4. Task ツールで複数の task-executer を並列起動:
+     - 各 task-executer のpromptに以下を含める（ハイブリッド方式）:
+       a. タスクID + タスク名 + 実装指示（Issueから抽出したサブタスク内容）
+       b. AC（受け入れ基準）→ 直接埋め込み（親が抽出済み）
+       c. 設計 → design.mdパス + セクション名（executerが自分でRead）
+       d. 完了条件
+       e. フォールバック用specファイルパス（追加情報が必要な場合）
+     - run_in_background: true で非同期起動（2タスク以上の場合）
+  5. 各エージェントの完了を待機（TaskOutput で結果取得）
+  6. 完了したタスクを TaskUpdate で completed に設定
+  7. ループ先頭に戻る
+```
+
+**注意事項**:
+- 並列起動するタスク間でファイル変更対象が重複しないよう、設計セクションから推定して確認する
+- 重複懸念がある場合は直列化する
+- task-executerにはコミットさせない（Step 7でまとめて実行）
+
+### Step 5: レビューフェーズ（task-reviewer）
+- 全タスク完了後、グループ全体で1回実行
 - 要件定義・設計との整合性確認
-- MAJOR判定 → 実装フェーズに戻る
+- MAJOR判定 → 該当タスクのみ再実行（Step 4に戻る）
 - PASS/MINOR判定 → 品質保証フェーズへ
 
-### 3. 品質保証フェーズ（task-qa）
+### Step 6: 品質保証フェーズ（task-qa）
+- グループ全体で1回実行
 - 受け入れ条件に基づく動作確認
-- テスト失敗 → 実装フェーズに戻る
+- テスト失敗 → 該当タスクのみ再実行（Step 4に戻る）
 - 全テスト合格 → コミット・プッシュフェーズへ
 
-### 4. コミット・プッシュフェーズ（einja-task-commit Skill）
+### Step 7: コミット・プッシュフェーズ（einja-task-commit Skill）
 - QA合格後、Skill toolで `einja-task-commit` Skillを直接呼び出し
 - 変更がある場合のみ実行（変更なしの場合はスキップ）
 - コミット分割案の確認はスキップ（QA合格済みのため自動適用）
@@ -388,3 +476,7 @@ AskUserQuestion:
 - Issue番号とタスクグループ番号の両方が必須
 - GitHub Issueのチェックボックス更新は自動では行わない
 - コミット時は [コミットルール](../../docs/einja/steering/commit-rules.md) を遵守
+
+<!-- @einja:project-private:start id="task-exec-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

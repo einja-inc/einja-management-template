@@ -460,3 +460,6 @@ CLAUDE.mdに記載された以下の要素を必ず考慮：
 - 実際のプロジェクトの機密情報は含めない
 - 汎用的で再利用可能な設計パターンを採用
 - 過度に複雑な設計を避け、シンプルで理解しやすい構造を維持
+<!-- @einja:project-private:start id="specs-spec-design-generator-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

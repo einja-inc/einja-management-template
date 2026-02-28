@@ -612,3 +612,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 - **Phase 99（ドキュメント反映）は必ず自動追加される**（手動追加不要）
 
 タスクの説明は常に日本語で記述し、技術用語（API、Database、Stripe等）は英語のまま保持してください。
+
+<!-- @einja:project-private:start id="specs-spec-tasks-generator-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

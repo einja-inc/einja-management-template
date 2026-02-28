@@ -167,3 +167,7 @@ pnpm test       # すべてのテストが成功すること
 - **前提**: `task-executer` - タスクの実装
 - **後続**: `task-qa` - 品質保証と動作確認
 - **差し戻し先**: `task-executer` - 重大な問題発見時
+
+<!-- @einja:project-private:start id="task-task-reviewer-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

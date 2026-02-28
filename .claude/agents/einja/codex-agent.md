@@ -115,3 +115,7 @@ Codexの実行中のセッションに追加の指示やコンテキストを送
 - **段階的な作業**: 大きな変更は段階的に実施
 - **透明性**: Codexに依頼した内容と得られた結果を明確に報告
 - **フォールバック**: Codexが利用できない場合の代替手段を常に持つ
+
+<!-- @einja:project-private:start id="codex-agent-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

@@ -417,3 +417,7 @@ import { helper } from "@/lib/...";
 - **テスタビリティ**: テストしやすい構造を意識
 - **アクセシビリティ**: すべてのユーザーが利用できるUIを実装
 
+
+<!-- @einja:project-private:start id="frontend-coder-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

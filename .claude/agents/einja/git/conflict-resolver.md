@@ -146,3 +146,7 @@ AskUserQuestion:
 
 - **呼び出し元**: `task-committer` - push時にコンフリクトが発生した場合
 - **単体呼び出し**: ユーザーがrebase/merge/stash時に直接呼び出し可能
+
+<!-- @einja:project-private:start id="git-conflict-resolver-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

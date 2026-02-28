@@ -206,7 +206,7 @@ AskUserQuestion:
 ```markdown
 ### dev-cli sync 詳細
   ✓ .claude/commands/einja/task-exec.md (更新)
-  ✓ .claude/skills/einja-coding-standards/SKILL.md (更新)
+  ✓ .claude/skills/einja-task-commit/SKILL.md (更新)
   ⏭ .claude/agents/einja/task-executer.md (変更なし)
   ⚠ .claude/hooks/einja/pre-commit.sh (コンフリクト → 解消済み)
 
@@ -236,3 +236,7 @@ AskUserQuestion:
 - `apps` と `packages` カテゴリはデフォルト OFF。既存の実装コードを上書きするリスクがあるため、明示的な指定が必要
 - コンフリクト解消は sync 固有のもので、git コンフリクトとは異なる。`einja-conflict-resolver` Skill は使用しない
 - 両方のCLIを実行する場合、dev-cli を先に実行すること（Claude Code 設定が先に更新される必要があるため）
+
+<!-- @einja:project-private:start id="einja-sync-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

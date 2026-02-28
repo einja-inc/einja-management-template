@@ -159,3 +159,7 @@ color: purple
 
 - **前提**: 全Phaseの実装完了（Phase 1〜N）
 - **後続**: `task-committer` - ドキュメント変更のコミット
+
+<!-- @einja:project-private:start id="docs-docs-updater-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

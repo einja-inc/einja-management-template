@@ -276,3 +276,7 @@ Cursor で以下のルールが利用可能になりました：
 - 注意書きの内容
 - エラーハンドリングの詳細度
 - ルールタイプ（`alwaysApply` / `globs`）の設定
+
+<!-- @einja:project-private:start id="sync-cursor-commands-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

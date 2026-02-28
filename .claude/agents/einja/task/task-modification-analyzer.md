@@ -367,3 +367,7 @@ color: orange
 ### 分析が困難な場合
 - 影響範囲の特定が困難な場合、その旨を報告
 - リスクの高い変更の場合、警告を表示
+
+<!-- @einja:project-private:start id="task-task-modification-analyzer-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

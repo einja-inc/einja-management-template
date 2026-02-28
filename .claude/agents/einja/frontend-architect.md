@@ -747,3 +747,7 @@ graph LR
 - **パフォーマンス**: ユーザー体験を最優先
 - **保守性**: 長期的な運用を考慮
 
+
+<!-- @einja:project-private:start id="frontend-architect-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

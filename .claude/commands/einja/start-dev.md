@@ -96,3 +96,7 @@ pnpm dev:logs
 # または直接
 tail -f log/dev.log
 ```
+
+<!-- @einja:project-private:start id="start-dev-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

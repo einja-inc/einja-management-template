@@ -72,3 +72,7 @@ SkillでJSON結果を生成後、以下のtask-exec互換形式に変換して�
 [FAILURE] → {nextActionの説明}
 [PARTIAL] → 軽微な問題を記録して完了処理フェーズに進みます
 ```
+
+<!-- @einja:project-private:start id="task-task-qa-project" -->
+<!-- プロジェクト固有の情報を記入 -->
+<!-- @einja:project-private:end -->

@@ -135,7 +135,7 @@ export async function selectProject(
   }
 
   // 5. インタラクティブ選択
-  return await interactiveSelectProject(projects, issueNumber);
+  return await interactiveSelectProject(projects, vibeKanban, selectedOrganizationId, issueNumber);
 }
 
 /**
@@ -166,6 +166,8 @@ async function interactiveSelectOrganization(
  */
 async function interactiveSelectProject(
   projects: Array<{ id: string; name: string }>,
+  vibeKanban: VibeKanbanClient,
+  orgId: string,
   issueNumber?: number
 ): Promise<string> {
   const NEW_PROJECT_VALUE = "__new__";
@@ -184,7 +186,7 @@ async function interactiveSelectProject(
   ]);
 
   if (projectId === NEW_PROJECT_VALUE) {
-    return await createNewProject(issueNumber);
+    return await createNewProject(vibeKanban, orgId, issueNumber);
   }
 
   saveConfig(projectId);
@@ -196,52 +198,43 @@ async function interactiveSelectProject(
 /**
  * 新規プロジェクトを作成
  */
-async function createNewProject(issueNumber?: number): Promise<string> {
-  console.log("\n📝 新しいプロジェクトを作成します\n");
-
-  // ポート発見
+async function createNewProject(
+  vibeKanban: VibeKanbanClient,
+  orgId: string,
+  issueNumber?: number
+): Promise<string> {
   const port = VibeKanbanRestClient.discoverPort();
-  if (!port) {
-    showCreateProjectGuidance(issueNumber);
-    process.exit(1);
-  }
+  const uiUrl = port ? `http://localhost:${port}` : "http://localhost:52664";
 
-  // REST クライアント作成
-  const restClient = new VibeKanbanRestClient(port);
+  console.log(`
+📝 vibe-kanban でプロジェクトを作成してください
 
-  // 接続確認
-  const isAvailable = await restClient.isAvailable();
-  if (!isAvailable) {
-    showCreateProjectGuidance(issueNumber);
-    process.exit(1);
-  }
+  ${uiUrl}
 
-  // プロジェクト名を入力
-  const defaultName = basename(process.cwd());
-  const { projectName } = await inquirer.prompt([
-    {
-      type: "input",
-      name: "projectName",
-      message: "📝 プロジェクト名を入力:",
-      default: defaultName,
-    },
-  ]);
+  手順:
+  1. 左サイドバーの「+」またはメニューから新規プロジェクトを作成
+  2. このリポジトリ (${basename(process.cwd())}) を紐付ける
+`);
 
-  // プロジェクト作成
+  await inquirer.prompt([{
+    type: "input",
+    name: "_",
+    message: "プロジェクト作成後、Enter を押してください:",
+  }]);
+
+  // 再スキャン
+  let updatedProjects: Array<{ id: string; name: string }>;
   try {
-    const repoPath = process.cwd();
-    const projectId = await restClient.createProject(projectName, repoPath);
-
-    console.log(`\n✅ プロジェクト「${projectName}」を作成しました`);
-
-    // 設定ファイル保存
-    saveConfig(projectId);
-    console.log("✅ .vibe-kanban.json を作成しました");
-    console.log("   次回から自動的にこのプロジェクトが使用されます\n");
-
-    return projectId;
+    updatedProjects = await vibeKanban.listProjects(orgId);
   } catch (error) {
-    console.error("\n❌ プロジェクト作成に失敗しました:", error);
+    console.error("❌ プロジェクト一覧の取得に失敗しました:", error);
     process.exit(1);
   }
+
+  if (updatedProjects.length === 0) {
+    console.error("❌ プロジェクトが見つかりません。vibe-kanban でプロジェクトを作成後に再実行してください。");
+    process.exit(1);
+  }
+
+  return await interactiveSelectProject(updatedProjects, vibeKanban, orgId, issueNumber);
 }

@@ -19,7 +19,7 @@
   "scripts": {
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prebuild": "node ./scripts/generate-template.mjs && node ./scripts/copy-presets.mjs",
-    "build": "pnpm clean && tsc",
+    "build": "pnpm clean && tsc && tsc-alias",
     "postbuild": "node ./scripts/add-shebang.mjs",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
@@ -49,6 +49,7 @@
     "@types/fs-extra": "^11.0.4",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.18.13",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5",
     "vitest": "^2.1.9"
   },

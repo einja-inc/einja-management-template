@@ -1,9 +1,13 @@
+import { createRequire } from "module";
 import chalk from "chalk";
 import { Command } from "commander";
 import { initCommand } from "./commands/init.js";
 import { listCommand } from "./commands/list.js";
 import { syncCommand } from "./commands/sync.js";
 import { taskLoopCommand } from "./commands/task-loop/index.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 
 const program = new Command();
 
@@ -21,7 +25,7 @@ if (isLegacyPackageName) {
 program
   .name("einja")
   .description("Einja CLI - .claude設定とテンプレート同期をnpxでインストール")
-  .version("0.1.0");
+  .version(version);
 
 program
   .command("init")

@@ -42,6 +42,7 @@
 | `einja-skill-creator` | Skill作成・更新 |
 | `einja-skill-advisor` | 作業前のSkill作成必要性評価（Plan/spec-create時に自動起動） |
 | `einja-infra-maintenance` | インフラ環境セットアップ・メンテナンス |
+| `einja:issue-exec` | Issue全体の階層的並列実行（Manager→Director→Worker） |
 | `einja:task-exec` | タスクグループ実行 |
 | `einja:spec-create` | 仕様書作成 |
 

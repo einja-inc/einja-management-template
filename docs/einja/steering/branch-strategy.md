@@ -30,7 +30,7 @@ graph TB
         ISSUE --> PHASE2[issue/123-phase2]
     end
 
-    subgraph "Worktree（Vibe-Kanban管理）"
+    subgraph "Worktree（einja:issue-exec管理）"
         PHASE1 -.->|base_branch| WT1[worktree: task-1.1]
         PHASE1 -.->|base_branch| WT2[worktree: task-1.2]
         PHASE2 -.->|base_branch| WT3[worktree: task-2.1]
@@ -67,7 +67,7 @@ graph TB
 
 **目的**:
 - フェーズ単位での作業を分離
-- Vibe-Kanbanタスクの実行ベースブランチとして使用（原則）
+- einja:issue-exec の Worker 実行ベースブランチとして使用（原則）
 - フェーズ完了後、親ブランチにマージ
 
 ## ブランチ命名例
@@ -80,54 +80,54 @@ graph TB
 
 ---
 
-## task:loop 実行時のブランチ運用
+## einja:issue-exec 実行時のブランチ運用
 
 ### タスク実行シーケンス
 
 ```mermaid
 sequenceDiagram
     participant User as 開発者
-    participant TL as task:loop
+    participant Mgr as Manager
     participant Git as Git
-    participant VK as Vibe-Kanban
-    participant CC as Claude Code
+    participant Dir as Director
+    participant Wkr as Worker
 
-    User->>TL: pnpm task:loop 123
+    User->>Mgr: /einja:issue-exec #123
 
     rect rgb(230,240,255)
-        Note over TL,Git: 初期化フェーズ（Issueブランチのみ）
-        TL->>Git: git fetch origin
-        TL->>Git: git branch issue/123 origin/{IssueBranchBase}
-        TL->>Git: git push -u origin issue/123
-        Note over TL: Phaseブランチは作成しない
+        Note over Mgr,Git: 初期化フェーズ（Issue & Phase ブランチ + worktree）
+        Mgr->>Git: git fetch origin
+        Mgr->>Git: git branch issue/123 origin/{IssueBranchBase}
+        Mgr->>Git: git push -u origin issue/123
+        Mgr->>Git: git branch issue/123-phase1 issue/123
+        Mgr->>Git: git worktree add ~/.einja/worktrees/issue-123/phase1 issue/123-phase1
     end
 
     rect rgb(255,245,230)
-        Note over TL,CC: タスク実行フェーズ（各タスク開始時）
-        TL->>Git: syncPhaseBranch()
-        Note over Git: 既存なら最新化、なければ作成
-        TL->>VK: createTask(1.1)
-        TL->>VK: startTaskAttempt(base: issue/123-phase1)
-        VK->>Git: git worktree add
-        VK->>CC: Claude Code 起動
-        CC->>Git: 実装 & コミット & push
-        CC->>VK: タスク完了
+        Note over Mgr,Wkr: タスク実行フェーズ（tmux + worktree）
+        Mgr->>Dir: tmux window で Director 起動（Phase worktree）
+        Dir->>Git: git branch task/123-1.1 issue/123-phase1
+        Dir->>Git: git worktree add ~/.einja/worktrees/issue-123/task-1.1 task/123-1.1
+        Dir->>Wkr: tmux window で Worker 起動（Task worktree）
+        Wkr->>Git: 実装 & コミット & push
+        Wkr->>Git: gh pr create --base issue/123-phase1 --head task/123-1.1
+        Wkr->>Dir: ステータスファイルで完了報告
     end
 
     rect rgb(230,255,230)
-        Note over TL,Git: 完了検知フェーズ（15秒ポーリング）
-        TL->>VK: listTasks() で Done 検知
-        TL->>Git: GitHub Issue チェックボックス更新
-        TL->>TL: 次の着手可能タスクを選定
+        Note over Dir,Git: 完了検知フェーズ（ステータスファイル監視）
+        Dir->>Git: PR マージ処理（マージモードに応じて）
+        Dir->>Git: worktree 削除 & tmux window kill
+        Dir->>Dir: 依存タスク起動判定 → 新 Worker 起動
+        Dir->>Git: GitHub Issue チェックボックス更新
     end
 
     rect rgb(255,245,230)
-        Note over TL,CC: 次タスク開始時（同期済み）
-        TL->>Git: syncPhaseBranch()
-        Note over Git: リモートの最新を取得
-        TL->>VK: createTask(1.2)
-        TL->>VK: startTaskAttempt(base: issue/123-phase1)
-        Note over Git: 前タスクの変更が含まれる
+        Note over Dir,Wkr: 次タスク開始時
+        Dir->>Git: git branch task/123-1.2 issue/123-phase1
+        Dir->>Git: git worktree add ~/.einja/worktrees/issue-123/task-1.2 task/123-1.2
+        Dir->>Wkr: tmux window で Worker 起動
+        Note over Git: 前タスクの変更がマージ済みの Phase ブランチから派生
     end
 ```
 
@@ -135,44 +135,42 @@ sequenceDiagram
 
 | 操作 | タイミング | 実行者 | 備考 |
 |-----|----------|--------|------|
-| **Create** Issue ブランチ | スクリプト起動時 | task:loop | IssueBranchBase から作成 |
-| **Sync** Issue ブランチ | タスク着手時 | task:loop | リモート最新化 + IssueBranchBase の変更取り込み |
-| **Create** Phase ブランチ | タスク着手時 | task:loop | 必要に応じて Issue ブランチから作成 |
-| **Sync** Phase ブランチ | タスク着手時 | task:loop | リモート最新化 + Issue ブランチの変更取り込み |
-| **Create** Worktree | タスク開始時 | Vibe-Kanban | 同期済み Phase ブランチをベースに作成 |
-| **Update** Phase ブランチ | PR マージ時 | GitHub | タスク完了後のマージで更新 |
-| **Merge** Phase → Issue | Phase 全タスク完了時 | task:loop | 完了した Phase を Issue ブランチに自動マージ |
-| **Delete** Worktree | タスク完了後 | Vibe-Kanban | 72時間後に自動削除 |
-| **Delete** Phase ブランチ | Issue 完了後 | 手動 | Issue ブランチにマージ後 |
+| **Create** Issue ブランチ | コマンド起動時 | Manager | IssueBranchBase から作成 |
+| **Create** Phase ブランチ + worktree | コマンド起動時 | Manager | Issue ブランチから作成、`~/.einja/worktrees/issue-{N}/` に配置 |
+| **Create** Task ブランチ + worktree | タスク開始時 | Director | Phase ブランチから作成、`~/.einja/worktrees/issue-{N}/` に配置 |
+| **Update** Phase ブランチ | タスク PR マージ時 | GitHub | タスク完了後のマージで更新 |
+| **Merge** Phase → Issue | Phase 全タスク完了時 | Manager | Phase PR 作成 → マージモードに応じた処理 |
+| **Delete** Task worktree | タスク完了後 | Director | タスク完了後に即削除 |
+| **Delete** Phase worktree | Phase 完了後 | Manager | Phase マージ後に即削除 |
+| **Delete** Phase ブランチ | Issue 完了後 | Manager | Issue ブランチにマージ後 |
 
 ### Worktree ライフサイクル
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Created: startTaskAttempt()
-    Created --> Running: Claude Code 起動
-    Running --> Completed: タスク完了
-    Completed --> InReview: PR 作成待ち
-    InReview --> Merged: PR マージ
-    Merged --> Cleanup: 72時間後
-    Cleanup --> [*]: 自動削除
+    [*] --> Created: Director が worktree 作成
+    Created --> Running: Worker（claude 対話モード）起動
+    Running --> Completed: タスク完了 & PR 作成
+    Completed --> Merged: PR マージ
+    Merged --> [*]: 即削除（Director が worktree remove）
 ```
 
-### syncPhaseBranch の動作
+### ブランチ同期の動作
 
-タスク着手時に呼び出される `syncPhaseBranch` 関数は、以下のシーケンスでブランチを同期します：
+タスク着手時、Director は Phase ブランチの最新状態から Task ブランチを作成します。
+先行タスクの PR がマージされた Phase ブランチから派生するため、変更が自動的に引き継がれます。
 
 ```mermaid
 sequenceDiagram
     participant Main as main<br/>(base)
     participant Issue as issue/123
     participant Phase as issue/123-phase1
-    participant WT as worktree
+    participant Task as task/123-1.2
 
-    Note over Main,WT: syncPhaseBranch() 実行時
+    Note over Main,Task: タスク着手時のブランチ派生
 
     rect rgb(240, 248, 255)
-        Note over Main,Issue: Step 1: Issue ブランチの同期
+        Note over Main,Issue: Step 1: Issue ブランチの同期（Manager）
         Issue->>Issue: fetch origin/issue/123
         Issue->>Issue: merge origin/issue/123 (pull)
         Main->>Issue: merge main (base変更の取り込み)
@@ -180,7 +178,7 @@ sequenceDiagram
     end
 
     rect rgb(255, 248, 240)
-        Note over Issue,Phase: Step 2: Phase ブランチの同期
+        Note over Issue,Phase: Step 2: Phase ブランチの同期（Director）
         Phase->>Phase: fetch origin/issue/123-phase1
         Phase->>Phase: merge origin/issue/123-phase1 (pull)
         Issue->>Phase: merge issue/123 (他Phaseの変更取り込み)
@@ -188,16 +186,16 @@ sequenceDiagram
     end
 
     rect rgb(240, 255, 240)
-        Note over Phase,WT: Step 3: Worktree作成
-        Phase-->>WT: base_branch として使用
-        Note over WT: Claude Code がタスク実行
+        Note over Phase,Task: Step 3: Task ブランチ & worktree 作成（Director）
+        Phase-->>Task: Phase ブランチから Task ブランチを作成
+        Note over Task: Worker（claude 対話モード）がタスク実行
     end
 ```
 
 **同期の原則**:
-- ローカルの変更は保持（削除→再作成はしない）
-- リモートとローカルが分岐した場合はマージで統合
-- コンフリクト発生時はエラーで停止（手動解決を促す）
+- 先行タスクの PR マージにより Phase ブランチが更新される
+- 後続タスクは更新済み Phase ブランチから派生するため変更を引き継ぐ
+- コンフリクト発生時は conflict-resolver で解消
 
 ### 変更の取り込み対象
 
@@ -216,8 +214,8 @@ IssueBranchBase（main, develop など）
 issue/123
     ↓ マージ
 issue/123-phase1
-    ↓ base_branch として使用
-worktree（タスク実行）
+    ↓ Task ブランチとして派生
+task/123-1.1（Worker が worktree 上で実行）
 ```
 
 これにより：
@@ -358,7 +356,7 @@ git push origin タスクブランチ名
 
 ## 関連ドキュメント
 
-- [task:loop コマンド](../instructions/task-vibe-kanban-loop.md) - コマンドの使用方法と Vibe-Kanban 操作手順
+- [einja:issue-exec ワークフロー](../instructions/issue-exec-workflow.md) - コマンドの使用方法と3階層プロセスの詳細
 - [タスク管理](task-management.md) - タスク階層と粒度基準
 - [開発ワークフロー](development-workflow.md) - 仕様書作成からタスク実行までの全体フロー
 <!-- @einja:managed:end -->

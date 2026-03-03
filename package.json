@@ -45,8 +45,8 @@
 		"env:encrypt": "dotenvx encrypt",
 		"env:show": "tsx scripts/env-show.ts",
 		"env:rotate-secrets": "tsx scripts/env-rotate-secrets.ts",
-		"task:loop": "npx @einja/dev-cli task:loop",
-		"einja:sync": "npx @einja/dev-cli sync"
+		"einja:sync": "npx @einja/dev-cli sync",
+		"task:loop": "npx @einja/dev-cli task:loop"
 	},
 	"devDependencies": {
 		"@clack/prompts": "^0.11.0",

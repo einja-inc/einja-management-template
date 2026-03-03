@@ -12,9 +12,9 @@
     ↓
 仕様書レビュー（Discord + Spec PR）
     ↓
-タスク実行（pnpm task:loop）
+タスク実行（/einja:issue-exec or /einja:task-exec）
     ↓
-自己レビュー → PR作成（Vibe-Kanban）
+自己レビュー → PR作成（自動）
     ↓
 コードレビュー（GitHub PR）
     ↓
@@ -57,32 +57,23 @@
                             Spec PRをマージ
                                     ↓
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Phase B: タスク実行（Vibe-Kanban + task:loop）                                │
+│ Phase B: タスク実行（/einja:issue-exec or /einja:task-exec）                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  事前準備: npx vibe-kanban（別ターミナルで起動）                              │
-│                                                                              │
-│  pnpm task:loop <issue-number>                                              │
+│  /einja:issue-exec #<issue-number>                                          │
 │      │                                                                       │
-│      ├── 初期化: Issue取得、ブランチ作成、Vibe-Kanban接続                     │
-│      │      ├── Phase毎に親Issue作成（MCP create_issue）                     │
+│      ├── Manager: Issue パース、Phase 毎に Director を tmux で起動            │
 │      │                                                                       │
-│      └── ループ開始 ─────────────────────────────────────────┐               │
+│      └── Director（Phase毎）────────────────────────────────┐               │
 │           │                                                   │               │
 │           ▼                                                   │               │
 │      ┌─────────────────────────────────────────────────────┐ │               │
-│      │ 着手可能なタスクグループを選定（依存関係考慮）        │ │               │
+│      │ タスクグループを依存順に Worker を起動               │ │               │
 │      └─────────────────────────────────────────────────────┘ │               │
 │           │                                                   │               │
 │           ▼                                                   │               │
 │      ┌─────────────────────────────────────────────────────┐ │               │
-│      │ サブIssue作成（親Issue配下） → start_workspace_session│ │               │
-│      │ （Claude Codeが自動起動されて実装開始）              │ │               │
-│      └─────────────────────────────────────────────────────┘ │               │
-│           │                                                   │               │
-│           ▼                                                   │               │
-│      ┌─────────────────────────────────────────────────────┐ │               │
-│      │ Claude Code（自動実行）                             │ │               │
+│      │ Worker（/einja:task-exec を実行）                   │ │               │
 │      │                                                      │ │               │
 │      │  task-executer: 実装                                 │ │               │
 │      │       ↓                                              │ │               │
@@ -90,37 +81,25 @@
 │      │       ↓                                              │ │               │
 │      │  task-qa: 動作確認（Playwright/curl）（自動）        │←┘               │
 │      │       ↓ 全テスト合格                                 │                 │
-│      │  ステータス → In Review                              │                 │
+│      │  commit & push → PR 自動作成                         │                 │
 │      └─────────────────────────────────────────────────────┘                 │
 │           │                                                                   │
 │           ▼                                                                   │
-│      【人間がVibe-Kanbanで確認】                                              │
-│      ├── 自己レビュー（実装内容確認）                                         │
-│      └── OKなら「Create PR」ボタンクリック                                    │
-│           │                                                                   │
-│           ▼                                                                   │
 │      【GitHubでPRレビュー】                                                   │
-│      ├── 担当者レビュー（動作確認 + コード確認）                               │
-│      └── 他エンジニアレビュー                                                 │
-│           │                                                                   │
-│           ▼ 承認                                                             │
-│      GitHub側でPRマージ（⚠️必ずGitHub側で操作）                               │
+│      ├── PRの内容を確認                                                       │
+│      └── マージモードに応じてマージ（manual / task-group-auto / auto）         │
 │           │                                                                   │
 │           ▼                                                                   │
-│      Vibe-Kanbanがマージ検知 → タスク自動Done                                 │
+│      Director: PR マージ検知 → GitHub Issue チェックボックス更新              │
 │           │                                                                   │
-│           ▼                                                                   │
-│      task:loopがDone検知 → GitHub Issueチェックボックス更新                   │
-│           │                                                                   │
-│      Phase全サブIssue完了？                                                   │
-│      ├─ Yes → 親Issue Workspace作成 → PR作成・マージ                         │
-│      │        → 親Issue自動Done                                               │
-│      └─ No  → スキップ                                                       │
+│      Phase全タスク完了？                                                      │
+│      ├─ Yes → Phase PR 作成（Phase → Issue ブランチ）                        │
+│      │        → マージモードに応じた処理                                      │
+│      └─ No  → 依存解除された次タスクの Worker を起動                          │
 │           │                                                                   │
 │           └──────────────────────────────────────────────────┘               │
-│                        次のタスクグループを自動開始                            │
 │                                                                              │
-│      全タスクグループ完了 → Issue Close                                       │
+│      全 Phase 完了 → 最終 PR 作成（Issue → base ブランチ）                    │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -174,42 +153,35 @@ Spec PR                # 仕様書レビュー用
 ### コマンド
 
 ```bash
-# 事前準備: Vibe-Kanbanを起動（別ターミナル）
-npx vibe-kanban
+# Issue全体の並列実行（推奨：複数Phase・複数タスクグループの場合）
+/einja:issue-exec #123
+/einja:issue-exec #123 --merge-mode task-group-auto   # タスクPR自動マージ
+/einja:issue-exec #123 --merge-mode auto               # 全自動
+/einja:issue-exec #123 --max-phase 2                   # Phase 2 まで
+/einja:issue-exec #123 --base develop                  # ベースブランチ指定
 
-# タスクループ開始
-pnpm task:loop <issue-number>
+# 単一タスクグループ実行（品質重視・複雑な実装向け）
+/einja:task-exec #123 1.1                               # Issue #123 のタスクグループ 1.1 を実行
 ```
 
-**例**:
-```bash
-pnpm task:loop 123                        # Issue #123 の全タスクを実行
-pnpm task:loop 123 --max-group 4          # Phase 4 まで実行
-pnpm task:loop 123 --max-group 4.2        # タスクグループ 4.2 まで実行
-pnpm task:loop 123 --branch develop       # develop ブランチベースで実行
-```
+### 実行後の流れ（/einja:issue-exec）
 
-### 実行後の流れ
+`/einja:issue-exec` は Manager → Director → Worker の3階層でタスクを並列実行します。
 
-実行後、specで作成されたタスクが着手可能なものから自動で実行開始されます。
+1. **Manager** が Issue をパースし、Phase 毎に Director を tmux で起動
+2. **Director** が Phase 内のタスクグループを依存順に Worker を起動
+3. **Worker** が `/einja:task-exec` を実行（executer → reviewer → qa → commit）
+4. Worker 完了後、PR が自動作成される
+5. マージモードに応じて PR がマージされ、次のタスクが自動開始
 
-Phase毎に親Issueが自動作成され、タスクグループはサブIssueとして管理されます。
+ユーザーは `tmux attach -t einja-{issue番号}` で全プロセスを監視できます。
 
-1. **Vibe-Kanbanの画面を眺める** - タスクの進捗を確認
-2. **In Reviewになったら自己レビュー** - 実装内容を確認
-3. **OKなら「Create PR」ボタンをクリック** - PRが自動作成される
-4. **GitHubでチームレビュー** - コード確認・承認
-5. **GitHub側でPRをマージ** - ⚠️ 必ずGitHub側で操作
-6. **次のタスクが自動開始** - マージ検知で自動的に次へ（少しラグあり）
+### `/einja:issue-exec` と `/einja:task-exec` の使い分け
 
-### Vibe-Kanban画面での操作
-
-| 操作 | タイミング | 説明 |
-|------|-----------|------|
-| **タスク進捗確認** | 随時 | Todo → In Progress → In Review → Done の流れを確認 |
-| **Create PR** | In Review 時 | ボタンをクリックして PR を自動作成 |
-| **レビュー** | PR 作成後 | GitHub で PR の内容を確認 |
-| **マージ** | レビュー完了後 | GitHub で PR をマージ（⚠️ 必ず GitHub 側で操作） |
+| コマンド | 用途 | 対象 | 推奨シーン |
+|---------|------|------|----------|
+| **`/einja:issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
+| **`/einja:task-exec`** | 単一タスクグループの確実な完了 | 1つのタスクグループ | 複雑な実装、品質重視 |
 
 ### サブエージェントの役割
 
@@ -224,32 +196,27 @@ Phase毎に親Issueが自動作成され、タスクグループはサブIssue�
 `task-reviewer`または`task-qa`で問題が発見された場合、自動的に`task-executer`に戻って修正が行われます。
 
 ```
-task-executer → task-reviewer → task-qa → In Review
+task-executer → task-reviewer → task-qa → PR作成
       ↑              │              │
       └──────────────┴──────────────┘
            問題発見時は自動ループ
 ```
 
-### マージ後の自動処理
+### マージ後の自動処理（/einja:issue-exec 使用時）
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  PR マージ（GitHub側で操作）                                │
-│      ↓                                                      │
-│  Vibe-Kanban: タスク → Done（自動検知）                    │
-│      ↓                                                      │
-│  task:loop: Done 検知（15秒ポーリング）                     │
-│      ↓                                                      │
-│  GitHub Issue: チェックボックス更新（自動）                 │
-│      ↓                                                      │
-│  Phase 全サブIssue完了？                                    │
-│      ├─ Yes → 親Issue Workspace作成                         │
-│      │        → Phase→Issue PR作成・マージ                  │
-│      │        → 親Issue自動Done（タイムアウト2分）           │
-│      └─ No  → スキップ                                      │
-│      ↓                                                      │
-│  次のタスクが自動開始                                       │
-└─────────────────────────────────────────────────────────────┘
+Worker: task-exec 完了 → commit & push → PR 作成
+      ↓
+Director: PR マージ検知
+      ↓
+GitHub Issue チェックボックス更新
+      ↓
+Phase 全タスク完了？
+├─ Yes → Phase PR 作成（Phase → Issue ブランチ）
+│        → マージモードに応じた処理
+└─ No  → 依存解除された次タスクの Worker を起動
+      ↓
+全 Phase 完了 → 最終 PR 作成（Issue → base ブランチ）
 ```
 
 ---
@@ -261,7 +228,7 @@ task-executer → task-reviewer → task-qa → In Review
 | PRの種類    | 作成タイミング       | 内容                       | レビュー観点                                   |
 | ----------- | -------------------- | -------------------------- | ---------------------------------------------- |
 | **Spec PR** | `/einja:spec-create`完了時 | requirements.md, design.md | 要件の妥当性、設計の適切さ、スコープの確認     |
-| **実装PR**  | タスクグループ完了時（Vibe-KanbanでCreate PR） | ソースコード、テスト       | コード品質、設計書との整合性、テストカバレッジ |
+| **実装PR**  | タスクグループ完了時（Worker が自動作成） | ソースコード、テスト       | コード品質、設計書との整合性、テストカバレッジ |
 
 ### なぜ2段階でPRを作成するのか
 
@@ -283,9 +250,9 @@ task-executer → task-reviewer → task-qa → In Review
 
 ### タスク実行フェーズ
 
-- **自己レビュー**: Vibe-KanbanでIn Reviewになったタスクの実装内容確認
-- **Create PRクリック**: 自己レビューOKならPR作成
-- **実装PRレビュー**: 担当者レビュー → 他エンジニアレビュー → 承認 → マージ
+- **PRレビュー**: Worker が自動作成した PR の内容を確認
+- **PRマージ**: マージモードが manual の場合、GitHub で PR をマージ
+- **質問回答**: Manager から AskUserQuestion でエスカレーションされた質問に回答
 
 ### Claudeのセルフチェックについて
 
@@ -294,7 +261,7 @@ task-executer → task-reviewer → task-qa → In Review
 | 従来（人間が実装） | 現在（Claudeが実装） |
 |------------------|-------------------|
 | 実装者がセルフチェック | `task-reviewer` + `task-qa` がセルフチェック |
-| セルフチェック後にPR作成 | セルフチェック後にIn Review → 人間がCreate PR |
+| セルフチェック後にPR作成 | セルフチェック後に自動でPR作成 |
 | 他のエンジニアがPRレビュー | 人間（担当者 + 他エンジニア）がPRレビュー |
 
 ---
@@ -317,37 +284,27 @@ task-executer → task-reviewer → task-qa → In Review
 ### タスク実行
 
 ```bash
-# 自動ループ実行（推奨）
-pnpm task:loop <issue-number>
+# Issue全体の並列実行（推奨）
+/einja:issue-exec #<issue_number>
 
 # オプション指定
-pnpm task:loop <issue-number> --max-group <number> --branch <branch>
-
-# 例
-pnpm task:loop 123                        # Issue #123 の全タスクを実行
-pnpm task:loop 123 --max-group 4          # Phase 4 まで実行
-pnpm task:loop 123 --max-group 4.2        # タスクグループ 4.2 まで実行
+/einja:issue-exec #<issue_number> --merge-mode auto --max-phase 2
 
 # 単一タスクグループ実行（品質重視・複雑な実装向け）
 /einja:task-exec #<issue_number> <task_group_number>
 
 # 例
-/einja:task-exec #123 1.1                 # Issue #123 のタスクグループ 1.1 を実行
+/einja:issue-exec #123                                   # Issue #123 の全タスクを並列実行
+/einja:issue-exec #123 --merge-mode task-group-auto      # タスクPR自動マージ
+/einja:task-exec #123 1.1                                # タスクグループ 1.1 を単発実行
 ```
-
-### `/einja:task-exec` と `pnpm task:loop` の使い分け
-
-| コマンド | 用途 | 品質保証 | 推奨シーン |
-|---------|------|---------|----------|
-| **`/einja:task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
-| **`pnpm task:loop`** | 大量タスクの自動消化 | 並列実行・監視 | 定型作業、並行開発 |
 
 ---
 
 ## 関連ドキュメント
 
 - [タスク管理ガイドライン](task-management.md) - タスク階層、粒度基準、GitHub Issue管理
-- [task:loop詳細ガイド](../instructions/task-vibe-kanban-loop.md) - task:loopの詳細な使い方
+- [Issue実行ワークフロー](../instructions/issue-exec-workflow.md) - Issue実行の詳細な使い方
 - [ブランチ戦略](branch-strategy.md) - ブランチ運用ルール
 - [コードレビューガイドライン](development/review-guidelines.md) - 品質基準とチェックリスト
 
@@ -373,15 +330,10 @@ pnpm task:loop 123 --max-group 4.2        # タスクグループ 4.2 まで実�
 
 ### Q: PRのマージはどこで行いますか？
 
-**A:** 必ず**GitHub側**でマージしてください。Vibe-Kanbanがマージを検知して自動的にタスクをDoneに変更し、task:loopが次のタスクを開始します。
-
-### Q: タスクがIn Reviewのまま進まない場合は？
-
-**A:**
-1. Vibe-Kanbanで「Create PR」をクリックしてPRを作成
-2. GitHubでPRをレビュー・マージ
-
-PRがマージされるとタスクは自動的にDoneになります。
+**A:** マージモードによって異なります：
+- **manual**（デフォルト）: GitHub側で手動マージしてください。Director がマージを検知して次のタスクを開始します。
+- **task-group-auto**: タスクグループPRは自動マージされます。Phase PRは手動マージです。
+- **auto**: タスクPR・Phase PRが自動マージされます。最終PR（issue→base）は常に手動マージです。
 
 ---
 

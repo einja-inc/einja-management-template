@@ -316,21 +316,21 @@ Step 4: GitHub Issueにタスク一覧を記述
 
 ---
 
-### 3. `pnpm task:loop` コマンド
+### 3. `/einja:issue-exec` コマンド
 
-**役割**: 複数タスクの自動連続実行とVibe-Kanbanによる進捗追跡
+**役割**: Issue全体のタスクをManager→Director→Workerの3階層で並列実行
 
 詳細については、専用ドキュメントを参照してください：
-**📖 [Vibe-Kanban自動実行ガイド](./task-vibe-kanban-loop.md)**
+**📖 [Issue実行ワークフローガイド](./issue-exec-workflow.md)**
 
 #### `/einja:task-exec`との使い分け
 
-| コマンド | 用途 | 品質保証 | 推奨シーン |
-|---------|------|---------|----------|
-| **`/einja:task-exec`** | 重要タスクの確実な完了 | ✅ 合格まで自動ループ | 複雑な実装、品質重視 |
-| **`pnpm task:loop`** | 大量タスクの自動消化 | ❌ 各タスクは別プロセス | 定型作業、並行開発 |
+| コマンド | 用途 | 対象 | 推奨シーン |
+|---------|------|------|----------|
+| **`/einja:issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
+| **`/einja:task-exec`** | 単一タスクグループの確実な完了 | 1つのタスクグループ | 複雑な実装、品質重視 |
 
-**詳細な使い分け基準**: [task-vibe-kanban-loop.md](./task-vibe-kanban-loop.md#task-execとの使い分け)
+**詳細な使い分け基準**: [issue-exec-workflow.md](./issue-exec-workflow.md#task-execとの使い分け)
 
 ---
 
@@ -452,7 +452,7 @@ stateDiagram-v2
     [*] --> 未着手: タスク作成
 
     未着手 --> 着手中_TaskExec: /einja:task-exec実行
-    未着手 --> Vibe登録: /task-vibe-kanban-loop実行
+    未着手 --> IssueExec開始: /einja:issue-exec実行
 
     着手中_TaskExec --> 実装中: 実装フェーズ
     実装中 --> レビュー中: 実装完了
@@ -461,16 +461,16 @@ stateDiagram-v2
     QA中 --> 実装中: テスト失敗<br/>（ループバック）
     QA中 --> 完了_TaskExec: 全テスト合格
 
-    Vibe登録 --> 実行待機: Vibe-Kanban登録完了
-    実行待機 --> 実行中_Vibe: エージェント開始
-    実行中_Vibe --> 完了_Vibe: 実行成功
-    実行中_Vibe --> 失敗: 実行失敗
+    IssueExec開始 --> Worker割当: Manager/Directorが管理
+    Worker割当 --> 実行中_IssueExec: Worker起動
+    実行中_IssueExec --> PR作成: task-exec完了
+    PR作成 --> 完了_IssueExec: PRマージ
 
-    失敗 --> 手動修正: 開発者が修正
-    手動修正 --> Vibe登録: 再実行
+    実行中_IssueExec --> 失敗: 実行失敗
+    失敗 --> Worker割当: リトライ（最大2回）
 
     完了_TaskExec --> [*]
-    完了_Vibe --> [*]
+    完了_IssueExec --> [*]
 
     note right of 未着手
         状態: [ ]
@@ -482,16 +482,16 @@ stateDiagram-v2
         状態: [🔄]
     end note
 
-    note right of 実行待機
-        1分間隔で再試行
-        最大30回まで
+    note right of Worker割当
+        tmux + worktree で
+        並列実行
     end note
 
     note right of 完了_TaskExec
         状態: [x]
     end note
 
-    note right of 完了_Vibe
+    note right of 完了_IssueExec
         状態: [x]
     end note
 ```

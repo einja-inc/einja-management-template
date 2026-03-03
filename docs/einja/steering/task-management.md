@@ -356,7 +356,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 
 ### 依存関係の記述形式（重要）
 
-**🔴 `pnpm task:loop`スクリプトが認識できる形式のみ使用すること**
+**🔴 `/einja:issue-exec` が認識できる形式のみ使用すること**
 
 | 記述形式 | 意味 | 例 |
 |---------|------|-----|
@@ -377,7 +377,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 ### 1. タスクグループを選定・実行
 - `/einja:task-exec #{issue_number} {タスクグループ番号}`コマンドを実行
 - タスクグループ番号は必須引数（例: `1.1`, `2.3`）
-- **注意**: `pnpm task:loop <issue番号>`が何らかの理由で使えない場合のオプションの単発実行として`/einja:task-exec`を使用
+- **注意**: 単一タスクグループを品質重視で確実に完了させたい場合に使用。`/einja:issue-exec` の Worker 内部でも呼ばれる
 - executer → reviewer → qa の3段階で実行
 
 ### 2. タスクを順次実装し、コミット
@@ -395,85 +395,6 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 - タスクグループ完了後、GitHub Issueのチェックボックスを手動でON
 - または、ユーザーが明示的に指示した場合のみ自動更新
 - すべてのタスクグループが完了したら、IssueをClose
-
-## Vibe-Kanbanタスク作成時の必須情報
-
-### タスクタイトル形式
-```
-[タスクグループ番号] タスクグループ名
-```
-
-**例**: `[1.1] Server Core構築とDB設定`
-
-### タスク説明形式
-
-```markdown
-## GitHub Issue
-#{issue_number}
-
-## タスクグループ番号
-<タスクグループ番号>
-
-## 概要
-<タスクグループの概要>
-
-## タスク
-<GitHub Issueから抽出したタスク一覧>
-
-## 依存関係
-<依存するタスクグループ番号>
-
-## 完了条件
-<受け入れ基準を含む完了条件>
-
-## 対応設計
-<design.mdの参照箇所>
-```
-
-**例**:
-```markdown
-## GitHub Issue
-#17
-
-## タスクグループ番号
-1.1
-
-## 概要
-packages/server-coreの初期化からDB接続設定まで、Server Coreの基盤構築を完了
-
-## タスク
-- 1.1.1 packages/server-core初期化とtsconfig設定
-- 1.1.2 DB接続設定とマイグレーション
-
-## 依存関係
-なし
-
-## 完了条件
-server-coreパッケージが動作し、DBに接続できること（AC1.1を満たす）
-
-## 対応設計
-design.md「Server Core構築」セクション
-```
-
-### 親Issue/サブIssue階層（task:loop使用時）
-
-`pnpm task:loop` 使用時は、Vibe-Kanban上でPhase→親Issue、タスクグループ→サブIssueの階層構造で管理されます。
-
-**親Issueタイトル形式**:
-```
-[Issue{N} Phase{M}] {Phase名}
-```
-例: `[Issue17 Phase1] 基盤構築`
-
-**サブIssueタイトル形式**:
-```
-[Issue{N} {X.Y}] {タスクグループ名}
-```
-例: `[Issue17 1.1] Server Core構築とDB設定`
-
-**親子関係の設定**: サブIssue作成後、REST API（PATCH `/api/remote/issues/{id}`）で `parent_issue_id` を設定します。
-
-**注意**: `/einja:task-exec` による単発実行時はこの階層構造は使用されません。`pnpm task:loop` 使用時のみ適用されます。
 
 ## コマンドリファレンス
 
@@ -493,18 +414,18 @@ design.md「Server Core構築」セクション
 - executer → reviewer → qa の3段階で実行
 - QA合格後は追加指示待ち状態に入る
 - GitHub Issue更新はユーザーの明示的指示時のみ
-- **位置づけ**: `pnpm task:loop <issue番号>`が使えない場合の代替となる単発実行コマンド
+- **位置づけ**: 単一タスクグループを品質重視で実行するコマンド。`/einja:issue-exec` の Worker 内部でも使用される
 
-**自動ループ実行**:
+**Issue全体の並列実行**:
 ```bash
-pnpm task:loop <issue番号>
-pnpm task:loop <issue番号> --max-group <番号>  # 指定番号まで実行
-pnpm task:loop <issue番号> --branch <ブランチ> # ベースブランチ指定
+/einja:issue-exec #<issue番号>
+/einja:issue-exec #<issue番号> --merge-mode auto      # 全自動モード
+/einja:issue-exec #<issue番号> --max-phase <番号>      # 指定Phaseまで実行
+/einja:issue-exec #<issue番号> --base <ブランチ>       # ベースブランチ指定
 ```
-- 着手可能なタスクグループを並列でVibe-Kanbanに登録
-- Done状態を監視して次のタスクを自動開始
-- Phase毎に親Issueを作成し、タスクグループをサブIssueとして管理（詳細は「親Issue/サブIssue階層」を参照）
-- **前提**: `npx @einja/cli init` 実行済み、Claude Code インストール済み
+- Manager → Director → Worker の3階層で並列実行
+- tmux セッションで全プロセスを監視可能
+- マージモードで自動化レベルを制御
 
 **仕様書からドキュメント更新**:
 ```bash

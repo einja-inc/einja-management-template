@@ -52,8 +52,8 @@ uvx --from git+https://github.com/oraios/serena \
   --context claude-code \
   --project "$_SERENA_BASE" \
   > /dev/null 2>&1 &
-disown
 _serena_pid=$!
+disown
 
 # --- 起動待機（PID生存 + ポートLISTEN、最大30秒） ---
 for _i in $(seq 1 60); do

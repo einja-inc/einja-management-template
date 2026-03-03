@@ -81,7 +81,7 @@
 | ドキュメント | 説明 | 対象者 |
 |-------------|------|--------|
 | [開発ワークフロー](development-workflow.md) | 仕様書作成からタスク実行・レビューまでの全体フロー | 全員 |
-| [タスク管理](task-management.md) | タスク階層、粒度基準、Vibe-Kanban連携 | 全員 |
+| [タスク管理](task-management.md) | タスク階層、粒度基準、issue-exec連携 | 全員 |
 | [ブランチ戦略](branch-strategy.md) | Git運用ルール、ブランチ命名規則 | 全員 |
 
 ### システム全体

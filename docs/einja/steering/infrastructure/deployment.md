@@ -185,8 +185,7 @@ flowchart TB
     end
 
     subgraph "migrate/action.yml"
-        M1[setup action 呼び出し] --> M2[pnpm generate]
-        M2 --> M3[db:migrate:deploy]
+        M1[setup action 呼び出し] --> M3[db:migrate:deploy]
         M3 --> M4{run-seed?}
         M4 -->|true| M5[db:seed]
         M4 -->|false| M6[完了]
@@ -201,7 +200,7 @@ flowchart TB
 |--------|---------|------|-----------|
 | **Setup** | `actions/setup/action.yml` | pnpm + Node.js + install | ci action, migrate action, cleanup |
 | **CI** | `actions/ci/action.yml` | setup → generate → [migrate] → typecheck → lint → test | deploy-stable-branches, deploy-pr-preview |
-| **Migrate** | `actions/migrate/action.yml` | setup → generate → migrate → seed (optional) | deploy-stable-branches |
+| **Migrate** | `actions/migrate/action.yml` | setup → migrate → seed (optional) | deploy-stable-branches |
 | **Neon Export Env** | `actions/neon-export-env/action.yml` | .env.previewからNeon環境変数をエクスポート | deploy-pr-preview, cleanup-pr-preview-on-close |
 
 ### 実行マトリクス
@@ -434,7 +433,7 @@ flowchart TD
 - 復号鍵: `DOTENV_PRIVATE_KEY_DEVELOP`
 - DBマイグレーション: ❌（PR PreviewのNeonブランチで自動同期）
 - DBシード: ❌
-- Alias: `secrets.VERCEL_DEV_DOMAIN`
+- Alias: `.env.develop` 内の `VERCEL_ALIAS_DOMAIN_WEB` / `VERCEL_ALIAS_DOMAIN_ADMIN`（dotenvx復号で取得）
 
 ---
 
@@ -464,7 +463,7 @@ flowchart TD
 - 復号鍵: `DOTENV_PRIVATE_KEY_STAGING`
 - DBマイグレーション: ✅
 - DBシード: ❌（既存データ保持）
-- Alias: `secrets.VERCEL_STG_DOMAIN`
+- Alias: `.env.staging` 内の `VERCEL_ALIAS_DOMAIN_WEB` / `VERCEL_ALIAS_DOMAIN_ADMIN`（dotenvx復号で取得）
 
 ---
 
@@ -519,8 +518,8 @@ flowchart TD
 | 環境 | ブランチ | Vercel環境 | DBマイグ | シード | Alias | 暗号化ファイル | 復号鍵 |
 |------|---------|-----------|:-------:|:-----:|:-----:|--------------|--------|
 | Production | main | production | ✅ | ❌ | ❌ | `.env.production` | `DOTENV_PRIVATE_KEY_PRODUCTION` |
-| Develop | develop | preview | ❌ | ❌ | ✅ | `.env.develop` | `DOTENV_PRIVATE_KEY_DEVELOP` |
-| Staging | staging | preview | ✅ | ❌ | ✅ | `.env.staging` | `DOTENV_PRIVATE_KEY_STAGING` |
+| Develop | develop | preview | ❌ | ❌ | ✅ `VERCEL_ALIAS_DOMAIN_*` | `.env.develop` | `DOTENV_PRIVATE_KEY_DEVELOP` |
+| Staging | staging | preview | ✅ | ❌ | ✅ `VERCEL_ALIAS_DOMAIN_*` | `.env.staging` | `DOTENV_PRIVATE_KEY_STAGING` |
 | PR Preview | feature/* | preview | ✅ | ✅ | ❌ | `.env.preview` | `DOTENV_PRIVATE_KEY_PREVIEW` |
 
 ### Vercel環境変数の自動同期

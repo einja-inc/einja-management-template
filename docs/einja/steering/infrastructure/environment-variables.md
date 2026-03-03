@@ -279,6 +279,7 @@ dotenvx採用により、GitHub Secretsは**環境ごとに1つの秘密鍵の�
 
 | Secret名 | 用途 |
 |---------|------|
+| `DOTENV_PRIVATE_KEY_DEVELOP` | dev検証環境の復号 |
 | `DOTENV_PRIVATE_KEY_STAGING` | ステージング環境の復号 |
 | `DOTENV_PRIVATE_KEY_PREVIEW` | Preview環境の復号（Neon環境変数含む） |
 | `DOTENV_PRIVATE_KEY_PRODUCTION` | 本番デプロイ時の復号 |

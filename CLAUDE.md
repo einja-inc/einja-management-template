@@ -40,7 +40,7 @@
 | `einja-task-commit` | コミット・プッシュ |
 | `einja-conflict-resolver` | gitコンフリクト解消 |
 | `einja-skill-creator` | Skill作成・更新 |
-| `einja-skill-advisor` | 作業前のSkill作成必要性評価（Plan/spec-create時に自動起動） |
+| `einja-skill-first` | 作業前のSkill作成必要性評価（Plan/spec-create時に自動起動） |
 | `einja-infra-maintenance` | インフラ環境セットアップ・メンテナンス |
 | `einja:issue-exec` | Issue全体の階層的並列実行（Manager→Director→Worker） |
 | `einja:task-exec` | タスクグループ実行 |
@@ -53,8 +53,9 @@
 ### 必須フロー
 1. 問題・要件を調査・分析する
 2. 修正計画を `docs/plans/` に作成する
-3. `einja-skill-advisor` で「Skill を先に作るべきか」を自動評価する
-   - 計画の内容・スコープを見て判断（全体像が見えた状態で評価）
+3. `einja-skill-first` で「Skill を先に作るべきか」を評価する
+   - Plan mode中は `UserPromptSubmit` hookにより自動でリマインダーが注入される
+   - `.claude/skills/einja-skill-first/SKILL.md` を読み込んで評価を実施する
    - 推奨判定 → AskUserQuestion でユーザーに提案
    - 承認 → 計画の TODO-0 に Skill 作成を追加
    - 不要判定 → そのまま次へ進む
@@ -224,7 +225,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `einja cli` `@einja/dev-cli` `公開` `リリース` `publish` `release` | `.claude/skills/dev-cli-release/SKILL.md` |
 | `create-einja-app` | `.claude/skills/create-einja-app-release/SKILL.md` |
 | `インフラ` `環境変数管理` `Vercel` `Neon` `デプロイ設定` `GitHub Secrets` `環境セットアップ` `GitHub Actions` `CI/CD` `ワークフロー` | `.claude/skills/einja-infra-maintenance/SKILL.md` |
-| `Skill作るべき？` `Skill化` `skill-advisor` `Skill-first` | `.claude/skills/einja-skill-advisor/SKILL.md` |
+| `Skill作るべき？` `Skill化` `skill-first` `Skill-first` | `.claude/skills/einja-skill-first/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 

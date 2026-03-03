@@ -1,5 +1,5 @@
 ---
-description: "GitHub Issueの全タスクを階層的に並列実行するコマンド。Manager→Director→Workerの3階層でtmux+worktreeを使用。ARGUMENTS: Issue番号（必須、#123形式）、オプション（--merge-mode, --max-phase, --base, --resume）"
+description: "GitHub Issueの全タスクを階層的に並列実行するコマンド。Manager→Director→Workerの3階層でtmux+worktreeを使用。ARGUMENTS: 自然言語でIssue番号や実行オプションを指定（例: '#123 autoで全部やって', '45番 phase2まで'）"
 allowed-tools: Task, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, Skill, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, WebFetch, AskUserQuestion, mcp__github__*
 ---
 
@@ -11,23 +11,107 @@ tmux セッション、git worktree、ステータスファイルを使って全
 
 ## 入力の解析
 
-$ARGUMENTSから以下を解析：
-- **Issue番号**（必須、例: `#123`、`123`）
-- **--merge-mode**（オプション、デフォルト: `manual`）
-  - `manual`: タスクPR・Phase PRともに人間マージ待ち
-  - `task-group-auto`: タスクPR（task→phase）はCI通過後に自動マージ。Phase PRは人間マージ待ち
-  - `auto`: タスクPR・Phase PRともにCI通過後に自動マージ。最終PR（issue→base）は常に人間マージ待ち
-- **--max-phase**（オプション、例: `2`）: 指定Phase番号まで実行
-- **--base**（オプション、デフォルト: `main`）: ベースブランチ
-- **--resume**（オプション）: 既存セッションからの復旧
+### Step A: $ARGUMENTS を自然言語として解析
+
+$ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する:
+
+| 項目 | 抽出例 |
+|------|--------|
+| Issue番号 | `#123`, `123`, `Issue 45`, `45番` → 数値を抽出 |
+| マージモード | `autoで`, `自動マージ`, `全部自動` → auto / `タスクだけ自動` → task-group-auto / `手動で確認`, `慎重に` → manual |
+| 実行範囲 | `phase2まで`, `フェーズ1だけ`, `全部` → max-phase 数値 or null |
+| ベースブランチ | `developから`, `mainベース` → ブランチ名 |
+| セッション復旧 | `再開`, `resume`, `続きから` → resume フラグ |
+
+解析できなかった項目は「未指定」とする。曖昧な場合も無理に推測せず「未指定」とする。
+
+### Step B: resume が検出された場合
+セッション復旧フローへ直接進む（Step 0 の復旧処理）。以降の質問はスキップ。
+
+### Step C: 未指定項目を AskUserQuestion で確認
+
+**Issue番号** が未指定の場合、まず Issue番号を質問する。
+
+残りの未指定オプションを **1回の AskUserQuestion** でまとめて質問する（指定済みの項目はスキップ）:
+
+#### Q1: マージモード（未指定時のみ）
+- header: "Merge mode"
+- multiSelect: false
+- options:
+  1. label: "manual（推奨）"
+     description: "タスクPR・Phase PRとも人間がマージ。変更内容を都度レビューしたい場合に最適"
+  2. label: "task-group-auto"
+     description: "タスクPR（task→phase）はCI通過後に自動マージ。Phase PRは人間マージ。スピードと安全性のバランス型"
+  3. label: "auto"
+     description: "タスクPR・Phase PRとも自動マージ。最終PR（issue→base）のみ人間マージ。最速だがリスクあり"
+
+#### Q2: 実行範囲（未指定時のみ）
+- header: "Phase範囲"
+- multiSelect: false
+- options:
+  1. label: "全Phase実行（推奨）"
+     description: "Issueに定義された全Phaseを順次実行する"
+  2. label: "特定Phaseまで"
+     description: "Phase番号を指定して途中まで実行。段階的に確認したい場合に有用（Other欄にPhase番号を入力）"
+
+#### Q3: ベースブランチ（未指定時のみ）
+- header: "Base branch"
+- multiSelect: false
+- options:
+  1. label: "main（推奨）"
+     description: "デフォルトのメインブランチからIssueブランチを作成"
+  2. label: "develop"
+     description: "developブランチがある場合。GitFlow運用向け"
 
 ## 処理フロー
 
 ### Step 0: 環境準備
-1. tmux がインストールされていることを確認（`which tmux`）
-2. `~/.einja/sessions/` と `~/.einja/worktrees/` ディレクトリを確認・作成
-3. `--resume` フラグがある場合、`~/.einja/sessions/issue-{N}/session.json` からセッション状態を復元
-   - 未完了のPhaseのDirectorを再起動する
+
+#### 1. tmux インストール確認・自動導入
+
+1. `command -v tmux` で tmux の存在を確認
+2. **インストール済みの場合**: `tmux -V` でバージョン表示し、次のステップへ進む
+3. **未インストールの場合**: `uname -s` で OS を判定し、以下のフローで自動導入を提案
+
+**macOS（`uname -s` = `Darwin`）:**
+1. `command -v brew` で Homebrew を確認
+2. Homebrew あり:
+   - AskUserQuestion で「`brew install tmux` を実行してよいか？」確認 → 承認後に実行
+3. Homebrew なし:
+   - 以下を表示して**停止**:
+     > tmux のインストールには Homebrew が必要です。
+     > 以下のコマンドで Homebrew をインストール後、再度 issue-exec を実行してください:
+     > `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+
+**Linux（`uname -s` = `Linux`）:**
+1. パッケージマネージャーを検出（上から優先）:
+   - `command -v apt-get` → `apt-get update && apt-get install -y tmux`
+   - `command -v dnf` → `dnf install -y tmux`
+   - `command -v yum` → `yum install -y tmux`
+   - いずれも検出できない場合 → 「対応パッケージマネージャーが見つかりません。手動で tmux をインストールしてください」と表示して**停止**
+2. 権限判定とインストール:
+   - `id -u` が 0（root）→ sudo 不要。AskUserQuestion で「`<pm> install tmux` を実行してよいか？」確認 → 承認後に実行
+   - root でない場合 → `sudo -n true 2>/dev/null` で sudo 権限を確認
+     - sudo 可能 → AskUserQuestion で「`sudo <pm> install tmux` を実行してよいか？」確認 → 承認後に実行
+     - sudo 不可 → AskUserQuestion で「tmux のインストールには sudo 権限が必要です。パスワード入力が求められる場合があります。`sudo <pm> install tmux` を実行しますか？それとも手動でインストールしますか？」と確認
+       - 手動を選択 → インストールコマンドを表示して**停止**
+
+**その他（`MINGW*`, `MSYS*`, `CYGWIN*`, 不明な OS）:**
+- 以下を表示して**停止**:
+  > issue-exec は tmux を必須としており、この環境では利用できません。
+  > WSL2 環境での実行を推奨します。
+  > 代替: `/einja:task-exec` で個別タスクグループを逐次実行することは可能です。
+
+**インストール後の検証:**
+- `hash -r` で PATH をリフレッシュし、`command -v tmux && tmux -V` で成功確認
+- 失敗した場合 → 「tmux のインストールは完了しましたが、PATH に反映されていません。シェルを再起動して再度実行してください」と表示して**停止**
+
+#### 2. ディレクトリ準備
+- `~/.einja/sessions/` と `~/.einja/worktrees/` ディレクトリを確認・作成
+
+#### 3. セッション復元
+- `--resume` フラグがある場合、`~/.einja/sessions/issue-{N}/session.json` からセッション状態を復元
+  - 未完了のPhaseのDirectorを再起動する
 
 ### Step 1: Issue パース
 1. `gh issue view {issue番号} --json body,title,number` でIssue本文を取得

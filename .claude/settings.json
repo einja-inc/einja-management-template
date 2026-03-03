@@ -185,6 +185,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/plan-mode-skill-loader.sh",
+            "timeout": 5000
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {

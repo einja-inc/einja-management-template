@@ -1,7 +1,7 @@
 ---
-name: einja-skill-advisor
+name: einja-skill-first
 description: >
-  タスク着手前にSkillを先に作るべきかを自動評価するメタSkill。Plan mode進入時やspec-create実行時に自動起動し、既存Skillのギャップ分析とROI評価を行い、Skill作成の必要性を構造化して提案する。「Skill作るべき？」「Skill化」「skill-advisor」「Skill-first」等のキーワードでも直接呼び出し可能。
+  タスク着手前にSkillを先に作るべきかを自動評価するメタSkill。Plan mode進入時やspec-create実行時に自動起動し、既存Skillのギャップ分析とROI評価を行い、Skill作成の必要性を構造化して提案する。「Skill作るべき？」「Skill化」「skill-first」「Skill-first」等のキーワードでも直接呼び出し可能。
 allowed-tools:
   - Read
   - Grep
@@ -10,7 +10,7 @@ allowed-tools:
 
 <!-- ベース: .claude/skills/einja-skill-creator/SKILL.md -->
 
-# einja-skill-advisor: Skill作成事前評価メタSkill
+# einja-skill-first: Skill作成事前評価メタSkill
 
 タスク着手前に「Skillを先に作るべきか」を評価し、必要ならSkill作成をTODOの先頭に積むメタSkill。
 
@@ -18,7 +18,7 @@ Plan mode 内でも動作する（Read / Grep / Glob のみ使用）。Skill作�
 
 ## einja-skill-creator との責務分離
 
-| 責務 | skill-advisor | skill-creator |
+| 責務 | einja-skill-first | einja-skill-creator |
 |------|:---:|:---:|
 | ギャップ分析・ROI評価 | ○ | - |
 | Skill仕様ドラフト（概要） | ○ | - |
@@ -42,7 +42,7 @@ spec-create の Phase 0 で自動実行する。仕様書作成の前にSkillギ
 以下のキーワードで直接呼び出し可能:
 - 「Skill作るべき？」
 - 「Skill化」
-- 「skill-advisor」
+- 「skill-first」
 - 「Skill-first」
 
 ---
@@ -71,7 +71,12 @@ spec-create の Phase 0 で自動実行する。仕様書作成の前にSkillギ
 ### ステップ1: 作業パターン分析
 
 1. **作業カテゴリ特定**: FE / BE / インフラ / ドキュメント / リファクタ等に分類する
-2. **反復性評価**: 今後も繰り返す作業か判定する。`docs/einja/memory/patterns.md` を Read で参照し、類似パターンの記録がないか確認する
+2. **反復性評価**: 今後も繰り返す作業か判定する
+   a. `docs/einja/memory/patterns.md` を Read で参照し、類似パターンの記録がないか確認する
+   b. patterns.md に記録がない場合、`docs/plans/` からも反復パターンを推定する
+      - Glob で `docs/plans/*.md` を取得（`todo-*.md`, `*-agent-*.md` は除外）
+      - Grep で作業カテゴリのキーワード + `# Plan:` タイトル行を検索
+      - 類似カテゴリの作業が2件以上あれば反復性の根拠とする
 3. **複雑度評価**: 手順数・判断分岐数・参照ドキュメント数から複雑度を見積もる
 
 ### ステップ2: 既存Skillギャップ分析
@@ -139,9 +144,27 @@ spec-create の Phase 0 で自動実行する。仕様書作成の前にSkillギ
 ```
 
 **判定アイコンの定義:**
-- 推奨: `推奨`
-- 拡張推奨: `拡張推奨`
-- 不要: `不要`
+- 推奨: `🟢推奨`
+- 拡張推奨: `🟡拡張推奨`
+- 不要: `⚪不要`
+
+### ステップ5: 過去Plan検索によるユースケース収集（推奨/拡張推奨の場合のみ）
+
+以下の手順で過去Planから類似作業を検索し、Skill仕様のユースケースに反映する。
+
+1. Glob で `docs/plans/*.md` を取得する
+   - 除外: `todo-*.md`, `*-agent-*.md`（子エージェント出力）
+2. Grep で以下のキーワードを検索し、関連Planを特定する
+   - ステップ1で特定した作業カテゴリのキーワード
+   - 変更対象ファイルパターン（例: `.claude/skills/`, `CLAUDE.md` 等）
+   - `# Plan:` タイトル行で関連性を粗くフィルタ
+3. 関連性の高いPlan（最大5件）のみ Read で詳細を確認する
+   - `## Context` セクションから作業概要を抽出
+   - 変更対象ファイル・手順から共通パターンを特定
+4. 類似度を判定する
+   - 高: 変更対象ファイルが重複する
+   - 中: 同一ドメインの作業、または手法・パターンが類似
+5. 結果を Skill概要仕様のユースケースセクションに反映する
 
 ---
 
@@ -155,9 +178,12 @@ spec-create の Phase 0 で自動実行する。仕様書作成の前にSkillギ
 - **目的**: {Skillの目的}
 - **主要フロー**: {主要な処理ステップの概要}
 - **推定作成時間**: {見積もり}
+- **ユースケース（過去Planから）**:
+  - {Plan名}: {作業概要}（類似度: 高/中）
+  - {Plan名}: {作業概要}（類似度: 高/中）
 
 ### 推奨ワークフロー
-計画のTODO-0にSkill作成を追加し、einja-skill-creatorで作成後に本作業を開始する。
+計画のTODO-0にSkill作成を追加し、`einja-skill-creator` Skillで作成後に本作業を開始する。
 ```
 
 ### 拡張推奨（既存Skill拡張）
@@ -195,7 +221,7 @@ spec-create の Phase 0 で自動実行する。仕様書作成の前にSkillギ
 
 ### 親エージェントの責務（Plan mode内）
 
-1. skill-advisor の結果を受け取る
+1. skill-first の結果を受け取る
 2. AskUserQuestion で提案する（推奨 / 拡張推奨の場合）
 3. 承認された場合、計画ファイルの TODO-0 に Skill 作成を記載する
 
@@ -234,6 +260,6 @@ TODO-1〜: 作成した Skill を活用して本作業を実行
 
 ---
 
-<!-- @einja:project-private:start id="einja-skill-advisor-project" -->
+<!-- @einja:project-private:start id="einja-skill-first-project" -->
 <!-- プロジェクト固有の情報を記入 -->
 <!-- @einja:project-private:end -->

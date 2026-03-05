@@ -127,16 +127,16 @@ description: "@einja/dev-cli と create-einja-app のビルド・テンプレー
 **ファイル**: `packages/cli/src/lib/preset-update/file-copier.ts` L194-195
 
 ```typescript
-// skillsカテゴリの場合、einja-プレフィックスでフィルタリング
-const prefixFilter = mapping.category === "skills" ? "einja-" : undefined;
+// skillsカテゴリの場合、einja-/_einja-プレフィックスでフィルタリング
+const prefixFilter = mapping.category === "skills" ? ["einja-", "_einja-"] : undefined;
 ```
 
-`.claude/skills/` 配下のトップレベルディレクトリのうち、**`einja-` で始まるもののみ**が配布対象。
+`.claude/skills/` 配下のトップレベルディレクトリのうち、**`einja-` または `_einja-` で始まるもの**が配布対象。
 
-- **配布される**: `einja-project-overview/`, `einja-task-commit/`, `einja-skill-creator/` 等
-- **配布されない**: `cli-package-specs/`（このSkill自体）、その他 `einja-` プレフィックスなしのSkill
+- **配布される**: `einja-task-commit/`, `einja-skill-creator/`, `_einja-project-overview/` 等
+- **配布されない**: `cli-package-specs/`（このSkill自体）、その他プレフィックスなしのSkill
 
-`copy-presets.mjs` では個別列挙（L62-101）で同等の制御を実現している。
+`copy-presets.mjs` ではディレクトリを動的スキャンし、`einja-*` / `_einja-*` パターンにマッチするものを個別エントリとしてコピーする。
 
 ### 3.2 `_` プレフィックスフィルタ
 

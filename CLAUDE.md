@@ -136,7 +136,7 @@
 ## プロジェクト概要
 
 Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は以下のSkillを参照:
-- `einja-project-overview` - 構成、技術スタック、頻出コマンド
+- `_einja-project-overview` - 構成、技術スタック、頻出コマンド
 - `docs/einja/steering/development/coding-standards.md` - コーディング規約、インポートパス規約
 - `einja-infra-maintenance` - 開発環境セットアップ、サーバー管理
 
@@ -231,6 +231,19 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 
 このセクションはテンプレート生成時に除外され、CLIで他リポジトリにコピーされません。
 
+### Skill命名規則（配布制御）
+
+| 区分 | ディレクトリ名 | name フィールド | 配布 |
+|------|--------------|----------------|------|
+| ユーザー向け | `einja-{name}/` | `einja-{name}` | される |
+| インナー（内部参照用） | `_einja-{name}/` | `_einja-{name}` | される |
+| リポジトリ固有 | `{name}/` | `{name}` | されない |
+
+- Skill作成時は `einja-` プレフィックスをつける（配布対象にするため）
+- インナーSkill（他Skillから内部的に参照されるもの）はディレクトリ名に `_einja-` プレフィックスをつける
+- 配布しないリポジトリ固有Skillはプレフィックスをつけない
+- 配布制御は `copy-presets.mjs` がディレクトリ名の `einja-` / `_einja-` プレフィックスで自動判定する
+
 ### キーワードトリガー（専用Skill使用必須）
 
 以下のキーワードを検出したら、**即座に該当Skillを参照**すること：
@@ -249,7 +262,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 |-----|---------|------|
 | `.claude/agents/einja/` | `presets/default/.claude/agents/einja/` | 単純コピー |
 | `.claude/commands/einja/` | `presets/default/.claude/commands/einja/` | 単純コピー |
-| `.claude/skills/einja-*/` | `presets/default/.claude/skills/einja-*/` | 単純コピー |
+| `.claude/skills/einja-*/` | `presets/default/.claude/skills/` | `einja-*` / `_einja-*` プレフィックスのディレクトリを自動スキャンしてコピー |
 | `.claude/hooks/einja/` | `presets/default/.claude/hooks/einja/` | 単純コピー |
 | `.claude/settings.json` | `presets/default/.claude/settings.json` | 単純コピー |
 | `.vscode/settings.json` | `presets/default/.vscode/settings.json` | 単純コピー |

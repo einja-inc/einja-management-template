@@ -196,7 +196,7 @@ sequenceDiagram
 |---------|---------|------|
 | `commands` | `.claude/commands/einja/` | Claude Code コマンド定義 |
 | `agents` | `.claude/agents/einja/` | サブエージェント定義 |
-| `skills` | `.claude/skills/einja-*/` | Skill 定義（`einja-` プレフィックスのみ） |
+| `skills` | `.claude/skills/einja-*/`, `_einja-*/` | Skill 定義（`einja-` / `_einja-` プレフィックス） |
 | `hooks` | `.claude/hooks/` | フック定義 |
 | `docs` | `docs/einja/` | ステアリングドキュメント |
 | `scripts` | `scripts/` | ユーティリティスクリプト（`_` プレフィックスは除外） |
@@ -207,8 +207,8 @@ sequenceDiagram
 
 | 方式 | 適用条件 | 動作 |
 |------|---------|------|
-| マーカーベースマージ | `@einja:managed:start/end`、`@einja:project-private:start/end` マーカーを含むファイル | managed セクションをテンプレートで置換し、project-private セクションはローカルを保持 |
-| レガシーマーカー自動マイグレーション | `@einja:seed:start/end` マーカーを含むファイル | レガシー `@einja:seed:` マーカーを `@einja:managed:` に自動変換した上でマーカーベースマージを実行 |
+| マーカーベースマージ | `@einja:managed:[start/end]`、`@einja:project-private:[start/end]` マーカーを含むファイル | managed セクションをテンプレートで置換し、project-private セクションはローカルを保持 |
+| レガシーマーカー自動マイグレーション | `@einja:seed:[start/end]` マーカーを含むファイル | レガシー `@einja:seed:` マーカーを `@einja:managed:` に自動変換した上でマーカーベースマージを実行 |
 | project-private のみマージ | `@einja:project-private` のみで `@einja:managed` を含まないファイル | project-private セクションをローカルから保持し、それ以外をテンプレートで上書き（`syncProjectPrivateOnlyFile`） |
 | JSON マージ | `.json` 拡張子のファイル | managed/project-private の JSON パス指定に基づきマージ |
 | 3方向マージ | マーカーなしの通常ファイル | base（前回テンプレート）・local・template の3方向差分で自動マージ。コンフリクト時はマーカー付きで出力 |

@@ -125,7 +125,7 @@ $ARGUMENTSからIssue番号とタスクグループ番号を解析する（現�
 2. **存在チェック**:
    - 完全なspec（requirements.md + design.md + qa-tests/） → 次へ
    - 部分的spec → エラー終了（`einja-issue-spec-create` Skill の実行を案内）
-   - specなし → `einja-general-context-loader` Skill を呼び出してコンテキスト収集
+   - specなし → `_einja-general-context-loader` Skill を呼び出してコンテキスト収集
 3. **requirements.md を読み込み**、各タスクのメタデータ（`**要件**: Story X`）に基づいてACを抽出
    - ACはGiven/When/Then形式で小さい（~50-100トークン/AC）ので直接保持
 4. **design.md はパスのみ特定**（内容は読み込まない）

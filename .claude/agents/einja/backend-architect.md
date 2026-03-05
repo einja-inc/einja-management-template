@@ -4,7 +4,7 @@ description: バックエンドアーキテクチャ設計の専門家。4層ア
 model: sonnet
 color: orange
 skills:
-  - output-format
+  - _einja-output-format
   - einja-subagent-question-protocol
 ---
 

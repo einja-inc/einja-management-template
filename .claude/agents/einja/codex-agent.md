@@ -4,7 +4,7 @@ description: OpenAI Codex CLIを活用した汎用コーディングエージェ
 model: sonnet
 color: green
 skills:
-  - output-format
+  - _einja-output-format
 ---
 
 ## ✅ 最重要: 出力形式

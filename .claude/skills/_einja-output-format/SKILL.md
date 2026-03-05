@@ -1,5 +1,5 @@
 ---
-name: output-format
+name: _einja-output-format
 description: "サブエージェントの統一出力形式を定義"
 ---
 

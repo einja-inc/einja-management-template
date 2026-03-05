@@ -1,5 +1,5 @@
 ---
-name: general-context-loader
+name: _einja-general-context-loader
 description: "spec（仕様書）が存在しない場合の文脈収集を担当するSkill。Issue本文、ユーザー指示、関連コードから要件を推測し、曖昧な点をAskUserQuestionで確認します"
 allowed-tools:
   - Read

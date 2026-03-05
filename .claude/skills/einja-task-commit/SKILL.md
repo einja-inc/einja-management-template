@@ -1,5 +1,5 @@
 ---
-name: task-commit
+name: einja-task-commit
 description: "コミット・プッシュを実行するSkill。docs/einja/steering/commit-rules.mdのルールに従い、分割コミットを実施。直接呼び出し可能（確認あり）、einja-task-exec Skill経由では自動実行"
 allowed-tools:
   - Bash

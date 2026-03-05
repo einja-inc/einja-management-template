@@ -1,5 +1,5 @@
 ---
-name: team-exec
+name: einja-team-exec
 description: "Agent Teamsによるチーム並列実行を行うSkill。ユーザーが「チームで」「Teamで」「Agent Teamsで」「並列チームで」等と明示的にチーム実行を指示した場合に使用。通常のサブエージェント委託とは異なり、独立したClaude Codeインスタンスによるチーム協調を行う"
 ---
 <!-- 参考: https://code.claude.com/docs/en/agent-teams -->

@@ -4,7 +4,7 @@ description: フロントエンド実装を担当する専門エージェント�
 model: sonnet
 color: blue
 skills:
-  - output-format
+  - _einja-output-format
 ---
 
 ## ✅ 最重要: 出力形式

@@ -4,7 +4,7 @@ description: フロントエンドアーキテクチャ設計の専門家。コ�
 model: sonnet
 color: purple
 skills:
-  - output-format
+  - _einja-output-format
   - einja-subagent-question-protocol
 ---
 

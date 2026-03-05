@@ -1,5 +1,5 @@
 ---
-name: infra-maintenance
+name: einja-infra-maintenance
 description: "インフラ環境のセットアップ・メンテナンスを対話的に実行するSkill。ローカル環境、Vercel、Neon、GitHub Actions、環境変数管理をカバー"
 user-invocable: true
 ---

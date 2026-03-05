@@ -1,5 +1,5 @@
 ---
-name: task-qa
+name: einja-task-qa
 description: "タスクの品質保証を実行するSkill。必須自動テスト、AC検証、動作確認を実施し、qa-tests/に結果を記録します"
 allowed-tools:
   - Task

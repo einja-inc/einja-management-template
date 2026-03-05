@@ -4,7 +4,7 @@ description: Figmaデザインとデザインシステムを完璧に理解し�
 model: sonnet
 color: pink
 skills:
-  - output-format
+  - _einja-output-format
 ---
 
 ## ✅ 最重要: 出力形式

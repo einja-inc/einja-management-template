@@ -1,5 +1,5 @@
 ---
-name: conflict-resolver
+name: einja-conflict-resolver
 description: "gitコンフリクトを解消するSkill（rebase/merge/stash/cherry-pick等に対応）"
 invocation: "agent-requested"
 allowed-tools:

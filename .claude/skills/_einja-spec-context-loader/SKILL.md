@@ -1,5 +1,5 @@
 ---
-name: spec-context-loader
+name: _einja-spec-context-loader
 description: "spec（仕様書）が存在する場合の文脈収集を担当するSkill。requirements.md、design.md、qa-tests/から要件・設計・テスト仕様を抽出し、構造化して返却します"
 allowed-tools:
   - Read

@@ -1,5 +1,5 @@
 ---
-name: project-overview
+name: _einja-project-overview
 description: "プロジェクトの全体構成・技術スタックの参照ハブ"
 ---
 

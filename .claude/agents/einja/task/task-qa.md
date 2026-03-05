@@ -4,7 +4,7 @@ description: 実装されたタスクグループの品質保証と動作確認�
 model: sonnet
 color: purple
 skills:
-  - task-qa
+  - einja-task-qa
 ---
 
 # QA実行エージェント

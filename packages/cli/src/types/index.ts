@@ -43,7 +43,6 @@ export interface SyncOptions {
   force?: boolean;
   yes?: boolean;
   json?: boolean;
-  backup?: boolean;
   skipDeps?: boolean;
   clean?: boolean;
 }

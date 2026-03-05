@@ -7,7 +7,6 @@ import ora from "ora";
 import { checkAndInstallDependencies } from "@/lib/dependency-checker.js";
 import { detectPackageManager } from "@/lib/package-manager.js";
 import { loadPreset } from "@/lib/preset.js";
-import { BackupManager } from "@/lib/sync/backup-manager.js";
 import { BatchProcessor } from "@/lib/sync/batch-processor.js";
 import {
   createValidationErrorMessage,
@@ -109,7 +108,6 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   const fileFilter = new FileFilter(cwd, templateRoot);
   const diffEngine = new DiffEngine();
   const conflictReporter = new ConflictReporter();
-  const backupManager = new BackupManager(cwd);
   const batchProcessor = new BatchProcessor(10); // バッチサイズ: 10ファイル
   const markerProcessor = new MarkerProcessor();
   const projectPrivateSynchronizer = new ProjectPrivateSynchronizer();
@@ -197,12 +195,6 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         }
 
         if (proceedClean) {
-          // バックアップ作成
-          if (options.backup !== false) {
-            const orphanPaths = existingOrphans.map((o) => o.path);
-            await backupManager.backupFiles(orphanPaths);
-          }
-
           // ファイル削除
           let deletedCount = 0;
           for (const orphan of existingOrphans) {
@@ -389,15 +381,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     }
   }
 
-  // 8. バックアップ作成
-  if (options.backup !== false) {
-    spinner.start("バックアップを作成中...");
-    const filesToBackup = filesToProcess.filter((f) => f.exists).map((f) => f.path);
-    await backupManager.backupFiles(filesToBackup);
-    spinner.succeed(`バックアップ作成完了: ${backupManager.getBackupDir()}`);
-  }
-
-  // 9. ファイルマージ処理（並列処理でマージ計算、順次書き込み）
+  // 8. ファイルマージ処理（並列処理でマージ計算、順次書き込み）
   spinner.start("📝 ファイルをマージ中...");
   const conflictMap = new Map<
     string,
@@ -652,12 +636,6 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       }
 
       if (proceedClean) {
-        // バックアップ作成
-        if (options.backup !== false) {
-          const orphanPaths = existingOrphans.map((o) => o.path);
-          await backupManager.backupFiles(orphanPaths);
-        }
-
         // ファイル削除
         for (const orphan of existingOrphans) {
           // パストラバーサル防御

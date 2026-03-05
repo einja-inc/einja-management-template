@@ -253,6 +253,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `einja cli` `@einja/dev-cli` `create-einja-app` `公開` `リリース` `publish` `release` | `.claude/skills/einja-npm-release/SKILL.md` |
 | `インフラ` `環境変数管理` `Vercel` `Neon` `デプロイ設定` `GitHub Secrets` `環境セットアップ` `ローカルセットアップ` `ローカル環境` `セットアップ` `GitHub Actions` `CI/CD` `ワークフロー` | `.claude/skills/einja-infra-maintenance/SKILL.md` |
 | `Skill作るべき？` `Skill化` `skill-first` `Skill-first` | `.claude/skills/einja-skill-first/SKILL.md` |
+| `prebuild` `copy-presets` `generate-template` `preset:update` `presets/default` `CLAUDE.md.template` `ファイルマッピング` `マーカー仕様` `@einja:excluded` `@einja:managed` `@einja:project-private` `FileCopier` `ビルドパイプライン` `テンプレート仕様` | `.claude/skills/cli-package-specs/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 
@@ -274,9 +275,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 
 ### パッケージビルド仕様（テンプレートリポジトリ限定）
 
-`@einja/dev-cli` と `create-einja-app` の2パッケージのビルド・テンプレート仕様については、以下のSkillを参照すること:
-
-`.claude/skills/cli-package-specs/SKILL.md`
+`@einja/dev-cli` と `create-einja-app` の2パッケージのビルド・テンプレート仕様は、上記キーワードトリガーにより `cli-package-specs` Skillが自動参照される。
 
 ### マネージドディレクトリの編集について（テンプレートリポジトリ限定）
 

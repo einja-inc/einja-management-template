@@ -102,7 +102,7 @@ export class FileFilter {
       // einja-プレフィックスフィルタリングが必要なカテゴリ
       if (EINJA_PREFIX_CATEGORIES.includes(category)) {
         // einja-で始まるディレクトリのみを対象にする
-        pattern = `${categoryPath}/einja-*/**/*`;
+        pattern = `${categoryPath}/{einja-,_einja-}*/**/*`;
       } else {
         pattern = `${categoryPath}/**/*`;
       }
@@ -202,7 +202,7 @@ export class FileFilter {
           // パスの次のセグメントがeinja-で始まるか確認
           const relativePath = filePath.slice(categoryPath.length + 1);
           const firstSegment = relativePath.split("/")[0];
-          if (firstSegment?.startsWith("einja-")) {
+          if (firstSegment?.startsWith("einja-") || firstSegment?.startsWith("_einja-")) {
             return category;
           }
           // einja-で始まらない場合はnull（対象外）

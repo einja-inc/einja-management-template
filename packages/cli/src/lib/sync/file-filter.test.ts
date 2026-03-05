@@ -68,6 +68,22 @@ describe("FileFilter", () => {
       expect(skillTargets.some((t) => t.path.includes("custom-skill"))).toBe(false);
     });
 
+    it("skillsカテゴリは_einja-プレフィックスもスキャンすること", async () => {
+      // Given: _einja-プレフィックスのスキルを作成
+      const innerSkillDir = path.join(templateDir, ".claude/skills/_einja-project-overview");
+
+      await fs.ensureDir(innerSkillDir);
+      await fs.writeFile(path.join(innerSkillDir, "SKILL.md"), "# Inner Skill");
+
+      // When: スキャンを実行
+      const targets = await fileFilter.scanSyncTargets();
+
+      // Then: _einja-プレフィックスが検出される
+      const skillTargets = targets.filter((t) => t.category === "skills");
+      expect(skillTargets.length).toBe(1);
+      expect(skillTargets[0].path).toContain("_einja-project-overview");
+    });
+
     it("カテゴリでフィルタリングできること", async () => {
       // Given: 複数のカテゴリにファイルを作成
       const commandsDir = path.join(templateDir, ".claude/commands/einja");
@@ -241,6 +257,17 @@ describe("FileFilter", () => {
 
       // Then: nullが返される（対象外）
       expect(category).toBe(null);
+    });
+
+    it("skillsカテゴリで_einja-プレフィックスもskillsとして判定されること", () => {
+      // Given: _einja-プレフィックスのスキルパス
+      const innerSkillPath = ".claude/skills/_einja-project-overview/SKILL.md";
+
+      // When: カテゴリ推測
+      const category = fileFilter.getCategoryFromPath(innerSkillPath);
+
+      // Then: skillsカテゴリが返される
+      expect(category).toBe("skills");
     });
 
     it("einja/外のパスはnullを返すこと", () => {

@@ -18,6 +18,10 @@ if [[ "$permission_mode" != "plan" ]]; then
 fi
 
 # 軽量リマインダーを注入
+# UserPromptSubmit の additionalContext は hookSpecificOutput 内に配置する必要がある
 jq -n '{
-  "additionalContext": "【Plan mode自動リマインダー】計画作成前にeinja-skill-firstの評価を実施してください。.claude/skills/einja-skill-first/SKILL.mdを参照し、スキップ基準に該当しない場合はSkill作成の必要性を評価してください。スキップ基準（単発の小規模修正、既存キーワードトリガー一致、具体的かつ限定的な作業指示、1回限りの作業）に該当する場合は省略可。"
+  "hookSpecificOutput": {
+    "hookEventName": "UserPromptSubmit",
+    "additionalContext": "【Plan mode自動リマインダー】計画作成前にeinja-skill-firstの評価を実施してください。.claude/skills/einja-skill-first/SKILL.mdを参照し、スキップ基準に該当しない場合はSkill作成の必要性を評価してください。スキップ基準（単発の小規模修正、既存キーワードトリガー一致、具体的かつ限定的な作業指示、1回限りの作業）に該当する場合は省略可。"
+  }
 }'

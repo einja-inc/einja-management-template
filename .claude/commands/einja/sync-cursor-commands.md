@@ -51,7 +51,7 @@ Glob: .claude/commands/**/*.md
 
 例：
 - `task-executer` → `.claude/agents/task/task-executer.md`
-- `spec-requirements-generator` → `.claude/agents/specs/spec-requirements-generator.md`
+- `requirements-generator` → `.claude/agents/issue-specs/requirements-generator.md`
 
 **変換テンプレート**:
 
@@ -131,8 +131,8 @@ alwaysApply: false
 
 ```bash
 # 例（フォルダ形式）
-.claude/commands/task-exec.md → .cursor/rules/task-exec/RULE.md
-.claude/commands/spec-create.md → .cursor/rules/spec-create/RULE.md
+.claude/skills/einja-task-exec/SKILL.md → .cursor/rules/task-exec/RULE.md
+.claude/skills/einja-issue-spec-create/SKILL.md → .cursor/rules/spec-create/RULE.md
 .claude/commands/einja/start-dev.md → .cursor/rules/start-dev/RULE.md
 ```
 
@@ -178,8 +178,8 @@ Cursor で以下のルールが利用可能になりました：
 
 ### レガシーファイル
 以下の古い形式のファイルが検出されました（削除推奨）：
-- `.cursor/commands/task-exec.md`
-- `.cursor/commands/spec-create.md`
+- `.cursor/commands/einja-task-exec.md`
+- `.cursor/commands/einja-issue-spec-create.md`
 ```
 
 
@@ -216,7 +216,7 @@ Cursor で以下のルールが利用可能になりました：
 ├── .cursor/rules/spec-create/RULE.md (3箇所のサブエージェント参照を変換)
 ├── .cursor/rules/task-exec/RULE.md (4箇所のサブエージェント参照を変換)
 ├── .cursor/rules/start-dev/RULE.md (変換不要)
-└── .cursor/rules/update-docs-by-task-specs/RULE.md (変換不要)
+└── .cursor/rules/update-docs-by-issue-specs/RULE.md (変換不要)
 ```
 
 ## エラー処理

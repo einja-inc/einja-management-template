@@ -74,11 +74,16 @@ volta install node@"$NODE_VERSION"
 volta install pnpm@"$PNPM_VERSION"
 log_success "Node.js $NODE_VERSION, pnpm $PNPM_VERSION をインストールしました"
 
-# Step 4: 依存関係インストール
-log_step 4 "依存関係のインストール..."
+# Step 4: direnv allow（direnvが利用可能な場合）
+log_step 4 "direnv設定..."
 
-pnpm install
-log_success "依存関係をインストールしました"
+if command -v direnv &> /dev/null; then
+    direnv allow
+    log_success "direnv allow を実行しました"
+else
+    log_warn "direnvが見つかりません（スキップ）"
+    echo -e "  ${GRAY}direnvインストール後に 'direnv allow' を実行してください${NC}"
+fi
 
 # 完了
 echo ""
@@ -88,5 +93,6 @@ echo -e "==========================================${NC}"
 echo ""
 echo "次のステップ:"
 echo -e "  1. ターミナルを再起動: ${BLUE}exec \$SHELL${NC}"
-echo -e "  2. 環境セットアップ:  ${BLUE}pnpm dev:setup${NC}"
+echo -e "  2. 依存関係インストール: ${BLUE}pnpm install${NC}"
+echo -e "  3. 環境セットアップ:  ${BLUE}pnpm dev:setup${NC}"
 echo ""

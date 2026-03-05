@@ -1,7 +1,10 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # Python
-**/__pycache__
+**/__pycache__/
+
+# auto-generated files
+**/__generated__/
 
 # dependencies
 **/node_modules
@@ -42,7 +45,8 @@ log/*.pid
 .env.personal
 .env.keys
 .env.local.tmp
-.env.local.bak
+.env.*.bak
+.env.keys.bak
 
 # dotenvx - 以下は追跡する（暗号化済み）
 # .env.example（テンプレート）

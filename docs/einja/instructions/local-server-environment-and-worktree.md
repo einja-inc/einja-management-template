@@ -59,7 +59,7 @@ npm install -g pnpm@10
 ```
 
 #### Docker
-- macOS: [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+- macOS: [OrbStack](https://orbstack.dev/)（推奨。`brew install orbstack`）
 - Windows: [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
 - Linux: [Docker Engine](https://docs.docker.com/engine/install/)
 

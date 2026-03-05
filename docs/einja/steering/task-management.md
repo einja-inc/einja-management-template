@@ -87,12 +87,12 @@ GitHub Issueのチェックボックスでタスクグループのステータ�
 - [x] 1.1 タスクグループ名
 ```
 
-**注意**: タスクグループの完了時、GitHub Issueのチェックボックス更新はユーザーが明示的に指示した場合のみ行います。`/einja:task-exec`コマンドは自動でIssueを更新しません。
+**注意**: タスクグループの完了時、GitHub Issueのチェックボックス更新はユーザーが明示的に指示した場合のみ行います。`einja-task-exec` Skillは自動でIssueを更新しません。
 
 ### Issueのライフサイクル
 
-1. **Issue作成**: `/einja:spec-create`コマンドで仕様書作成時に自動生成
-2. **タスクグループ実行**: `/einja:task-exec #{issue_number} {タスクグループ番号}`でタスクグループを実行
+1. **Issue作成**: `einja-issue-spec-create` Skillで仕様書作成時に自動生成
+2. **タスクグループ実行**: `einja-task-exec` Skillで `#{issue_number} {タスクグループ番号}` を指定してタスクグループを実行
 3. **タスクグループ完了**: 実装・テスト・レビュー完了後、チェックボックスをON（手動更新）
 4. **Issue完了**: すべてのタスクグループが完了したらIssueをClose
 
@@ -375,7 +375,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 > **詳細なフロー（仕様書作成からレビュー・マージまで）は[開発ワークフロー](development-workflow.md)を参照してください。**
 
 ### 1. タスクグループを選定・実行
-- `/einja:task-exec #{issue_number} {タスクグループ番号}`コマンドを実行
+- `einja-task-exec` Skillで `#{issue_number} {タスクグループ番号}` を指定して実行
 - タスクグループ番号は必須引数（例: `1.1`, `2.3`）
 - **注意**: 単一タスクグループを品質重視で確実に完了させたい場合に使用。`/einja:issue-exec` の Worker 内部でも呼ばれる
 - executer → reviewer → qa の3段階で実行
@@ -401,20 +401,16 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 ### タスク管理関連コマンド
 
 **仕様書作成とIssue生成**:
-```bash
-/einja:spec-create [タスク内容の説明]
-```
+`einja-issue-spec-create` Skillを使用し、タスク内容の説明を引数に指定します。
 - requirements.md、design.mdを作成し、GitHub Issueを自動生成
 
 **タスクグループ実行**:
-```bash
-/einja:task-exec #{issue_number} {タスクグループ番号}
-```
+`einja-task-exec` Skillを使用し、`#{issue_number} {タスクグループ番号}` を引数に指定します。
 - Issue番号とタスクグループ番号は両方必須
 - executer → reviewer → qa の3段階で実行
 - QA合格後は追加指示待ち状態に入る
 - GitHub Issue更新はユーザーの明示的指示時のみ
-- **位置づけ**: 単一タスクグループを品質重視で実行するコマンド。`/einja:issue-exec` の Worker 内部でも使用される
+- **位置づけ**: 単一タスクグループを品質重視で実行するSkill。`/einja:issue-exec` の Worker 内部でも使用される
 
 **Issue全体の並列実行**:
 ```bash
@@ -429,9 +425,9 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 
 **仕様書からドキュメント更新**:
 ```bash
-/einja:update-docs-by-task-specs [タスク仕様書ディレクトリパス]
+/einja:update-docs-by-issue-specs [Issue仕様書ディレクトリパス]
 ```
-- タスク仕様書の内容をfeature仕様書とsteering仕様書に反映
+- Issue仕様書の内容をfeature仕様書とsteering仕様書に反映
 <!-- @einja:managed:end -->
 
 <!-- @einja:project-private:start id="task-management-project" -->

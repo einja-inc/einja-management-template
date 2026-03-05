@@ -110,7 +110,7 @@ ACx.y: <振る舞いの1文要約>
 ```
 
 **シナリオテストの設計タイミング**:
-- `/einja:spec-create` コマンドの QAテスト仕様生成フェーズで作成
+- `einja-issue-spec-create` Skill の QAテスト仕様生成フェーズで作成
 - requirements.md の受け入れ条件を分析し、複数ACをまたぐフローを特定
 - タスク分割前に完了させる
 

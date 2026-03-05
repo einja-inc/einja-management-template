@@ -4,10 +4,10 @@ task-qa Skillの利用方法パターン集。
 
 ---
 
-## パターン1: task-execからの呼び出し（標準ワークフロー）
+## パターン1: einja-task-exec Skillからの呼び出し（標準ワークフロー）
 
 ```
-ユーザー: task-exec #123 1.1
+ユーザー: einja-task-exec #123 1.1
   → starter → executer → reviewer → qa
                                       ↓
                             task-qa.md（ラッパー）→ SKILL.md

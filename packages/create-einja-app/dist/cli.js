@@ -1190,13 +1190,13 @@ function mergeTextWithMarkers(templateContent, existingContent) {
   const templateSections = parseMarkers(templateContent);
   const localSections = parseMarkers(existingContent);
   const hasMarkers = templateSections.some(
-    (s) => s.type === "managed" || s.type === "seed"
+    (s) => s.type === "managed" || s.type === "project-private"
   );
   if (!hasMarkers) {
     return existingContent;
   }
   const templateManagedById = /* @__PURE__ */ new Map();
-  const templateSeedById = /* @__PURE__ */ new Map();
+  const templateProjectPrivateById = /* @__PURE__ */ new Map();
   const templateManagedWithoutId = [];
   const processedTemplateIds = /* @__PURE__ */ new Set();
   for (const section of templateSections) {
@@ -1204,8 +1204,8 @@ function mergeTextWithMarkers(templateContent, existingContent) {
       templateManagedById.set(section.id, section);
     } else if (section.type === "managed") {
       templateManagedWithoutId.push(section);
-    } else if (section.type === "seed" && section.id) {
-      templateSeedById.set(section.id, section);
+    } else if (section.type === "project-private" && section.id) {
+      templateProjectPrivateById.set(section.id, section);
     }
   }
   const result = [];
@@ -1225,7 +1225,7 @@ function mergeTextWithMarkers(templateContent, existingContent) {
           result.push(localSection.content);
         }
       }
-    } else if (localSection.type === "seed") {
+    } else if (localSection.type === "project-private") {
       if (localSection.id) {
         processedTemplateIds.add(localSection.id);
       }
@@ -1242,7 +1242,7 @@ function mergeTextWithMarkers(templateContent, existingContent) {
   for (const section of templateManagedWithoutId.slice(managedWithoutIdIndex)) {
     result.push(section.content);
   }
-  for (const [id, section] of templateSeedById) {
+  for (const [id, section] of templateProjectPrivateById) {
     if (!processedTemplateIds.has(id)) {
       result.push(section.content);
     }
@@ -1272,7 +1272,7 @@ function deepMergeWithPaths(template, existing, jsonPaths, filePath, currentPath
     const existingValue = existing[key];
     if (isPathManaged(filePath, keyPath, jsonPaths)) {
       result[key] = deepClone(templateValue);
-    } else if (isPathSeed(filePath, keyPath, jsonPaths)) {
+    } else if (isPathProjectPrivate(filePath, keyPath, jsonPaths)) {
       if (typeof templateValue === "object" && templateValue !== null && !Array.isArray(templateValue) && typeof existingValue === "object" && existingValue !== null && !Array.isArray(existingValue)) {
         result[key] = deepMergeWithPaths(
           templateValue,
@@ -1373,7 +1373,7 @@ async function mergeAndWriteFile(templatePath, targetPath, syncMetadata, package
     try {
       const templateJson = JSON.parse(templateContent);
       const existingJson = existingContent ? JSON.parse(existingContent) : null;
-      const jsonPaths = syncMetadata.jsonPaths || { managed: {}, seed: {} };
+      const jsonPaths = syncMetadata.jsonPaths || { managed: {}, "project-private": {} };
       const fileName = targetPath.split("/").pop() || "package.json";
       const mergedJson = mergeJson(templateJson, existingJson, jsonPaths, fileName);
       mergedContent = JSON.stringify(mergedJson, null, 2);
@@ -1462,20 +1462,30 @@ function parseStartMarker(line) {
   if (match) {
     return { type: "managed", id: match[1] || void 0 };
   }
+  const markdownProjectPrivatePattern = /^<!--\s*@einja:project-private:start(?:\s+id="([^"]+)")?\s*-->$/;
+  match = line.match(markdownProjectPrivatePattern);
+  if (match) {
+    return { type: "project-private", id: match[1] || void 0 };
+  }
   const markdownSeedPattern = /^<!--\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*-->$/;
   match = line.match(markdownSeedPattern);
   if (match) {
-    return { type: "seed", id: match[1] || void 0 };
+    return { type: "project-private", id: match[1] || void 0 };
   }
   const yamlManagedPattern = /^\s*#\s*@einja:managed:start(?:\s+id="([^"]+)")?\s*$/;
   match = line.match(yamlManagedPattern);
   if (match) {
     return { type: "managed", id: match[1] || void 0 };
   }
+  const yamlProjectPrivatePattern = /^\s*#\s*@einja:project-private:start(?:\s+id="([^"]+)")?\s*$/;
+  match = line.match(yamlProjectPrivatePattern);
+  if (match) {
+    return { type: "project-private", id: match[1] || void 0 };
+  }
   const yamlSeedPattern = /^\s*#\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*$/;
   match = line.match(yamlSeedPattern);
   if (match) {
-    return { type: "seed", id: match[1] || void 0 };
+    return { type: "project-private", id: match[1] || void 0 };
   }
   return null;
 }
@@ -1483,14 +1493,20 @@ function parseEndMarker(line) {
   if (/^<!--\s*@einja:managed:end\s*-->$/.test(line)) {
     return "managed";
   }
+  if (/^<!--\s*@einja:project-private:end\s*-->$/.test(line)) {
+    return "project-private";
+  }
   if (/^<!--\s*@einja:seed:end\s*-->$/.test(line)) {
-    return "seed";
+    return "project-private";
   }
   if (/^\s*#\s*@einja:managed:end\s*$/.test(line)) {
     return "managed";
   }
+  if (/^\s*#\s*@einja:project-private:end\s*$/.test(line)) {
+    return "project-private";
+  }
   if (/^\s*#\s*@einja:seed:end\s*$/.test(line)) {
-    return "seed";
+    return "project-private";
   }
   return null;
 }
@@ -1500,9 +1516,9 @@ function isPathManaged(filePath, keyPath, jsonPaths) {
     (p) => keyPath === p || keyPath.startsWith(`${p}.`)
   );
 }
-function isPathSeed(filePath, keyPath, jsonPaths) {
-  const seedPaths = jsonPaths.seed[filePath] || [];
-  return seedPaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
+function isPathProjectPrivate(filePath, keyPath, jsonPaths) {
+  const projectPrivatePaths = jsonPaths["project-private"][filePath] || [];
+  return projectPrivatePaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
 }
 
 // src/utils/placeholder-validator.ts
@@ -1839,7 +1855,7 @@ async function syncCommand(options) {
       files: {},
       jsonPaths: {
         managed: {},
-        seed: {}
+        "project-private": {}
       }
     };
     const result = {

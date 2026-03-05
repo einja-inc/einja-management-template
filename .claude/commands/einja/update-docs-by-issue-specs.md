@@ -1,26 +1,26 @@
 ---
-description: "タスク仕様書をfeature仕様書とsteering仕様書に反映。ARGUMENTS: タスク仕様書ディレクトリパス（複数可、カンマ区切り）"
+description: "Issue仕様書をfeature仕様書とsteering仕様書に反映。ARGUMENTS: Issue仕様書ディレクトリパス（複数可、カンマ区切り）"
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
-# タスク仕様書からドキュメント反映コマンド
+# Issue仕様書からドキュメント反映コマンド
 
 ## あなたの役割
 
-タスク仕様書（`docs/specs/tasks/` 配下）から設計情報を抽出し、以下の2つの階層に反映する専門エージェントです：
+Issue仕様書（`docs/specs/issues/` 配下）から設計情報を抽出し、以下の2つの階層に反映する専門エージェントです：
 
 1. **Feature仕様書**（`docs/specs/features/<feature-name>/`）- 機能レベルの設計
 2. **Steering仕様書**（`docs/einja/steering/`）- プロジェクト全体の設計
 
-タスク仕様書の内容を構造化して抽出し、適切な階層のドキュメントにインテリジェントにマージします。
+Issue仕様書の内容を構造化して抽出し、適切な階層のドキュメントにインテリジェントにマージします。
 
 ## 実行フロー
 
-### 1. タスク仕様書の検証と読み込み
+### 1. Issue仕様書の検証と読み込み
 
 **入力形式**:
 ```
-/update-docs-by-task-specs <task-spec-dir-path> [<task-spec-dir-path2> ...]
+/update-docs-by-issue-specs <issue-spec-dir-path> [<issue-spec-dir-path2> ...]
 ```
 
 **処理**:
@@ -34,10 +34,10 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 ### 2. 機能（Feature）の判定【対話的】
 
-各タスクspecについて、どの機能（Feature）に関連するかを判定します。
+各Issue specについて、どの機能（Feature）に関連するかを判定します。
 
 **判定手順**:
-1. タスクディレクトリ名とrequirements.mdの内容を分析
+1. Issueディレクトリ名とrequirements.mdの内容を分析
 2. 既存の`docs/specs/features/`ディレクトリをスキャン
 3. 以下の候補をユーザーに提示：
    - 既存の機能（例: `login`, `signup`など）
@@ -46,7 +46,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **AskUserQuestionを使用**:
 ```
-質問: "タスク『{タスク名}』はどの機能に関連しますか？"
+質問: "Issue『{Issue名}』はどの機能に関連しますか？"
 選択肢:
 - login（既存）
 - signup（既存）
@@ -54,7 +54,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 - Steeringのみ反映
 ```
 
-### 3. Feature仕様書への反映【Task → Feature】
+### 3. Feature仕様書への反映【Issue → Feature】
 
 機能が指定された場合、`docs/specs/features/<feature-name>/`に反映します。
 
@@ -74,7 +74,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **対象**: `docs/specs/features/<feature-name>/requirements.md`
 
-**タスクspecから抽出する情報**（`requirements.md`から）:
+**Issue specから抽出する情報**（`requirements.md`から）:
 - **ビジネス価値**（ビジネス価値セクション）
 - **ユーザーストーリー**（ユーザーストーリーセクション）
 - **受け入れ基準**（各ストーリーの受け入れ基準）
@@ -83,10 +83,10 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **反映形式**:
 ```markdown
-## タスク: {タスク名} ({日付})
+## Issue: {Issue名} ({日付})
 
 **反映日時**: {現在日時}
-**ソース**: {タスクspecパス}
+**ソース**: {Issue specパス}
 
 ### ビジネス価値
 {抽出した内容}
@@ -103,13 +103,13 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 **マージロジック**:
 - 既存内容の最後に追記（セクションが存在する場合）
 - セクションが存在しない場合は新規作成
-- 同じタスクからの重複反映を防止（タスク名+日付でチェック）
+- 同じIssueからの重複反映を防止（Issue名+日付でチェック）
 
 #### 3.3 design.md への反映
 
 **対象**: `docs/specs/features/<feature-name>/design.md`
 
-**タスクspecから抽出する情報**（`design.md`から）:
+**Issue specから抽出する情報**（`design.md`から）:
 - **API仕様**（APIエンドポイントセクション）
 - **コンポーネント設計**（コンポーネントとインターフェースセクション）
 - **シーケンス図**（シーケンス図セクション）
@@ -118,10 +118,10 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **反映形式**:
 ```markdown
-## タスク: {タスク名} ({日付})
+## Issue: {Issue名} ({日付})
 
 **反映日時**: {現在日時}
-**ソース**: {タスクspecパス}
+**ソース**: {Issue specパス}
 
 ### API仕様
 {抽出した内容}
@@ -136,17 +136,17 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **対象**: `docs/specs/features/<feature-name>/tasks.md`
 
-**タスクspecから抽出する情報**（`tasks.md`から）:
+**Issue specから抽出する情報**（`tasks.md`から）:
 - タスク一覧（Phase別）
 - 依存関係情報
 - 完了基準
 
 **反映形式**:
 ```markdown
-## タスク: {タスク名} ({日付})
+## Issue: {Issue名} ({日付})
 
 **反映日時**: {現在日時}
-**ソース**: {タスクspecパス}
+**ソース**: {Issue specパス}
 
 ### 実装タスク
 {抽出したタスクリスト}
@@ -154,15 +154,15 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 ```
 
-### 4. Steering仕様書への反映【Task → Steering】
+### 4. Steering仕様書への反映【Issue → Steering】
 
-すべてのタスクspecは、Steering仕様書にも反映されます。
+すべてのIssue specは、Steering仕様書にも反映されます。
 
 #### 4.1 architecture.md への反映
 
 **対象**: `docs/einja/steering/architecture.md`
 
-**タスクspecから抽出する情報**（`design.md`から）:
+**Issue specから抽出する情報**（`design.md`から）:
 - **システム構成図**（Mermaid図を含む）
 - **データフロー図**
 - **技術スタック表**
@@ -173,10 +173,10 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **反映形式**:
 ```markdown
-## {タスク名} ({日付})
+## {Issue名} ({日付})
 
 **反映日時**: {現在日時}
-**ソース**: {タスクspecパス}
+**ソース**: {Issue specパス}
 
 ### システム構成
 {抽出した構成図とMermaid}
@@ -192,14 +192,14 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **マージロジック**:
 - ファイルが空またはTODOのみの場合、目次構造を作成してから追記
-- 既存の同名セクションがある場合、タスクごとのサブセクションとして追記
-- Mermaid図は`<!-- Task: {タスク名} -->`コメントでラベル付け
+- 既存の同名セクションがある場合、Issueごとのサブセクションとして追記
+- Mermaid図は`<!-- Issue: {Issue名} -->`コメントでラベル付け
 
 #### 4.2 db-design.md への反映
 
 **対象**: `docs/einja/steering/db-design.md`
 
-**タスクspecから抽出する情報**（`design.md`から）:
+**Issue specから抽出する情報**（`design.md`から）:
 - **ERD図**（Entity-Relationship Diagram）
 - **Prismaスキーマ定義**
 - **リポジトリパターン実装**
@@ -209,10 +209,10 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **反映形式**:
 ```markdown
-## {タスク名} ({日付})
+## {Issue名} ({日付})
 
 **反映日時**: {現在日時}
-**ソース**: {タスクspecパス}
+**ソース**: {Issue specパス}
 
 ### データベーススキーマ
 {抽出したスキーマ定義}
@@ -230,7 +230,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **対象**: `docs/einja/steering/product.md`
 
-**タスクspecから抽出する情報**:
+**Issue specから抽出する情報**:
 - **ビジネス価値と目標**（`requirements.md`から）
 - **ユーザーストーリー概要**（`requirements.md`から）
 - **主要API仕様**（`design.md`から）
@@ -239,10 +239,10 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **反映形式**:
 ```markdown
-## {タスク名} ({日付})
+## {Issue名} ({日付})
 
 **反映日時**: {現在日時}
-**ソース**: {タスクspecパス}
+**ソース**: {Issue specパス}
 
 ### ビジネス価値
 {抽出した内容}
@@ -262,11 +262,11 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 各ファイルの先頭または各セクションで、以下のパターンを検索：
 ```markdown
-## タスク: {タスク名} ({日付})
+## Issue: {Issue名} ({日付})
 ```
 
-- 同じタスク名+日付が見つかった場合、重複として扱う
-- ユーザーに確認：「タスク『{タスク名}』は既に反映済みです。上書きしますか？」
+- 同じIssue名+日付が見つかった場合、重複として扱う
+- ユーザーに確認：「Issue『{Issue名}』は既に反映済みです。上書きしますか？」
   - 上書き: 既存セクションを削除して新規追加
   - スキップ: 反映をスキップ
   - 差分マージ: 変更部分のみ更新（推奨）
@@ -275,7 +275,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 **空ファイルまたはTODOのみの場合**:
 1. 標準的な目次構造を作成
-2. 各セクションにタスクの内容を追記
+2. 各セクションにIssueの内容を追記
 
 **既存内容がある場合**:
 1. 既存のセクション構造を解析
@@ -290,17 +290,17 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 ## システム構成
 
-### タスク: Monorepo Setup (20251104)
+### Issue: Monorepo Setup (20251104)
 ...
 
 ## 技術スタック
 
-### タスク: Monorepo Setup (20251104)
+### Issue: Monorepo Setup (20251104)
 ...
 
 ## デプロイメント戦略
 
-### タスク: Monorepo Setup (20251104)
+### Issue: Monorepo Setup (20251104)
 ...
 ```
 
@@ -309,13 +309,13 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 **図の識別**:
 - 各Mermaid図の直前にコメントを追加：
   ```markdown
-  <!-- Task: {タスク名} ({日付}) -->
+  <!-- Issue: {Issue名} ({日付}) -->
   ```mermaid
   ...
   ```
   ```
 
-**複数タスクの図の統合**:
+**複数Issueの図の統合**:
 - 同種の図（例: システム構成図）が複数ある場合、並列配置
 - 重複や矛盾がある場合、ユーザーに確認して統合提案
 
@@ -347,9 +347,9 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 ### 7. エラーハンドリング
 
-**タスクspecが見つからない場合**:
+**Issue specが見つからない場合**:
 ```
-エラー: タスク仕様書が見つかりません
+エラー: Issue仕様書が見つかりません
 パス: {指定パス}
 確認事項:
 - パスが正しいか確認してください
@@ -359,8 +359,8 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 **requirements.md/design.md がない場合**:
 ```
 警告: {ファイル名}が見つかりません
-タスク: {タスク名}
-対応: このタスクの反映をスキップして続行しますか？
+Issue: {Issue名}
+対応: このIssueの反映をスキップして続行しますか？
 ```
 
 **機能spec作成時の競合**:
@@ -372,13 +372,13 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ## 重要な原則
 
 ### 情報の忠実性
-- タスクspecの内容を改変せず、忠実に抽出して反映する
+- Issue specの内容を改変せず、忠実に抽出して反映する
 - 要約や意訳は最小限にし、原文をできるだけ保持する
 - コードブロック、図表は完全な形で転記する
 
 ### トレーサビリティ
 - すべての反映内容に「ソース」情報を記録する
-- タスク名と日付を明記し、後から追跡可能にする
+- Issue名と日付を明記し、後から追跡可能にする
 - 変更履歴が明確にわかるようにする
 
 ### 非破壊的マージ
@@ -392,18 +392,18 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 - 最終確認を必ず行い、ユーザーの承認を得る
 
 ### 段階的な実行
-- 1つのタスクspecずつ処理する
+- 1つのIssue specずつ処理する
 - 各ステップの結果を明確に表示する
-- エラーが発生しても他のタスクspecの処理を継続する
+- エラーが発生しても他のIssue specの処理を継続する
 
 ## 出力フォーマット
 
 処理完了後、以下の形式でレポートを表示：
 
 ```markdown
-# タスク仕様書反映完了
+# Issue仕様書反映完了
 
-## 処理したタスク
+## 処理したIssue
 1. ✅ Monorepo Setup (20251104)
    - Feature: なし（Steeringのみ）
    - 反映先: architecture.md, db-design.md, product.md
@@ -432,21 +432,21 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 ## 使用例
 
-### 例1: 単一タスクの反映
+### 例1: 単一Issueの反映
 ```
-/update-docs-by-task-specs docs/specs/tasks/monorepo/20251104-monorepo-turborepo-nextjs-setup
+/update-docs-by-issue-specs docs/specs/issues/monorepo/20251104-monorepo-turborepo-nextjs-setup
 ```
 
-### 例2: 複数タスクの反映
+### 例2: 複数Issueの反映
 ```
-/update-docs-by-task-specs docs/specs/tasks/task1,docs/specs/tasks/task2,docs/specs/tasks/task3
+/update-docs-by-issue-specs docs/specs/issues/issue1,docs/specs/issues/issue2,docs/specs/issues/issue3
 ```
 
 ### 例3: スペース区切り
 ```
-/update-docs-by-task-specs docs/specs/tasks/monorepo/20251104-monorepo-turborepo-nextjs-setup docs/specs/tasks/auth/20251105-login-feature
+/update-docs-by-issue-specs docs/specs/issues/monorepo/20251104-monorepo-turborepo-nextjs-setup docs/specs/issues/auth/20251105-login-feature
 ```
 
-<!-- @einja:project-private:start id="update-docs-by-task-specs-project" -->
+<!-- @einja:project-private:start id="update-docs-by-issue-specs-project" -->
 <!-- プロジェクト固有の情報を記入 -->
 <!-- @einja:project-private:end -->

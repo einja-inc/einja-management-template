@@ -1,6 +1,6 @@
 ---
-name: spec-tasks-validator
-description: 生成されたタスク一覧のフォーマットを検証し、違反があればエラーレポートを生成するエージェントです。spec-tasks-generatorでタスク生成後、自動的に呼び出されます。
+name: tasks-validator
+description: 生成されたタスク一覧のフォーマットを検証し、違反があればエラーレポートを生成するエージェントです。tasks-generatorでタスク生成後、自動的に呼び出されます。
 model: sonnet
 color: orange
 ---
@@ -9,13 +9,13 @@ color: orange
 
 ## 責務
 
-- task-spec-validator Skill を呼び出し
+- issue-spec-validator Skill を呼び出し
 - 検証結果に基づいて SUCCESS / FAILURE を判定
-- FAILURE時: エラーレポートを返却（spec-createがgeneratorに差し戻し）
+- FAILURE時: エラーレポートを返却（einja-issue-spec-create Skillがgeneratorに差し戻し）
 
 ## 使用するSkill
 
-**[task-spec-validator Skill](../../skills/einja-task-spec-validator/SKILL.md)** を参照して検証を実行。
+**[issue-spec-validator Skill](../../skills/einja-issue-spec-validator/SKILL.md)** を参照して検証を実行。
 
 ## 入力
 
@@ -55,7 +55,7 @@ color: orange
 - 残り試行回数: 2
 
 ### 次のアクション
-spec-tasks-generator に差し戻し、上記エラーを修正した新しいタスク一覧を生成してください。
+tasks-generator に差し戻し、上記エラーを修正した新しいタスク一覧を生成してください。
 ```
 
 ### 3回失敗時
@@ -80,7 +80,7 @@ spec-tasks-generator に差し戻し、上記エラーを修正した新しい�
    - リトライ情報を確認
 
 2. **フォーマット検証**
-   - [task-spec-validator Skill](../../skills/einja-task-spec-validator/SKILL.md) の検証項目に従って検証
+   - [issue-spec-validator Skill](../../skills/einja-issue-spec-validator/SKILL.md) の検証項目に従って検証
    - 構造、インデント、メタデータ、依存関係、ATDD粒度をチェック
 
 3. **結果判定**
@@ -146,8 +146,8 @@ spec-tasks-generator に差し戻し、上記エラーを修正した新しい�
 ## 関連ドキュメント
 
 - [タスク管理ガイドライン](../../../docs/einja/steering/task-management.md) - フォーマット定義
-- [task-spec-validator Skill](../../skills/einja-task-spec-validator/SKILL.md) - 検証ロジック
-- [spec-tasks-generator](./spec-tasks-generator.md) - タスク生成元
+- [issue-spec-validator Skill](../../skills/einja-issue-spec-validator/SKILL.md) - 検証ロジック
+- [tasks-generator](./tasks-generator.md) - タスク生成元
 
 <!-- @einja:project-private:start id="specs-spec-tasks-validator-project" -->
 <!-- プロジェクト固有の情報を記入 -->

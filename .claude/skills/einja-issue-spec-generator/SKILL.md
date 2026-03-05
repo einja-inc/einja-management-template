@@ -1,4 +1,4 @@
-# タスク生成 Skill
+# Issue仕様タスク生成 Skill
 
 ## 概要
 
@@ -11,8 +11,8 @@
 
 ## 使用タイミング
 
-- spec-tasks-generator サブエージェントから呼び出される
-- spec-create コマンドのタスク生成フェーズで使用
+- tasks-generator サブエージェントから呼び出される
+- einja-issue-spec-create Skillのタスク生成フェーズで使用
 
 ## 入力
 
@@ -98,8 +98,8 @@ TDDは**1タスク内のサブタスク**として記載（3タスク分割で�
 ## 関連ドキュメント
 
 - [タスク管理ガイドライン](../../../docs/einja/steering/task-management.md) - フォーマット定義（Single Source of Truth）
-- [spec-tasks-generator サブエージェント](../../agents/einja/specs/spec-tasks-generator.md) - 呼び出し元
+- [tasks-generator サブエージェント](../../agents/einja/issue-specs/tasks-generator.md) - 呼び出し元
 
-<!-- @einja:project-private:start id="einja-task-spec-generator-project" -->
+<!-- @einja:project-private:start id="einja-issue-spec-generator-project" -->
 <!-- プロジェクト固有の情報を記入 -->
 <!-- @einja:project-private:end -->

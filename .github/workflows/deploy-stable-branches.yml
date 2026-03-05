@@ -4,12 +4,20 @@ on:
   push:
     branches: [main, develop, staging]
 
+# GITHUB_TOKENで作成されたpushイベントはデフォルトでワークフロー再トリガーしない
+# 念のため明示的にbotコミットを除外（release-productionのバージョンバンプ対策）
+
+permissions:
+  contents: write
+
 concurrency:
   group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   ci:
+    # github-actions[bot] のバージョンバンプコミットはスキップ
+    if: "!contains(github.event.head_commit.message, 'chore: release v')"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -89,35 +97,12 @@ jobs:
           fi
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
-  migrate:
-    needs: ci
-    if: github.ref_name == 'main' || github.ref_name == 'staging'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # main: production環境マイグレーション（シード無効）
-      - name: Migrate production
-        if: github.ref_name == 'main'
-        uses: ./.github/actions/migrate
-        with:
-          dotenv-file: ${{ github.workspace }}/.env.production
-          dotenv-private-key: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
-          run-seed: 'false'
-
-      # staging: ステージング環境マイグレーション（シード無効）
-      - name: Migrate staging
-        if: github.ref_name == 'staging'
-        uses: ./.github/actions/migrate
-        with:
-          dotenv-file: ${{ github.workspace }}/.env.staging
-          dotenv-private-key: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
-          run-seed: 'false'
-
-  # Web/Adminデプロイ（並列実行・変更検知付き）
-  deploy:
-    needs: [ci, migrate, changes]
-    if: always() && needs.ci.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') && needs.changes.result == 'success' && needs.changes.outputs.deploy_matrix != '[]'
+  # ========================================
+  # develop: 環境なし、承認なし、マイグレーションなし
+  # ========================================
+  deploy-develop:
+    needs: [ci, changes]
+    if: github.ref_name == 'develop' && needs.changes.outputs.deploy_matrix != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -148,35 +133,125 @@ jobs:
       - name: Install Vercel CLI
         run: pnpm add -g vercel@latest
 
-      # ブランチ判定 — 環境変数を $GITHUB_ENV に書き出す
-      - name: Determine environment
+      - name: Set deploy environment
         run: |
-          BRANCH="${GITHUB_REF##*/}"
-          case "$BRANCH" in
-            main)
-              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.production" >> $GITHUB_ENV
-              echo "DEPLOY_VERCEL_ENV=production" >> $GITHUB_ENV
-              echo "DEPLOY_PROD_FLAG=--prod" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_ALIAS=false" >> $GITHUB_ENV
+          echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.develop" >> $GITHUB_ENV
+          echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
+          echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
+          echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
+
+      - name: Extract alias domain
+        run: |
+          case "${{ matrix.app }}" in
+            web)
+              npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
+                echo "VERCEL_ALIAS_DOMAIN=$VERCEL_ALIAS_DOMAIN_WEB" >> "$GITHUB_ENV"
+              '
               ;;
-            develop)
-              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.develop" >> $GITHUB_ENV
-              echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
-              echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
-              ;;
-            staging)
-              echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.staging" >> $GITHUB_ENV
-              echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
-              echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
-              echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
+            admin)
+              npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
+                echo "VERCEL_ALIAS_DOMAIN=$VERCEL_ALIAS_DOMAIN_ADMIN" >> "$GITHUB_ENV"
+              '
               ;;
           esac
-          echo "Branch: $BRANCH, Environment: $(cat $GITHUB_ENV | grep DEPLOY_VERCEL_ENV)"
+        env:
+          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
 
-      # Extract alias domain（自アプリ分のみ）
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
+
+      - name: Build Project
+        run: |
+          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- \
+            vercel build ${{ env.DEPLOY_PROD_FLAG }} --token=$VERCEL_TOKEN
+        env:
+          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
+
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          npx dotenvx run -f $DEPLOY_DOTENV_FILE -- bash -c '
+            declare -a ENV_FLAGS=()
+            while IFS= read -r key; do
+              case "$key" in
+                NEON_*|VERCEL_ALIAS_DOMAIN_*|DOTENV_PUBLIC_KEY_*) continue ;;
+              esac
+              value="${!key}"
+              if [ -n "$value" ]; then
+                echo "::add-mask::${value}"
+              fi
+              ENV_FLAGS+=("--env" "${key}=${value}")
+            done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$DEPLOY_DOTENV_FILE" | cut -d= -f1)
+
+            echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
+            DEPLOY_URL=$(vercel deploy --prebuilt $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          '
+        env:
+          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
+
+      - name: Set Vercel alias
+        run: vercel alias ${{ steps.deploy.outputs.url }} "${{ env.VERCEL_ALIAS_DOMAIN }}" --token=$VERCEL_TOKEN
+
+  # ========================================
+  # staging: staging環境、承認なし
+  # ========================================
+  migrate-staging:
+    needs: ci
+    if: github.ref_name == 'staging'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Migrate staging
+        uses: ./.github/actions/migrate
+        with:
+          dotenv-file: ${{ github.workspace }}/.env.staging
+          dotenv-private-key: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+          run-seed: 'false'
+
+  deploy-staging:
+    needs: [ci, migrate-staging, changes]
+    if: github.ref_name == 'staging' && needs.changes.outputs.deploy_matrix != '[]'
+    environment: staging
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.changes.outputs.deploy_matrix) }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+
+      - name: Resolve Vercel Project ID
+        id: resolve
+        run: |
+          case "${{ matrix.app }}" in
+            web)   echo "project_id=${{ secrets.VERCEL_PROJECT_ID_WEB }}" >> $GITHUB_OUTPUT ;;
+            admin) echo "project_id=${{ secrets.VERCEL_PROJECT_ID_ADMIN }}" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Set VERCEL_PROJECT_ID
+        run: echo "VERCEL_PROJECT_ID=${{ steps.resolve.outputs.project_id }}" >> $GITHUB_ENV
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Set deploy environment
+        run: |
+          echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.staging" >> $GITHUB_ENV
+          echo "DEPLOY_VERCEL_ENV=preview" >> $GITHUB_ENV
+          echo "DEPLOY_PROD_FLAG=" >> $GITHUB_ENV
+          echo "DEPLOY_RUN_ALIAS=true" >> $GITHUB_ENV
+
       - name: Extract alias domain
-        if: env.DEPLOY_RUN_ALIAS == 'true'
         run: |
           case "${{ matrix.app }}" in
             web)
@@ -192,15 +267,141 @@ jobs:
           esac
         env:
           DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
-          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
 
-      # Vercel pull
       - name: Pull Vercel Environment
         run: vercel pull --yes --environment=${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
 
-      # Vercel環境変数の自動同期（mainのみ — develop/stagingは--env注入）
+      - name: Build Project
+        run: |
+          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- \
+            vercel build ${{ env.DEPLOY_PROD_FLAG }} --token=$VERCEL_TOKEN
+        env:
+          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          npx dotenvx run -f $DEPLOY_DOTENV_FILE -- bash -c '
+            declare -a ENV_FLAGS=()
+            while IFS= read -r key; do
+              case "$key" in
+                NEON_*|VERCEL_ALIAS_DOMAIN_*|DOTENV_PUBLIC_KEY_*) continue ;;
+              esac
+              value="${!key}"
+              if [ -n "$value" ]; then
+                echo "::add-mask::${value}"
+              fi
+              ENV_FLAGS+=("--env" "${key}=${value}")
+            done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$DEPLOY_DOTENV_FILE" | cut -d= -f1)
+
+            echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
+            DEPLOY_URL=$(vercel deploy --prebuilt $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          '
+        env:
+          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
+
+      - name: Set Vercel alias
+        run: vercel alias ${{ steps.deploy.outputs.url }} "${{ env.VERCEL_ALIAS_DOMAIN }}" --token=$VERCEL_TOKEN
+
+  # staging: PreRelease作成（changeset未消費）
+  release-staging:
+    needs: deploy-staging
+    if: github.ref_name == 'staging'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changesets
+        id: check
+        run: |
+          COUNT=$(ls .changeset/*.md 2>/dev/null | grep -cv README.md || echo 0)
+          echo "has_changesets=$([[ $COUNT -gt 0 ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+
+      - name: Create PreRelease tag
+        if: steps.check.outputs.has_changesets == 'true'
+        id: tag
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}-rc.${{ github.run_number }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub PreRelease
+        if: steps.tag.outputs.tag
+        run: |
+          PREV=$(git tag --list 'v*-rc.*' --sort=-v:refname | grep -v "${{ steps.tag.outputs.tag }}" | head -1)
+          OPTS="--prerelease --target staging --generate-notes"
+          [[ -n "$PREV" ]] && OPTS="$OPTS --notes-start-tag $PREV"
+          gh release create "${{ steps.tag.outputs.tag }}" --title "Pre-release ${{ steps.tag.outputs.tag }}" $OPTS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ========================================
+  # main: production環境、1名承認 → migrate → deploy → release
+  # ========================================
+  migrate-production:
+    needs: ci
+    if: github.ref_name == 'main'
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Migrate production
+        uses: ./.github/actions/migrate
+        with:
+          dotenv-file: ${{ github.workspace }}/.env.production
+          dotenv-private-key: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+          run-seed: 'false'
+
+  deploy-production:
+    needs: [migrate-production, changes]
+    if: github.ref_name == 'main' && needs.changes.outputs.deploy_matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.changes.outputs.deploy_matrix) }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+
+      - name: Resolve Vercel Project ID
+        id: resolve
+        run: |
+          case "${{ matrix.app }}" in
+            web)   echo "project_id=${{ secrets.VERCEL_PROJECT_ID_WEB }}" >> $GITHUB_OUTPUT ;;
+            admin) echo "project_id=${{ secrets.VERCEL_PROJECT_ID_ADMIN }}" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Set VERCEL_PROJECT_ID
+        run: echo "VERCEL_PROJECT_ID=${{ steps.resolve.outputs.project_id }}" >> $GITHUB_ENV
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Set deploy environment
+        run: |
+          echo "DEPLOY_DOTENV_FILE=$GITHUB_WORKSPACE/.env.production" >> $GITHUB_ENV
+          echo "DEPLOY_VERCEL_ENV=production" >> $GITHUB_ENV
+          echo "DEPLOY_PROD_FLAG=--prod" >> $GITHUB_ENV
+          echo "DEPLOY_RUN_ALIAS=false" >> $GITHUB_ENV
+
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
+
       - name: Sync environment variables to Vercel
-        if: github.ref_name == 'main'
         run: |
           npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
             grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" ${{ env.DEPLOY_DOTENV_FILE }} | cut -d= -f1 | while read -r key; do
@@ -218,22 +419,16 @@ jobs:
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
 
-      # Re-pull after sync
       - name: Re-pull Vercel Environment after sync
-        if: github.ref_name == 'main'
         run: vercel pull --yes --environment=${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
 
-      # Vercel build (dotenvxでアプリ環境変数を注入)
       - name: Build Project
         run: |
           npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- \
             vercel build ${{ env.DEPLOY_PROD_FLAG }} --token=$VERCEL_TOKEN
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
-          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
-          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
 
-      # Vercel deploy
       - name: Deploy to Vercel
         id: deploy
         run: |
@@ -256,10 +451,45 @@ jobs:
           '
         env:
           DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
-          DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
-          DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
 
-      # Alias (develop/stagingのみ)
-      - name: Set Vercel alias
-        if: env.DEPLOY_RUN_ALIAS == 'true'
-        run: vercel alias ${{ steps.deploy.outputs.url }} "${{ env.VERCEL_ALIAS_DOMAIN }}" --token=$VERCEL_TOKEN
+  # main: changeset消費 + Release作成
+  release-production:
+    needs: deploy-production
+    if: always() && github.ref_name == 'main' && needs.deploy-production.result != 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Check for changesets
+        id: check
+        run: |
+          COUNT=$(ls .changeset/*.md 2>/dev/null | grep -cv README.md || echo 0)
+          echo "has_changesets=$([[ $COUNT -gt 0 ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+
+      - name: Version packages
+        if: steps.check.outputs.has_changesets == 'true'
+        run: npx changeset version
+
+      - name: Commit version bump and create Release
+        if: steps.check.outputs.has_changesets == 'true'
+        id: release
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: release ${TAG}" || echo "No changes"
+          git tag "$TAG"
+          git push origin main --follow-tags
+          PREV=$(git tag --list 'v*' --sort=-v:refname | grep -v 'rc' | grep -v "$TAG" | head -1)
+          OPTS="--target main --generate-notes"
+          [[ -n "$PREV" ]] && OPTS="$OPTS --notes-start-tag $PREV"
+          gh release create "$TAG" --title "Release ${TAG}" $OPTS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -40,6 +40,15 @@ jobs:
       - name: Build CLI package
         run: pnpm --filter @einja/dev-cli build
 
+      - name: Run tests
+        run: pnpm --filter @einja/dev-cli test
+
+      - name: Type check
+        run: pnpm --filter @einja/dev-cli typecheck
+
+      - name: Lint
+        run: pnpm --filter @einja/dev-cli lint
+
       - name: Get version info
         id: version
         run: |

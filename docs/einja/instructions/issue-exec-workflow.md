@@ -46,13 +46,13 @@ Manager (Claude Code: /einja:issue-exec)
 │  │
 │  ├─ tmux window → Worker 1.1 (claude 対話モード)
 │  │   Task worktree: ~/.einja/worktrees/issue-123/task-1.1/
-│  │   → /einja:task-exec #123 1.1
+│  │   → einja-task-exec Skill: #123 1.1
 │  │     ├─ サブエージェント: Task 1.1.1 実装（run_in_background）
 │  │     ├─ サブエージェント: Task 1.1.2 実装（run_in_background）
 │  │     └─ reviewer → QA → commit
 │  │
 │  ├─ tmux window → Worker 1.2 (claude 対話モード)
-│  │   → /einja:task-exec #123 1.2
+│  │   → einja-task-exec Skill: #123 1.2
 │  │
 │  └─ (依存タスクグループは先行完了後に起動)
 │
@@ -68,7 +68,7 @@ Manager (Claude Code: /einja:issue-exec)
 |------|------|---------|
 | **Manager** | Issue パース、ブランチ管理、worktree 管理、tmux 管理、Director 起動、Phase マージ、質問エスカレーション、エラー監視 | Claude Code カスタムコマンド |
 | **Director** | Phase 内のタスクグループ管理、Worker 起動、並列制御、PR マージ検知、変更伝播、質問対応、worktree クリーンアップ | claude 対話モード（tmux window） |
-| **Worker** | task-exec 実行（executer→reviewer→qa→commit）、Phase 変更取り込み、PR 作成、完了報告 | claude 対話モード（tmux window） |
+| **Worker** | einja-task-exec Skill 実行（executer→reviewer→qa→commit）、Phase 変更取り込み、PR 作成、完了報告 | claude 対話モード（tmux window） |
 
 ### 各階層の通信方式
 
@@ -123,10 +123,10 @@ main (デフォルト)
 tmux session: einja-123
   window 0: Manager (メインプロセスのログ表示)
   window 1: Director-Phase1 (claude 対話モード)
-  window 2: Worker-1.1 (claude 対話モード → /einja:task-exec #123 1.1)
-  window 3: Worker-1.2 (claude 対話モード → /einja:task-exec #123 1.2)
+  window 2: Worker-1.1 (claude 対話モード → einja-task-exec: #123 1.1)
+  window 3: Worker-1.2 (claude 対話モード → einja-task-exec: #123 1.2)
   window 4: Director-Phase2 (claude 対話モード)
-  window 5: Worker-2.1 (claude 対話モード → /einja:task-exec #123 2.1)
+  window 5: Worker-2.1 (claude 対話モード → einja-task-exec: #123 2.1)
 ```
 
 ユーザーは `tmux attach -t einja-123` で全プロセスを監視可能。
@@ -248,18 +248,18 @@ Manager 検知
 | Worker 異常終了（PR作成済み） | tmux window 消失 + PR あり | スキップ（PR マージ待ちのまま継続） |
 | Director 異常終了 | tmux window 消失 + ステータス未更新 | 各 Worker のステータスを確認 → 未完了 Worker のみ再実行 |
 | Manager 異常終了 | ユーザー手動 | `--resume` でステータスファイルから復元 |
-| rebase コンフリクト | git rebase 失敗 | conflict-resolver で自力解消 |
+| rebase コンフリクト | git rebase 失敗 | einja-conflict-resolver Skill で自力解消 |
 | CI 失敗 | gh run status | 修正 → 再push → 再CI待機 |
 | CI 待機タイムアウト | 30分超過 | Manager に通知 → 人間判断 |
 
 ---
 
-## `/einja:task-exec` との使い分け
+## `einja-task-exec` Skill との使い分け
 
-| コマンド | 用途 | 対象 | 推奨シーン |
+| 実行方法 | 用途 | 対象 | 推奨シーン |
 |---------|------|------|----------|
 | **`/einja:issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
-| **`/einja:task-exec`** | 単一タスクグループの実行 | 1つのタスクグループ | 品質重視、複雑な実装 |
+| **`einja-task-exec` Skill** | 単一タスクグループの実行 | 1つのタスクグループ | 品質重視、複雑な実装 |
 
 ---
 
@@ -267,7 +267,7 @@ Manager 検知
 
 - [タスク実行ワークフロー](./task-execute.md)
 - [タスク管理ガイドライン](../steering/task-management.md)
-- [仕様書作成ワークフロー](./einja:spec-create.md)
+- [仕様書作成ワークフロー](./task-execute.md#フェーズ1-issue仕様書作成-einja-issue-spec-create-skill)
 - [ブランチ運用戦略](../steering/branch-strategy.md)
 <!-- @einja:managed:end -->
 

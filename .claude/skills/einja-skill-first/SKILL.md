@@ -1,7 +1,7 @@
 ---
 name: einja-skill-first
 description: >
-  タスク着手前にSkillを先に作るべきかを自動評価するメタSkill。Plan mode進入時やspec-create実行時に自動起動し、既存Skillのギャップ分析とROI評価を行い、Skill作成の必要性を構造化して提案する。「Skill作るべき？」「Skill化」「skill-first」「Skill-first」等のキーワードでも直接呼び出し可能。
+  タスク着手前にSkillを先に作るべきかを自動評価するメタSkill。Plan mode進入時やeinja-issue-spec-create実行時に自動起動し、既存Skillのギャップ分析とROI評価を行い、Skill作成の必要性を構造化して提案する。「Skill作るべき？」「Skill化」「skill-first」「Skill-first」等のキーワードでも直接呼び出し可能。
 allowed-tools:
   - Read
   - Grep
@@ -33,9 +33,9 @@ Plan mode 内でも動作する（Read / Grep / Glob のみ使用）。Skill作�
 
 CLAUDE.md の必須フロー Step2（修正計画作成）→ Step3（ユーザー承認）の間で自動実行する。計画を提示する前に、Skill作成の必要性を評価する。
 
-### 2. spec-create 実行時（自動）
+### 2. einja-issue-spec-create 実行時（自動）
 
-spec-create の Phase 0 で自動実行する。仕様書作成の前にSkillギャップを分析し、Skill-first アプローチの要否を判定する。
+einja-issue-spec-create の Phase 0 で自動実行する。仕様書作成の前にSkillギャップを分析し、Skill-first アプローチの要否を判定する。
 
 ### 3. 明示起動（手動）
 
@@ -254,7 +254,7 @@ TODO-1〜: 作成した Skill を活用して本作業を実行
 
 ## 連携
 
-- **呼び出し元**: 親エージェント（Plan mode 進入時、spec-create Phase 0）
+- **呼び出し元**: 親エージェント（Plan mode 進入時、einja-issue-spec-create Phase 0）
 - **委譲先**: `einja-skill-creator` - Skill作成の実行
 - **参照**: `docs/einja/memory/patterns.md` - 過去の作業パターン
 

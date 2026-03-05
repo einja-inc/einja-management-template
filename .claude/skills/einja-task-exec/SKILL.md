@@ -1,9 +1,4 @@
----
-description: "GitHub Issueのタスクグループを実行するコマンド。ARGUMENTS: Issue番号（必須、#123形式）とタスクグループ番号（必須、1.1形式）"
-allowed-tools: Task, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, Skill, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, WebFetch, mcp__github__*, mcp__serena__*
----
-
-# タスク実行コマンド
+# タスク実行 Skill
 
 ## 役割
 
@@ -129,7 +124,7 @@ $ARGUMENTSからIssue番号とタスクグループ番号を解析する（現�
 1. **specディレクトリを探索**: `docs/specs/issues/*/issue{N}-*/` パターンで検索
 2. **存在チェック**:
    - 完全なspec（requirements.md + design.md + qa-tests/） → 次へ
-   - 部分的spec → エラー終了（`/einja:spec-create` の実行を案内）
+   - 部分的spec → エラー終了（`einja-issue-spec-create` Skill の実行を案内）
    - specなし → `einja-general-context-loader` Skill を呼び出してコンテキスト収集
 3. **requirements.md を読み込み**、各タスクのメタデータ（`**要件**: Story X`）に基づいてACを抽出
    - ACはGiven/When/Then形式で小さい（~50-100トークン/AC）ので直接保持
@@ -241,76 +236,6 @@ Issue #123 のPhase 99 タスク（タスクグループ 99.1）を実行して�
 - docs/specs/tasks/feature-name/20251104-task1
 - docs/specs/tasks/feature-name/20251105-task2
 ```
-
----
-
-## 受け入れ条件の参照方法
-
-このセクションは、task-executer、task-reviewer、task-qaサブエージェントが受け入れ条件を参照する際の標準手順を定義します。
-
-### requirements.mdの標準構造
-
-**必須セクション**:
-- **受け入れ基準（Acceptance Criteria）**: 各ACが以下の形式で記載
-
-**AC（Acceptance Criteria）の形式**:
-```markdown
-##### 機能要件
-- [ ] Given: 前提条件
-      When: 実行する操作
-      Then: 期待される結果
-```
-
-### task-executerの受け入れ条件参照方法
-
-1. タスクグループの関連ドキュメント（`requirements.md`）を読み込む
-2. 各ユーザーストーリー配下の「受け入れ基準」セクションを特定
-3. **検証レベルが「Unit」の AC のみ**を実装対象とする
-4. 各 AC（Given/When/Then）に対して実装と単体テストを作成
-5. `design.md` の技術仕様に準拠した実装を行う
-
-**検証責務**:
-- **Unit テスト**: 必須実装、実装と同時に作成
-- **Integration/Browser テスト**: 実装不要（task-qa が担当）
-
-**完了条件**:
-- 実装したコードの単体テストが全て合格
-- 検証レベルが「Unit」の AC を全て満たす
-- Integration/Browser レベルの AC は未検証でも実装フェーズ完了とする
-
-> **Note**: 検証レベルの詳細は `docs/einja/steering/terminology.md` を参照してください。
-
-### task-reviewerの受け入れ条件参照方法
-
-1. `requirements.md` の各ユーザーストーリー配下の「受け入れ基準」セクションを参照
-2. 実装が各ACを満たしているかを確認
-3. ACとの整合性をレビュー観点の最優先項目とする
-
-### task-qaの受け入れ条件参照方法
-
-**⚠️ 最重要**: QAエージェントは以下の手順で受け入れ条件を参照
-
-1. **受け入れ基準の抽出**
-   - タスクグループの `requirements.md` を読み込む
-   - 各ユーザーストーリー配下の「受け入れ基準」セクションを特定
-   - **検証レベルが「Integration」「Browser」の AC のみ**を抽出
-   - 検証レベルが「Unit」の AC はスキップ（task-executer が既に検証済み）
-
-2. **テストシナリオの作成**
-   - 各 AC に対して、Given/When/Then に基づくテストシナリオを作成
-   - Integration: API + DB + ミドルウェアの連携テスト
-   - Browser: Playwright MCP を使用したユーザーシナリオテスト
-   - QA 仕様書（`qa-tests/story{N}.md`）に記録
-
-3. **SUCCESS 判定基準**
-   - **検証レベルが「Integration」「Browser」の全ての AC が満たされた場合のみ**、SUCCESS 判定
-   - 1つでも AC を満たさない場合、FAILURE 判定して適切な戻し先を決定
-
-> **用語の明確化**: 「E2E」はPlaywrightコードによる自動テスト（`pnpm test:e2e`）を指します。task-qaが実行するPlaywright MCPテストは「Browser」検証レベルです。詳細は `docs/einja/steering/terminology.md` を参照してください。
-
-4. **参照ドキュメント**
-   - QA テスト項目作成方針: `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
-   - テンプレート: `docs/einja/templates/requirements.md.template`
 
 ---
 

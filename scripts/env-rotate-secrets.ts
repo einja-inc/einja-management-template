@@ -285,9 +285,60 @@ function showNextSteps(envs: EnvironmentConfig[]): void {
 }
 
 /**
- * メイン処理
+ * CLIフラグをパース
  */
-async function main(): Promise<void> {
+function parseArgs(): { all: boolean; nonInteractive: boolean } {
+	const args = process.argv.slice(2);
+	return {
+		all: args.includes("--all"),
+		nonInteractive: args.includes("--non-interactive"),
+	};
+}
+
+/**
+ * 非対話モードで全環境のローテーションを実行
+ * create-einja-app のセットアップ時に使用
+ *
+ * @returns 成功した環境数
+ */
+async function runNonInteractive(): Promise<number> {
+	const rotationType: RotationType = "both";
+	let successCount = 0;
+
+	// 利用可能な環境をフィルタ
+	const availableEnvs = ENVIRONMENTS.filter((env) => {
+		const envFilePath = path.join(cwd, env.file);
+		const hasFile = fs.existsSync(envFilePath);
+		const hasKey = getPrivateKey(env.privateKeyEnv) !== null;
+		return hasFile && hasKey;
+	});
+
+	if (availableEnvs.length === 0) {
+		console.log("[env:rotate-secrets] ローテーション可能な環境がありません");
+		return 0;
+	}
+
+	console.log(`[env:rotate-secrets] ${availableEnvs.length}環境の秘密鍵をローテーション中...`);
+
+	for (const env of availableEnvs) {
+		try {
+			await rotateWithRecovery(env, rotationType);
+			successCount++;
+			console.log(`[env:rotate-secrets] ✅ ${env.name}: 完了`);
+		} catch (error) {
+			console.error(`[env:rotate-secrets] ⚠ ${env.name}: 失敗 - ${error}`);
+			// 失敗時も続行（中断しない）
+		}
+	}
+
+	console.log(`[env:rotate-secrets] ${successCount}/${availableEnvs.length}環境のローテーション完了`);
+	return successCount;
+}
+
+/**
+ * 対話モードのメイン処理
+ */
+async function runInteractive(): Promise<void> {
 	p.intro("🔐 秘密鍵ローテーション");
 
 	// ローテーションタイプを選択
@@ -330,7 +381,16 @@ async function main(): Promise<void> {
 	p.outro("✅ 完了");
 }
 
-main().catch((error: unknown) => {
-	p.log.error(`エラーが発生しました: ${error}`);
-	process.exit(1);
-});
+const flags = parseArgs();
+
+if (flags.all && flags.nonInteractive) {
+	runNonInteractive().catch((error: unknown) => {
+		console.error(`[env:rotate-secrets] エラー: ${error}`);
+		// 非対話モードではprocess.exit(1)を呼ばない（呼び出し元で制御）
+	});
+} else {
+	runInteractive().catch((error: unknown) => {
+		p.log.error(`エラーが発生しました: ${error}`);
+		process.exit(1);
+	});
+}

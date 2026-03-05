@@ -30,7 +30,7 @@ fi
 _port="$_SERENA_DEFAULT_PORT"
 _port_found=false
 for _i in $(seq 1 10); do
-  if ! lsof -i ":$_port" -sTCP:LISTEN > /dev/null 2>&1; then
+  if ! nc -z 127.0.0.1 "$_port" > /dev/null 2>&1; then
     _port_found=true
     break
   fi
@@ -61,7 +61,7 @@ for _i in $(seq 1 60); do
     echo "[ensure-serena] Warning: Serena process exited unexpectedly" >&2
     return 0 2>/dev/null || true
   fi
-  if lsof -p "$_serena_pid" -i ":$_port" -sTCP:LISTEN > /dev/null 2>&1; then
+  if nc -z 127.0.0.1 "$_port" > /dev/null 2>&1; then
     echo "$_port $_serena_pid" > "$_SERENA_PORT_FILE"
     export SERENA_PORT="$_port"
     echo "[ensure-serena] Serena ready on port $_port (PID: $_serena_pid)"

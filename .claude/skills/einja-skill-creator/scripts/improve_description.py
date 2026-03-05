@@ -27,7 +27,6 @@ def improve_description(
     eval_results: dict,
     history: list[dict],
     model: str,
-    test_results: dict | None = None,
     log_dir: Path | None = None,
     iteration: int | None = None,
 ) -> str:
@@ -41,13 +40,9 @@ def improve_description(
         if not r["should_trigger"] and not r["pass"]
     ]
 
-    # スコアサマリーの構築
+    # スコアサマリーの構築（テストスコアはblinded_historyで隠蔽されるためトレーニングスコアのみ表示）
     train_score = f"{eval_results['summary']['passed']}/{eval_results['summary']['total']}"
-    if test_results:
-        test_score = f"{test_results['summary']['passed']}/{test_results['summary']['total']}"
-        scores_summary = f"Train: {train_score}, Test: {test_score}"
-    else:
-        scores_summary = f"Train: {train_score}"
+    scores_summary = f"Train: {train_score}"
 
     # NOTE: Claude APIへのプロンプトは精度維持のため英語のまま
     prompt = f"""You are optimizing a skill description for a Claude Code skill called "{skill_name}". A "skill" is sort of like a prompt, but with progressive disclosure -- there's a title and description that Claude sees when deciding whether to use the skill, and then if it does use the skill, it reads the .md file which has lots more details and potentially links to other resources in the skill folder like helper files and scripts and additional documentation or examples.

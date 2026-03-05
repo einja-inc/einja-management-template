@@ -1,31 +1,33 @@
 ---
-name: spec-tasks-generator
+name: tasks-generator
 description: 仕様フォルダ内の要件定義書と設計書に基づいてGitHub Issueにタスク一覧を記述する必要がある場合にこのエージェントを使用します。要件定義、設計ドキュメント、その他の関連ファイルを分析し、明確な依存関係と並列実行フェーズを持つATDD重視のタスク分解をGitHub Issueの説明文に記述します。例：
 
 <example>
 Context: ユーザーが新しい機能仕様のタスク一覧をGitHub Issueに記述したい場合
 user: "subscription-managementの仕様書からGitHub Issueにタスク一覧を記述して"
-assistant: "spec-tasks-generatorエージェントを使用して、仕様書を分析しGitHub Issueにタスク一覧を記述します"
+assistant: "tasks-generatorエージェントを使用して、仕様書を分析しGitHub Issueにタスク一覧を記述します"
 <commentary>
-ユーザーが仕様書からGitHub Issueにタスク一覧を記述したいので、spec-tasks-generatorエージェントを使用します。
+ユーザーが仕様書からGitHub Issueにタスク一覧を記述したいので、tasks-generatorエージェントを使用します。
 </commentary>
 </example>
 
 <example>
 Context: ユーザーが要件定義と設計書を作成し、実装用タスク一覧が必要な場合
 user: "要件定義と設計書が完成したので、GitHub Issueにタスク一覧を記述して"
-assistant: "spec-tasks-generatorエージェントを使用して、要件と設計書に基づいた詳細なタスク分解をGitHub Issueに記述します"
+assistant: "tasks-generatorエージェントを使用して、要件と設計書に基づいた詳細なタスク分解をGitHub Issueに記述します"
 <commentary>
-ユーザーが既存のドキュメントからGitHub Issueにタスク一覧を記述したいので、spec-tasks-generatorエージェントを使用します。
+ユーザーが既存のドキュメントからGitHub Issueにタスク一覧を記述したいので、tasks-generatorエージェントを使用します。
 </commentary>
 </example>
 model: sonnet
 color: yellow
+skills:
+  - einja-subagent-question-protocol
 ---
 
 ## 使用するSkill
 
-**[task-spec-generator Skill](../../skills/einja-task-spec-generator/SKILL.md)** を参照してタスクを生成。
+**[issue-spec-generator Skill](../../skills/einja-issue-spec-generator/SKILL.md)** を参照してタスクを生成。
 
 ## エラーフィードバック対応
 
@@ -50,7 +52,7 @@ TodoWriteツールを使用して詳細な進捗を可視化します：
 
 ## 差し戻し時の対応
 
-spec-tasks-validator から差し戻された場合（error_feedback が渡された場合）：
+tasks-validator から差し戻された場合（error_feedback が渡された場合）：
 
 1. **エラーレポートの確認**
    - エラー種別（missing_metadata, invalid_indent など）を確認
@@ -93,10 +95,7 @@ spec-tasks-validator から差し戻された場合（error_feedback が渡さ�
      - 並列開発の効率的な進め方を参考にする
 
    - **優先順位3: ユーザーへの確認（最終手段）**
-     - 上記の方法で解決できない不明点のみユーザーに質問
-     - 実装の優先順位や段階的リリース計画が不明な場合
-     - 質問は具体的で、選択肢を提示するなど答えやすい形式にする
-     - 複数の不明点がある場合は一度にまとめて質問
+     - 上記の方法で解決できない場合、preload済みの「サブエージェント質問プロトコル」に従いPENDING_QUESTIONS形式で質問を返却して停止する
 
 3. **タスク分解方針の決定**
    - 収集した情報を基に、GitHub Issue作成の方針を決定
@@ -209,7 +208,7 @@ spec-tasks-validator から差し戻された場合（error_feedback が渡さ�
 
 **Issueへの記述方法**:
 
-spec-createコマンドから呼ばれた場合（Issue番号が渡される）:
+einja-issue-spec-create Skillから呼ばれた場合（Issue番号が渡される）:
 - `mcp__github__issue_write`を使用して既存Issueを更新
 - method: "update"
 - owner: リポジトリのowner
@@ -229,7 +228,7 @@ spec-createコマンドから呼ばれた場合（Issue番号が渡される）:
 **記述完了の確認**:
 - Issue URLを確認
 - Issue番号を記録
-- **重要**: タスク記述後、自動的に spec-tasks-validator が呼び出されてフォーマット検証が行われます
+- **重要**: タスク記述後、自動的に tasks-validator が呼び出されてフォーマット検証が行われます
 - 検証でエラーがあった場合、エラーレポートと共に差し戻されるので、修正版を生成してください
 
 ## タスク記述のルール
@@ -452,7 +451,7 @@ Phase 1: 収入管理機能
 
 ### 横切り分割検出ルール
 
-spec-tasks-validatorは以下の場合に横切り分割としてエラーを出します：
+tasks-validatorは以下の場合に横切り分割としてエラーを出します：
 - Phase内のタスクグループ名に**3つ以上**のアーキテクチャレイヤー名が含まれる
 - レイヤー名: Domain, Infrastructure, Application, Presentation, UI
 

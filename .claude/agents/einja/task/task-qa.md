@@ -9,7 +9,7 @@ skills:
 
 # QA実行エージェント
 
-task-qa Skillの手順に従ってQAを実行し、結果を親プロセス（task-exec）に返却します。
+task-qa Skillの手順に従ってQAを実行し、結果を親プロセス（einja-task-exec Skill）に返却します。
 
 ## 絶対禁止事項
 
@@ -34,7 +34,7 @@ task-qa Skillの手順に従って実行してください。
 
 ## 出力形式（親プロセスへの橋渡し）
 
-SkillでJSON結果を生成後、以下のtask-exec互換形式に変換して出力:
+SkillでJSON結果を生成後、以下のeinja-task-exec Skill互換形式に変換して出力:
 
 ```markdown
 ## 🧪 品質保証フェーズ完了

@@ -195,7 +195,7 @@ sequenceDiagram
 **同期の原則**:
 - 先行タスクの PR マージにより Phase ブランチが更新される
 - 後続タスクは更新済み Phase ブランチから派生するため変更を引き継ぐ
-- コンフリクト発生時は conflict-resolver で解消
+- コンフリクト発生時は einja-conflict-resolver Skill で解消
 
 ### 変更の取り込み対象
 

@@ -100,7 +100,7 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 - 以下を表示して**停止**:
   > issue-exec は tmux を必須としており、この環境では利用できません。
   > WSL2 環境での実行を推奨します。
-  > 代替: `/einja:task-exec` で個別タスクグループを逐次実行することは可能です。
+  > 代替: `einja-task-exec` Skill で個別タスクグループを逐次実行することは可能です。
 
 **インストール後の検証:**
 - `hash -r` で PATH をリフレッシュし、`command -v tmux && tmux -V` で成功確認
@@ -111,6 +111,8 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 
 #### 3. セッション復元
 - `--resume` フラグがある場合、`~/.einja/sessions/issue-{N}/session.json` からセッション状態を復元
+  - Manager worktree の存在確認: `git worktree list | grep issue-{N}/manager`
+    - 存在しない場合は再作成: `git worktree add ~/.einja/worktrees/issue-{N}/manager issue/{N}`
   - 未完了のPhaseのDirectorを再起動する
 
 ### Step 1: Issue パース
@@ -122,16 +124,18 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 3. `--max-phase` が指定されている場合、その番号以降のPhaseを除外
 
 ### Step 2: ブランチ & worktree 作成
-1. Issue ブランチ作成: `issue/{issue番号}`（base ブランチから）
-2. 各 Phase のブランチ作成: `issue/{issue番号}-phase{N}`（issue ブランチから）
-3. git worktree 作成:
+1. Issue ブランチ作成（メインリポジトリから）: `issue/{issue番号}`（base ブランチから）
+2. Manager worktree 作成（メインリポジトリから）:
    ```bash
    mkdir -p ~/.einja/worktrees/issue-{N}/
-   git worktree add ~/.einja/worktrees/issue-{N}/phase{M} issue/{N}-phase{M}
-   ```
-4. worktree 作成時は必ずリモートにpush:
-   ```bash
+   git worktree add ~/.einja/worktrees/issue-{N}/manager issue/{N}
    git push -u origin issue/{N}
+   ```
+3. **以降の操作は全て Manager worktree 内から実行**（cwd: `~/.einja/worktrees/issue-{N}/manager`）
+4. 各 Phase のブランチ作成（Manager worktree から）: `issue/{issue番号}-phase{N}`（issue ブランチから）
+5. Phase worktree 作成（Manager worktree から）:
+   ```bash
+   git worktree add ~/.einja/worktrees/issue-{N}/phase{M} issue/{N}-phase{M}
    git push -u origin issue/{N}-phase{M}
    ```
 
@@ -164,7 +168,7 @@ session.json の初期状態:
 
 ### Step 4: tmux セッション作成
 ```bash
-tmux new-session -d -s einja-{issue番号} -n manager
+tmux new-session -d -s einja-{issue番号} -n manager -c ~/.einja/worktrees/issue-{N}/manager
 ```
 
 ### Step 5: Director 起動（Phase単位）
@@ -199,15 +203,16 @@ tmux send-keys -t einja-{N}:director-phase{M} '
 1. 依存関係のないタスクグループは並列でWorkerを起動してください
 2. 各Worker には tmux window + claude 対話モードで起動:
    - worktree作成: git worktree add ~/.einja/worktrees/issue-{N}/task-{X.Y} task/{N}-{X.Y}
-   - tmux: tmux new-window + claude 起動 + /einja:task-exec #{N} {X.Y} を実行
+   - tmux: tmux new-window + claude 起動 + einja-task-exec Skill で #{N} {X.Y} を実行
 3. Worker完了後:
    - ステータスファイルでPR番号を確認
    - マージモードに応じたPR処理
    - 他active Workerにsync通知
    - 完了したworktree削除
-4. 質問対応: Workerからの質問にspec/design/issueベースで回答。回答不可ならManagerにエスカレーション
-5. Phase完了時: ステータスファイルで Manager に報告
-6. GitHub Issue のチェックボックス更新
+4. Phase完了時: `/einja-create-pr --auto --base issue/{N}` でPhase PRを作成
+5. 質問対応: Workerからの質問にspec/design/issueベースで回答。回答不可ならManagerにエスカレーション
+6. Phase完了時: ステータスファイルで Manager に報告
+7. GitHub Issue のチェックボックス更新
 
 ## 質問エスカレーション
 回答不可な質問は ~/.einja/sessions/issue-{N}/questions/ にJSONファイルを作成してManagerに通知してください。
@@ -237,7 +242,8 @@ Manager は以下を定期的に監視:
    - Director/Worker の tmux window が消失した場合のリカバリ処理
 
 ### Step 7: 全Phase完了 → 最終PR
-1. 最終PR作成: `gh pr create --base {baseBranch} --head issue/{N}`
+1. 最終PR作成: `/einja-create-pr --auto --base {baseBranch}` を実行
+   - changeset自動生成 + ラベル付与 + PR作成が一括実行される
 2. PR URL を表示
 3. セッションクリーンアップ（worktree 削除、セッションファイル削除）
 
@@ -253,7 +259,7 @@ Manager は以下を定期的に監視:
 
 ```
 {baseBranch}
- └── issue/{N}                        Manager管理
+ └── issue/{N}                        Manager worktree
       ├── issue/{N}-phase1             Director1 worktree
       │    ├── task/{N}-1.1            Worker1.1 worktree
       │    ├── task/{N}-1.2            Worker1.2 worktree
@@ -265,6 +271,7 @@ Manager は以下を定期的に監視:
 ## worktree 物理パス
 ```
 ~/.einja/worktrees/issue-{N}/
+├── manager/                      ← Manager cwd
 ├── phase{M}/                     ← Director cwd
 ├── task-{X.Y}/                   ← Worker cwd
 ```
@@ -339,7 +346,7 @@ Manager は以下を定期的に監視:
 | Worker異常終了（PR作成済み） | tmux window消失 + PRあり | スキップ（PRマージ待ち継続） |
 | Director異常終了 | tmux window消失 + ステータス未更新 | 各Workerのステータスを確認 → 未完了Workerのみ再実行 |
 | Manager異常終了 | ユーザー手動 | `--resume` でセッション復元 |
-| rebaseコンフリクト | git rebase失敗 | conflict-resolverで自力解消 |
+| rebaseコンフリクト | git rebase失敗 | einja-conflict-resolver Skillで自力解消 |
 | CI失敗 | gh run status | 修正 → 再push → 再CI待機 |
 
 ## CI 待機タイムアウト
@@ -382,22 +389,25 @@ git worktree add ~/.einja/worktrees/issue-{N}/task-{X.Y} task/{N}-{X.Y}
 tmux new-window -t einja-{N} -n worker-{X.Y}
 tmux send-keys -t einja-{N}:worker-{X.Y} 'cd ~/.einja/worktrees/issue-{N}/task-{X.Y} && claude' Enter
 
-# 3. task-exec コマンドを実行
+# 3. einja-task-exec Skill を実行
 # claude 起動後に以下を送信:
-tmux send-keys -t einja-{N}:worker-{X.Y} '/einja:task-exec #{N} {X.Y}' Enter
+tmux send-keys -t einja-{N}:worker-{X.Y} '/einja-task-exec #{N} {X.Y}' Enter
 ```
 
 ## セッションクリーンアップ
 
 Issue完了時に以下を自動削除:
 - `~/.einja/sessions/issue-{N}/` （セッションファイル）
-- `~/.einja/worktrees/issue-{N}/` （worktree。事前に `git worktree remove` を実行）
+- `~/.einja/worktrees/issue-{N}/` （worktree。事前に `git worktree remove` を各ディレクトリに対して実行）
+  - `git worktree remove ~/.einja/worktrees/issue-{N}/task-{X.Y}`（Worker）
+  - `git worktree remove ~/.einja/worktrees/issue-{N}/phase{M}`（Director）
+  - `git worktree remove ~/.einja/worktrees/issue-{N}/manager`（Manager - 最後に削除）
 - ローカルブランチのクリーンアップ（task/*, issue/*-phase*）
 
 ## 注意事項
 
 - 全プロセスは**対話モード**（`claude`、非 `-p`）で起動。質問エスカレーションのため
-- Worker 内部のタスク並列実行は既存の task-exec フロー（Task ツール + run_in_background）をそのまま活用
+- Worker 内部のタスク並列実行は既存の einja-task-exec Skill フロー（Task ツール + run_in_background）をそのまま活用
 - ステータスファイルの `status.json` 更新には `flock` による排他制御を使用
 - 質問ファイルは1ファイル1質問のためロック不要（UUID でアトミック書き込み）
 - Worker は各タスク完了毎 + PR作成前にステータスファイルをチェック（sync_required検知時は次タスク開始前にrebase）

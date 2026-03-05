@@ -35,7 +35,7 @@
 |--------|----------------|------|
 | Volta | `curl https://get.volta.sh \| bash` | Node.jsバージョン管理 |
 | pnpm | `volta install pnpm` | パッケージ管理 |
-| Docker | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | PostgreSQL実行 |
+| Docker | macOS: [OrbStack](https://orbstack.dev/)（推奨）/ その他: [Docker Engine](https://docs.docker.com/engine/install/) | PostgreSQL実行 |
 | GitHub CLI (`gh`) | `brew install gh` | GitHub操作 |
 | Vercel CLI | `pnpm add -g vercel` | Vercelデプロイ |
 | Neon CLI (`neonctl`) | `npm install -g neonctl` | Neonデータベース管理 |

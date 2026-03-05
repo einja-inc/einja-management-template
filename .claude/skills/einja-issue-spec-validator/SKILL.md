@@ -1,4 +1,4 @@
-# タスク検証 Skill
+# Issue仕様タスク検証 Skill
 
 ## 概要
 
@@ -12,8 +12,8 @@
 
 ## 使用タイミング
 
-- spec-tasks-validator サブエージェントから呼び出される
-- spec-create コマンドのタスク検証フェーズで使用
+- tasks-validator サブエージェントから呼び出される
+- einja-issue-spec-create Skillのタスク検証フェーズで使用
 - タスク生成直後に自動実行
 
 ## 入力
@@ -123,8 +123,8 @@
 ## 関連ドキュメント
 
 - [タスク管理ガイドライン](../../../docs/einja/steering/task-management.md) - フォーマット定義（Single Source of Truth）
-- [spec-tasks-validator サブエージェント](../../agents/einja/specs/spec-tasks-validator.md) - 呼び出し元
+- [tasks-validator サブエージェント](../../agents/einja/issue-specs/tasks-validator.md) - 呼び出し元
 
-<!-- @einja:project-private:start id="einja-task-spec-validator-project" -->
+<!-- @einja:project-private:start id="einja-issue-spec-validator-project" -->
 <!-- プロジェクト固有の情報を記入 -->
 <!-- @einja:project-private:end -->

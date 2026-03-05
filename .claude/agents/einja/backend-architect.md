@@ -5,6 +5,7 @@ model: sonnet
 color: orange
 skills:
   - output-format
+  - einja-subagent-question-protocol
 ---
 
 ## ✅ 最重要: 出力形式
@@ -933,6 +934,11 @@ describe('UserRepository', () => {
 
 ##### DB設計方針の選択
 
+> ⚠️ サブエージェントではAskUserQuestionは動作しません。
+> 以下のYAML例は「どんな質問をすべきか」の参照情報です。
+> 実際にはpreload済みの「サブエージェント質問プロトコル」に従い、
+> PENDING_QUESTIONS形式で質問を返却して停止してください。
+
 ```yaml
 AskUserQuestion:
   question: "データベース設計方針を選択してください"
@@ -953,6 +959,11 @@ AskUserQuestion:
 
 ##### API認証方式の選択
 
+> ⚠️ サブエージェントではAskUserQuestionは動作しません。
+> 以下のYAML例は「どんな質問をすべきか」の参照情報です。
+> 実際にはpreload済みの「サブエージェント質問プロトコル」に従い、
+> PENDING_QUESTIONS形式で質問を返却して停止してください。
+
 ```yaml
 AskUserQuestion:
   question: "API認証方式を選択してください"
@@ -972,6 +983,11 @@ AskUserQuestion:
 - 外部連携 → OAuth 2.0
 
 ##### エラーハンドリング戦略の選択
+
+> ⚠️ サブエージェントではAskUserQuestionは動作しません。
+> 以下のYAML例は「どんな質問をすべきか」の参照情報です。
+> 実際にはpreload済みの「サブエージェント質問プロトコル」に従い、
+> PENDING_QUESTIONS形式で質問を返却して停止してください。
 
 ```yaml
 AskUserQuestion:

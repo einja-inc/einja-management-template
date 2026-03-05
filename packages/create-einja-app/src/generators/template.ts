@@ -1,6 +1,7 @@
 import fsExtra from "fs-extra";
 const { copySync, readFileSync, writeFileSync, existsSync, removeSync } = fsExtra;
 import { glob } from "glob";
+import { chmodSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ProjectConfig } from "@/prompts/project.js";
@@ -276,6 +277,16 @@ export async function generateTemplate(
 
   for (const file of allFiles) {
     processFileVariables(file, variables);
+  }
+
+  // シェルスクリプトに実行権限を付与
+  const shFiles = glob.sync("**/*.sh", {
+    cwd: targetPath,
+    absolute: true,
+    dot: true,
+  });
+  for (const file of shFiles) {
+    chmodSync(file, 0o755);
   }
 
   logger.success("テンプレート展開完了");

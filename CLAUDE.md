@@ -10,6 +10,7 @@
 3. **影響範囲の最小化**: 変更は必要な箇所のみ。関係ないコードに触れない
 4. **直接実装の禁止**: あなたは絶対に直接実装を行わない。すべての作業はsubagentに委託し、可能な限り並行で呼び出す。サブエージェントの出力はユーザにも見える場所に出力すること
 5. **実装品質の自己検証**: 複雑な変更では完了前に「よりエレガントな方法はないか」を自問する。ただし単純な修正には不要
+6. **Skill-First原則**: 実装着手前に `einja-skill-first` Skillで「Skillを先に作るべきか」を評価する。反復性のある作業はSkill化してから本作業を開始する
 
 ## Agent Teams の使用制限
 
@@ -26,7 +27,6 @@
 
 | 作業 | 委託先 |
 |------|--------|
-| コンフリクト解消 | `conflict-resolver` |
 | Codex作業（レビュー・実装支援等） | `codex-agent` |
 | フロントエンド アーキテクチャ設計 | `frontend-architect` |
 | フロントエンド デザイン実装 | `design-engineer` |
@@ -40,11 +40,21 @@
 | `einja-task-commit` | コミット・プッシュ |
 | `einja-conflict-resolver` | gitコンフリクト解消 |
 | `einja-skill-creator` | Skill作成・更新 |
-| `einja-skill-first` | 作業前のSkill作成必要性評価（Plan/spec-create時に自動起動） |
+| `einja-skill-first` | 作業前のSkill作成必要性評価（Plan/einja-issue-spec-create時に自動起動） |
 | `einja-infra-maintenance` | インフラ環境セットアップ・メンテナンス |
-| `einja:issue-exec` | Issue全体の階層的並列実行（Manager→Director→Worker） |
-| `einja:task-exec` | タスクグループ実行 |
-| `einja:spec-create` | 仕様書作成 |
+| `einja:issue-exec` | Issue全体の階層的並列実行（Command） |
+| `einja-task-exec` | タスクグループ実行（Skill tool） |
+| `einja-issue-spec-create` | Issue仕様書作成（Skill tool） |
+
+#### サブエージェント質問プロトコル（PENDING_QUESTIONS）
+
+サブエージェントではAskUserQuestionが動作しないため、質問が必要な場合は `## PENDING_QUESTIONS` 形式で返却される。
+
+サブエージェント出力に `## PENDING_QUESTIONS` が含まれている場合:
+1. 質問内容を解析し、AskUserQuestionでユーザーに確認する
+2. Agent toolの `resume` パラメータで同じサブエージェントを再開（コンテキスト維持）
+3. プロンプトにユーザーの回答を含めて渡す（例: `ユーザーの回答: Q1→A、Q2→B。これを踏まえて作業を継続してください。`）
+4. 再度PENDING_QUESTIONSがある場合は同様に処理（最大2回まで）
 
 ## コード変更時の動作方針
 
@@ -165,6 +175,11 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 - 番号付きリスト: 詳細説明が必要な場合
 - 推奨オプションには `（推奨）` と理由を付記
 
+### 選択肢の記述ルール
+- 各選択肢の `description` に**必ず詳細説明・注意点・補足**を記載する
+- トレードオフ、影響範囲、前提条件など判断に必要な情報を含める
+- ラベルだけで選択させない。ユーザーが十分な情報に基づいて判断できるようにする
+
 ## 報告ルール
 
 ### 出力形式
@@ -222,9 +237,8 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 
 | キーワード | 使用するSkill |
 |-----------|--------------|
-| `einja cli` `@einja/dev-cli` `公開` `リリース` `publish` `release` | `.claude/skills/dev-cli-release/SKILL.md` |
-| `create-einja-app` | `.claude/skills/create-einja-app-release/SKILL.md` |
-| `インフラ` `環境変数管理` `Vercel` `Neon` `デプロイ設定` `GitHub Secrets` `環境セットアップ` `GitHub Actions` `CI/CD` `ワークフロー` | `.claude/skills/einja-infra-maintenance/SKILL.md` |
+| `einja cli` `@einja/dev-cli` `create-einja-app` `公開` `リリース` `publish` `release` | `.claude/skills/einja-npm-release/SKILL.md` |
+| `インフラ` `環境変数管理` `Vercel` `Neon` `デプロイ設定` `GitHub Secrets` `環境セットアップ` `ローカルセットアップ` `ローカル環境` `セットアップ` `GitHub Actions` `CI/CD` `ワークフロー` | `.claude/skills/einja-infra-maintenance/SKILL.md` |
 | `Skill作るべき？` `Skill化` `skill-first` `Skill-first` | `.claude/skills/einja-skill-first/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
@@ -244,4 +258,17 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `scripts/` (`_`プレフィクス除く) | `presets/default/scripts/` | 単純コピー |
 
 **コピー先のファイルは直接編集禁止**（ビルド時に上書きされる）
+
+### パッケージビルド仕様（テンプレートリポジトリ限定）
+
+`@einja/dev-cli` と `create-einja-app` の2パッケージのビルド・テンプレート仕様については、以下のSkillを参照すること:
+
+`.claude/skills/cli-package-specs/SKILL.md`
+
+### マネージドディレクトリの編集について（テンプレートリポジトリ限定）
+
+このリポジトリは `docs/einja/` の**原本（Single Source of Truth）**である。
+上記「マネージドディレクトリ（編集禁止）」ルールは下流リポジトリ（create-einja-appで生成されたプロジェクト）向けであり、
+**このリポジトリでは `docs/einja/` 配下の全ファイルを編集してよい**。
+変更はビルド時に `presets/default/` へ自動コピーされる。
 <!-- @einja:excluded:end -->

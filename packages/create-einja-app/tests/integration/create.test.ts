@@ -18,7 +18,7 @@ vi.mock("execa", async (importOriginal) => {
     ...actual,
     execa: vi.fn().mockImplementation(async (command: string, args?: string[]) => {
       // @einja/dev-cli init のみモック
-      if (command === "npx" && args?.[0] === "@einja/dev-cli") {
+      if (command === "npx" && args?.[1] === "@einja/dev-cli@latest") {
         return { exitCode: 0, stdout: "", stderr: "" };
       }
       // その他のコマンドは実際に実行

@@ -203,7 +203,7 @@ interface Example {
 
 ### 推奨アクション
 1. ユーザーに追加情報を求める
-2. または `/einja:spec-create` で仕様書を作成する
+2. または `einja-issue-spec-create` Skillで仕様書を作成する
 ```
 
 ---

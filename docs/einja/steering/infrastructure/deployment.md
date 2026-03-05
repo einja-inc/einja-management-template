@@ -134,6 +134,7 @@ graph LR
         ReleaseCLI[release-cli.yml]
         ReleaseApp[release-create-einja-app.yml]
         Claude[claude.yml]
+        ChangesetStatus[changeset-status.yml]
     end
 
     subgraph "Composite Actions"
@@ -162,6 +163,7 @@ graph LR
 | **Release CLI** | `release-cli.yml` | tag `cli-v*` / 手動 | @einja/dev-cli をNPM公開 |
 | **Release App** | `release-create-einja-app.yml` | tag `create-einja-app-v*` / 手動 | create-einja-app をNPM公開 |
 | **Claude** | `claude.yml` | @claude メンション | Claude Code実行 |
+| **Changeset Status** | `changeset-status.yml` | PR to main/staging | PR上にchangesetの有無を表示 |
 
 ### Composite Actions（2層構造）
 
@@ -676,6 +678,111 @@ sequenceDiagram
 - カラム削除は2フェーズで実施（非推奨化 → 削除）
 - 型変更は新カラム追加 → データ移行 → 旧カラム削除
 - インデックス追加は`CREATE CONCURRENTLY`で無停止実行
+
+---
+
+## 8. リリース管理
+
+### GitHub Release / PreRelease 自動作成フロー
+
+```mermaid
+flowchart LR
+    subgraph staging
+        S1[staging push] --> S2[CI + Deploy]
+        S2 --> S3[PreRelease作成<br/>v0.2.0-rc.42]
+    end
+
+    subgraph main
+        M1[main push] --> M2[CI]
+        M2 --> M3[⚠️承認待ち]
+        M3 --> M4[Migrate + Deploy]
+        M4 --> M5[changeset version]
+        M5 --> M6[Release作成<br/>v0.2.0]
+    end
+
+    staging -->|昇格PR| main
+```
+
+| 環境 | リリース種別 | タグ形式 | changeset消費 | 承認 |
+|------|------------|---------|:------------:|:----:|
+| staging | PreRelease | `v{version}-rc.{run_number}` | ❌ | 不要 |
+| production | Release | `v{version}` | ✅ | 1名必要 |
+
+### ワークフロー内リリースジョブ
+
+`deploy-stable-branches.yml` 内に統合:
+
+| ジョブ | トリガー | 処理内容 |
+|--------|---------|---------|
+| `release-staging` | staging デプロイ成功後 | RCタグ作成 → GitHub PreRelease作成 |
+| `release-production` | production デプロイ成功後 | changeset version → バージョンバンプ → タグ作成 → GitHub Release作成 |
+
+### NPMリリースとの棲み分け
+
+| タグパターン | 用途 | 生成元 |
+|-------------|------|--------|
+| `v1.2.0` | アプリ Stable Release | deploy-stable-branches.yml |
+| `v1.2.0-rc.42` | アプリ PreRelease | deploy-stable-branches.yml |
+| `cli-v0.1.41` | @einja/dev-cli | 手動タグ（既存運用） |
+| `create-einja-app-v0.3.2` | create-einja-app | 手動タグ（既存運用） |
+
+---
+
+## 9. バージョニング戦略
+
+### changesets
+
+[changesets](https://github.com/changesets/changesets) を使用してセマンティックバージョニングを管理。
+
+| 変更種別 | changeset指定 | バージョン変更例 | 使用シーン |
+|---------|--------------|----------------|----------|
+| 破壊的変更 | `major` | `0.1.0` → `1.0.0` | API仕様変更、DB破壊的マイグレーション |
+| 新機能追加 | `minor` | `0.1.0` → `0.2.0` | 新画面、新API追加 |
+| バグ修正 | `patch` | `0.1.0` → `0.1.1` | 不具合修正、パフォーマンス改善 |
+
+### changeset消費タイミング
+
+| ブランチ | changeset消費 | バージョンバンプ | タグ形式 |
+|---------|-------------|----------------|---------|
+| staging | **消費しない** | なし（package.json据え置き） | `v{current}-rc.{run_number}` |
+| main | `changeset version` で消費 | package.json更新 | `v{new_version}` |
+
+### 無限ループ防止（多重防御）
+
+1. `GITHUB_TOKEN` で作成されたpushイベントはデフォルトでワークフローを再トリガーしない
+2. コミットメッセージ `chore: release v` でのフィルタリング
+3. バージョンバンプコミットは `github-actions[bot]` 名義
+
+---
+
+## 10. 承認フロー
+
+### GitHub Environments
+
+| Environment | Required Reviewers | Wait Timer | Deployment Branches |
+|------------|-------------------|------------|-------------------|
+| `staging` | なし | なし | `staging`のみ |
+| `production` | 1名 | なし | `main`のみ |
+
+### 承認フロー詳細
+
+```mermaid
+sequenceDiagram
+    participant Dev as 開発者
+    participant GH as GitHub Actions
+    participant Rev as Reviewer
+    participant Prod as Production
+
+    Dev->>GH: main push
+    GH->>GH: CI checks
+    GH->>Rev: ⚠️ 承認リクエスト
+    Note over Rev: GitHub UIで承認
+    Rev->>GH: ✅ 承認
+    GH->>Prod: Migrate + Deploy
+    GH->>GH: Release作成
+```
+
+production環境へのデプロイは `migrate-production` ジョブで承認ゲートを設定。承認後にマイグレーションとデプロイが実行される。
 
 ---
 

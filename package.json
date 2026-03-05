@@ -45,10 +45,14 @@
 		"env:encrypt": "dotenvx encrypt",
 		"env:show": "tsx scripts/env-show.ts",
 		"env:rotate-secrets": "tsx scripts/env-rotate-secrets.ts",
-		"einja:sync": "npx @einja/dev-cli sync",
-		"task:loop": "npx @einja/dev-cli task:loop"
+		"einja:sync": "npx --yes @einja/dev-cli@latest sync",
+		"init:github": "tsx scripts/init-github.ts",
+		"task:loop": "npx --yes @einja/dev-cli@latest task:loop",
+		"changeset": "changeset"
 	},
 	"devDependencies": {
+		"@changesets/changelog-github": "^0.5.1",
+		"@changesets/cli": "^2.29.0",
 		"@clack/prompts": "^0.11.0",
 		"@dotenvx/dotenvx": "^1.51.4",
 		"@types/node": "^25.0.3",

@@ -619,7 +619,18 @@ async function main(): Promise<void> {
 		}
 	} else {
 		warn("Dockerがインストールされていません");
-		console.log(colors.gray("  Dockerをインストール後、以下を実行してください:"));
+		if (platform === "macos") {
+			console.log(colors.yellow("  OrbStack（Docker互換の軽量ツール）のインストールを推奨します:"));
+			console.log(colors.cyan("    brew install orbstack"));
+			console.log(colors.gray("  または: https://orbstack.dev/"));
+		} else if (platform === "windows") {
+			console.log(colors.yellow("  Dockerをインストールしてください:"));
+			console.log(colors.gray("    https://docs.docker.com/desktop/install/windows-install/"));
+		} else {
+			console.log(colors.yellow("  Docker Engineをインストールしてください:"));
+			console.log(colors.gray("    https://docs.docker.com/engine/install/"));
+		}
+		console.log(colors.gray("  インストール後、以下を実行してください:"));
 		console.log(colors.gray("    docker-compose up -d postgres"));
 		console.log(colors.gray("    pnpm db:generate && pnpm db:push"));
 	}
@@ -631,6 +642,10 @@ async function main(): Promise<void> {
 
 	console.log("開発を始めるには:");
 	console.log(colors.cyan("  pnpm dev"));
+	console.log("");
+
+	console.log("GitHubリポジトリのセットアップ:");
+	console.log(colors.cyan("  pnpm init:github"));
 	console.log("");
 }
 

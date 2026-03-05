@@ -18,7 +18,7 @@ npx create-einja-app my-project
 **何が起きるか:**
 
 1. `my-project/` ディレクトリが作成される
-2. Turborepo + Next.js 15 + Prisma のモノレポ構成が展開される
+2. Turborepo + Next.js 15 + Prisma のモノレポ構成が展開される（メイン管理画面 `apps/web/` + 管理者画面 `apps/admin/`）
 3. `.claude/` ディレクトリ（Claude Code設定）が自動セットアップされる
 4. 依存関係がインストールされる
 5. Gitリポジトリが初期化される
@@ -57,15 +57,17 @@ npx @einja/dev-cli init
 
 1. `.claude/` ディレクトリが作成される
    - `agents/` - タスク実行、仕様書生成、フロントエンド開発用サブエージェント
-   - `commands/` - `/einja:spec-create`, `/einja:task-exec` などのスラッシュコマンド
-   - `skills/` - コーディング規約、コンポーネント設計ガイド
-   - `hooks/` - Biomeフォーマット、型チェックなどのGit Hooks
-   - `settings.json` - MCPサーバー設定（GitHub, Playwright, Serena等）
+   - `commands/` - `/einja:issue-exec` などのスラッシュコマンド、`einja-issue-spec-create`, `einja-task-exec` などのSkill tool
+   - `skills/` - ATDDワークフロー用スキル（タスク実行、QAテスト、コミット管理、コンフリクト解消等）
+   - `hooks/` - Claude Code Hooks（コード品質チェック、型検証、機密情報検出等）
+   - `settings.json` - Claude Code設定（権限、MCPサーバー等）
 2. `docs/einja/` ディレクトリが作成される
    - `steering/` - コミットルール、テスト戦略、レビューガイドライン
    - `templates/` - 仕様書テンプレート
+   - `instructions/` - 操作手順書（セットアップ、デプロイ等）
+   - `example/` - サンプル仕様書
 3. `CLAUDE.md` テンプレートが作成される
-4. `package.json` にスクリプトが追加される
+4. `package.json` にスクリプトが追加される（`lint`, `format`, `typecheck`, `prepush` 等）
 
 **追加されるnpm scripts:**
 
@@ -78,10 +80,10 @@ pnpm einja:sync         # テンプレートから最新設定を同期
 
 ```bash
 # テンプレートから設定を同期（更新があった場合）
-npx @einja/dev-cli sync
+npx --yes @einja/dev-cli sync
 
 # 特定カテゴリのみ同期
-npx @einja/dev-cli sync --only commands,agents
+npx --yes @einja/dev-cli sync --only commands,agents
 ```
 
 📖 詳細: [packages/cli/README.md](./packages/cli/README.md)
@@ -94,7 +96,9 @@ npx @einja/dev-cli sync --only commands,agents
 |-------------|---------------|
 | 新規プロジェクトを作成したい | `npx create-einja-app my-project` |
 | 既存プロジェクトにClaude設定を追加したい | `npx @einja/dev-cli init` |
-| Claude設定を最新に更新したい | `npx @einja/dev-cli sync` |
+| Claude設定を最新に更新したい | `npx --yes @einja/dev-cli sync` |
+
+> 📖 各シナリオのセットアップで何が実行されるかの詳細は [セットアップフローガイド](docs/einja/instructions/setup-flow.md) を参照してください。
 <!-- @einja:excluded:end -->
 
 ---
@@ -110,13 +114,19 @@ npx @einja/dev-cli sync --only commands,agents
 ```
 einja-management-template/
 ├── apps/
-│   └── web/                      # メイン管理画面アプリ
+│   ├── web/                      # メイン管理画面アプリ
+│   │   ├── src/
+│   │   │   ├── app/              # Next.js App Router
+│   │   │   ├── components/       # アプリ固有のコンポーネント
+│   │   │   └── lib/
+│   │   │       ├── auth/         # アプリ固有の認証設定
+│   │   │       └── ...           # アプリ固有のユーティリティ
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   └── admin/                    # 管理者画面アプリ
 │       ├── src/
 │       │   ├── app/              # Next.js App Router
-│       │   ├── components/       # アプリ固有のコンポーネント
-│       │   └── lib/
-│       │       ├── auth/         # アプリ固有の認証設定
-│       │       └── ...           # アプリ固有のユーティリティ
+│       │   └── components/       # アプリ固有のコンポーネント
 │       ├── package.json
 │       └── tsconfig.json
 ├── packages/
@@ -134,7 +144,9 @@ einja-management-template/
 │   │   └── src/
 │   │       ├── domain/           # ドメイン層
 │   │       ├── infrastructure/   # Prismaクライアント等
-│   │       └── utils/            # 共通ユーティリティ
+│   │       ├── core/             # 共通コアモジュール
+│   │       └── testing/          # テストユーティリティ
+│   ├── admin-ui/                 # 管理者画面専用UIコンポーネント
 │   └── ui/                       # 共通UIコンポーネント（shadcn/ui）
 ├── turbo.json                    # Turborepoの設定
 ├── pnpm-workspace.yaml          # pnpmワークスペース設定
@@ -156,6 +168,8 @@ einja-management-template/
 - **Git Hooks**: Husky + lint-staged
 
 ### 開発環境セットアップ
+
+> 📖 各コマンドで何が実行されるかの詳細は [セットアップフローガイド](docs/einja/instructions/setup-flow.md) を参照してください。
 
 #### 初回セットアップ（初めての方）
 
@@ -267,13 +281,14 @@ pnpm db:studio        # Prisma Studio起動
 # 特定のワークスペースでコマンド実行
 pnpm --filter @repo/web dev
 pnpm --filter @repo/web build
+pnpm --filter @repo/admin dev
 ```
 
 ### データベース設定
 
 #### Docker Compose サービス
 
-- **postgres**: PostgreSQL 15
+- **postgres**: PostgreSQL 16
   - ポート: `${POSTGRES_PORT:-25432}` (ホスト) → 5432 (コンテナ)
   - データベース: ブランチ名から自動生成（例: `main`, `feature_auth`）
   - ユーザー: `postgres`
@@ -286,7 +301,7 @@ pnpm --filter @repo/web build
 docker-compose logs -f postgres
 
 # データベースに直接接続
-docker-compose exec postgres psql -U postgres -d einja_management
+docker-compose exec postgres psql -U postgres -d main
 
 # データベースをリセット
 docker-compose down -v
@@ -316,6 +331,7 @@ pnpm db:studio
 - **@repo/config**: Biome, TypeScriptの共通設定
 - **@repo/front-core**: フロントエンド共通層（認証共通設定、hooks、utils、context）
 - **@repo/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
+- **@repo/admin-ui**: 管理者画面専用UIコンポーネント
 - **@repo/ui**: 共通UIコンポーネント（shadcn/ui）
 
 <!-- @einja:excluded:start -->

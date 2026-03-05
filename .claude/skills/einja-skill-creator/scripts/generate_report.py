@@ -249,16 +249,23 @@ def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") 
 
 def main():
     parser = argparse.ArgumentParser(description="run_loop.pyの出力からHTMLレポートを生成")
-    parser.add_argument("--input", required=True, help="run_loop.pyのJSON出力へのパス")
-    parser.add_argument("--output", required=True, help="HTMLレポートの出力先パス")
-    parser.add_argument("--auto-refresh", action="store_true", help="5秒ごとの自動リフレッシュを有効化（ライブモニタリング用）")
+    parser.add_argument("input", help="run_loop.pyのJSON出力へのパス（'-'でstdinから読み込み）")
+    parser.add_argument("-o", "--output", default=None, help="HTMLレポートの出力先パス（未指定時はstdout）")
     parser.add_argument("--skill-name", default="", help="レポートタイトルに表示するスキル名")
     args = parser.parse_args()
 
-    data = json.loads(Path(args.input).read_text())
-    html_content = generate_html(data, auto_refresh=args.auto_refresh, skill_name=args.skill_name)
-    Path(args.output).write_text(html_content)
-    print(f"レポートを生成しました: {args.output}", file=sys.stderr)
+    if args.input == "-":
+        data = json.load(sys.stdin)
+    else:
+        data = json.loads(Path(args.input).read_text())
+
+    html_content = generate_html(data, skill_name=args.skill_name)
+
+    if args.output:
+        Path(args.output).write_text(html_content)
+        print(f"レポートを生成しました: {args.output}", file=sys.stderr)
+    else:
+        print(html_content)
 
 
 if __name__ == "__main__":

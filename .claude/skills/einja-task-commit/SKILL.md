@@ -1,6 +1,6 @@
 ---
 name: task-commit
-description: "コミット・プッシュを実行するSkill。docs/einja/steering/commit-rules.mdのルールに従い、分割コミットを実施。直接呼び出し可能（確認あり）、task-exec経由では自動実行"
+description: "コミット・プッシュを実行するSkill。docs/einja/steering/commit-rules.mdのルールに従い、分割コミットを実施。直接呼び出し可能（確認あり）、einja-task-exec Skill経由では自動実行"
 allowed-tools:
   - Bash
   - Read
@@ -49,7 +49,7 @@ git stash pop
 
 #### コンフリクト発生時
 
-1. **conflict-resolver エージェント** を Task ツールで呼び出して解消
+1. **einja-conflict-resolver Skill** の手順に従って解消
 2. 解消できない場合は以下を出力して終了:
 
 ```markdown
@@ -139,9 +139,9 @@ AskUserQuestion:
 
 ### ステップ4: 品質チェック
 
-#### task-exec経由での呼び出しの場合
+#### einja-task-exec Skill経由での呼び出しの場合
 
-task-exec経由でQA合格後に呼び出されるため、品質チェック（lint/typecheck/test/build）は**スキップ**します。
+einja-task-exec Skill経由でQA合格後に呼び出されるため、品質チェック（lint/typecheck/test/build）は**スキップ**します。
 
 QAフェーズで既に実行済みのため、重複実行は不要です。
 
@@ -171,7 +171,7 @@ QAフェーズで既に実行済みのため、重複実行は不要です。
 
 #### コミットコマンド
 
-**task-exec経由での呼び出しの場合**（QA済み）:
+**einja-task-exec Skill経由での呼び出しの場合**（QA済み）:
 
 ```bash
 git add src/auth/login.ts src/auth/logout.ts && git commit -m "$(cat <<'EOF'
@@ -253,7 +253,7 @@ EOF
 
 | エラー種別 | 対処 |
 |-----------|------|
-| git pull コンフリクト | conflict-resolver エージェントを Task ツールで呼び出して解消を試行 |
+| git pull コンフリクト | einja-conflict-resolver Skill の手順に従って解消を試行 |
 | コンフリクト解消失敗 | 報告して終了、手動解決を依頼 |
 | git commit 失敗 | エラー内容を報告 |
 | git push 失敗 | エラー内容を報告、原因を説明 |

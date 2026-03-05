@@ -5,6 +5,7 @@ model: sonnet
 color: purple
 skills:
   - output-format
+  - einja-subagent-question-protocol
 ---
 
 ## ✅ 最重要: 出力形式
@@ -533,6 +534,11 @@ const { users, pagination } = await getUsers({
 
 ##### 状態管理ライブラリの選択
 
+> ⚠️ サブエージェントではAskUserQuestionは動作しません。
+> 以下のYAML例は「どんな質問をすべきか」の参照情報です。
+> 実際にはpreload済みの「サブエージェント質問プロトコル」に従い、
+> PENDING_QUESTIONS形式で質問を返却して停止してください。
+
 ```yaml
 AskUserQuestion:
   question: "状態管理ライブラリを選択してください"
@@ -554,6 +560,11 @@ AskUserQuestion:
 - 複雑な状態ロジック → Zustand/Jotai
 
 ##### ページング・スクロール戦略の選択
+
+> ⚠️ サブエージェントではAskUserQuestionは動作しません。
+> 以下のYAML例は「どんな質問をすべきか」の参照情報です。
+> 実際にはpreload済みの「サブエージェント質問プロトコル」に従い、
+> PENDING_QUESTIONS形式で質問を返却して停止してください。
 
 ```yaml
 AskUserQuestion:
@@ -597,6 +608,11 @@ AskUserQuestion:
 **確認フォーマット例:**
 
 ダッシュボードページの実装方針を決定します（ユーザー固有データを表示、リアルタイム更新は不要、SEOは重要ではない）。
+
+> ⚠️ サブエージェントではAskUserQuestionは動作しません。
+> 以下のYAML例は「どんな質問をすべきか」の参照情報です。
+> 実際にはpreload済みの「サブエージェント質問プロトコル」に従い、
+> PENDING_QUESTIONS形式で質問を返却して停止してください。
 
 ```yaml
 AskUserQuestion:

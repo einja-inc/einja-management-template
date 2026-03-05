@@ -331,6 +331,39 @@ Gitがインストールされていません
 - Gitをインストールしてください: https://git-scm.com/downloads
 - または `--skip-git` オプションを使用してください
 
+### scripts/init.sh が Permission Denied
+
+**エラーメッセージ:**
+```
+Permission denied: ./scripts/init.sh
+```
+
+**解決方法:**
+```bash
+# 方法1: bashコマンドで実行
+bash scripts/init.sh
+
+# 方法2: 実行権限を付与してから実行
+chmod +x scripts/*.sh
+./scripts/init.sh
+```
+
+### Volta環境でpnpmが見つからない
+
+**エラーメッセージ:**
+```
+pnpm: command not found
+```
+
+**解決方法:**
+```bash
+# pnpmを手動でインストール
+npm install -g pnpm@latest-10
+
+# またはターミナルを再起動してVoltaのPATHを反映
+exec $SHELL
+```
+
 ---
 
 ## テンプレート更新

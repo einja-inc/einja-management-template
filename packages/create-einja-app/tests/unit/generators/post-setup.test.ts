@@ -5,16 +5,9 @@ import { tmpdir } from "node:os";
 import { execPostSetup } from "@/generators/post-setup.js";
 import type { ProjectConfig } from "@/types/index.js";
 
-// execaとinquirerをモック化
+// execaをモック化
 vi.mock("execa", () => ({
   execa: vi.fn().mockResolvedValue({ stdout: "", stderr: "" }),
-  execaSync: vi.fn().mockReturnValue({ stdout: "", stderr: "" }),
-}));
-
-vi.mock("inquirer", () => ({
-  default: {
-    prompt: vi.fn().mockResolvedValue({ shouldAllow: true }),
-  },
 }));
 
 // oraをモック化
@@ -23,6 +16,7 @@ vi.mock("ora", () => ({
     start: vi.fn().mockReturnThis(),
     succeed: vi.fn().mockReturnThis(),
     fail: vi.fn().mockReturnThis(),
+    warn: vi.fn().mockReturnThis(),
   }),
 }));
 
@@ -66,12 +60,18 @@ describe("post-setup generator", () => {
   });
 
   describe("execPostSetup", () => {
-    it("skipオプションなしの場合、Git初期化とpnpm installが実行される", async () => {
+    it("skipオプションなしの場合、init.sh、Git初期化とpnpm installが実行される", async () => {
       // Given: デフォルトオプション
       const { execa } = await import("execa");
 
       // When: execPostSetup実行
       await execPostSetup(mockConfig, testDir, {});
+
+      // Then: bash scripts/init.sh が実行される
+      expect(execa).toHaveBeenCalledWith("bash", ["scripts/init.sh"], {
+        cwd: testDir,
+        stdio: "inherit",
+      });
 
       // Then: git init, git add, git commit が実行される
       expect(execa).toHaveBeenCalledWith("git", ["init"], { cwd: testDir });
@@ -131,7 +131,7 @@ describe("post-setup generator", () => {
       await execPostSetup(configWithEinja, testDir, {});
 
       // Then: npx @einja/dev-cli init --forceが実行される
-      expect(execa).toHaveBeenCalledWith("npx", ["@einja/dev-cli", "init", "--force", "--no-backup"], { cwd: testDir });
+      expect(execa).toHaveBeenCalledWith("npx", ["--yes", "@einja/dev-cli@latest", "init", "--force", "--no-backup"], { cwd: testDir });
     });
 
     it("setupEinjaCliが無効な場合、@einja/dev-cli initが実行されない", async () => {
@@ -147,36 +147,32 @@ describe("post-setup generator", () => {
       });
     });
 
-    it("direnvが有効で利用可能な場合、direnv allowプロンプトが表示される", async () => {
-      // Given: direnv有効 & execaSyncでwhich direnvが成功
-      const { execaSync } = await import("execa");
-      const inquirer = (await import("inquirer")).default;
-      const configWithDirenv = {
-        ...mockConfig,
-        tools: { ...mockConfig.tools, direnv: true },
-      };
-
-      // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
-      (execaSync as any).mockReturnValueOnce({ stdout: "/usr/local/bin/direnv" });
-      // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
-      (inquirer.prompt as any).mockResolvedValueOnce({ shouldAllow: true });
-
-      // When: execPostSetup実行
-      await execPostSetup(configWithDirenv, testDir, {});
-
-      // Then: direnv allowプロンプトが表示される
-      expect(inquirer.prompt).toHaveBeenCalled();
-    });
-
-    it("direnvが無効な場合、direnv allow処理がスキップされる", async () => {
-      // Given: direnv無効
-      const inquirer = (await import("inquirer")).default;
+    it("init.shが実行される", async () => {
+      // Given: デフォルトオプション
+      const { execa } = await import("execa");
 
       // When: execPostSetup実行
       await execPostSetup(mockConfig, testDir, {});
 
-      // Then: direnv allowプロンプトが表示されない
-      expect(inquirer.prompt).not.toHaveBeenCalled();
+      // Then: bash scripts/init.sh が実行される
+      expect(execa).toHaveBeenCalledWith("bash", ["scripts/init.sh"], {
+        cwd: testDir,
+        stdio: "inherit",
+      });
+    });
+
+    it("skipInstallオプションが有効な場合、init.shがスキップされる", async () => {
+      // Given: skipInstall = true
+      const { execa } = await import("execa");
+
+      // When: execPostSetup実行
+      await execPostSetup(mockConfig, testDir, { skipInstall: true });
+
+      // Then: bash scripts/init.sh が実行されない
+      expect(execa).not.toHaveBeenCalledWith("bash", ["scripts/init.sh"], {
+        cwd: testDir,
+        stdio: "inherit",
+      });
     });
 
     it("Git初期化に失敗した場合、エラーハンドリングされる", async () => {
@@ -195,9 +191,7 @@ describe("post-setup generator", () => {
       const { execa } = await import("execa");
       // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
       (execa as any)
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git init成功
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git add成功
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git commit成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // init.sh成功
         .mockRejectedValueOnce(new Error("pnpm install failed")); // pnpm install失敗
 
       // When: execPostSetup実行
@@ -210,9 +204,7 @@ describe("post-setup generator", () => {
       const { execa } = await import("execa");
       // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
       (execa as any)
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git init成功
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git add成功
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git commit成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // init.sh成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm install成功
         .mockRejectedValueOnce(new Error("pnpm db:generate failed")); // pnpm db:generate失敗
 
@@ -228,11 +220,13 @@ describe("post-setup generator", () => {
 
       // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
       (execa as any)
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // init.sh成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm install成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm db:generate成功
+        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm env:rotate-secrets成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git init成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git add成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git commit成功
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm install成功
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm db:generate成功
         .mockRejectedValueOnce(new Error("@einja/dev-cli init failed")); // @einja/dev-cli init失敗
 
       // When: execPostSetup実行

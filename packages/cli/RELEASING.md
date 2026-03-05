@@ -1,4 +1,4 @@
-# @einja/cli リリース手順
+# @einja/dev-cli リリース手順
 
 ## 前提条件
 
@@ -47,10 +47,10 @@ git push origin cli-v0.2.0
 
 ```bash
 # npm で公開を確認
-npm view @einja/cli
+npm view @einja/dev-cli
 
 # 実際に使用してみる
-npx @einja/cli --version
+npx @einja/dev-cli --version
 ```
 
 ## 手動リリース（緊急時）

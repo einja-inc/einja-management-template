@@ -207,7 +207,7 @@ Skillドラフト作成後、2-3のリアルなテストプロンプトを作成
 
 ### ステップ3: 実行完了時にタイミングデータをキャプチャ
 
-各サブエージェントタスク完了時、通知に`total_tokens`と`duration_ms`が含まれる。このデータを即座に`timing.json`に保存：
+各サブエージェントタスク完了時、通知に`total_tokens`と`duration_ms`が含まれる。**このデータを即座に`timing.json`に保存**すること — タスク通知は1回限りで、後からバッチ処理できない：
 
 ```json
 {
@@ -221,7 +221,7 @@ Skillドラフト作成後、2-3のリアルなテストプロンプトを作成
 
 全実行完了後：
 
-1. **各実行を採点** — 採点サブエージェントを起動し`agents/grader.md`を読ませて各アサーションを出力に対して評価。`grading.json`に保存。grading.jsonの期待値配列は`text`、`passed`、`evidence`フィールドを使用すること。プログラムでチェック可能なアサーションは、目視ではなくスクリプトを書いて実行。
+1. **各実行を採点** — 採点サブエージェントを起動し`agents/grader.md`を読ませて各アサーションを出力に対して評価。`grading.json`に保存。grading.jsonの期待値配列は `text`、`passed`、`evidence` フィールドを使用すること（`name`/`met`/`details` やその他のバリアントは不可 — ビューアがこの正確なフィールド名に依存している）。プログラムでチェック可能なアサーションは、目視ではなくスクリプトを書いて実行。
 
 2. **ベンチマークに集計** — skill-creatorディレクトリから集計スクリプトを実行：
    ```bash
@@ -250,7 +250,20 @@ Skillドラフト作成後、2-3のリアルなテストプロンプトを作成
 
 ### ステップ5: フィードバックの読み込み
 
-ユーザーが完了を告げたら、`feedback.json`を読む。空のフィードバックはユーザーがOKと判断したことを意味する。具体的な指摘があるテストケースに改善を集中する。
+ユーザーが完了を告げたら、`feedback.json`を読む：
+
+```json
+{
+  "reviews": [
+    {"run_id": "eval-0-with_skill", "feedback": "チャートに軸ラベルがない", "timestamp": "..."},
+    {"run_id": "eval-1-with_skill", "feedback": "", "timestamp": "..."},
+    {"run_id": "eval-2-with_skill", "feedback": "完璧、気に入った", "timestamp": "..."}
+  ],
+  "status": "complete"
+}
+```
+
+空のフィードバックはユーザーがOKと判断したことを意味する。具体的な指摘があるテストケースに改善を集中する。
 
 ビューアサーバーが不要になったらkillする。
 
@@ -303,7 +316,11 @@ SKILL.mdフロントマターのdescriptionフィールドは、ClaudeがSkill�
 
 クエリは現実的で、Claude CodeやClaude.aiユーザーが実際にタイプするもの。抽象的ではなく、具体的で詳細なリクエスト。ファイルパス、個人的なコンテキスト、カラム名、会社名、URL等。少しの背景。一部は小文字や略語やタイプミスやカジュアルな話し方。長さを混ぜ、明確なケースよりエッジケースに焦点。
 
-**トリガーすべき**クエリ（8-10個）はカバレッジを考える。**トリガーすべきでない**クエリ（8-10個）はニアミス — キーワードを共有するが実際には異なるものが必要なクエリ。
+**Bad**: `"Format this data"`, `"Extract text from PDF"`, `"Create a chart"` — 抽象的すぎて何もテストしない
+
+**Good**: `"ok so my boss just sent me this xlsx file (its in my downloads, called something like 'Q4 sales final FINAL v2.xlsx') and she wants me to add a column that shows the profit margin as a percentage. The revenue is in column C and costs are in column D i think"` — 具体的、カジュアル、背景あり
+
+**トリガーすべき**クエリ（8-10個）はカバレッジを考える。異なるフレーズ、フォーマル/カジュアル混在、スキル名を明示しないが明らかに必要なケース、珍しいユースケース。**トリガーすべきでない**クエリ（8-10個）はニアミス — キーワードを共有するが実際には異なるものが必要なクエリ。「フィボナッチ関数を書いて」のような明らかに無関係なクエリは避ける — テストにならない。
 
 ### ステップ2: ユーザーとレビュー
 
@@ -327,10 +344,11 @@ python -m scripts.run_loop \
   --skill-path <path-to-skill> \
   --model <model-id-powering-this-session> \
   --max-iterations 5 \
+  --holdout 0.4 \
   --verbose
 ```
 
-セッションのモデルIDを使用。60% train / 40% test分割。各クエリ3回実行で信頼性のあるトリガー率を取得。extended thinkingのClaudeで改善を提案。train/testの両方で再評価し、最大5回反復。完了時にHTMLレポートを開き、`best_description`をJSONで返す。
+セッションのモデルIDを使用（`--model`）。`--holdout 0.4`（デフォルト）で60% train / 40% test分割。各クエリ3回実行で信頼性のあるトリガー率を取得。extended thinkingのClaudeで改善を提案（改善専用モデルは`--improve-model`で変更可）。train/testの両方で再評価し、最大5回反復。テストスコアは改善モデルに見せない（blinded_history）ため過学習を防止。完了時にHTMLレポートをブラウザで自動起動し、`best_description`をJSONで返す。`--results-dir <dir>`で全出力をタイムスタンプ付きサブディレクトリに保存可能。
 
 ### スキルトリガーの仕組み
 
@@ -352,11 +370,13 @@ python -m scripts.package_skill <path/to/skill-folder>
 
 ## Claude.ai固有の手順
 
-Claude.aiではサブエージェントがないため：
-- **テスト実行**: 各テストケースを順次に自分で実行。ベースラインはスキップ
-- **結果レビュー**: ブラウザが使えない場合、会話内で直接結果を提示
-- **ベンチマーク**: スキップ
-- **Description最適化**: `claude` CLIが必要なためスキップ
+Claude.aiではサブエージェントがないため、一部の手順を変更する。コアワークフロー（ドラフト→テスト→レビュー→改善→繰り返し）は同じ。
+
+- **テスト実行**: サブエージェントなし＝並列実行不可。各テストケースを順次に自分で実行。これはサブエージェント版より厳密性が低い（スキル作成者がスキル実行者でもあるため完全なコンテキストを持つ）が、有用なサニティチェックであり、人間のレビューステップが補完する。ベースライン実行はスキップ
+- **結果レビュー**: ブラウザが使えない場合、会話内で直接結果を提示。出力がファイルの場合はパスを伝える
+- **ベンチマーク**: スキップ（ベースライン比較がサブエージェントなしでは意味をなさない）
+- **Description最適化**: `claude` CLI（`claude -p`）が必要なためスキップ
+- **ブラインド比較**: サブエージェントが必要。スキップ
 
 ---
 
@@ -364,7 +384,7 @@ Claude.aiではサブエージェントがないため：
 
 - サブエージェントあり、メインワークフロー（テスト並行実行等）は動作する
 - ブラウザがないため、ビューア生成時は`--static <output_path>`を使用
-- フィードバックは`feedback.json`としてダウンロード
+- フィードバックは`feedback.json`としてダウンロード（ファイルアクセスのリクエストが必要な場合がある）
 - テスト実行後は**必ず**`generate_review.py`で評価ビューアを生成してから自己評価すること
 
 ---
@@ -394,6 +414,29 @@ scripts/init_skill.py <skill-name> --path <output-directory>
 
 ```bash
 scripts/package_skill.py <path/to/skill-folder> [output-directory]
+```
+
+---
+
+コアループの再掲（見落とし防止）：
+
+- Skillの目的を理解する
+- Skillをドラフトまたは編集する
+- テストプロンプトでSkill付きClaudeを実行する
+- ユーザーと共に出力を評価する：
+  - benchmark.jsonを作成し`eval-viewer/generate_review.py`でユーザーレビューを支援
+  - 定量的評価を実施
+- 満足するまで繰り返す
+- 最終Skillをパッケージ化してユーザーに返す
+
+**TodoList**: ステップを見失わないよう、TodoListが利用可能であればステップを追加すること。特にCowork環境では「evalsのJSONを作成し `eval-viewer/generate_review.py` を実行して人間がテストケースをレビューできるようにする」を必ずTodoListに含める。
+
+### 横断比較ツール（compare_runs.py）
+
+複数スキルの`run_loop.py`出力を横断比較する場合は`compare_runs.py`を使用：
+
+```bash
+python -m scripts.compare_runs result1.json result2.json --verbose --json
 ```
 
 <!-- @einja:excluded:start -->

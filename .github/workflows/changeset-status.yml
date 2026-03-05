@@ -1,0 +1,60 @@
+name: Changeset Status
+
+on:
+  pull_request:
+    branches: [main, staging]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  changeset-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changesets
+        id: check
+        run: |
+          COUNT=$(ls .changeset/*.md 2>/dev/null | grep -cv README.md || echo 0)
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "has_changesets=$([[ $COUNT -gt 0 ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const count = parseInt('${{ steps.check.outputs.count }}');
+            const hasChangesets = '${{ steps.check.outputs.has_changesets }}' === 'true';
+            const marker = '<!-- changeset-status -->';
+
+            let body;
+            if (hasChangesets) {
+              body = `${marker}\n### ✅ Changeset detected\n\nThis PR includes **${count}** changeset(s). A release will be created when merged.`;
+            } else {
+              body = `${marker}\n### ⚠️ No changeset found\n\nThis PR does not include a changeset. If this PR includes user-facing changes, please run:\n\n\`\`\`bash\npnpm changeset\n\`\`\`\n\nIf this change doesn't need a release (docs, CI, config), you can ignore this message.`;
+            }
+
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.data.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

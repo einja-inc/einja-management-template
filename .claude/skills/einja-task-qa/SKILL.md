@@ -92,7 +92,7 @@ AskUserQuestion:
 
 ### ステップ3: 既存テスト仕様の読み込み
 
-**前提**: テスト仕様は `spec-qa-generator` が作成済み。task-qaは**実行のみ**を担当。
+**前提**: テスト仕様は `qa-generator` が作成済み。task-qaは**実行のみ**を担当。
 
 1. **テスト仕様ファイルの特定**: 自然言語で指定されたAC番号からStoryを判定
    - 例: 「AC1.1, AC1.2のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
@@ -100,7 +100,7 @@ AskUserQuestion:
 2. **シナリオテストの確認**: `qa-tests/scenarios.md` で該当ACの実施タイミングを確認
 3. **テスト仕様の読み込み**: story{N}.md内の該当ACセクションからテストシナリオ、確認項目、期待値を把握
 
-**エラー時**: テスト仕様が存在しない場合は失敗分類B（要件齟齬）→ spec-qa-generatorで作成が必要
+**エラー時**: テスト仕様が存在しない場合は失敗分類B（要件齟齬）→ qa-generatorで作成が必要
 
 ---
 
@@ -281,7 +281,7 @@ AskUserQuestion:
 
 ## 実行制約
 
-**task-execからの呼び出し**: task-qa.md（ラッパー）経由、完了報告はtask-qa.mdが生成
+**einja-task-exec Skillからの呼び出し**: task-qa.md（ラッパー）経由、完了報告はtask-qa.mdが生成
 
 **独立使用**: トリガーワードで自律起動、完了報告は本Skillが生成
 

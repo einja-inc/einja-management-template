@@ -21,7 +21,7 @@ QA実行時によくある問題と対処法。
 
 **対処法**:
 1. 仕様書ディレクトリパスを確認
-2. 不在の場合はspec-requirements-generatorで作成
+2. 不在の場合はrequirements-generatorで作成
 
 **失敗分類**: D（環境問題）またはB（要件未定義）
 

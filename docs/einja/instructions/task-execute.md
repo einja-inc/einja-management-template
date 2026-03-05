@@ -1,18 +1,18 @@
 <!-- @einja:managed:start -->
 # 開発ワークフロー
 
-このドキュメントでは、`/einja:spec-create`と`/einja:task-exec`コマンドを使用したATDD（受け入れテスト駆動開発）に基づく開発ワークフローについて説明します。
+このドキュメントでは、`einja-issue-spec-create` Skillと`einja-task-exec` Skillを使用したATDD（受け入れテスト駆動開発）に基づく開発ワークフローについて説明します。
 
 ## 概要
 
 開発プロセスは2つの主要なコマンドで構成されています：
 
-1. **`/einja:spec-create`**: 仕様書の作成（要件定義 → 設計 → GitHub Issueへのタスク記述）
-2. **`/einja:task-exec`**: タスクの実行（選定 → 実装 → レビュー → QA → 完了）
+1. **`einja-issue-spec-create` Skill**: 仕様書の作成（要件定義 → 設計 → GitHub Issueへのタスク記述）
+2. **`einja-task-exec` Skill**: タスクの実行（選定 → 実装 → レビュー → QA → 完了）
 
 ## 全体フロー図
 
-### フェーズ1: 仕様書作成 (`/einja:spec-create`)
+### フェーズ1: 仕様書作成 (`einja-issue-spec-create` Skill)
 
 ```mermaid
 graph TD
@@ -27,15 +27,15 @@ graph TD
     E --> H
     G --> H
 
-    H --> I["requirements.md 作成 (spec-requirements-generator)"]
+    H --> I["requirements.md 作成 (requirements-generator)"]
     I --> J["ユーザーストーリー / 受け入れ基準ATDD形式 / 既存コード分析"]
     J --> K{ユーザー承認}
-    K -->|承認| L["design.md 作成 (spec-design-generator)"]
+    K -->|承認| L["design.md 作成 (design-generator)"]
     K -->|修正依頼| I
 
     L --> M["技術アーキテクチャ / データモデル設計 / API仕様"]
     M --> N{ユーザー承認}
-    N -->|承認| O["GitHub Issueにタスク記述 (spec-tasks-generator)"]
+    N -->|承認| O["GitHub Issueにタスク記述 (tasks-generator)"]
     N -->|修正依頼| L
 
     O --> P["実装タスク分解 / 依存関係管理 / 優先順位設定"]
@@ -47,7 +47,7 @@ graph TD
     style Q fill:#c8e6c9
 ```
 
-### フェーズ2: タスク実行 (`/einja:task-exec`)
+### フェーズ2: タスク実行 (`einja-task-exec` Skill)
 
 **注記**: 品質保証ループにより、レビュー/QA失敗時は自動的に実装フェーズに戻ります。複数タスク一括実行も可能です。
 
@@ -59,7 +59,7 @@ graph TD
     C --> LoopStart["⟲ 品質保証ループ開始"]
 
     LoopStart --> D["ステップ1: 実装フェーズ<br/>(task-executer)"]
-    D --> E["requirements.md と design.md を参照"]
+    D --> E["requirements.md, ui-design.pen, design.md を参照"]
     E --> F["SerenaMAP で既存コード分析"]
     F --> G["コード実装・修正<br/>ファイル作成/編集<br/>テストコード追加"]
 
@@ -91,11 +91,11 @@ graph TD
 
 ```mermaid
 graph LR
-    A[/einja:spec-create] --> B[requirements.md]
+    A[einja-issue-spec-create Skill] --> B[requirements.md]
     A --> C[design.md]
     A --> D[GitHub Issue]
 
-    D --> E[/einja:task-exec]
+    D --> E[einja-task-exec Skill]
     B --> E
     C --> E
 
@@ -115,7 +115,7 @@ graph LR
 
 ## コマンド詳細
 
-### 1. `/einja:spec-create` コマンド
+### 1. `einja-issue-spec-create` Skill
 
 **役割**: プロダクト開発のシニアテクニカルアーキテクト兼シニアプロダクトエンジニアとして、ATDD形式の仕様書を段階的に作成します。
 
@@ -123,13 +123,13 @@ graph LR
 
 ```bash
 # Asanaタスクから仕様書作成
-/einja:spec-create https://app.asana.com/0/project/task-id
+einja-issue-spec-create: https://app.asana.com/0/project/task-id
 
 # 機能説明から仕様書作成
-/einja:spec-create "ユーザー認証機能の実装：マジックリンク認証とセッション管理"
+einja-issue-spec-create: "ユーザー認証機能の実装：マジックリンク認証とセッション管理"
 
 # 既存仕様書を修正
-/einja:spec-create "認証機能の改善" /docs/specs/issues/auth/20250111-auth-magic-link/
+einja-issue-spec-create: "認証機能の改善" /docs/specs/issues/auth/20250111-auth-magic-link/
 ```
 
 #### 処理フロー詳細
@@ -150,7 +150,7 @@ Step 1: 外部リソース確認
    └─ /docs/specs/issues/{domain}/{YYYYMMDD}-{domain}-{feature}/
 
 Step 2: requirements.md 作成（要件定義書）
-├─ spec-requirements-generator エージェント起動
+├─ requirements-generator エージェント起動
 ├─ 既存コードベース分析
 ├─ ATDD形式のユーザーストーリー作成
 ├─ 受け入れ基準（Acceptance Criteria）定義
@@ -166,7 +166,7 @@ Step 2: requirements.md 作成（要件定義書）
    - 非機能要件
 
 Step 3: design.md 作成（設計書）
-├─ spec-design-generator エージェント起動
+├─ design-generator エージェント起動
 ├─ 既存アーキテクチャ調査
 ├─ 技術スタック選定（Next.js + Hono + Prisma）
 ├─ データモデル設計
@@ -184,7 +184,7 @@ Step 3: design.md 作成（設計書）
    - エラーハンドリング
 
 Step 4: GitHub Issueにタスク一覧を記述
-├─ spec-tasks-generator エージェント起動
+├─ tasks-generator エージェント起動
 ├─ 実装タスクの洗い出し
 ├─ タスクの分解（Phase別）
 ├─ 依存関係の定義
@@ -195,7 +195,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 │  └─ 修正依頼 → 再作成
 └─ 📄 成果物構成:
    **基本構成**（各ファイル1000行以下）:
-   - requirements.md, design.md
+   - requirements.md, ui-design.pen, design.md
    - GitHub Issueにタスク一覧
 
    **分割構成**（1000行超過時）:
@@ -207,7 +207,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 
 ---
 
-### 2. `/einja:task-exec` コマンド
+### 2. `einja-task-exec` Skill
 
 **役割**: タスク実行マネージャーとして、タスクの選定から実装、レビュー、QA、完了までの一連のプロセスを管理します。
 
@@ -220,13 +220,13 @@ Step 4: GitHub Issueにタスク一覧を記述
 
 ```bash
 # Issue番号を指定（自動選定）
-/einja:task-exec #123
+einja-task-exec: #123
 
 # 特定のタスクグループを指定
-/einja:task-exec #123 1.1
+einja-task-exec: #123 1.1
 
 # Issue番号のみ（#なし）
-/einja:task-exec 123
+einja-task-exec: 123
 ```
 
 #### 処理フロー詳細
@@ -239,7 +239,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 └─────────────────────────────────────────────────────┘
   ↓
   ├─ task-executerサブエージェント起動
-  ├─ requirements.md と design.md を参照
+  ├─ requirements.md, ui-design.pen, design.md を参照
   ├─ SerenaMAP で既存コード分析
   │  ├─ 関連ファイルの検索
   │  ├─ シンボル定義の確認
@@ -323,12 +323,12 @@ Step 4: GitHub Issueにタスク一覧を記述
 詳細については、専用ドキュメントを参照してください：
 **📖 [Issue実行ワークフローガイド](./issue-exec-workflow.md)**
 
-#### `/einja:task-exec`との使い分け
+#### `einja-task-exec` Skillとの使い分け
 
-| コマンド | 用途 | 対象 | 推奨シーン |
+| 実行方法 | 用途 | 対象 | 推奨シーン |
 |---------|------|------|----------|
 | **`/einja:issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
-| **`/einja:task-exec`** | 単一タスクグループの確実な完了 | 1つのタスクグループ | 複雑な実装、品質重視 |
+| **`einja-task-exec` Skill** | 単一タスクグループの確実な完了 | 1つのタスクグループ | 複雑な実装、品質重視 |
 
 **詳細な使い分け基準**: [issue-exec-workflow.md](./issue-exec-workflow.md#task-execとの使い分け)
 
@@ -342,10 +342,10 @@ Step 4: GitHub Issueにタスク一覧を記述
 
 ```bash
 # Asanaタスクから仕様書を作成
-/einja:spec-create https://app.asana.com/0/project/auth-magic-link
+einja-issue-spec-create: https://app.asana.com/0/project/auth-magic-link
 
 # または機能説明から作成
-/einja:spec-create "マジックリンク認証機能：
+einja-issue-spec-create: "マジックリンク認証機能：
   - メールアドレスでログイン
   - ワンタイムトークン生成
   - メール送信
@@ -366,7 +366,7 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 
 ```bash
 # Phase 1-1: トークン生成APIの実装
-/einja:task-exec #123
+einja-task-exec: #123
 
 # 実行内容:
 # 1. task-executer: API実装、バリデーション追加
@@ -379,7 +379,7 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 
 ```bash
 # Phase 1-2: メール送信機能の実装
-/einja:task-exec #123
+einja-task-exec: #123
 
 # 実行内容:
 # 1. task-executer: メールサービス実装
@@ -392,8 +392,8 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 
 ```bash
 # Phase 2, Phase 3 のタスクグループを順次実行
-/einja:task-exec #123
-/einja:task-exec #123
+einja-task-exec: #123
+einja-task-exec: #123
 ...
 
 # 最終的にすべてのタスクグループが [x] 完了状態になる
@@ -451,7 +451,7 @@ GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 stateDiagram-v2
     [*] --> 未着手: タスク作成
 
-    未着手 --> 着手中_TaskExec: /einja:task-exec実行
+    未着手 --> 着手中_TaskExec: einja-task-exec Skill実行
     未着手 --> IssueExec開始: /einja:issue-exec実行
 
     着手中_TaskExec --> 実装中: 実装フェーズ
@@ -545,14 +545,14 @@ graph TD
 # 原因: 依存関係が満たされていない
 # 対処: 先行タスクグループを先に完了させる
 
-/einja:task-exec #123 1.1  # 先行タスクグループを指定して実行
+einja-task-exec: #123 1.1  # 先行タスクグループを指定して実行
 ```
 
 #### 2. レビューで差し戻される
 
 ```bash
 # 原因: 要件や設計との不整合
-# 対処: requirements.md と design.md を再確認
+# 対処: requirements.md, ui-design.pen, design.md を再確認
 
 # レビュー結果を確認後、再度実装フェーズから実行される
 # （task-exec内で自動的に実装をやり直します）
@@ -575,8 +575,8 @@ graph TD
 ```mermaid
 sequenceDiagram
     participant User as ユーザー
-    participant SpecCreate as /einja:spec-create
-    participant TaskExec as /einja:task-exec
+    participant SpecCreate as einja-issue-spec-create
+    participant TaskExec as einja-task-exec
     participant Executer as task-executer
     participant Reviewer as task-reviewer
     participant QA as task-qa
@@ -628,15 +628,15 @@ sequenceDiagram
 
 ### 実行の流れ
 
-1. **仕様書作成**: `/einja:spec-create`で要件・設計を作成し、GitHub Issueにタスク一覧を記述
-2. **タスク実行**: `/einja:task-exec`でタスクグループを1つずつ実行
+1. **仕様書作成**: `einja-issue-spec-create` Skillで要件・設計を作成し、GitHub Issueにタスク一覧を記述
+2. **タスク実行**: `einja-task-exec` Skillでタスクグループを1つずつ実行
    - task-executerで実装
    - task-reviewerでレビュー
    - task-qaでQA
    - 完了時にタスクグループを完了状態に更新
-3. **繰り返し**: 全タスクグループが完了するまで`/einja:task-exec`を繰り返す
+3. **繰り返し**: 全タスクグループが完了するまで`einja-task-exec` Skillを繰り返す
 
-開発を始める際は、まず`/einja:spec-create`で仕様書を作成し、その後`/einja:task-exec`でタスクグループを順次実行していきます。
+開発を始める際は、まず`einja-issue-spec-create` Skillで仕様書を作成し、その後`einja-task-exec` Skillでタスクグループを順次実行していきます。
 <!-- @einja:managed:end -->
 
 <!-- @einja:project-private:start id="task-execute-project" -->

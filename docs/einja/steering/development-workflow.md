@@ -8,11 +8,11 @@
 本プロジェクトでは、Claude Codeを活用した自動化された開発ワークフローを採用しています。
 
 ```
-仕様書作成（/einja:spec-create）
+仕様書作成（einja-issue-spec-create Skill）
     ↓
 仕様書レビュー（Discord + Spec PR）
     ↓
-タスク実行（/einja:issue-exec or /einja:task-exec）
+タスク実行（/einja:issue-exec or einja-task-exec Skill）
     ↓
 自己レビュー → PR作成（自動）
     ↓
@@ -30,7 +30,7 @@
 │ Phase A: 仕様書作成                                                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  /einja:spec-create <タスク内容の説明またはAsanaタスクURL>                          │
+│  einja-issue-spec-create Skill <タスク内容の説明またはAsanaタスクURL>                │
 │      │                                                                       │
 │      ├── 1. （AsanaURLの場合）Asanaからタスク情報取得                         │
 │      ├── 2. GitHub Issue作成                                                 │
@@ -57,7 +57,7 @@
                             Spec PRをマージ
                                     ↓
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Phase B: タスク実行（/einja:issue-exec or /einja:task-exec）                  │
+│ Phase B: タスク実行（/einja:issue-exec or einja-task-exec Skill）                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  /einja:issue-exec #<issue-number>                                          │
@@ -73,7 +73,7 @@
 │           │                                                   │               │
 │           ▼                                                   │               │
 │      ┌─────────────────────────────────────────────────────┐ │               │
-│      │ Worker（/einja:task-exec を実行）                   │ │               │
+│      │ Worker（einja-task-exec Skill を実行）              │ │               │
 │      │                                                      │ │               │
 │      │  task-executer: 実装                                 │ │               │
 │      │       ↓                                              │ │               │
@@ -102,16 +102,34 @@
 │      全 Phase 完了 → 最終 PR 作成（Issue → base ブランチ）                    │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+                     【PRレビュー・マージ → staging / main】
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Phase C: リリース（自動）                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  staging マージ時:                                                           │
+│      → CI + Deploy（承認不要）                                               │
+│      → PreRelease 自動作成（v0.2.0-rc.42）                                   │
+│                                                                              │
+│  main マージ時（staging → main 昇格PR）:                                     │
+│      → CI + ⚠️承認待ち → Migrate + Deploy                                   │
+│      → changeset version → Release 自動作成（v0.2.0）                        │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Phase A: 仕様書作成
 
-### コマンド
+### 実行方法
 
-```bash
-/einja:spec-create <タスク内容の説明またはAsanaタスクURL>
+`einja-issue-spec-create` Skillを使用して仕様書を作成します。
+
+```
+タスク内容の説明またはAsanaタスクURL を引数に指定
 ```
 
 ### ステップ詳細
@@ -123,17 +141,19 @@
 | 3        | Claude → **人間承認** | IssueBranchBase選択                   |
 | 4        | Claude                | `issue/{番号}`ブランチ作成            |
 | 5        | Claude → **人間承認** | requirements.md作成 → 確認 → コミット |
-| 6        | Claude → **人間承認** | design.md作成 → 確認 → コミット       |
-| 7        | Claude → **人間承認** | GitHub Issueにタスク一覧記述          |
-| 8        | Claude                | **Spec PR作成**                       |
-| 9        | **人間**              | Discordでチームにレビュー依頼         |
-| 10       | **人間**              | Spec PRレビュー・承認・マージ         |
+| 6        | Claude → **人間承認** | ui-design.pen作成 → 確認 → コミット   |
+| 7        | Claude → **人間承認** | design.md作成 → 確認 → コミット       |
+| 8        | Claude → **人間承認** | GitHub Issueにタスク一覧記述          |
+| 9        | Claude                | **Spec PR作成**                       |
+| 10       | **人間**              | Discordでチームにレビュー依頼         |
+| 11       | **人間**              | Spec PRレビュー・承認・マージ         |
 
 ### 成果物
 
 ```
 docs/specs/issues/{カテゴリ}/issue{番号}-{機能名}/
 ├── requirements.md    # 要件定義書（ATDD形式）
+├── ui-design.pen      # UIモックアップ（Pencil MCP形式）
 └── design.md          # 設計書（技術詳細）
 
 GitHub Issue #{番号}   # タスク一覧（Phase別チェックボックス形式）
@@ -150,7 +170,7 @@ Spec PR                # 仕様書レビュー用
 
 ## Phase B: タスク実行
 
-### コマンド
+### 実行方法
 
 ```bash
 # Issue全体の並列実行（推奨：複数Phase・複数タスクグループの場合）
@@ -161,7 +181,7 @@ Spec PR                # 仕様書レビュー用
 /einja:issue-exec #123 --base develop                  # ベースブランチ指定
 
 # 単一タスクグループ実行（品質重視・複雑な実装向け）
-/einja:task-exec #123 1.1                               # Issue #123 のタスクグループ 1.1 を実行
+# einja-task-exec Skill を使用: Issue #123 のタスクグループ 1.1 を実行
 ```
 
 ### 実行後の流れ（/einja:issue-exec）
@@ -170,18 +190,18 @@ Spec PR                # 仕様書レビュー用
 
 1. **Manager** が Issue をパースし、Phase 毎に Director を tmux で起動
 2. **Director** が Phase 内のタスクグループを依存順に Worker を起動
-3. **Worker** が `/einja:task-exec` を実行（executer → reviewer → qa → commit）
+3. **Worker** が `einja-task-exec` Skill を実行（executer → reviewer → qa → commit）
 4. Worker 完了後、PR が自動作成される
 5. マージモードに応じて PR がマージされ、次のタスクが自動開始
 
 ユーザーは `tmux attach -t einja-{issue番号}` で全プロセスを監視できます。
 
-### `/einja:issue-exec` と `/einja:task-exec` の使い分け
+### `/einja:issue-exec` と `einja-task-exec` Skill の使い分け
 
-| コマンド | 用途 | 対象 | 推奨シーン |
+| 実行方法 | 用途 | 対象 | 推奨シーン |
 |---------|------|------|----------|
 | **`/einja:issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
-| **`/einja:task-exec`** | 単一タスクグループの確実な完了 | 1つのタスクグループ | 複雑な実装、品質重視 |
+| **`einja-task-exec` Skill** | 単一タスクグループの確実な完了 | 1つのタスクグループ | 複雑な実装、品質重視 |
 
 ### サブエージェントの役割
 
@@ -227,7 +247,7 @@ Phase 全タスク完了？
 
 | PRの種類    | 作成タイミング       | 内容                       | レビュー観点                                   |
 | ----------- | -------------------- | -------------------------- | ---------------------------------------------- |
-| **Spec PR** | `/einja:spec-create`完了時 | requirements.md, design.md | 要件の妥当性、設計の適切さ、スコープの確認     |
+| **Spec PR** | `einja-issue-spec-create` Skill完了時 | requirements.md, ui-design.pen, design.md | 要件の妥当性、UIデザインの適切さ、設計の適切さ、スコープの確認 |
 | **実装PR**  | タスクグループ完了時（Worker が自動作成） | ソースコード、テスト       | コード品質、設計書との整合性、テストカバレッジ |
 
 ### なぜ2段階でPRを作成するのか
@@ -270,15 +290,17 @@ Phase 全タスク完了？
 
 ### 仕様書作成
 
+`einja-issue-spec-create` Skill を使用します。
+
 ```bash
 # タスク内容の説明から仕様書を作成
-/einja:spec-create <タスク内容の説明>
+<タスク内容の説明>
 
 # AsanaタスクURLから仕様書を作成
-/einja:spec-create <AsanaタスクURL>
+<AsanaタスクURL>
 
 # 既存仕様書のパスを指定して修正
-/einja:spec-create <タスク内容> <既存仕様書パス>
+<タスク内容> <既存仕様書パス>
 ```
 
 ### タスク実行
@@ -291,12 +313,12 @@ Phase 全タスク完了？
 /einja:issue-exec #<issue_number> --merge-mode auto --max-phase 2
 
 # 単一タスクグループ実行（品質重視・複雑な実装向け）
-/einja:task-exec #<issue_number> <task_group_number>
+# einja-task-exec Skill を使用: #<issue_number> <task_group_number>
 
 # 例
 /einja:issue-exec #123                                   # Issue #123 の全タスクを並列実行
 /einja:issue-exec #123 --merge-mode task-group-auto      # タスクPR自動マージ
-/einja:task-exec #123 1.1                                # タスクグループ 1.1 を単発実行
+# einja-task-exec Skill: #123 1.1                        # タスクグループ 1.1 を単発実行
 ```
 
 ---
@@ -307,6 +329,52 @@ Phase 全タスク完了？
 - [Issue実行ワークフロー](../instructions/issue-exec-workflow.md) - Issue実行の詳細な使い方
 - [ブランチ戦略](branch-strategy.md) - ブランチ運用ルール
 - [コードレビューガイドライン](development/review-guidelines.md) - 品質基準とチェックリスト
+
+---
+
+## Phase C: リリース
+
+### changeset運用フロー
+
+PRにchangesetを含めることで、バージョン管理とリリースノートが自動化されます。
+
+#### changeset追加手順
+
+```bash
+# 1. changeset対話UIを起動
+pnpm changeset
+
+# 2. 変更対象パッケージを選択（apps/web, apps/admin等）
+# 3. 変更種別を選択（major / minor / patch）
+# 4. 変更サマリーを入力
+# 5. .changeset/ にmdファイルが生成される
+# 6. コミットに含める
+```
+
+#### 自動生成（einja-create-pr Skill）
+
+`/einja-create-pr` またはtask-exec/issue-exec経由でPR作成する場合、changesetは自動生成されます。
+
+#### changesetの要否
+
+| 変更内容 | changeset必要 |
+|---------|:------------:|
+| 新機能追加（apps/配下） | ✅ |
+| バグ修正（apps/配下） | ✅ |
+| ドキュメントのみ | ❌ |
+| CI/CD設定のみ | ❌ |
+| .claude/ 設定のみ | ❌ |
+| packages/（内部パッケージ） | ❌ |
+
+#### changeset消費フロー
+
+```
+feature → staging PR（changeset含む）
+  ↓ マージ
+staging: changeset未消費 → PreRelease（v0.2.0-rc.42）
+  ↓ 昇格PR
+main: changeset version → バージョンバンプ → Release（v0.2.0）
+```
 
 ---
 

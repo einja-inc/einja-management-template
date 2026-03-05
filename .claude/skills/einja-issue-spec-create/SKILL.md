@@ -1,16 +1,11 @@
----
-description: "タスクの仕様書（requirements.md、design.md、qa-tests/）を段階的に作成・修正するワークフローを実行します。ARGUMENTS: タスク内容の説明またはAsanaタスクURL（必須）、既存仕様書のパス（オプション）"
-allowed-tools: Task, Read, Write, Edit, MultiEdit, Bash, Grep, Glob, TodoRead, TodoWrite, mcp__asana__*, mcp__figma_dev_mode__*
----
-
-# タスク仕様書作成コマンド
+# Issue仕様書作成Skill
 
 ## あなたの役割
 プロダクト開発のシニアテクニカルアーキテクト兼シニアプロダクトエンジニアとして、ATDD（受け入れテスト駆動開発）に基づく仕様書を段階的に作成します。
 
 ## タスク管理
 TodoWriteツールを使用して全体の進捗を可視化し、ユーザーに現在の状況を明確に伝えます：
-- 各仕様書作成フェーズ（requirements.md、design.md、QAテスト仕様、GitHub Issueへのタスク記述）をトップレベルタスクとして管理
+- 各仕様書作成フェーズ（requirements.md、ui-design.pen、design.md、QAテスト仕様、GitHub Issueへのタスク記述）をトップレベルタスクとして管理
 - エージェント起動前にタスクを「in_progress」に更新
 - エージェント完了後に「completed」に更新
 - ユーザー承認待ちの状態も明示的に表示
@@ -150,7 +145,7 @@ AskUserQuestion:
 **重要**: 各段階で必ずユーザー承認を得て、コミット＆プッシュしてから次へ進行すること。
 
 #### Phase 1: requirements.md（要件定義書）
-1. spec-requirements-generatorエージェントで作成
+1. requirements-generatorエージェントで作成
    - エージェント内で既存コードの分析を実施
    - ATDD形式のユーザーストーリーと受け入れ基準
 2. **ユーザーに内容確認を依頼**
@@ -162,11 +157,38 @@ AskUserQuestion:
    - 他のメンバーがレビューできるようにする
 4. **承認を得てから次のステップ（design.md）に進む**
 
-#### Phase 2: design.md（設計書）
-1. spec-design-generatorエージェントで作成
+#### Phase 2: ui-design.pen（UIデザイン）
+
+**スキップ判定**: requirements.mdに画面・UI関連の要件がない場合はスキップ
+- 判定基準: requirements.md内に「画面」「UI」「フォーム」「ダッシュボード」「表示」「ボタン」「入力」等のキーワードが含まれるか確認
+- 判断が曖昧な場合はAskUserQuestionでユーザーに確認
+
+**実行手順:**
+1. **既存画面確認（改修の場合）**
+   - Playwright MCPで既存画面のスクリーンショットを取得
+   - 改修対象のUIパターンを把握
+
+2. **ui-design-generatorエージェントで.pen生成**
+   - requirements.mdの内容を参照
+   - Pencil MCPでビジュアルモックアップを作成
+   - 出力: `{仕様書ディレクトリ}/ui-design.pen`
+
+3. **ユーザーに内容確認を依頼**
+   - Pencil MCPのget_screenshotで各画面プレビューを提示
+   - 確認ポイントを明示（UIの方向性、レイアウト、コンポーネント選択など）
+
+4. **ユーザー承認後、コミット＆プッシュ**
+   - コミットメッセージ: `docs: {機能名}のUIデザインを追加`
+   - ブランチは `issue/{issue番号}` にプッシュ
+
+5. **承認を得てから次のステップ（design.md）に進む**
+
+#### Phase 3: design.md（設計書）
+1. design-generatorエージェントで作成
    - エージェント内で既存アーキテクチャの調査を実施
    - 技術アーキテクチャとデータモデル
    - requirements.mdの内容を参照
+   - **ui-design.penが存在する場合、Pencil MCPでビジュアルモックアップを参照してUI関連セクション（9-11）を作成**
 2. **ユーザーに内容確認を依頼**
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（アーキテクチャの妥当性、実装方針など）
@@ -175,8 +197,8 @@ AskUserQuestion:
    - ブランチは `issue/{issue番号}` にプッシュ
 4. **承認を得てから次のステップ（QAテスト仕様生成）に進む**
 
-#### Phase 3: QAテスト仕様生成（シナリオテスト含む）
-1. spec-qa-generatorエージェントで作成
+#### Phase 4: QAテスト仕様生成（シナリオテスト含む）
+1. qa-generatorエージェントで作成
    - requirements.mdとdesign.mdの内容を参照
    - **シナリオテスト（scenarios.md）**: 複数タスクをまたぐ継続操作フローのテスト仕様
    - **Story別テスト仕様**: 各ユーザーストーリー（AC単位）のテスト仕様
@@ -189,38 +211,38 @@ AskUserQuestion:
    - ブランチは `issue/{issue番号}` にプッシュ
 4. **承認を得てから次のステップ（GitHub Issueへのタスク記述）に進む**
 
-#### Phase 4: GitHub Issueへのタスク記述
+#### Phase 5: GitHub Issueへのタスク記述
 
-##### 4.1 タスク生成・検証ループ
+##### 5.1 タスク生成・検証ループ
 
 **重要**: タスク生成後は自動的にフォーマット検証を行い、違反があれば差し戻します。
 
 ```
 【タスク生成・検証ループ】（最大3回）
   │
-  ├─ spec-tasks-generator 呼び出し
+  ├─ tasks-generator 呼び出し
   │   └─ タスク一覧を生成（またはエラーフィードバックを元に修正版を生成）
   │
-  ├─ spec-tasks-validator 呼び出し
+  ├─ tasks-validator 呼び出し
   │   └─ フォーマット検証
   │
   └─ 検証結果判定
       ├─ SUCCESS → ループ終了、ユーザー確認へ
-      └─ FAILURE → spec-tasks-generator に差し戻し
+      └─ FAILURE → tasks-generator に差し戻し
                    └─ エラーレポート付きで再呼び出し
                    └─ ループ再開（最大3回）
 
   ※ 3回失敗 → ユーザーに手動修正を依頼
 ```
 
-1. **spec-tasks-generatorエージェントでタスク生成**
+1. **tasks-generatorエージェントでタスク生成**
    - エージェント内で実装の影響範囲を分析
    - 実装タスクの分解と依存関係
    - requirements.md、design.md、**qa-tests/scenarios.md**の内容を参照
    - 各タスクに**シナリオテスト実施タイミング**を明記
    - **GitHub Issueの説明文にタスク一覧を記述**
 
-2. **spec-tasks-validatorエージェントでフォーマット検証**
+2. **tasks-validatorエージェントでフォーマット検証**
    - タスク階層（Phase/タスクグループ/タスク/サブタスク）の形式チェック
    - メタデータ（要件・依存関係・完了条件・対応設計・シナリオテスト）の必須チェック
    - 依存関係の書式・参照先の検証
@@ -229,13 +251,13 @@ AskUserQuestion:
 3. **検証結果の処理**
    - **SUCCESS**: ユーザー確認フェーズへ進む
    - **FAILURE（リトライ可能）**:
-     - エラーレポートを spec-tasks-generator に渡して再生成
+     - エラーレポートを tasks-generator に渡して再生成
      - ループ再開（現在の試行回数をインクリメント）
    - **MAX_RETRIES_EXCEEDED（3回失敗）**:
      - ユーザーに手動修正を依頼
      - エラー内容を提示し、修正後に続行できるよう案内
 
-##### 4.2 ユーザー確認
+##### 5.2 ユーザー確認
 
 4. **ユーザーに内容確認を依頼**
    - 更新したGitHub IssueのURL（#{issue_number}）と概要を提示
@@ -269,6 +291,7 @@ AskUserQuestion:
    - 本文に以下を含める:
      - Spec PR へのリンク
      - 要件ドキュメントへのリンク（requirements.mdまたはrequirements/README.md）
+     - UIデザインへのリンク（ui-design.pen、存在する場合のみ）
      - 設計ドキュメントへのリンク（design.mdまたはdesign/README.md）
      - QAテスト仕様へのリンク（qa-tests/scenarios.md）
      - タスク一覧（Phase別チェックボックス形式、シナリオテスト実施タイミング明記）
@@ -290,6 +313,7 @@ AskUserQuestion:
 └── {機能カテゴリ名}/
     └── issue{issue番号}-{機能名}/
         ├── requirements.md  # 要件定義書（ATDD形式）
+        ├── ui-design.pen    # UIデザイン（UI関連のみ）
         ├── design.md        # 設計書（技術詳細）
         └── qa-tests/        # QAテスト仕様
             ├── scenarios.md # シナリオテスト（複数タスクをまたぐフロー）
@@ -310,6 +334,7 @@ AskUserQuestion:
         │   ├── overview.md          # 概要とスコープ
         │   ├── stories.md           # ユーザーストーリー
         │   └── technical.md         # 技術要件
+        ├── ui-design.pen            # UIデザイン（UI関連のみ）
         ├── design/                  # 設計書ディレクトリ
         │   ├── README.md            # 目次
         │   ├── architecture.md      # アーキテクチャ
@@ -336,8 +361,6 @@ AskUserQuestion:
 - Next.js + Hono + Prisma技術スタック対応
 - Asana/Figma連携によるトレーサビリティ確保
 
-実行を開始します...
-
-<!-- @einja:project-private:start id="spec-create-project" -->
+<!-- @einja:project-private:start id="issue-spec-create-project" -->
 <!-- プロジェクト固有の情報を記入 -->
 <!-- @einja:project-private:end -->

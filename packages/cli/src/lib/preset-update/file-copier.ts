@@ -191,8 +191,8 @@ export class FileCopier {
         continue;
       }
 
-      // skillsカテゴリの場合、einja-プレフィックスでフィルタリング
-      const prefixFilter = mapping.category === "skills" ? "einja-" : undefined;
+      // skillsカテゴリの場合、einja-/_einja-プレフィックスでフィルタリング
+      const prefixFilter = mapping.category === "skills" ? ["einja-", "_einja-"] : undefined;
 
       // ディレクトリ内のファイルを再帰的にスキャン
       const files = this.scanDirectory(sourceDir, projectRoot, prefixFilter);
@@ -237,7 +237,7 @@ export class FileCopier {
   private scanDirectory(
     dir: string,
     projectRoot: string,
-    prefixFilter?: string,
+    prefixFilter?: string[],
     isTopLevel = true
   ): Omit<SourceFile, "category">[] {
     const files: Omit<SourceFile, "category">[] = [];
@@ -251,7 +251,7 @@ export class FileCopier {
 
         if (stat.isDirectory()) {
           // トップレベルでプレフィックスフィルタがある場合、プレフィックスで始まらないディレクトリはスキップ
-          if (isTopLevel && prefixFilter && !entry.startsWith(prefixFilter)) {
+          if (isTopLevel && prefixFilter && !prefixFilter.some(p => entry.startsWith(p))) {
             continue;
           }
 

@@ -5,7 +5,7 @@
  * 原本（プロジェクト内）:
  * - .claude/agents/einja/
  * - .claude/commands/einja/
- * - .claude/skills/einja-* (einja-プレフィックスのスキルのみ)
+ * - .claude/skills/einja-* and _einja-* (プレフィックスマッチで自動スキャン)
  * - .claude/hooks/einja/
  * - .claude/settings.json
  * - .mcp.json
@@ -58,47 +58,6 @@ const mappings = [
 		dest: path.join(cliDir, "presets/default/.claude/commands/einja"),
 		basePath: ".claude/commands/einja",
 	},
-	// スキル（einja-* パターン）
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-conflict-resolver"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-conflict-resolver"),
-		basePath: ".claude/skills/einja-conflict-resolver",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-general-context-loader"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-general-context-loader"),
-		basePath: ".claude/skills/einja-general-context-loader",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-output-format"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-output-format"),
-		basePath: ".claude/skills/einja-output-format",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-spec-context-loader"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-spec-context-loader"),
-		basePath: ".claude/skills/einja-spec-context-loader",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-project-overview"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-project-overview"),
-		basePath: ".claude/skills/einja-project-overview",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-skill-creator"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-skill-creator"),
-		basePath: ".claude/skills/einja-skill-creator",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-task-commit"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-task-commit"),
-		basePath: ".claude/skills/einja-task-commit",
-	},
-	{
-		src: path.join(projectRoot, ".claude/skills/einja-task-qa"),
-		dest: path.join(cliDir, "presets/default/.claude/skills/einja-task-qa"),
-		basePath: ".claude/skills/einja-task-qa",
-	},
 	// フック（hooks/ディレクトリ全体をクリーンアップしてから再コピー）
 	{
 		src: path.join(projectRoot, ".claude/hooks/einja"),
@@ -120,6 +79,21 @@ const mappings = [
 		basePath: null, // シンボリックリンク記録対象外
 	},
 ];
+
+// スキル（einja-* / _einja-* パターンを動的スキャン）
+const skillsDir = path.join(projectRoot, ".claude/skills");
+if (fs.existsSync(skillsDir)) {
+	const skillEntries = fs.readdirSync(skillsDir, { withFileTypes: true });
+	for (const entry of skillEntries) {
+		if (entry.isDirectory() && (entry.name.startsWith("einja-") || entry.name.startsWith("_einja-"))) {
+			mappings.push({
+				src: path.join(skillsDir, entry.name),
+				dest: path.join(cliDir, "presets/default/.claude/skills", entry.name),
+				basePath: `.claude/skills/${entry.name}`,
+			});
+		}
+	}
+}
 
 // 単一ファイルのコピー設定
 const fileMappings = [
@@ -224,6 +198,10 @@ function copyPresets() {
 
 	// シンボリックリンク情報をリセット
 	symlinkMap.length = 0;
+
+	// スキルディレクトリのクリーンアップ（旧ディレクトリの残留防止）
+	const presetsSkillsDir = path.join(cliDir, "presets/default/.claude/skills");
+	removeDir(presetsSkillsDir);
 
 	// ディレクトリのコピー
 	console.log("ディレクトリ:");

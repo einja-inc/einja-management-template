@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import fs from "fs-extra";
 import type { BaseContent, FileMetadata, SyncMetadata } from "@/types/sync.js";
 import { SyncMetadataSchema } from "@/types/sync.js";
+import fs from "fs-extra";
 import { HashCache } from "./hash-cache.js";
 
 /**
@@ -92,16 +92,23 @@ export class MetadataManager {
 
   /**
    * ファイルハッシュを更新する
+   *
+   * @param metadata - 現在のメタデータ
+   * @param filePath - 対象ファイルパス
+   * @param content - ファイルの内容（ハッシュ計算に使用）
+   * @param baseContent - 前回sync時のテンプレートコンテンツ（3方向マージ用）
    */
   async updateFileHash(
     metadata: SyncMetadata,
     filePath: string,
-    content: string
+    content: string,
+    baseContent?: string
   ): Promise<SyncMetadata> {
     const hash = this.calculateHash(content, filePath);
     const fileMetadata: FileMetadata = {
       hash,
       syncedAt: new Date().toISOString(),
+      ...(baseContent !== undefined && { baseContent }),
     };
 
     return {
@@ -167,6 +174,24 @@ export class MetadataManager {
       lastSync: new Date().toISOString(),
       templateVersion: "0.1.0",
       files: {},
+      jsonPaths: {
+        managed: {
+          ".claude/settings.json": ["plansDirectory", "includeCoAuthoredBy"],
+          ".vscode/settings.json": [
+            "editor.codeActionsOnSave",
+            "editor.defaultFormatter",
+            "editor.formatOnSave",
+            "eslint.enable",
+            "prettier.enable",
+            "prettier.useEditorConfig",
+            "[json]",
+            "[jsonc]",
+          ],
+        },
+        "project-private": {
+          "package.json": ["name", "version", "private", "workspaces", "packageManager", "volta"],
+        },
+      },
     };
   }
 }

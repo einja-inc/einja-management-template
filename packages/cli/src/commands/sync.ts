@@ -282,13 +282,32 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
               "project-private": {},
             };
 
-            // ファイル名のみを抽出（create-einja-appの登録形式に合わせる）
-            const fileName = target.path.split("/").pop() || target.path;
-            jsonProcessor.mergeJson(templateJson, localJson, jsonPaths, fileName);
+            const filePath = target.path;
 
-            // JSONマージは基本的に成功扱い
-            dryRunStats.updated++;
-            log(chalk.cyan(`  📝 更新: ${target.path}`), options);
+            // baseContent の取得（3方向マージ用）
+            const fileMetadata = metadata.files[target.path];
+            const baseJson = fileMetadata?.baseContent
+              ? JSON.parse(fileMetadata.baseContent) as Record<string, unknown>
+              : undefined;
+
+            const mergeResult = jsonProcessor.mergeJson(templateJson, localJson, jsonPaths, filePath, baseJson);
+
+            if (mergeResult.conflicts.length > 0) {
+              dryRunStats.conflicts++;
+              // JSONコンフリクトをdryRunConflictsに変換（既存のフォーマットに合わせる）
+              dryRunConflicts.set(target.path, mergeResult.conflicts.map((c) => ({
+                line: 0,
+                localContent: JSON.stringify(c.localValue),
+                templateContent: JSON.stringify(c.templateValue),
+              })));
+              log(chalk.yellow(`  ⚠️  コンフリクト: ${target.path}`), options);
+              for (const conflict of mergeResult.conflicts) {
+                log(chalk.yellow(`      ${conflict.keyPath}: ローカル値を保持`), options);
+              }
+            } else {
+              dryRunStats.updated++;
+              log(chalk.cyan(`  📝 更新: ${target.path}`), options);
+            }
           } catch (error) {
             // JSONのパースエラーの場合は3方向マージにフォールバック
             const fileMetadata = metadata.files[target.path];
@@ -431,11 +450,32 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
           "project-private": {},
         };
 
-        // ファイル名のみを抽出（create-einja-appの登録形式に合わせる）
-        const fileName = target.path.split("/").pop() || target.path;
-        const mergedJson = jsonProcessor.mergeJson(templateJson, localJson, jsonPaths, fileName);
+        const filePath = target.path;
 
-        const mergedContent = `${JSON.stringify(mergedJson, null, 2)}\n`;
+        // baseContent の取得（3方向マージ用）
+        const fileMetadata = metadata.files[target.path];
+        const baseJson = fileMetadata?.baseContent
+          ? JSON.parse(fileMetadata.baseContent) as Record<string, unknown>
+          : undefined;
+
+        const mergeResult = jsonProcessor.mergeJson(templateJson, localJson, jsonPaths, filePath, baseJson);
+        const mergedContent = `${JSON.stringify(mergeResult.result, null, 2)}\n`;
+
+        // JSONコンフリクトがあった場合
+        if (mergeResult.conflicts.length > 0) {
+          return {
+            target,
+            templateContent,
+            mergeContent: mergedContent,
+            success: false,
+            conflicts: mergeResult.conflicts.map((c) => ({
+              line: 0,
+              localContent: JSON.stringify(c.localValue),
+              templateContent: JSON.stringify(c.templateValue),
+            })),
+            action: "merged" as const,
+          };
+        }
 
         return {
           target,
@@ -590,10 +630,13 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     }
 
     // メタデータ更新
+    // JSONファイルの場合は baseContent（テンプレート内容）も保存
+    const baseContent = result.target.path.endsWith(".json") ? result.templateContent : undefined;
     const updatedMetadata = await metadataManager.updateFileHash(
       metadata,
       result.target.path,
-      result.templateContent
+      result.templateContent,
+      baseContent
     );
     Object.assign(metadata, updatedMetadata);
   }

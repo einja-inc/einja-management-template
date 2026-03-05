@@ -7,6 +7,7 @@ export const FileMetadataSchema = z.object({
   hash: z.string(),
   syncedAt: z.string(),
   conflicts: z.array(z.string()).optional(),
+  baseContent: z.string().optional(), // 前回sync時のテンプレートコンテンツ（3方向マージ用）
 });
 
 /**

@@ -202,6 +202,8 @@ sequenceDiagram
 | `scripts` | `scripts/` | ユーティリティスクリプト（`_` プレフィックスは除外） |
 | `env` | `.envrc` | direnv 設定 |
 | `tools` | `.vscode/settings.json` | VS Code 設定 |
+| `root-config` | `package.json`, `.mcp.json` | ルート設定ファイル |
+| `claude-config` | `.claude/settings.json` | Claude Code設定 |
 
 **マージ方式:**
 
@@ -212,6 +214,44 @@ sequenceDiagram
 | project-private のみマージ | `@einja:project-private` のみで `@einja:managed` を含まないファイル | project-private セクションをローカルから保持し、それ以外をテンプレートで上書き（`syncProjectPrivateOnlyFile`） |
 | JSON マージ | `.json` 拡張子のファイル | managed/project-private の JSON パス指定に基づきマージ |
 | 3方向マージ | マーカーなしの通常ファイル | base（前回テンプレート）・local・template の3方向差分で自動マージ。コンフリクト時はマーカー付きで出力 |
+
+#### JSON マージモード（3モード構成）
+
+| モード | 動作 | 設定方法 |
+|--------|------|---------|
+| `managed` | テンプレート値で強制上書き | jsonPaths.managed にパス指定 |
+| `project-private` | 完全除外（テンプレートから追加しない） | jsonPaths["project-private"] にパス指定 |
+| デフォルト | 3方向マージ（base/local/template比較、コンフリクト検出） | 上記以外の全パス |
+
+#### JSON ファイルの同期動作（3方向マージ）
+
+| 操作 | 結果 |
+|------|------|
+| テンプレートに新キーが追加された（利用者は未変更） | sync時に利用者のファイルに追加される |
+| 利用者が独自キーを追加した | 保持される |
+| 利用者がテンプレート由来のキーを削除（テンプレート側は未変更） | 削除が維持される |
+| 利用者がテンプレート由来のキーを変更（テンプレート側は未変更） | 利用者の変更が保持される |
+| テンプレートがキーを更新（利用者側は未変更） | テンプレートの更新が自動適用される |
+| 両方が同じキーを異なる値に変更 | コンフリクト警告（利用者の値を保持） |
+| project-private 指定のキー | テンプレートから一切追加・変更されない |
+| managed 指定のキー | テンプレート値で常に上書き |
+
+#### ファイル別 jsonPaths 設定
+
+| ファイル | managed | project-private | 残り |
+|---------|---------|----------------|------|
+| `package.json` | — | name, version, private, workspaces, packageManager, volta | 3方向マージ |
+| `.claude/settings.json` | plansDirectory, includeCoAuthoredBy | — | 3方向マージ |
+| `.vscode/settings.json` | editor.*, eslint.*, prettier.*, [json], [jsonc] | — | 3方向マージ |
+| `.mcp.json` | — | — | 3方向マージ |
+
+#### base スナップショット
+
+3方向マージには「前回sync時のテンプレート内容」（base）が必要。
+`.einja-sync.json` の `baseContent` フィールドに保存される。
+
+- 初回sync（baseなし）: ローカル優先 + テンプレートの新規キーのみ追加
+- 2回目以降: base/local/template の3方向比較でマージ
 
 #### create-einja-app sync の同期対象カテゴリ
 

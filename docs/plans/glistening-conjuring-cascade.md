@@ -1,87 +1,42 @@
-# Plan: パッケージ利用者側でSkill等が少ない問題の修正
+# Plan: npx コマンドの `@latest` 指定漏れを一括修正
 
 ## Context
 
-利用者リポ（eenchow）で `einja sync` 実行後に配布されるSkillが8個しかなく、テンプレートの19個と大きな乖離がある。
+`npx @einja/dev-cli` を `@latest` なしで実行すると、npxキャッシュの古いバージョンが使われる。`einja:einja-sync` コマンドでv0.1.0が使われてしまった。実行されるコマンド/スクリプト定義を修正する。
 
-## 調査結果サマリー
+## 修正対象
 
-| 項目 | テンプレート (v0.1.44) | npm v0.1.41（同期実行時） | 利用者リポ (eenchow) |
-|------|----------------------|---------------------|---------------------|
-| Skills数 | 19個 (einja-*: 15, _einja-*: 4) | **8個** | **8個** |
+### 1. `.claude/commands/einja/einja-sync.md` (6箇所)
 
-### 根本原因
+`npx --yes` で実行するコマンドに `@latest` を追加。`replace_all` で一括置換。
 
-1. **タイミングの問題（解決済み）**: ユーザーが同期実行した時点ではnpm上の最新がv0.1.41だった。v0.1.42〜v0.1.43はbiome lintエラーでCI失敗。v0.1.44は**本日GitHub Actionsでnpm公開完了**（12:08 UTC）。再度 `einja sync` を実行すれば15個のeinja-*スキルが配信される
-2. **`_einja-*` スキルの同期除外バグ（未修正）**: `file-filter.ts`のglobパターン `einja-*/**/*` が `_einja-*` にマッチしない。v0.1.44で同期しても**インナースキル4個が配信されない**
-3. **インナースキル名変更の移行**: v0.1.41では `einja-*`（`_`なし）、v0.1.44では `_einja-*`。orphan cleanerで自動移行可能だが、バグ2の修正が前提
+| Before | After |
+|--------|-------|
+| `npx --yes @einja/dev-cli sync` (4箇所: 107,159,162,231行) | `npx --yes @einja/dev-cli@latest sync` |
+| `npx --yes create-einja-app sync` (2箇所: 110,165行) | `npx --yes create-einja-app@latest sync` |
 
-## 修正内容
+**修正しない箇所**: Step 1のCLI検出 (19,20行目) は `npx --no` のまま。目的が「CLIが利用可能か」の検出であり、バージョン不問で検出できる方が適切。実際のsync実行 (Step 3,4) では `--yes @latest` で最新版が使われる。
 
-### Step 1: `file-filter.ts` のバグ修正（2箇所）
+### 2. `docs/einja/cli/preset.yaml` (2箇所)
 
-**ファイル**: `packages/cli/src/lib/sync/file-filter.ts`
+下流プロジェクトの `package.json` scripts に反映されるため修正必須。
 
-#### 1-A. globパターン修正（105行目）
+| 行 | Before | After |
+|----|--------|-------|
+| 127 | `"task:loop": "npx @einja/dev-cli task:loop"` | `"task:loop": "npx @einja/dev-cli@latest task:loop"` |
+| 128 | `"einja:sync": "npx @einja/dev-cli sync"` | `"einja:sync": "npx @einja/dev-cli@latest sync"` |
 
-```typescript
-// Before:
-pattern = `${categoryPath}/einja-*/**/*`;
-
-// After:
-pattern = `${categoryPath}/{einja-,_einja-}*/**/*`;
-```
-
-brace expansionで `einja-*` と `_einja-*` の両方をスキャン。
-
-#### 1-B. カテゴリ判定修正（205行目）
-
-```typescript
-// Before:
-if (firstSegment?.startsWith("einja-")) {
-
-// After:
-if (firstSegment?.startsWith("einja-") || firstSegment?.startsWith("_einja-")) {
-```
-
-orphan cleanerがこのメソッドを使用するため（orphan-cleaner.ts:44行目）、修正しないと `_einja-*` パスのorphan検出が機能しない。
-
-### Step 2: テスト追加
-
-**ファイル**: `packages/cli/src/lib/sync/file-filter.test.ts`
-
-- `_einja-*` スキルがscanSyncTargetsでスキャンされることのテスト
-- `getCategoryFromPath` が `_einja-*` パスに対して `"skills"` を返すことのテスト
-
-### Step 3: ビルド・テスト・公開
-
-1. `pnpm prepush`（lint + typecheck + test）
-2. `pnpm build`（packages/cli）
-3. ビルド後の `presets/default/.claude/skills/` に `_einja-*` が含まれることを確認
-4. `einja-npm-release` Skillに従ってnpm公開
-
-### Step 4: 利用者リポでの同期確認
-
-1. eenchowで `npx @einja/dev-cli@latest sync`
-2. 新スキル（19個）が配信されることを確認
-3. `--clean` で旧名インナースキル（`einja-general-context-loader`等）がorphanとして検出・削除されることを確認
-
-## 修正不要の確認済みファイル
+## 修正不要
 
 | ファイル | 理由 |
 |---------|------|
-| `copy-presets.mjs` (88行目) | 既に `_einja-*` 対応済み |
-| `preset-update/file-copier.ts` (195行目) | `prefixFilter: ["einja-", "_einja-"]` で対応済み |
-| `shouldExclude` の `_` フィルタ (145行目) | `path.basename()` 判定のためディレクトリ名には影響しない |
-| `orphan-cleaner.ts` | `getCategoryFromPath` 修正のみで連動して動作する |
+| `einja-sync.md` 19,20行 | Step 1のCLI検出。`--no` で検出目的のためバージョン不問 |
+| `package.json` (ルート) | 既に `@latest` 付き |
+| `create-einja-app/src/generators/post-setup.ts` | 既に `@latest` 付き |
+| README.md / docs/plans/ / docs/specs/ 等 | ドキュメント内の説明・例示。直接実行されるコマンドではない |
 
-## 検証方法
+## 検証
 
-1. `pnpm prepush` でlint/typecheck/testが全パス
-2. `pnpm build` 成功 → `presets/default/.claude/skills/` に19個のスキル（_einja-* 4個含む）
-3. npm公開後、eenchowで `npx @einja/dev-cli@latest sync` → 全スキル配信確認
-4. `einja sync --clean` で旧名スキルがorphanとして検出されること
-
-## Skill-First評価
-
-スキップ基準に該当: 具体的かつ限定的なバグ修正 + 1回限りの公開作業。Skill化不要。
+1. grep で `einja-sync.md` 内の `npx --yes` 呼び出しに全て `@latest` が付いていることを確認
+2. `preset.yaml` のscripts定義に `@latest` が付いていることを確認
+3. `pnpm build` して `presets/default/` に変更が反映されることを確認

@@ -1,8 +1,8 @@
 import path from "node:path";
+import type { ScanOptions, SyncTarget } from "@/types/sync.js";
 import fs from "fs-extra";
 import { glob } from "glob";
 import ignore from "ignore";
-import type { ScanOptions, SyncTarget } from "@/types/sync.js";
 
 /**
  * カテゴリマッピング
@@ -16,6 +16,8 @@ const CATEGORY_MAPPING: Record<string, string> = {
   scripts: "scripts",
   env: ".",
   tools: ".vscode",
+  "root-config": ".", // package.json, .mcp.json
+  "claude-config": ".claude", // .claude/settings.json
 };
 
 /**
@@ -76,6 +78,43 @@ export class FileFilter {
       // toolsカテゴリは.vscode/settings.jsonファイルのみを対象とする特別処理
       if (category === "tools") {
         const settingsPath = ".vscode/settings.json";
+        const templatePath = path.join(this.templateRoot, settingsPath);
+        const projectPath = path.join(this.projectRoot, settingsPath);
+
+        if (await fs.pathExists(templatePath)) {
+          const exists = await fs.pathExists(projectPath);
+          targets.push({
+            path: settingsPath,
+            category,
+            templatePath,
+            exists,
+          });
+        }
+        continue;
+      }
+
+      // root-configカテゴリはpackage.jsonと.mcp.jsonのみを対象とする特別処理
+      if (category === "root-config") {
+        for (const fileName of ["package.json", ".mcp.json"]) {
+          const templatePath = path.join(this.templateRoot, fileName);
+          const projectPath = path.join(this.projectRoot, fileName);
+
+          if (await fs.pathExists(templatePath)) {
+            const exists = await fs.pathExists(projectPath);
+            targets.push({
+              path: fileName,
+              category,
+              templatePath,
+              exists,
+            });
+          }
+        }
+        continue;
+      }
+
+      // claude-configカテゴリは.claude/settings.jsonのみを対象とする特別処理
+      if (category === "claude-config") {
+        const settingsPath = ".claude/settings.json";
         const templatePath = path.join(this.templateRoot, settingsPath);
         const projectPath = path.join(this.projectRoot, settingsPath);
 
@@ -191,6 +230,22 @@ export class FileFilter {
       // toolsカテゴリは.vscode/settings.jsonファイルのみ
       if (category === "tools") {
         if (filePath === ".vscode/settings.json") {
+          return category;
+        }
+        continue;
+      }
+
+      // root-configカテゴリはpackage.jsonと.mcp.jsonのみ
+      if (category === "root-config") {
+        if (filePath === "package.json" || filePath === ".mcp.json") {
+          return category;
+        }
+        continue;
+      }
+
+      // claude-configカテゴリは.claude/settings.jsonのみ
+      if (category === "claude-config") {
+        if (filePath === ".claude/settings.json") {
           return category;
         }
         continue;

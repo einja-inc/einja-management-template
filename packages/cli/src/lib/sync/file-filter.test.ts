@@ -312,6 +312,21 @@ describe("FileFilter", () => {
       const category = fileFilter.getCategoryFromPath(".vscode/extensions.json");
       expect(category).toBe(null);
     });
+
+    it("package.jsonはroot-configカテゴリとして判定されること", () => {
+      const category = fileFilter.getCategoryFromPath("package.json");
+      expect(category).toBe("root-config");
+    });
+
+    it(".mcp.jsonはroot-configカテゴリとして判定されること", () => {
+      const category = fileFilter.getCategoryFromPath(".mcp.json");
+      expect(category).toBe("root-config");
+    });
+
+    it(".claude/settings.jsonはclaude-configカテゴリとして判定されること", () => {
+      const category = fileFilter.getCategoryFromPath(".claude/settings.json");
+      expect(category).toBe("claude-config");
+    });
   });
 
   describe("scanSyncTargets - envカテゴリ", () => {
@@ -375,6 +390,40 @@ describe("FileFilter", () => {
       // Then: exists=trueになる
       expect(targets.length).toBe(1);
       expect(targets[0].exists).toBe(true);
+    });
+  });
+
+  describe("scanSyncTargets - root-configカテゴリ", () => {
+    it("root-configカテゴリでpackage.jsonと.mcp.jsonをスキャンすること", async () => {
+      // Given: テンプレートにpackage.jsonと.mcp.jsonを作成
+      await fs.writeFile(path.join(templateDir, "package.json"), '{"name": "test"}');
+      await fs.writeFile(path.join(templateDir, ".mcp.json"), '{"mcpServers": {}}');
+
+      // When: root-configカテゴリのみをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["root-config"] });
+
+      // Then: 両方のファイルが検出される
+      expect(targets.length).toBe(2);
+      expect(targets.some((t) => t.path === "package.json")).toBe(true);
+      expect(targets.some((t) => t.path === ".mcp.json")).toBe(true);
+      expect(targets.every((t) => t.category === "root-config")).toBe(true);
+    });
+  });
+
+  describe("scanSyncTargets - claude-configカテゴリ", () => {
+    it("claude-configカテゴリで.claude/settings.jsonをスキャンすること", async () => {
+      // Given: テンプレートに.claude/settings.jsonを作成
+      const claudeDir = path.join(templateDir, ".claude");
+      await fs.ensureDir(claudeDir);
+      await fs.writeFile(path.join(claudeDir, "settings.json"), '{"test": true}');
+
+      // When: claude-configカテゴリのみをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["claude-config"] });
+
+      // Then: settings.jsonのみが検出される
+      expect(targets.length).toBe(1);
+      expect(targets[0].path).toBe(".claude/settings.json");
+      expect(targets[0].category).toBe("claude-config");
     });
   });
 });

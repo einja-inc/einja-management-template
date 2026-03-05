@@ -117,6 +117,7 @@ description: "@einja/dev-cli と create-einja-app のビルド・テンプレー
 |--------|------------|----------|
 | `.envrc` | `.envrc` | env |
 | `.vscode/settings.json` | `.vscode/settings.json` | tools |
+| `package.json`（ルート） | `package.json` | root-config |
 
 ---
 
@@ -204,6 +205,52 @@ const prefixFilter = mapping.category === "skills" ? ["einja-", "_einja-"] : und
 | ネスト禁止 | `nested` |
 | project-private に ID 必須 | `project_private_without_id` |
 | ID 重複禁止 | `duplicate_id` |
+
+### 4.5 JSON マージ仕様
+
+**実装**: `packages/cli/src/lib/sync/json-processor.ts`
+**設定**: `.einja-sync.json` の `jsonPaths` フィールド
+
+#### マージモード（ブラックリスト方式）
+
+| モード | 動作 | 用途 |
+|--------|------|------|
+| `managed` | テンプレート値で強制上書き | テンプレートが完全管理するセクション |
+| `project-private` | 完全除外（テンプレートから追加・更新しない） | プロジェクト固有のセクション |
+| デフォルト | base/local/templateの3方向マージ | 上記以外の全パス |
+
+#### ネスト指定
+
+パスはドット区切りでネスト指定可能。`deepMergeWithPaths` の再帰により
+各レベルで jsonPaths チェックが行われる。
+
+例: `"project-private": { "package.json": ["devDependencies.@types/node"] }`
+→ devDependencies 全体は3方向マージ、@types/node のみ除外
+
+#### 設定例
+
+```
+jsonPaths:
+  managed: { ".claude/settings.json": ["plansDirectory"] }
+  project-private: { "package.json": ["name", "version", "private", "workspaces"] }
+```
+
+→ plansDirectory はテンプレート強制上書き
+→ name, version 等は完全除外
+→ scripts, devDependencies 等は3方向マージ
+
+#### base スナップショット
+
+3方向マージには前回sync時のテンプレート内容（base）が必要。
+`.einja-sync.json` の各ファイルメタデータに `baseContent` として保存。
+初回sync（base なし）はローカル優先 + テンプレート新規キーのみ追加。
+
+#### コンフリクト
+
+両方が同じキーを異なる値に変更した場合:
+- ローカル値を保持（安全側）
+- コンソールに警告出力
+- `mergeJson` の戻り値 `conflicts` 配列で呼び出し元にも通知
 
 ---
 

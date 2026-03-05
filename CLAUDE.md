@@ -270,6 +270,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `docs/einja/` (memory,cli除く) | `presets/default/docs/einja/` | 単純コピー（sync + init対象） |
 | `CLAUDE.md` | `presets/default/CLAUDE.md.template` | **変換生成** |
 | `scripts/` (`_`プレフィクス除く) | `presets/default/scripts/` | 単純コピー |
+| `package.json`（ルート） | `presets/default/package.json` | フルコピー |
 
 **コピー先のファイルは直接編集禁止**（ビルド時に上書きされる）
 

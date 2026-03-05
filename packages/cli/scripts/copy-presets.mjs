@@ -127,6 +127,12 @@ const fileMappings = [
 		dest: path.join(cliDir, "presets/default/.vscode/settings.json"),
 		required: false,
 	},
+	// package.json（JSON配布メカニズムの一部として）
+	{
+		src: path.join(projectRoot, "package.json"),
+		dest: path.join(cliDir, "presets/default/package.json"),
+		required: true,
+	},
 ];
 
 /**
@@ -294,12 +300,53 @@ function validateMarkers() {
 	}
 }
 
+/**
+ * create-einja-app テンプレートの package.json に scripts と lint-staged を同期
+ * ルートの package.json から scripts, lint-staged セクションを templates/default/package.json に同期する
+ */
+function syncTemplatePackageJson() {
+	const sourcePackageJsonPath = path.join(projectRoot, "package.json");
+	const templatePackageJsonPath = path.join(cliDir, "templates/default/package.json");
+
+	if (!fs.existsSync(templatePackageJsonPath)) {
+		console.log("  ⚠ スキップ: templates/default/package.json (存在しません)");
+		return;
+	}
+
+	const sourcePackageJson = JSON.parse(fs.readFileSync(sourcePackageJsonPath, "utf-8"));
+	const templatePackageJson = JSON.parse(fs.readFileSync(templatePackageJsonPath, "utf-8"));
+
+	// scripts と lint-staged をルートから同期
+	let changed = false;
+	for (const key of ["scripts", "lint-staged"]) {
+		if (sourcePackageJson[key]) {
+			const sourceStr = JSON.stringify(sourcePackageJson[key]);
+			const templateStr = JSON.stringify(templatePackageJson[key]);
+			if (sourceStr !== templateStr) {
+				templatePackageJson[key] = sourcePackageJson[key];
+				changed = true;
+			}
+		}
+	}
+
+	if (changed) {
+		fs.writeFileSync(templatePackageJsonPath, JSON.stringify(templatePackageJson, null, 2) + "\n");
+		console.log("  ✓ templates/default/package.json の scripts/lint-staged を同期");
+	} else {
+		console.log("  ✓ templates/default/package.json は最新です");
+	}
+}
+
 try {
 	// 1. マーカーバリデーション
 	validateMarkers();
 
 	// 2. ファイルコピー
 	copyPresets();
+
+	// 3. テンプレート package.json の scripts 同期
+	console.log("\nテンプレート同期:");
+	syncTemplatePackageJson();
 } catch (error) {
 	console.error("❌ エラー:", error);
 	process.exit(1);

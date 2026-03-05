@@ -1,53 +1,60 @@
-# Plan: BackupManager 削除（einja sync）
+# Plan: ensure-serena.sh の既存インスタンス判定を厳密化
 
 ## Context
 
-`einja sync` 実行時に `.einja-sync-backups/` にローカルファイルのバックアップを作成する機能がある。
-しかし利用者はgitでバージョン管理しているため、同期前の状態は `git checkout` / `git stash` で復元可能。
-バックアップ機能は不要であり、`.gitignore` にも未登録のため追跡されてしまう問題もある。
+`ensure-serena.sh` の既存インスタンスチェック（L11-16）は `.serena-port` に記録されたPIDの生存のみを `kill -0` で確認している。
+しかし以下のケースで **別プロジェクトのSerenaに誤接続** する問題がある：
+
+1. 自プロジェクトのSerenaがクラッシュ（PID死亡）
+2. 別プロジェクトのSerenaが同じポートを取得
+3. 次回 `direnv reload` 時、PIDリサイクルで `kill -0` が成功 → 別プロジェクトのSerenaに接続
+
+**根本原因**: PID生存だけでは「そのPIDが記録されたポートを実際にLISTENしているか」が判定できない。
 
 ## 変更内容
 
-### TODO-1: BackupManager 関連ファイル削除
+### TODO-1: 既存インスタンスチェックに PID×ポート検証を追加
 
-| ファイル | 操作 |
-|---------|------|
-| `packages/cli/src/lib/sync/backup-manager.ts` | 削除 |
-| `packages/cli/src/lib/sync/backup-manager.test.ts` | 削除 |
+**ファイル**: `scripts/ensure-serena.sh` L11-16
 
-### TODO-2: sync.ts からバックアップロジック除去
+**現在のコード**:
+```bash
+if [ -f "$_SERENA_PORT_FILE" ]; then
+  read -r _saved_port _saved_pid < "$_SERENA_PORT_FILE"
+  if [ -n "$_saved_pid" ] && kill -0 "$_saved_pid" 2>/dev/null; then
+    # PIDが生存 → 自プロジェクトのSerena
+    export SERENA_PORT="$_saved_port"
+    return 0 2>/dev/null || true
+  fi
+  # PID死亡 → クリーンアップ
+  rm -f "$_SERENA_PORT_FILE"
+fi
+```
 
-**ファイル**: `packages/cli/src/commands/sync.ts`
+**修正後**:
+```bash
+if [ -f "$_SERENA_PORT_FILE" ]; then
+  read -r _saved_port _saved_pid < "$_SERENA_PORT_FILE"
+  if [ -n "$_saved_pid" ] && kill -0 "$_saved_pid" 2>/dev/null \
+     && ps -ww -o command= -p "$_saved_pid" 2>/dev/null | grep -q "serena start-mcp-server.*--project ${_SERENA_BASE}"; then
+    # PIDが生存 かつ 自プロジェクトのSerenaプロセス → 再利用
+    export SERENA_PORT="$_saved_port"
+    return 0 2>/dev/null || true
+  fi
+  # PID死亡 or 別プロセス/別プロジェクトのSerena → クリーンアップ
+  rm -f "$_SERENA_PORT_FILE"
+fi
+```
 
-- L10: `import { BackupManager }` 削除
-- L112: `const backupManager = new BackupManager(cwd)` 削除
-- L201-203: 孤児バックアップブロック削除
-- L393-398: 同期前バックアップブロック + spinner削除
-- L656-659: 孤児バックアップブロック削除
+**判定ロジック**: `kill -0`（PID生存） AND `ps`（そのPIDのコマンドラインに `serena start-mcp-server` + `--project <自プロジェクトパス>` が含まれる）の両方を満たす場合のみ、自プロジェクトのSerenaと判定する。
 
-### TODO-3: CLI オプション・型定義から `--no-backup` 除去（sync用のみ）
-
-| ファイル | 変更 |
-|---------|------|
-| `packages/cli/src/cli.ts` L47 | sync コマンドの `.option("--no-backup", ...)` 削除 |
-| `packages/cli/src/types/index.ts` L46 | `SyncOptions.backup?: boolean` 削除 |
-
-**注意**: `init` コマンドの `--no-backup`（L31）は BackupManager 非依存のため残す。
-
-### TODO-4: ドキュメント更新
-
-| ファイル | 変更 |
-|---------|------|
-| `packages/cli/README.md` L176 | sync の `--no-backup` 行を削除 |
-
-## 対象外（変更不要）
-
-- `init` コマンドの `--no-backup`（`backupDirectory` 関数で独立実装）
-- `docs/einja/instructions/setup-flow.md` の `init --force --no-backup` 記述
-- `cli-package-specs/SKILL.md` の `init --force --no-backup` 記述
+**`lsof` ではなく `ps` を採用した理由**（Codexレビュー指摘）:
+- `lsof` はLinuxで未導入のディストロがある。フォールバックが必要になり複雑化する
+- `ps` はPOSIX標準でmacOS/Linux両方で利用可能
+- `ps` ならプロセス名だけでなく `--project` 引数まで確認でき、「自プロジェクトのSerenaか」を厳密に判定できる
 
 ## 検証
 
-1. `pnpm --filter @einja/dev-cli build` 成功
-2. `pnpm --filter @einja/dev-cli test` 成功（backup-manager テスト除去後）
-3. `pnpm prepush` 通過
+1. `source scripts/ensure-serena.sh` で正常起動を確認
+2. 再度 `source` して既存インスタンスが再利用されることを確認
+3. `.serena-port` のPIDを偽の値に書き換え → 再起動が走ることを確認

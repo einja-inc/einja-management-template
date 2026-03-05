@@ -1,3 +1,4 @@
+import type { ChildProcess } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -220,13 +221,13 @@ describe("github-client", () => {
       // Given: CLOSEDステータスのIssue
       const issueNumber = 123;
       vi.mocked(exec).mockImplementation(
-        ((_cmd: string, callback: any) => {
+        ((_cmd: string, callback: (error: Error | null, result: { stdout: string; stderr: string }) => void) => {
           // コールバックを非同期で呼び出す
           process.nextTick(() => {
             callback(null, { stdout: JSON.stringify({ state: "CLOSED" }), stderr: "" });
           });
-          return {} as any;
-        }) as any
+          return {} as ChildProcess;
+        }) as typeof exec
       );
 
       // When: isIssueClosedを呼び出す
@@ -240,12 +241,12 @@ describe("github-client", () => {
       // Given: OPENステータスのIssue
       const issueNumber = 456;
       vi.mocked(exec).mockImplementation(
-        ((_cmd: string, callback: any) => {
+        ((_cmd: string, callback: (error: Error | null, result: { stdout: string; stderr: string }) => void) => {
           process.nextTick(() => {
             callback(null, { stdout: JSON.stringify({ state: "OPEN" }), stderr: "" });
           });
-          return {} as any;
-        }) as any
+          return {} as ChildProcess;
+        }) as typeof exec
       );
 
       // When: isIssueClosedを呼び出す
@@ -259,12 +260,12 @@ describe("github-client", () => {
       // Given: 存在しないIssue
       const issueNumber = 999;
       vi.mocked(exec).mockImplementation(
-        ((_cmd: string, callback: any) => {
+        ((_cmd: string, callback: (error: Error | null, result: { stdout: string; stderr: string }) => void) => {
           process.nextTick(() => {
             callback(new Error("issue not found"), { stdout: "", stderr: "" });
           });
-          return {} as any;
-        }) as any
+          return {} as ChildProcess;
+        }) as typeof exec
       );
 
       // When: isIssueClosedを呼び出す
@@ -278,12 +279,12 @@ describe("github-client", () => {
       // Given: ghコマンドが失敗する状況
       const issueNumber = 123;
       vi.mocked(exec).mockImplementation(
-        ((_cmd: string, callback: any) => {
+        ((_cmd: string, callback: (error: Error | null, result: { stdout: string; stderr: string }) => void) => {
           process.nextTick(() => {
             callback(new Error("gh command failed"), { stdout: "", stderr: "" });
           });
-          return {} as any;
-        }) as any
+          return {} as ChildProcess;
+        }) as typeof exec
       );
 
       // When: isIssueClosedを呼び出す

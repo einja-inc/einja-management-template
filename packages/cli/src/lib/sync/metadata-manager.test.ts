@@ -47,8 +47,8 @@ describe("MetadataManager", () => {
       const metadata = await manager.load();
 
       expect(metadata.jsonPaths).toBeDefined();
-      expect(metadata.jsonPaths!["project-private"]).toEqual({ "tsconfig.json": ["compilerOptions.paths"] });
-      expect((metadata.jsonPaths as any).seed).toBeUndefined();
+      expect(metadata.jsonPaths?.["project-private"]).toEqual({ "tsconfig.json": ["compilerOptions.paths"] });
+      expect((metadata.jsonPaths as Record<string, unknown> | undefined)?.seed).toBeUndefined();
     });
 
     it("メタデータファイルが存在する場合、読み込んで返す", async () => {

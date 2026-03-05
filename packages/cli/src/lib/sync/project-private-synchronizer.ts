@@ -97,7 +97,9 @@ export class ProjectPrivateSynchronizer {
     localContent: string,
     templateContent: string,
     baseContent: string,
+    // biome-ignore lint/suspicious/noExplicitAny: DiffEngineの型がConflict[]を返すため
     diffEngine: { merge3Way: (base: string, local: string, template: string) => { success: boolean; content: string; conflicts: any[] } }
+    // biome-ignore lint/suspicious/noExplicitAny: DiffEngineの型がConflict[]を返すため
   ): { content: string; success: boolean; conflicts: any[] } {
     // project-privateセクションを抽出
     const localPpSections = this.processor.extractProjectPrivateSections(localContent);

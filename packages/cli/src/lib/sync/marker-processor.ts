@@ -397,7 +397,7 @@ export class MarkerProcessor {
     const sections = this.parseMarkers(content);
     return sections
       .filter((s) => s.type === "project-private" && s.id)
-      .map((s) => ({ id: s.id!, content: s.content }));
+      .map((s) => ({ id: s.id as string, content: s.content }));
   }
 
   /**

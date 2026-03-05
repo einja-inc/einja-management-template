@@ -33,7 +33,7 @@ export class MetadataManager {
       // マイグレーション: jsonPaths.seed → jsonPaths["project-private"]
       if (data.jsonPaths && "seed" in data.jsonPaths && !("project-private" in data.jsonPaths)) {
         data.jsonPaths["project-private"] = data.jsonPaths.seed;
-        delete data.jsonPaths.seed;
+        data.jsonPaths.seed = undefined;
       }
 
       return this.validate(data);

@@ -104,10 +104,10 @@ AskUserQuestion:
 
 ```bash
 # dev-cli の場合
-npx --yes @einja/dev-cli sync --only <categories> --dry-run --yes
+npx --yes @einja/dev-cli@latest sync --only <categories> --dry-run --yes
 
 # create-einja-app の場合
-npx --yes create-einja-app sync --categories <categories> --dry-run
+npx --yes create-einja-app@latest sync --categories <categories> --dry-run
 ```
 
 > **注**: 両CLIでカテゴリ指定のオプション名が異なる（dev-cli: `--only` / create-einja-app: `--categories`）
@@ -156,13 +156,13 @@ AskUserQuestion:
 
 ```bash
 # dev-cli（孤児削除あり）
-npx --yes @einja/dev-cli sync --only <categories> --yes --json --clean
+npx --yes @einja/dev-cli@latest sync --only <categories> --yes --json --clean
 
 # dev-cli（孤児削除なし）
-npx --yes @einja/dev-cli sync --only <categories> --yes --json
+npx --yes @einja/dev-cli@latest sync --only <categories> --yes --json
 
 # create-einja-app
-npx --yes create-einja-app sync --categories <categories>
+npx --yes create-einja-app@latest sync --categories <categories>
 ```
 
 - dev-cli は `--json` オプションで構造化出力を取得しパースする
@@ -228,7 +228,7 @@ f. 解消結果を `Read` で確認し、ユーザーに表示
 
 Step 4 で孤児削除を選択した場合、JSON出力の `summary.orphansDeleted` を確認し、削除されたファイル一覧を記録する（Step 9 の詳細表示で使用）。
 
-Step 4 で孤児削除をスキップした場合、孤児ファイル一覧を再表示し「後で `npx --yes @einja/dev-cli sync --only <categories> --clean --yes` で削除できます」と案内する。
+Step 4 で孤児削除をスキップした場合、孤児ファイル一覧を再表示し「後で `npx --yes @einja/dev-cli@latest sync --only <categories> --clean --yes` で削除できます」と案内する。
 
 ### Step 7: direnv allow 実行確認
 

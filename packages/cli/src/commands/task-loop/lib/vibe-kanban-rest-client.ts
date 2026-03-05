@@ -270,7 +270,7 @@ export class VibeKanbanRestClient {
         // 429 または 5xx: リトライ対象
         if (response.status === 429 || response.status >= 500) {
           if (attempt < VibeKanbanRestClient.MAX_RETRIES - 1) {
-            const delay = VibeKanbanRestClient.BASE_DELAY_MS * Math.pow(2, attempt);
+            const delay = VibeKanbanRestClient.BASE_DELAY_MS * 2 ** attempt;
             console.warn(
               `   ⚠️ REST API リトライ (${attempt + 1}/${VibeKanbanRestClient.MAX_RETRIES}): ${response.status} - ${delay}ms 待機`
             );
@@ -292,7 +292,7 @@ export class VibeKanbanRestClient {
 
         lastError = error instanceof Error ? error : new Error(String(error));
         if (attempt < VibeKanbanRestClient.MAX_RETRIES - 1) {
-          const delay = VibeKanbanRestClient.BASE_DELAY_MS * Math.pow(2, attempt);
+          const delay = VibeKanbanRestClient.BASE_DELAY_MS * 2 ** attempt;
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }

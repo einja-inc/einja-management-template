@@ -1,9 +1,16 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
 import { initCommand } from "./commands/init.js";
 import { listCommand } from "./commands/list.js";
 import { syncCommand } from "./commands/sync.js";
 import { taskLoopCommand } from "./commands/task-loop/index.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const pkg = JSON.parse(readFileSync(resolve(__dirname, "..", "package.json"), "utf-8"));
 
 const program = new Command();
 
@@ -21,7 +28,7 @@ if (isLegacyPackageName) {
 program
   .name("einja")
   .description("Einja CLI - .claude設定とテンプレート同期をnpxでインストール")
-  .version("0.1.0");
+  .version(pkg.version);
 
 program
   .command("init")

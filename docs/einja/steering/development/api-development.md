@@ -15,6 +15,7 @@
    - [メソッドチェーンパターン](#メソッドチェーンパターン)
    - [ミドルウェアと型推論の注意点](#ミドルウェアと型推論の注意点) ⚠️
    - [basePathとHono Clientの関係](#basepathとhono-clientの関係) ⚠️
+   - [ドメインベースRPC分割の設計原則](#ドメインベースrpc分割の設計原則)
 2. [Web APIエンドポイント一覧](#2-web-apiエンドポイント一覧)
 3. [Admin APIエンドポイント一覧](#3-admin-apiエンドポイント一覧)
 4. [Cron Worker CLIコマンド](#4-cron-worker-cliコマンド)
@@ -34,10 +35,51 @@
 
 Honoは型安全なWebフレームワークで、すべてのNext.js APIルートで使用します。
 
-**エントリーポイント**:
+**エントリーポイント**（ドメインベースRPC分割）:
 ```
-apps/web/app/api/[[...route]]/route.ts  # Web API
-apps/admin/app/api/[[...route]]/route.ts # Admin API
+apps/web/app/api/rpc/{domain}/[[...route]]/route.ts  # Web API（ドメインごとに分割）
+apps/admin/app/api/rpc/{domain}/[[...route]]/route.ts # Admin API（ドメインごとに分割）
+```
+
+**ドメインroute.tsテンプレート**:
+
+各ドメインのroute.tsは以下のパターンで実装します。`basePath`でドメインのフルパスを指定し、`hc<...>("/")`で型ツリーからドメインクライアントを抽出します。
+
+```typescript
+// apps/web/app/api/rpc/users/[[...route]]/route.ts
+import { userRoutes } from "@web/server/presentation/routes/userRoutes";
+import { Hono } from "hono";
+import { handle } from "hono/vercel";
+
+const app = new Hono().basePath("/api/rpc/users");
+const routes = app.route("/", userRoutes);
+
+export type UsersAppType = typeof routes;
+
+export const GET = handle(app);
+export const POST = handle(app);
+export const PUT = handle(app);
+export const DELETE = handle(app);
+export const PATCH = handle(app);
+```
+
+**RPCクライアントのセットアップ**:
+
+> **Note**: 以下は複数ドメインを追加した場合の完成形の例です。現在のテンプレートでは `users` ドメインのみ実装されています。
+
+```typescript
+// apps/web/src/lib/api/rpc.ts
+import type { AuthAppType } from "@/app/api/rpc/auth/[[...route]]/route";
+import type { PostsAppType } from "@/app/api/rpc/posts/[[...route]]/route";
+import { hc } from "hono/client";
+
+const authClient = hc<AuthAppType>("/");
+const postsClient = hc<PostsAppType>("/");
+
+export const rpc = {
+  auth: authClient.api.rpc.auth,
+  posts: postsClient.api.rpc.posts,
+} as const;
 ```
 
 **ルート定義の配置**:
@@ -59,45 +101,70 @@ Hono Clientの型推論は `typeof app` から型情報を抽出します。メ�
 const app = new Hono()
 app.get('/posts', handler1)  // 返り値が破棄される
 app.post('/posts', handler2) // 返り値が破棄される
-export type AppType = typeof app // ルート情報が不完全
+export type PostsAppType = typeof app // ルート情報が不完全
 
 // ✅ OK: メソッドチェーン - 完全な型推論
 const app = new Hono()
   .get('/posts', handler1)
   .post('/posts', handler2)
-export type AppType = typeof app // 全ルート情報を含む
+export type PostsAppType = typeof app // 全ルート情報を含む
 ```
 
-メソッドチェーンにより、Hono Client (`hc<AppType>`) でエンドツーエンドの型安全なAPI呼び出しが実現できます。
+メソッドチェーンにより、Hono Client (`hc<PostsAppType>`) でエンドツーエンドの型安全なAPI呼び出しが実現できます。
 
 ### ミドルウェアと型推論の注意点
 
-**サブルート内で`.use()`を使うと型推論が壊れる。メインアプリ側で適用すること。**
+**サブルート内で`.use()`を使うと型推論が壊れる。各ドメインroute.tsのアプリ側で適用すること。**
+
+ドメインベースRPC分割では、各ドメインのroute.tsが独立したHonoアプリを持つため、ミドルウェアはそのアプリに直接適用します。
 
 ```typescript
 // ❌ NG: サブルート内で.use() → 型が ClientRequest<{}> になる
-export const adminUserRoutes = new Hono()
-  .use("*", adminAuthMiddleware)
-  .delete("/:id", handler)
+export const postRoutes = new Hono()
+  .use("*", authMiddleware)
+  .post("/", handler)
 
-// ✅ OK: メインアプリ側で.use()を適用
+// ✅ OK: ドメインroute.tsのアプリ側で.use()を適用
+// apps/web/app/api/rpc/posts/[[...route]]/route.ts
 const app = new Hono()
-  .basePath("/api")
-  .use("/admin/*", adminAuthMiddleware)  // ← ここで適用
-  .route("/admin", adminApp)
+  .basePath("/api/rpc/posts")
+  .use("/*", authMiddleware);  // ← 認証必要なドメインではここで適用
+const routes = app.route("/", postRoutes);
+export type PostsAppType = typeof routes;
+```
+
+**ドメインごとのミドルウェア適用パターン**:
+
+```typescript
+// 認証不要のドメイン（auth等）
+const app = new Hono().basePath("/api/rpc/auth");
+const routes = app.route("/", authRoutes);
+export type AuthAppType = typeof routes;
+
+// 認証必要のドメイン（posts等）
+const app = new Hono()
+  .basePath("/api/rpc/posts")
+  .use("/*", authMiddleware);
+const routes = app.route("/", postRoutes);
+export type PostsAppType = typeof routes;
 ```
 
 ### basePathとHono Clientの関係
 
-`basePath("/api/rpc")` を使用する場合、クライアント側も `api.rpc` を含めてアクセスする。
+ドメインベースRPC分割では`basePath`で**ドメインのフルパスを指定**する。`hono/vercel`の`handle()`関数は完全なURLパスをHonoに渡すため、Honoがルートを正しくマッチするには`basePath`が必要。
 
 ```typescript
-// サーバー: basePath("/api/rpc") を設定
-const app = new Hono().basePath("/api/rpc").route("/users", userRoutes)
+// サーバー: basePathでドメインのフルパスを指定
+const app = new Hono().basePath("/api/rpc/users");
+const routes = app.route("/", userRoutes);
+export type UsersAppType = typeof routes;
 
-// クライアント: api.rpc を含める
-apiClient.api.rpc.users.$get()  // ✅ OK
-apiClient.users.$get()          // ❌ NG（型エラー）
+// クライアント: hc("/")で型ツリーを構築し、ドメイン部分を抽出
+import { hc } from "hono/client";
+const client = hc<UsersAppType>("/");
+const usersRpc = client.api.rpc.users;
+
+usersRpc.$get()  // ✅ OK（/api/rpc/users にリクエスト）
 ```
 
 **使用例**:
@@ -127,6 +194,30 @@ app
 
 export default app
 ```
+
+### ドメインベースRPC分割の設計原則
+
+#### なぜドメインで分割するか
+
+1. **Vercel Function独立**: 各ドメインが独立したServerless Functionとしてデプロイされるため、障害の影響範囲が限定される
+2. **コールドスタート改善**: 各Functionのバンドルサイズが小さくなり、コールドスタート時間が短縮される
+3. **スケーラビリティ**: トラフィックの多いドメイン（例: posts）だけが独立してスケールできる
+
+#### ドメイングループ設計の基準
+
+ドメインの分割は**依存の重さ・頻度**で分類する。
+
+| 基準 | 説明 | 例 |
+|------|------|-----|
+| 依存の独立性 | 外部サービスやDB接続が異なる | auth（認証サービス依存）vs posts（DB依存） |
+| リクエスト頻度 | 高頻度ドメインを分離して他に影響させない | analytics（低頻度）vs posts（高頻度） |
+| ミドルウェアの違い | 認証要否など共通処理が異なる | auth（認証不要）vs users（認証必要） |
+
+#### 新ドメイン追加手順
+
+1. **route.ts作成**: `app/api/rpc/{domain}/[[...route]]/route.ts` にドメインroute.tsテンプレートを配置
+2. **rpc.tsに追加**: `lib/api/rpc.ts` の `rpc` オブジェクトに新ドメインのクライアントを追加
+3. **フック作成**: 必要に応じて `hooks/api/use{Domain}*.ts` にTanstack Queryフックを作成
 
 ### zValidatorの統合
 
@@ -176,23 +267,23 @@ async (c) => {
 |---------|---------------|------|-----------|-----------|------|
 | GET | `/api/health` | システム稼働確認 | - | `{status: "ok"}` | 不要 |
 
-### 認証エンドポイント
+### 認証エンドポイント（ドメイン: auth）
 
 | メソッド | エンドポイント | 説明 | リクエスト | レスポンス | 認証 |
 |---------|---------------|------|-----------|-----------|------|
-| POST | `/api/auth/login` | ユーザーログイン | `{email, password}` | `{token, user}` | 不要 |
-| POST | `/api/auth/logout` | ログアウト | - | `{success: true}` | 必要 |
-| GET | `/api/auth/session` | セッション確認 | - | `{user}` | 必要 |
+| POST | `/api/rpc/auth/login` | ユーザーログイン | `{email, password}` | `{token, user}` | 不要 |
+| POST | `/api/rpc/auth/logout` | ログアウト | - | `{success: true}` | 必要 |
+| GET | `/api/rpc/auth/session` | セッション確認 | - | `{user}` | 必要 |
 
-### 投稿エンドポイント
+### 投稿エンドポイント（ドメイン: posts）
 
 | メソッド | エンドポイント | 説明 | リクエスト | レスポンス | 認証 |
 |---------|---------------|------|-----------|-----------|------|
-| GET | `/api/posts` | 投稿一覧取得 | `?page=1&limit=10` | `{posts[], total}` | オプション |
-| POST | `/api/posts` | 投稿作成 | `{title, content, status?}` | `{post}` | 必要 |
-| GET | `/api/posts/:id` | 投稿詳細取得 | - | `{post}` | オプション |
-| PUT | `/api/posts/:id` | 投稿更新 | `{title?, content?, status?}` | `{post}` | 必要 |
-| DELETE | `/api/posts/:id` | 投稿削除 | - | `{success: true}` | 必要 |
+| GET | `/api/rpc/posts` | 投稿一覧取得 | `?page=1&limit=10` | `{posts[], total}` | オプション |
+| POST | `/api/rpc/posts` | 投稿作成 | `{title, content, status?}` | `{post}` | 必要 |
+| GET | `/api/rpc/posts/:id` | 投稿詳細取得 | - | `{post}` | オプション |
+| PUT | `/api/rpc/posts/:id` | 投稿更新 | `{title?, content?, status?}` | `{post}` | 必要 |
+| DELETE | `/api/rpc/posts/:id` | 投稿削除 | - | `{success: true}` | 必要 |
 
 **ページネーション設計**:
 - `page`: ページ番号（デフォルト: 1）
@@ -214,27 +305,27 @@ async (c) => {
 |---------|---------------|------|-----------|-----------|------|
 | GET | `/api/health` | システム稼働確認 | - | `{status: "ok"}` | 不要 |
 
-### ユーザー管理
+### ユーザー管理（ドメイン: users）
 
 | メソッド | エンドポイント | 説明 | リクエスト | レスポンス | 認証 |
 |---------|---------------|------|-----------|-----------|------|
-| GET | `/api/admin/users` | ユーザー一覧取得 | `?page=1&limit=20` | `{users[], total}` | 管理者 |
-| GET | `/api/admin/users/:id` | ユーザー詳細取得 | - | `{user}` | 管理者 |
-| PUT | `/api/admin/users/:id` | ユーザー情報更新 | `{name?, email?}` | `{user}` | 管理者 |
-| DELETE | `/api/admin/users/:id` | ユーザー削除 | - | `{success: true}` | 管理者 |
+| GET | `/api/rpc/users` | ユーザー一覧取得 | `?page=1&limit=20` | `{users[], total}` | 管理者 |
+| GET | `/api/rpc/users/:id` | ユーザー詳細取得 | - | `{user}` | 管理者 |
+| PUT | `/api/rpc/users/:id` | ユーザー情報更新 | `{name?, email?}` | `{user}` | 管理者 |
+| DELETE | `/api/rpc/users/:id` | ユーザー削除 | - | `{success: true}` | 管理者 |
 
-### 投稿管理
-
-| メソッド | エンドポイント | 説明 | リクエスト | レスポンス | 認証 |
-|---------|---------------|------|-----------|-----------|------|
-| GET | `/api/admin/posts` | 全投稿一覧取得 | `?status=all&page=1` | `{posts[], total}` | 管理者 |
-| PUT | `/api/admin/posts/:id/status` | 投稿ステータス変更 | `{status}` | `{post}` | 管理者 |
-
-### 分析
+### 投稿管理（ドメイン: posts）
 
 | メソッド | エンドポイント | 説明 | リクエスト | レスポンス | 認証 |
 |---------|---------------|------|-----------|-----------|------|
-| GET | `/api/admin/analytics` | システム統計取得 | `?from=&to=` | `{stats}` | 管理者 |
+| GET | `/api/rpc/posts` | 全投稿一覧取得 | `?status=all&page=1` | `{posts[], total}` | 管理者 |
+| PUT | `/api/rpc/posts/:id/status` | 投稿ステータス変更 | `{status}` | `{post}` | 管理者 |
+
+### 分析（ドメイン: analytics）
+
+| メソッド | エンドポイント | 説明 | リクエスト | レスポンス | 認証 |
+|---------|---------------|------|-----------|-----------|------|
+| GET | `/api/rpc/analytics` | システム統計取得 | `?from=&to=` | `{stats}` | 管理者 |
 
 **管理者認証**:
 - すべてのAdmin APIは、管理者権限（`role='admin'`）のチェックが必要
@@ -567,13 +658,13 @@ Hono Client + Tanstack Queryでは、`parseResponse`関数を使用してレス�
 import { useQuery } from "@tanstack/react-query";
 import { parseResponse } from "@/lib/api/parse-response";
 import { paginatedPostListSchema } from "@/shared/schemas/post";
-import { apiClient } from "@/lib/api/client";
+import { rpc } from "@/lib/api/rpc";
 
 export function usePostList(page: number, limit: number) {
   return useQuery({
     queryKey: ["posts", page, limit],
     queryFn: async () => {
-      const response = await apiClient.api.rpc.posts.$get({
+      const response = await rpc.posts.$get({
         query: { page: String(page), limit: String(limit) },
       });
       return parseResponse(response, paginatedPostListSchema);
@@ -651,26 +742,45 @@ export const adminMiddleware = createMiddleware(async (c, next) => {
 })
 ```
 
-### ミドルウェアの適用
+### ミドルウェアの適用（ドメインベースRPC分割）
+
+ドメインベースRPC分割では、各ドメインのroute.tsが独立したHonoアプリを持つため、ミドルウェアはドメインごとに個別に適用します。
 
 ```typescript
-import { Hono } from 'hono'
-import { authMiddleware } from '@/server/middleware/auth'
+// 認証不要のドメイン: apps/web/app/api/rpc/auth/[[...route]]/route.ts
+import { authRoutes } from "@web/server/presentation/routes/authRoutes";
+import { Hono } from "hono";
+import { handle } from "hono/vercel";
 
-const app = new Hono()
+const app = new Hono().basePath("/api/rpc/auth");
+const routes = app.route("/", authRoutes);
+export type AuthAppType = typeof routes;
 
-// 認証不要なルート
-app.get('/health', (c) => c.json({ status: 'ok' }))
-
-// 認証が必要なルート
-app.use('/posts/*', authMiddleware)
-app.post('/posts', async (c) => {
-  const user = c.get('user') // ミドルウェアで設定されたユーザー情報
-  // ...
-})
+export const GET = handle(app);
+export const POST = handle(app);
 ```
 
-**⚠️ 重要**: サブルート内で`.use()`を使用するとHono RPC型推論が壊れます。
+```typescript
+// 認証必要のドメイン: apps/web/app/api/rpc/posts/[[...route]]/route.ts
+import { postRoutes } from "@web/server/presentation/routes/postRoutes";
+import { authMiddleware } from "@/server/middleware/auth";
+import { Hono } from "hono";
+import { handle } from "hono/vercel";
+
+const app = new Hono()
+  .basePath("/api/rpc/posts")
+  .use("/*", authMiddleware);  // ← ドメインroute.tsで認証ミドルウェアを適用
+const routes = app.route("/", postRoutes);
+export type PostsAppType = typeof routes;
+
+export const GET = handle(app);
+export const POST = handle(app);
+export const PUT = handle(app);
+export const DELETE = handle(app);
+export const PATCH = handle(app);
+```
+
+**⚠️ 重要**: サブルート（postRoutes等）内で`.use()`を使用するとHono RPC型推論が壊れます。ミドルウェアは必ずドメインroute.tsのアプリ側で適用してください。
 詳細は[ミドルウェアと型推論の注意点](#ミドルウェアと型推論の注意点)を参照してください。
 
 ---
@@ -789,24 +899,46 @@ app.post(
 export default app
 ```
 
-**エントリーポイント**:
+**エントリーポイント（ドメインroute.ts）**:
 
 ```typescript
-// apps/web/src/app/api/rpc/[[...route]]/route.ts
-import { Hono } from 'hono'
-import { handle } from 'hono/vercel'
-import { userRoutes } from '@web/server/presentation/routes/userRoutes'
+// apps/web/app/api/rpc/posts/[[...route]]/route.ts
+import { postRoutes } from "@web/server/presentation/routes/postRoutes";
+import { authMiddleware } from "@/server/middleware/auth";
+import { Hono } from "hono";
+import { handle } from "hono/vercel";
 
-const app = new Hono().basePath('/api/rpc')
+const app = new Hono()
+  .basePath("/api/rpc/posts")
+  .use("/*", authMiddleware);
+const routes = app.route("/", postRoutes);
 
-const routes = app.route('/users', userRoutes)
+export type PostsAppType = typeof routes;
 
-export const GET = handle(app)
-export const POST = handle(app)
-export const PUT = handle(app)
-export const DELETE = handle(app)
+export const GET = handle(app);
+export const POST = handle(app);
+export const PUT = handle(app);
+export const DELETE = handle(app);
+export const PATCH = handle(app);
+```
 
-export type AppType = typeof routes
+**RPCクライアント**:
+
+> **Note**: 以下は複数ドメインを追加した場合の完成形の例です。現在のテンプレートでは `users` ドメインのみ実装されています。
+
+```typescript
+// apps/web/src/lib/api/rpc.ts
+import type { AuthAppType } from "@/app/api/rpc/auth/[[...route]]/route";
+import type { PostsAppType } from "@/app/api/rpc/posts/[[...route]]/route";
+import { hc } from "hono/client";
+
+const authClient = hc<AuthAppType>("/");
+const postsClient = hc<PostsAppType>("/");
+
+export const rpc = {
+  auth: authClient.api.rpc.auth,
+  posts: postsClient.api.rpc.posts,
+} as const;
 ```
 
 **フロントエンドでの使用**:

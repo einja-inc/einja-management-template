@@ -60,10 +60,10 @@ apps/web/
 │   │   │   │       └── page.tsx     # 投稿詳細
 │   │   │   └── profile/
 │   │   │       └── page.tsx
-│   │   ├── api/                      # API Routes
-│   │   │   └── rpc/
-│   │   │       └── [[...route]]/
-│   │   │           └── route.ts     # Honoエントリーポイント
+│   │   ├── api/rpc/                  # ドメインベースRPC
+│   │   │   ├── users/[[...route]]/route.ts
+│   │   │   ├── auth/[[...route]]/route.ts
+│   │   │   └── posts/[[...route]]/route.ts
 │   │   ├── layout.tsx                # ルートレイアウト
 │   │   └── page.tsx                  # トップページ
 │   ├── components/                   # UIコンポーネント
@@ -84,7 +84,7 @@ apps/web/
 │   │           └── RegisterForm.tsx
 │   ├── lib/                          # ユーティリティ
 │   │   ├── api/
-│   │   │   ├── client.ts            # Hono Client設定
+│   │   │   ├── rpc.ts              # Hono RPCクライアント設定
 │   │   │   └── parse-response.ts    # レスポンスパース＆バリデーション
 │   │   ├── query-client.ts           # Tanstack Query設定
 │   │   └── utils.ts                  # 共通ユーティリティ
@@ -116,10 +116,9 @@ apps/admin/
 │   │   │   │   │   └── page.tsx
 │   │   │   │   └── analytics/
 │   │   │   │       └── page.tsx
-│   │   ├── api/
-│   │   │   └── rpc/
-│   │   │       └── [[...route]]/
-│   │   │           └── route.ts
+│   │   ├── api/rpc/                  # ドメインベースRPC
+│   │   │   ├── users/[[...route]]/route.ts
+│   │   │   └── posts/[[...route]]/route.ts
 │   │   ├── layout.tsx
 │   │   └── page.tsx
 │   ├── components/
@@ -198,27 +197,39 @@ export const paginatedUserListSchema = z.object({
 
 ### セットアップ
 
-**Hono Clientの初期化**:
+**RPCクライアントの初期化**:
+
+> **Note**: 以下は複数ドメインを追加した場合の完成形の例です。現在のテンプレートでは `users` ドメインのみ実装されています。
 
 ```typescript
-// apps/web/src/lib/api/client.ts
-import { hc } from 'hono/client'
-import type { AppType } from '@/app/api/rpc/[[...route]]/route'
+// apps/web/src/lib/api/rpc.ts
+import type { UsersAppType } from "@/app/api/rpc/users/[[...route]]/route";
+import type { AuthAppType } from "@/app/api/rpc/auth/[[...route]]/route";
+import type { PostsAppType } from "@/app/api/rpc/posts/[[...route]]/route";
+import { hc } from "hono/client";
 
-export const apiClient = hc<AppType>('/')
+const usersClient = hc<UsersAppType>("/");
+const authClient = hc<AuthAppType>("/");
+const postsClient = hc<PostsAppType>("/");
+
+export const rpc = {
+  users: usersClient.api.rpc.users,
+  auth: authClient.api.rpc.auth,
+  posts: postsClient.api.rpc.posts,
+} as const;
 ```
 
-**型定義のエクスポート**:
+**型定義のエクスポート**（ドメインごとのルートファイル）:
 
 ```typescript
-// apps/web/src/app/api/rpc/[[...route]]/route.ts
+// apps/web/src/app/api/rpc/users/[[...route]]/route.ts
 import { Hono } from 'hono'
 import { handle } from 'hono/vercel'
 import { userRoutes } from '@web/server/presentation/routes/userRoutes'
 
-const app = new Hono().basePath('/api/rpc')
+const app = new Hono().basePath('/api/rpc/users')
 
-const routes = app.route('/users', userRoutes)
+const routes = app.route('/', userRoutes)
 
 export const GET = handle(app)
 export const POST = handle(app)
@@ -226,7 +237,7 @@ export const PUT = handle(app)
 export const DELETE = handle(app)
 
 // 型のエクスポート（フロントエンドで使用）
-export type AppType = typeof routes
+export type UsersAppType = typeof routes
 ```
 
 ### API呼び出しパターン
@@ -235,7 +246,7 @@ export type AppType = typeof routes
 
 ```typescript
 // ユーザー一覧取得
-const response = await apiClient.api.rpc.users.$get({
+const response = await rpc.users.$get({
   query: { page: '1', limit: '10' }
 })
 const data = await response.json() // 型推論: { users: User[], total: number }
@@ -245,7 +256,7 @@ const data = await response.json() // 型推論: { users: User[], total: number 
 
 ```typescript
 // ユーザー作成
-const response = await apiClient.api.rpc.users.$post({
+const response = await rpc.users.$post({
   json: { email: 'user@example.com', name: 'User Name' }
 })
 const data = await response.json() // 型推論: { user: User }
@@ -255,7 +266,7 @@ const data = await response.json() // 型推論: { user: User }
 
 ```typescript
 // ユーザー詳細取得
-const response = await apiClient.api.rpc.users[':id'].$get({
+const response = await rpc.users[':id'].$get({
   param: { id: '123' }
 })
 const data = await response.json() // 型推論: { user: User }
@@ -265,7 +276,7 @@ const data = await response.json() // 型推論: { user: User }
 
 ```typescript
 // ユーザー更新
-const response = await apiClient.api.rpc.users[':id'].$put({
+const response = await rpc.users[':id'].$put({
   param: { id: '123' },
   json: { name: 'Updated Name' }
 })
@@ -276,7 +287,7 @@ const data = await response.json() // 型推論: { user: User }
 
 ```typescript
 // ユーザー削除
-const response = await apiClient.api.rpc.users[':id'].$delete({
+const response = await rpc.users[':id'].$delete({
   param: { id: '123' }
 })
 const data = await response.json() // 型推論: { success: true }
@@ -344,13 +355,13 @@ export async function parseResponse<T>(
 import { useQuery } from "@tanstack/react-query";
 import { parseResponse } from "@/lib/api/parse-response";
 import { paginatedUserListSchema } from "@/shared/schemas/user";
-import { apiClient } from "@/lib/api/client";
+import { rpc } from "@/lib/api/rpc";
 
 export function useUsers(filters: UserFilters = {}) {
   return useQuery({
     queryKey: ["users", filters],
     queryFn: async () => {
-      const response = await apiClient.api.rpc.users.$get({
+      const response = await rpc.users.$get({
         query: { page: String(filters.page || 1), limit: String(filters.limit || 10) },
       });
       return parseResponse(response, paginatedUserListSchema);
@@ -417,11 +428,11 @@ try {
 ```typescript
 // app/posts/page.tsx (Server Component - デフォルト)
 import { PostList } from '@/components/features/posts/PostList'
-import { apiClient } from '@/lib/api-client'
+import { rpc } from '@/lib/api/rpc'
 
 export default async function PostsPage() {
   // サーバー側でデータフェッチ
-  const response = await apiClient.posts.$get({
+  const response = await rpc.posts.$get({
     query: { page: '1', limit: '10' }
   })
   const data = await response.json()
@@ -546,11 +557,11 @@ export default function PostsPage() {
 import { Header } from '@/components/features/Header'
 import { Sidebar } from '@/components/features/Sidebar'
 import { PostListContainer } from '@/components/features/posts/PostListContainer'
-import { apiClient } from '@/lib/api-client'
+import { rpc } from '@/lib/api/rpc'
 
 export default async function PostsPage() {
   // サーバー側でデータフェッチ
-  const response = await apiClient.posts.$get()
+  const response = await rpc.posts.$get()
   const data = await response.json()
 
   return (
@@ -596,11 +607,11 @@ export function PostListContainer({ initialData }) {
 ```typescript
 // app/posts/[id]/page.tsx (Server Component)
 import { PostDetail } from '@/components/features/posts/PostDetail'
-import { apiClient } from '@/lib/api-client'
+import { rpc } from '@/lib/api/rpc'
 
 export default async function PostDetailPage({ params }: { params: { id: string } }) {
   // サーバー側でデータフェッチ
-  const response = await apiClient.posts[':id'].$get({
+  const response = await rpc.posts[':id'].$get({
     param: { id: params.id }
   })
   const { post } = await response.json()
@@ -797,13 +808,13 @@ export default function RootLayout({ children }) {
 
 ```typescript
 import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api-client'
+import { rpc } from '@/lib/api/rpc'
 
 export function usePostList(page: number, limit: number) {
   return useQuery({
     queryKey: ['posts', page, limit], // キャッシュキー
     queryFn: async () => {
-      const response = await apiClient.posts.$get({
+      const response = await rpc.posts.$get({
         query: { page: String(page), limit: String(limit) }
       })
       if (!response.ok) {
@@ -841,7 +852,7 @@ export function PostList() {
 
 ```typescript
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api-client'
+import { rpc } from '@/lib/api/rpc'
 import type { CreatePostInput } from '@repo/server-core/domain/validators/post'
 
 export function useCreatePost() {
@@ -849,7 +860,7 @@ export function useCreatePost() {
 
   return useMutation({
     mutationFn: async (data: CreatePostInput) => {
-      const response = await apiClient.posts.$post({ json: data })
+      const response = await rpc.posts.$post({ json: data })
       if (!response.ok) {
         throw new Error('Failed to create post')
       }
@@ -1111,7 +1122,7 @@ export function PostCard({ post }: PostCardProps) {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { parseResponse } from '@/lib/api/parse-response'
 import { paginatedPostListSchema } from '@/shared/schemas/post'
-import { apiClient } from '@/lib/api/client'
+import { rpc } from '@/lib/api/rpc'
 import type { CreatePostInput, UpdatePostInput } from '@repo/server-core/domain/validators/post'
 
 // 投稿一覧取得
@@ -1119,7 +1130,7 @@ export function usePostList(page: number, limit: number) {
   return useQuery({
     queryKey: ['posts', page, limit],
     queryFn: async () => {
-      const response = await apiClient.api.posts.$get({
+      const response = await rpc.posts.$get({
         query: { page: String(page), limit: String(limit) }
       })
       return parseResponse(response, paginatedPostListSchema)
@@ -1132,7 +1143,7 @@ export function usePost(id: string) {
   return useQuery({
     queryKey: ['posts', id],
     queryFn: async () => {
-      const response = await apiClient.api.posts[':id'].$get({ param: { id } })
+      const response = await rpc.posts[':id'].$get({ param: { id } })
       return parseResponse(response, postSchema)
     },
   })
@@ -1144,7 +1155,7 @@ export function useCreatePost() {
 
   return useMutation({
     mutationFn: async (data: CreatePostInput) => {
-      const response = await apiClient.api.posts.$post({ json: data })
+      const response = await rpc.posts.$post({ json: data })
       return parseResponse(response, postSchema)
     },
     onSuccess: () => {
@@ -1159,7 +1170,7 @@ export function useUpdatePost(id: string) {
 
   return useMutation({
     mutationFn: async (data: UpdatePostInput) => {
-      const response = await apiClient.api.posts[':id'].$put({
+      const response = await rpc.posts[':id'].$put({
         param: { id },
         json: data
       })
@@ -1178,7 +1189,7 @@ export function useDeletePost() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient.api.posts[':id'].$delete({ param: { id } })
+      const response = await rpc.posts[':id'].$delete({ param: { id } })
       return parseResponse(response, deleteResponseSchema)
     },
     onSuccess: () => {
@@ -1332,12 +1343,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 // ✅ page.tsxはServer Component（'use client'なし）
 import { PostListContainer } from '@/components/features/posts/PostListContainer'
 import { Button } from '@/components/ui/button'
-import { apiClient } from '@/lib/api-client'
+import { rpc } from '@/lib/api/rpc'
 import Link from 'next/link'
 
 export default async function PostsPage() {
   // サーバー側でデータフェッチ
-  const response = await apiClient.posts.$get({
+  const response = await rpc.posts.$get({
     query: { page: '1', limit: '10' }
   })
   const data = await response.json()
@@ -1402,11 +1413,11 @@ export default function PostNewPage() {
 ```typescript
 // ✅ page.tsxはServer Component（'use client'なし）
 import { PostDetail } from '@/components/features/posts/PostDetail'
-import { apiClient } from '@/lib/api-client'
+import { rpc } from '@/lib/api/rpc'
 
 export default async function PostDetailPage({ params }: { params: { id: string } }) {
   // サーバー側でデータフェッチ
-  const response = await apiClient.posts[':id'].$get({
+  const response = await rpc.posts[':id'].$get({
     param: { id: params.id }
   })
   const { post } = await response.json()
@@ -1453,7 +1464,7 @@ export function usePostList(page: number, limit: number) {
   return useQuery({
     queryKey: ['posts', page, limit],
     queryFn: async () => {
-      const response = await apiClient.posts.$get({
+      const response = await rpc.posts.$get({
         query: { page: String(page), limit: String(limit) }
       })
 
@@ -1531,7 +1542,7 @@ export class ErrorBoundary extends Component<Props, State> {
 // ✅ page.tsxはServer Component（'use client'なし）
 import { PostListWithPagination } from '@/components/features/posts/PostListWithPagination'
 import { Button } from '@/components/ui/button'
-import { apiClient } from '@/lib/api-client'
+import { rpc } from '@/lib/api/rpc'
 import Link from 'next/link'
 
 interface PostsPageProps {
@@ -1543,7 +1554,7 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
   const limit = 10
 
   // サーバー側でデータフェッチ
-  const response = await apiClient.posts.$get({
+  const response = await rpc.posts.$get({
     query: { page: String(page), limit: String(limit) }
   })
   const data = await response.json()

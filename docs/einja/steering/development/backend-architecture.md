@@ -194,7 +194,7 @@ graph TD
 
 #### 📕 Presentation層（API Routes）
 
-**配置**: `apps/web/src/app/api/`, `apps/admin/src/app/api/`
+**配置**: `apps/web/src/app/api/rpc/{domain}/`, `apps/admin/src/app/api/rpc/{domain}/`
 
 **責務**:
 - HTTPリクエスト/レスポンスの処理
@@ -204,28 +204,24 @@ graph TD
 
 **技術**: Hono、zValidator、Zod
 
+**エントリーポイント**: `/api/rpc/{domain}/[[...route]]/route.ts` （ドメインベースRPC分割）
+
 **実装例**:
 ```typescript
-// apps/web/src/app/api/posts/route.ts
+// apps/web/src/app/api/rpc/posts/[[...route]]/route.ts
+import { postRoutes } from "@web/server/presentation/routes/postRoutes"
 import { Hono } from "hono"
-import { zValidator } from "@hono/zod-validator"
-import { postSchema } from "@repo/server-core/domain/validators/post"
-import { postUseCases } from "@/application/use-cases/PostUseCases"  // アプリ内のApplication層
+import { handle } from "hono/vercel"
 
 const app = new Hono()
-  .post("/", zValidator("json", postSchema), async (c) => {
-    const data = c.req.valid("json")
-    const result = await postUseCases.create(data)
+  .basePath("/api/rpc/posts")
+  .use("/*", authMiddleware)
+const routes = app.route("/", postRoutes)
 
-    if (!result.isSuccess) {
-      return c.json({ error: result.error.message }, result.error.statusCode)
-    }
+export type PostsAppType = typeof routes
 
-    return c.json(result.value, 201)
-  })
-
-export const GET = app.fetch
-export const POST = app.fetch
+export const GET = handle(app)
+export const POST = handle(app)
 ```
 
 ---

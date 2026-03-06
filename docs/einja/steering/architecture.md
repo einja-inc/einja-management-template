@@ -92,17 +92,23 @@ project-root/
 │   ├── web/                     # ユーザー向けWebアプリ
 │   │   ├── src/
 │   │   │   ├── app/            # Next.js App Router
+│   │   │   │   └── api/rpc/    # ドメインベースRPC分割
+│   │   │   │       └── {domain}/[[...route]]/route.ts
 │   │   │   ├── application/    # アプリケーション層（UseCases）⭐
 │   │   │   ├── components/     # Reactコンポーネント
-│   │   │   ├── lib/            # ライブラリ（Hono Client、API呼び出し）
+│   │   │   ├── lib/            # ライブラリ
+│   │   │   │   └── rpc.ts      # ドメインごとのHono RPCクライアント
 │   │   │   └── hooks/          # カスタムフック（Tanstack Query）
 │   │   └── package.json
 │   ├── admin/                   # 管理画面
 │   │   ├── src/
 │   │   │   ├── app/
+│   │   │   │   └── api/rpc/    # ドメインベースRPC分割
+│   │   │   │       └── {domain}/[[...route]]/route.ts
 │   │   │   ├── application/    # アプリケーション層（UseCases）⭐
 │   │   │   ├── components/
 │   │   │   ├── lib/
+│   │   │   │   └── rpc.ts      # ドメインごとのHono RPCクライアント
 │   │   │   └── hooks/
 │   │   └── package.json
 │   └── cron-worker/             # バッチ処理・定期実行

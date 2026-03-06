@@ -93,13 +93,15 @@ graph TD
 
 **実装例**:
 ```typescript
-// apps/web/src/app/api/posts/route.ts
+// apps/web/src/app/api/rpc/posts/[[...route]]/route.ts
 import { Hono } from "hono"
+import { handle } from "hono/vercel"
 import { zValidator } from "@hono/zod-validator"
 import { postSchema } from "@repo/server-core/domain/validators/post"
 import { postUseCases } from "@/application/use-cases/PostUseCases"
 
 const app = new Hono()
+  .basePath("/api/rpc/posts")
   .post("/", zValidator("json", postSchema), async (c) => {
     const data = c.req.valid("json")
     const result = await postUseCases.create(data)
@@ -111,8 +113,10 @@ const app = new Hono()
     return c.json(result.value, 201)
   })
 
-export const GET = app.fetch
-export const POST = app.fetch
+export type PostsAppType = typeof app
+
+export const GET = handle(app)
+export const POST = handle(app)
 ```
 
 ##### 📘 Application層（UseCases）
@@ -602,37 +606,43 @@ Honoでは、**必ずメソッドチェーン形式**でルートを定義しま
 
 **重要: メソッドチェーンを使用する理由**
 
-Hono Clientの型推論は `typeof app` から型情報を抽出します。メソッドチェーンを使用しない場合、TypeScriptが各ルート定義の返り値型を追跡できず、`AppType`に完全なルート情報が含まれません。
+Hono Clientの型推論は `typeof app` から型情報を抽出します。メソッドチェーンを使用しない場合、TypeScriptが各ルート定義の返り値型を追跡できず、ドメイン型（例: `PostsAppType`）に完全なルート情報が含まれません。
 
 ```typescript
 // ❌ NG: 個別呼び出し - 型推論が損なわれる
 const app = new Hono()
 app.get('/posts', handler1)  // 返り値が破棄される
 app.post('/posts', handler2) // 返り値が破棄される
-export type AppType = typeof app // ルート情報が不完全
+export type PostsAppType = typeof app // ルート情報が不完全
 
 // ✅ OK: メソッドチェーン - 完全な型推論
 const app = new Hono()
-  .get('/posts', handler1)
-  .post('/posts', handler2)
-export type AppType = typeof app // 全ルート情報を含む
+  .basePath("/api/posts")
+  .get('/', handler1)
+  .post('/', handler2)
+export type PostsAppType = typeof app // 全ルート情報を含む
 ```
 
 #### ミドルウェア適用
 
-**⚠️ サブルート内で`.use()`を使うと型推論が壊れる。メインアプリ側で適用すること。**
+**ドメインベースRPC分割では、各ドメインのroute.tsで直接ミドルウェアを適用します。**
 
 ```typescript
-// ❌ NG: サブルート内で.use() → 型が ClientRequest<{}> になる
-export const adminUserRoutes = new Hono()
-  .use("*", adminAuthMiddleware)
-  .delete("/:id", handler)
+// apps/web/src/app/api/admin/users/[[...route]]/route.ts
+import { Hono } from "hono"
+import { handle } from "hono/vercel"
+import { adminAuthMiddleware } from "@/middleware/admin-auth"
 
-// ✅ OK: メインアプリ側で.use()を適用
 const app = new Hono()
-  .basePath("/api")
-  .use("/admin/*", adminAuthMiddleware)  // ← ここで適用
-  .route("/admin", adminApp)
+  .basePath("/api/rpc/admin/users")
+  .use("/*", adminAuthMiddleware)  // ドメインroute.ts内で適用
+  .get("/", listUsersHandler)
+  .delete("/:id", deleteUserHandler)
+
+export type AdminUsersAppType = typeof app
+
+export const GET = handle(app)
+export const DELETE = handle(app)
 ```
 
 ### 7. Zodバリデーション戦略

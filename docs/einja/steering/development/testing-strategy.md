@@ -425,7 +425,7 @@ describe('UserRepository - データベースエラー', () => {
 
 ```typescript
 // apps/web/__tests__/integration/post-api.test.ts
-import { apiClient } from '@/lib/api-client'
+import { rpc } from '@/lib/api/rpc'
 import { prisma } from '@repo/server-core/infrastructure/database/client'
 
 describe('Post API統合テスト', () => {
@@ -454,7 +454,7 @@ describe('Post API統合テスト', () => {
     })
 
     // When: API呼び出し
-    const response = await apiClient.posts.$get({
+    const response = await rpc.posts.$get({
       query: { page: '1', limit: '10' }
     })
 
@@ -475,7 +475,7 @@ describe('Post API統合テスト', () => {
     })
 
     // When: 投稿作成APIを呼び出し
-    const response = await apiClient.posts.$post({
+    const response = await rpc.posts.$post({
       json: {
         title: 'New Post',
         content: 'Content',

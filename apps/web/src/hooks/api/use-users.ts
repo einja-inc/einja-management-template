@@ -6,7 +6,7 @@
 
 "use client";
 
-import { apiClient } from "@/lib/api/client";
+import { rpc } from "@/lib/api/rpc";
 import { parseResponse } from "@/lib/api/parse-response";
 import {
   type PaginatedUserList,
@@ -47,7 +47,7 @@ export function useUsers(filters: UserFilters = {}, initialData?: PaginatedUserL
   return useQuery({
     queryKey: userKeys.list(filters),
     queryFn: async () => {
-      const response = await apiClient.api.rpc.users.$get({
+      const response = await rpc.users.$get({
         query: {
           page: filters.page?.toString() ?? "1",
           limit: filters.limit?.toString() ?? "10",
@@ -72,7 +72,7 @@ export function useUser(id: string) {
   return useQuery({
     queryKey: userKeys.detail(id),
     queryFn: async () => {
-      const response = await apiClient.api.rpc.users[":id"].$get({
+      const response = await rpc.users[":id"].$get({
         param: { id },
       });
 

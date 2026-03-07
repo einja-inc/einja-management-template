@@ -49,8 +49,6 @@ export interface TaskLoopOptions {
 /** ポーリング間隔（ミリ秒） */
 const POLLING_INTERVAL_MS = 15_000;
 
-/** 親Issue自動Doneタイムアウト（ミリ秒） */
-const PARENT_DONE_TIMEOUT_MS = 120_000;
 
 /**
  * 現在日時を YYYY/MM/DD HH:mm:ss 形式で取得
@@ -336,9 +334,7 @@ export async function taskLoopCommand(
           parsedIssue,
           issueNumber,
           issueBranch,
-          vibeKanban,
-          stateManager,
-          currentRepo
+          stateManager
         );
 
         // 新たに着手可能になったタスクを開始
@@ -408,15 +404,13 @@ async function mergeCompletedPhases(
 }
 
 /**
- * Phase完了を検出し、親Issue Workspace作成 → PR作成・マージ → 親Issue Done 待機を実行
+ * Phase完了を検出し、PRを作成・マージする
  */
 async function checkAndHandlePhaseCompletion(
   parsedIssue: ParsedIssue,
   issueNumber: number,
   issueBranch: string,
-  vibeKanban: VibeKanbanClient,
-  stateManager: TaskStateManager,
-  currentRepo: VibeKanbanRepo
+  stateManager: TaskStateManager
 ): Promise<void> {
   const completedPhases = getCompletedPhaseNumbers(parsedIssue);
 
@@ -433,24 +427,6 @@ async function checkAndHandlePhaseCompletion(
 
     console.log(`\n🎯 Phase ${phaseNumber} が完了 - Phase完了処理を開始`);
 
-    // Step 1: 親Issue用Workspace作成（target = issue/N）
-    //   → Vibe-KanbanがPRマージを追跡できるように
-    try {
-      const reposWithIssueBranch = [{ repo_id: currentRepo.id, base_branch: issueBranch }];
-
-      await vibeKanban.startTaskAttempt(
-        `[Issue${issueNumber} Phase${phaseNumber}] Phase merge`,
-        "CLAUDE_CODE",
-        reposWithIssueBranch,
-        mapping.parentIssueId
-      );
-      console.log(`   ✅ 親Issue Workspace作成完了: Phase ${phaseNumber}`);
-    } catch (error) {
-      console.warn(`   ⚠️ 親Issue Workspace作成失敗: ${error}`);
-      // Workspace作成失敗でもマージは続行
-    }
-
-    // Step 2: PR作成・自動マージ
     try {
       await mergePhaseBranchIntoIssue(issueNumber, phaseNumber, issueBranch);
       mergedPhaseNumbers.add(phaseNumber);
@@ -459,40 +435,6 @@ async function checkAndHandlePhaseCompletion(
       console.error(`   ❌ Phase ${phaseNumber} のマージに失敗:`, error);
       throw error;
     }
-
-    // Step 3: 親Issue自動Done待機
-    //   → Vibe-KanbanがPRマージ検知して自動Doneにするのを待つ
-    //   → タイムアウト時はフォールバックで手動Done
-    await waitForParentIssueDone(vibeKanban, mapping.parentIssueId, phaseNumber);
-  }
-}
-
-/**
- * 親IssueのDone状態を待機（タイムアウト付きフォールバック）
- */
-async function waitForParentIssueDone(
-  vibeKanban: VibeKanbanClient,
-  parentIssueId: string,
-  phaseNumber: number
-): Promise<void> {
-  const start = Date.now();
-
-  while (Date.now() - start < PARENT_DONE_TIMEOUT_MS) {
-    const issue = await vibeKanban.getTask(parentIssueId);
-    if (issue?.status === "Done") {
-      console.log(`   ✅ 親Issue Done確認: Phase ${phaseNumber}`);
-      return;
-    }
-    await sleep(15_000);
-  }
-
-  // タイムアウト: 手動でDoneに更新
-  console.warn(`   ⚠️ 親Issue Phase ${phaseNumber} の自動Done検知がタイムアウト。手動更新します。`);
-  try {
-    await vibeKanban.updateTask(parentIssueId, "Done");
-    console.log(`   ✅ 親Issue 手動Done完了: Phase ${phaseNumber}`);
-  } catch (error) {
-    console.error(`   ❌ 親Issue Done更新失敗: Phase ${phaseNumber}`, error);
   }
 }
 

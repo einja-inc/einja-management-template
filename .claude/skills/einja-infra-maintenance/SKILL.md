@@ -66,6 +66,21 @@ docker compose ps 2>/dev/null | grep postgres
 # === 開発サーバー状態 ===
 pnpm dev:status 2>/dev/null || echo "停止中"
 
+# === デフォルトトークン設定状況 ===
+DEFAULTS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/einja/defaults.json"
+if [ -f "$DEFAULTS_FILE" ]; then
+  echo "✅ デフォルトトークン設定ファイル"
+  # jqがある場合はキーの有無を表示
+  if command -v jq >/dev/null 2>&1; then
+    for key in VERCEL_TOKEN NEON_API_KEY GITHUB_TOKEN VERCEL_ORG_ID; do
+      val=$(jq -r ".tokens.${key} // empty" "$DEFAULTS_FILE")
+      [ -n "$val" ] && echo "  ✅ $key" || echo "  ❌ $key"
+    done
+  fi
+else
+  echo "❌ デフォルトトークン未設定"
+fi
+
 # === トークン有効性検証（.env.personal 存在時のみ） ===
 if [ -f ".env.personal" ]; then
   # 並行実行で高速化（各コマンドにタイムアウト設定）
@@ -98,6 +113,8 @@ Skill起動時の引数やユーザーの指示から意図が読み取れる場
 - `環境変数を追加したい` → カテゴリ2: 環境変数管理へ直接遷移
 - `CIが失敗してる` → カテゴリ7: GitHub Actions CI/CD管理へ直接遷移
 - `ワークフローの実行状況を見たい` → カテゴリ7: GitHub Actions CI/CD管理へ直接遷移
+- `デフォルトトークンを設定したい` → カテゴリ8: デフォルトトークン管理へ直接遷移
+- `共通トークンをプロジェクトに適用したい` → カテゴリ8: デフォルトトークン管理へ直接遷移
 
 ### 意図が不明確な場合のみメニューを表示
 
@@ -115,6 +132,7 @@ Phase 1の検出結果から、推奨カテゴリにマーク（推奨）を付�
 | neonctl未インストール | Neon管理 |
 | `.env.personal`不在 | 環境変数管理 |
 | トークン無効/期限切れ | 環境変数管理（個人トークン再設定） |
+| デフォルトトークン未設定 | デフォルトトークン管理 |
 | 上記に該当しない | 環境状態確認（デフォルト） |
 
 | 選択肢 | 説明 |
@@ -126,6 +144,7 @@ Phase 1の検出結果から、推奨カテゴリにマーク（推奨）を付�
 | GitHub Secrets管理 | 一覧表示、個別設定、一括設定 |
 | 環境状態確認 | 包括的ヘルスチェック |
 | GitHub Actions CI/CD管理 | ワークフロー状態確認、失敗調査、手動トリガー |
+| デフォルトトークン管理 | 組織共通トークン（dev@einja.net）の設定・確認・検証・プロジェクト適用 |
 
 ---
 
@@ -254,8 +273,9 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
    # チーム切り替え（必要な場合）
    vercel switch <team-slug>
 
-   # アプリごとにプロジェクト作成
-   for APP_NAME in web admin; do
+   # apps/ 配下のディレクトリを動的取得
+   APP_DIRS=$(ls -d apps/*/  2>/dev/null | xargs -I{} basename {})
+   for APP_NAME in $APP_DIRS; do
      cd "apps/$APP_NAME"
      vercel link --project="${BASE_NAME}-${APP_NAME}" --yes
      vercel git connect "https://github.com/${GH_ORG}/${GH_REPO}" --yes
@@ -266,7 +286,9 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
 
 4. **APIでRoot Directory設定**（CLIでは不可: `vercel-cli-reference.md` L112）:
    ```bash
-   for APP_NAME in web admin; do
+   # apps/ 配下のディレクトリを動的取得
+   APP_DIRS=$(ls -d apps/*/  2>/dev/null | xargs -I{} basename {})
+   for APP_NAME in $APP_DIRS; do
      PROJECT_ID=$(cat "apps/$APP_NAME/.vercel/project.json" | jq -r '.projectId')
      VERCEL_ORG_ID=$(cat "apps/$APP_NAME/.vercel/project.json" | jq -r '.orgId')
      curl -X PATCH "https://api.vercel.com/v9/projects/$PROJECT_ID?teamId=$VERCEL_ORG_ID" \
@@ -278,7 +300,9 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
 
 5. **プロジェクトID/ORG IDを自動取得・表示**:
    ```bash
-   for APP_NAME in web admin; do
+   # apps/ 配下のディレクトリを動的取得
+   APP_DIRS=$(ls -d apps/*/  2>/dev/null | xargs -I{} basename {})
+   for APP_NAME in $APP_DIRS; do
      echo "$(echo $APP_NAME | tr '[:lower:]' '[:upper:]'):"
      echo "  PROJECT_ID: $(cat "apps/$APP_NAME/.vercel/project.json" | jq -r '.projectId')"
      echo "  ORG_ID: $(cat "apps/$APP_NAME/.vercel/project.json" | jq -r '.orgId')"
@@ -464,9 +488,10 @@ gh secret set VERCEL_ORG_ID --body "$VERCEL_ORG_ID"
 echo "✅ VERCEL_ORG_ID = $VERCEL_ORG_ID を設定しました"
 ```
 
-2-c. `VERCEL_PROJECT_ID_WEB` / `VERCEL_PROJECT_ID_ADMIN`（自動取得）:
+2-c. `VERCEL_PROJECT_ID_*`（自動取得）:
 ```bash
-for APP_NAME in web admin; do
+# apps/ 配下のディレクトリを動的取得（.vercelが存在するもの）
+for APP_NAME in $(for d in apps/*/; do [ -d "$d/.vercel" ] && basename "$d"; done); do
   # apps/<app>/.vercel/project.json から取得（vercel link 実行済みの場合）
   PROJECT_ID=$(cat "apps/$APP_NAME/.vercel/project.json" 2>/dev/null | jq -r '.projectId')
   if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then
@@ -533,6 +558,14 @@ for cmd in gh vercel neonctl dotenvx; do
   command -v "$cmd" >/dev/null 2>&1 && echo "✅ $cmd" || echo "❌ $cmd"
 done
 
+# === デフォルトトークン ===
+DEFAULTS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/einja/defaults.json"
+if [ -f "$DEFAULTS_FILE" ]; then
+  echo "✅ デフォルトトークン設定済み"
+else
+  echo "❌ デフォルトトークン未設定"
+fi
+
 # === トークン有効性検証（.env.personal 存在時のみ） ===
 if [ -f ".env.personal" ]; then
   # 並行実行で高速化（各コマンドにタイムアウト設定）
@@ -583,6 +616,12 @@ gh run list --limit 5
   ❌ neonctl 未インストール
   ✅ dotenvx 1.x
 
+🔑 デフォルトトークン
+  ✅ VERCEL_TOKEN 設定済み
+  ✅ NEON_API_KEY 設定済み
+  ✅ GITHUB_TOKEN 設定済み
+  ❌ VERCEL_ORG_ID 未設定
+
 🔑 トークン有効性
   ✅ GITHUB_TOKEN 有効
   ✅ VERCEL_TOKEN 有効
@@ -612,6 +651,7 @@ gh run list --limit 5
 | Neonブランチ取得失敗 | → カテゴリ4（Neon管理） |
 | GitHub Secrets不足 | → カテゴリ5（GitHub Secrets管理） |
 | CI失敗 | → カテゴリ7（GitHub Actions CI/CD管理 > 失敗調査） |
+| デフォルトトークン未設定 | → カテゴリ8（デフォルトトークン管理） |
 
 ❌が3個以上の場合は「初期セットアップが必要です。カテゴリ1を実行してください」と表示。
 
@@ -709,6 +749,67 @@ gh workflow view <workflow-file>
 - `.github/workflows/` 内の各ワークフローファイル
 - `docs/einja/instructions/deployment-setup.md`
 - `docs/einja/steering/infrastructure/deployment.md`
+
+---
+
+## カテゴリ8: デフォルトトークン管理
+
+### 概要
+
+組織共通のトークン（`dev@einja.net` アカウント）をグローバルデフォルトとして `~/.config/einja/defaults.json` に保存し、複数プロジェクトで再利用する機能。
+
+> **クイック操作**: `pnpm env` → 「デフォルトトークン管理」を選択
+
+### サブメニュー
+- **トークンを設定/更新**: 個別にデフォルトトークンを入力
+- **プロジェクトに適用**: デフォルトを `.env.personal` にコピー
+- **トークンを検証**: API接続テスト
+
+### 管理対象トークン
+
+| キー | 用途 | 取得先 |
+|------|------|--------|
+| `VERCEL_TOKEN` | Vercel CLI認証 | https://vercel.com/account/tokens |
+| `NEON_API_KEY` | Neon CLI認証 | https://console.neon.tech/app/settings/api-keys |
+| `GITHUB_TOKEN` | GitHub API認証 | https://github.com/settings/tokens/new |
+| `VERCEL_ORG_ID` | Vercel組織ID | `apps/web/.vercel/project.json` の `orgId` |
+
+### 実行手順
+
+#### トークンを設定/更新
+1. `pnpm env` → 「デフォルトトークン管理」→「トークンを設定/更新」
+2. 各トークンについて設定するか確認（現在値をマスク表示）
+3. 入力されたトークンを `~/.config/einja/defaults.json` に保存
+
+#### プロジェクトに適用
+1. 「プロジェクトに適用」を選択
+2. 各トークンについて `.env.personal` への適用を確認
+3. 承認されたトークンのみ `.env.personal` に書き込み
+
+#### トークンを検証
+各トークンのAPIエンドポイントに接続テスト:
+- `GITHUB_TOKEN`: `https://api.github.com/user`
+- `VERCEL_TOKEN`: `https://api.vercel.com/v2/user`
+- `NEON_API_KEY`: `https://console.neon.tech/api/v2/projects`
+
+### トークン参照の優先順位
+
+```
+プロジェクト .env.personal  >  グローバルデフォルト (~/.config/einja/defaults.json)
+```
+
+### セキュリティ
+
+| 項目 | 詳細 |
+|------|------|
+| 保存形式 | プレーンテキスト JSON（`.env.personal` と同等のリスクレベル） |
+| ディレクトリ権限 | `~/.config/einja/` を `0700` で作成 |
+| ファイル権限 | `defaults.json` を `0600` で作成 |
+| CI環境 | `process.env.CI` が truthy の場合、読み書きともにスキップ |
+
+### 参照ドキュメント
+- `docs/einja/instructions/environment-setup.md`
+- `docs/einja/steering/infrastructure/environment-variables.md`
 
 ---
 

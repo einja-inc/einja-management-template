@@ -184,7 +184,7 @@ cd einja-management-template
 # 3. ターミナルを再起動
 exec $SHELL
 
-# 4. 環境セットアップ（.env、DB起動・初期化）
+# 4. ツールセットアップ（Volta/direnv/dotenvx）
 pnpm dev:setup
 
 # 5. 開発サーバー起動（バックグラウンド）
@@ -201,7 +201,7 @@ pnpm dev:bg
 | コマンド | タイミング | 内容 |
 |---------|-----------|------|
 | `./scripts/init.sh` | 初回のみ | Volta/Node/pnpmのインストール |
-| `pnpm dev:setup` | 初回 + 環境変更時 | .env作成、DB起動・初期化 |
+| `pnpm dev:setup` | 初回のみ | ツールインストール（Volta/direnv/dotenvx） |
 | `pnpm dev:bg` | 毎回 | 開発サーバー起動（バックグラウンド・推奨） |
 | `pnpm dev:status` | 随時 | 開発サーバーの状態確認 |
 | `pnpm dev:stop` | 随時 | 開発サーバーを停止 |

@@ -40,7 +40,7 @@
 | preview | `.env.preview`（Neon環境変数含む） | ✅ | ✅ |
 | 本番 | `.env.production` | ✅ | ✅ |
 
-**ポイント**: ローカル開発も暗号化ファイル(`.env.local`)を使用。`pnpm dev:setup`で復号して`.env`を生成。
+**ポイント**: ローカル開発も暗号化ファイル(`.env.local`)を使用。`pnpm dev`で自動復号して`.env`を生成。
 
 ---
 
@@ -56,7 +56,7 @@
 │  └─ チーム全員が使う共通設定                                      │
 └─────────────────────────────────────────────────────────────────┘
                               │
-                              │ pnpm dev:setup で自動復号
+                              │ pnpm dev で自動復号
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  .env（平文・Gitで共有しない）                                    │
@@ -86,7 +86,7 @@
 **Q: なぜ `.env.local` を direnv で直接読まないの？**
 
 A: `.env.local` は暗号化されているため、direnv では読めません。
-   `pnpm dev:setup` が復号して `.env` を作成し、それを direnv が読みます。
+   `pnpm dev` が自動復号して `.env` を作成し、それを direnv が読みます。
 
 **Q: チームで共有する設定を変えたいときは？**
 
@@ -192,7 +192,7 @@ A: `.env` は毎回再生成されますが、秘密情報は `.env.local`（暗
 └── .env.personal           # 個人用トークン（Git除外）
 ```
 
-**★ポイント**: `.env.local`は暗号化されてGitで共有。`pnpm dev:setup`で復号して`.env`が生成される。
+**★ポイント**: `.env.local`は暗号化されてGitで共有。`pnpm dev`で自動復号して`.env`が生成される。
 
 ---
 
@@ -207,11 +207,9 @@ sequenceDiagram
     participant Direnv as direnv
     participant App as アプリケーション
 
-    Dev->>Setup: pnpm dev:setup（初回のみ）
-    Setup->>Setup: .env.local（暗号化）を復号
-    Setup->>Setup: .env を生成
+    Dev->>Setup: pnpm dev:setup（初回のみ・ツールインストール）
     Setup->>Setup: .env.personal をテンプレートから作成
-    Setup-->>Dev: セットアップ完了
+    Setup-->>Dev: ツールセットアップ完了
 
     Dev->>Direnv: ディレクトリに入る
     Direnv->>Direnv: .env を読み込み
@@ -293,6 +291,47 @@ dotenvx採用により、GitHub Secretsは**環境ごとに1つの秘密鍵の�
 1. **定期ローテーション**: 90日ごとに秘密鍵を更新
 2. **漏洩時対応**: 即座に全環境の秘密鍵を再生成
 3. **手順**: `dotenvx encrypt`で新しい鍵を生成し、保管先を更新
+
+---
+
+## 8. デフォルトトークンとプロジェクト固有トークンの区別
+
+### 概要
+
+環境変数のうち、認証トークンには**組織共通**（デフォルト）と**プロジェクト固有**の2種類がある。
+
+### 区分
+
+| 区分 | 説明 | 例 |
+|------|------|-----|
+| デフォルト | `dev@einja.net` の全社共通アカウントトークン | VERCEL_TOKEN, NEON_API_KEY, GITHUB_TOKEN |
+| プロジェクト固有 | 特定プロジェクト専用のトークン | 別アカウントのVERCEL_TOKEN等 |
+
+### 保存先と優先順位
+
+```
+プロジェクト .env.personal（最優先）
+  ↑ 上書き可能
+グローバルデフォルト (~/.config/einja/defaults.json)
+```
+
+- **デフォルト**: `~/.config/einja/defaults.json` に保存。`pnpm env` → 「デフォルトトークン管理」で管理
+- **プロジェクト固有**: `.env.personal` に直接設定。デフォルトを上書き
+
+### 運用フロー
+
+1. **初回**: `pnpm env` でデフォルトトークンを設定（組織共通アカウント）
+2. **新規プロジェクト**: `pnpm dev:setup`（ツールインストール時） または `pnpm env` でデフォルトをプロジェクトに適用
+3. **別アカウントが必要な場合**: `.env.personal` でプロジェクト固有のトークンを上書き
+
+### ホワイトリスト制
+
+デフォルトとして保存できるキーは以下の4つに限定されている（セキュリティ上の理由）:
+
+- `VERCEL_TOKEN`
+- `NEON_API_KEY`
+- `GITHUB_TOKEN`
+- `VERCEL_ORG_ID`
 
 ---
 

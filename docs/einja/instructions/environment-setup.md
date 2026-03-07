@@ -12,7 +12,7 @@
 
 ```
 .env.local（暗号化・Git共有）
-       ↓ pnpm dev:setup で復号
+       ↓ pnpm dev で自動復号
 .env（作業用・毎回再生成）+ .env.personal（個人トークン）
        ↓ direnv で自動読み込み
     開発サーバー
@@ -52,8 +52,8 @@ pnpm dev:setup
 # - Volta（Node.jsバージョン管理）
 # - direnv（環境変数自動読み込み）
 # - dotenvx（環境変数暗号化）
-# - .env ファイル作成
-# - GITHUB_TOKEN設定（対話式）
+# - .env.personal設定（GITHUB_TOKEN等）
+# ※ .env生成・DB起動は pnpm dev で自動実行
 ```
 
 ### 環境変数の設定・変更（対話式ウィザード）
@@ -160,7 +160,7 @@ dotenvx decrypt -f .env.production
 └── .env.personal           # 個人用トークン（Git除外）
 ```
 
-**★ポイント**: `.env.local` は暗号化されてGitで共有。`pnpm dev:setup` で復号して `.env` が生成される。
+**★ポイント**: `.env.local` は暗号化されてGitで共有。`pnpm dev` で自動復号して `.env` が生成される。
 
 ### .env.personal.example（個人用トークンテンプレート）
 
@@ -284,7 +284,7 @@ git commit -m "chore: ローカル開発設定を更新"
 git push
 
 # 6. チームメンバーへの通知
-# → メンバーは git pull 後に pnpm dev:setup で反映
+# → メンバーは git pull 後に pnpm dev で自動反映
 ```
 
 **注意**: `.env.keys` に対応する秘密鍵（`DOTENV_PRIVATE_KEY_LOCAL`）が必要です。
@@ -569,7 +569,7 @@ dotenvx run -f .env -f .env.local -- <command>
    vi .env.personal
 
    # .env は通常 .env.local から自動生成されるため、直接編集は非推奨
-   # .env.local を編集して pnpm dev:setup を再実行する
+   # .env.local を編集して pnpm dev を再実行する
    ```
 
 5. **環境固有の変数かどうかを確認**
@@ -614,6 +614,71 @@ dotenvx run -f .env -f .env.local -- <command>
    git commit -m "chore: NEW_API_KEY 環境変数を追加"
    git push
    ```
+
+## デフォルトトークン管理
+
+### 概要
+
+組織共通のトークン（`dev@einja.net` アカウント）をグローバルデフォルトとして保存し、複数プロジェクトで再利用する機能です。新規プロジェクト作成時に毎回同じトークンを入力する手間を省きます。
+
+### 保存先
+
+| 項目 | 詳細 |
+|------|------|
+| パス | `~/.config/einja/defaults.json` |
+| XDG対応 | `$XDG_CONFIG_HOME/einja/defaults.json` |
+| ディレクトリ権限 | `0700` |
+| ファイル権限 | `0600` |
+
+### 管理対象トークン
+
+| キー | 用途 | 取得先 |
+|------|------|--------|
+| `VERCEL_TOKEN` | Vercel CLI認証 | [Vercel Dashboard](https://vercel.com/account/tokens) |
+| `NEON_API_KEY` | Neon CLI認証 | [Neon Console](https://console.neon.tech/app/settings/api-keys) |
+| `GITHUB_TOKEN` | GitHub API認証 | [GitHub Settings](https://github.com/settings/tokens/new) |
+| `VERCEL_ORG_ID` | Vercel組織ID | `apps/web/.vercel/project.json` の `orgId` |
+
+### 使い方
+
+#### デフォルトトークンの設定
+
+```bash
+# 環境変数ウィザードを起動
+pnpm env
+
+# 「デフォルトトークン管理」→「トークンを設定/更新」を選択
+```
+
+#### プロジェクトへの適用
+
+```bash
+# 環境変数ウィザードを起動
+pnpm env
+
+# 「デフォルトトークン管理」→「プロジェクトに適用」を選択
+# → 各トークンを .env.personal にコピー
+```
+
+#### 初回セットアップ時の自動検出
+
+`pnpm dev:setup` 実行時（ツールインストール）にデフォルトトークンが検出されると、使用するかを確認されます:
+- **Yes**: デフォルトトークン（GITHUB_TOKEN, VERCEL_TOKEN, NEON_API_KEY）を `.env.personal` に自動注入
+- **No**: 手動入力フローへ進む
+
+### トークン参照の優先順位
+
+```
+プロジェクト .env.personal（最優先）
+  ↑ 上書き
+グローバルデフォルト (~/.config/einja/defaults.json)
+```
+
+### CI環境での動作
+
+CI環境（`process.env.CI` が設定されている場合）では、デフォルトトークンの読み書きは自動的にスキップされます。CI/CDでは GitHub Secrets を使用してください。
+
+---
 
 ## .env.personal のセキュリティ
 

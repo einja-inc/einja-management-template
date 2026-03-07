@@ -26,7 +26,7 @@
 - Worktree dev auto-assigns ports per branch; check `.env.local` for `PORT`.
 
 ## Build, Test, and Development Commands
-- `pnpm dev:setup`: initial setup (.env creation, DB start/init).
+- `pnpm dev:setup`: tool installation (Volta/direnv/dotenvx).
 - `pnpm dev:bg`: run dev servers in the background (logs at `log/dev.log`).
 - `pnpm dev:status` / `pnpm dev:logs` / `pnpm dev:stop`: manage background dev servers.
 - `pnpm build` / `pnpm start`: production build and run.

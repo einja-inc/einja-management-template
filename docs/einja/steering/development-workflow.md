@@ -82,7 +82,16 @@
 │      │  task-qa: 動作確認（Playwright/curl）（自動）        │←┘               │
 │      │       ↓ 全テスト合格                                 │                 │
 │      │  commit & push → PR 自動作成                         │                 │
+│      │       ↓                                              │                 │
+│      │  status → awaiting_review（Director承認待ち）        │                 │
 │      └─────────────────────────────────────────────────────┘                 │
+│           │                                                                   │
+│           ▼                                                                   │
+│      Director ゲートチェック                                                  │
+│      ├── Fast Gate: ステータス整合、PR整合、成果物存在、QA結果、CI、危険シグナル│
+│      ├── Risk Gate（条件付き）: 重要領域のスモークテスト                       │
+│      ├── 通過 → Worker正常終了                                                │
+│      └── 不通過 → Worker修正指示（最大2回）→ 3回目NG → Managerエスカレーション│
 │           │                                                                   │
 │           ▼                                                                   │
 │      【GitHubでPRレビュー】                                                   │
@@ -189,10 +198,10 @@ Spec PR                # 仕様書レビュー用
 `/einja:issue-exec` は Manager → Director → Worker の3階層でタスクを並列実行します。
 
 1. **Manager** が Issue をパースし、Phase 毎に Director を tmux で起動
-2. **Director** が Phase 内のタスクグループを依存順に Worker を起動
+2. **Director** が spec事前一括チェック後、依存グラフ（DAG）を構築し、タスクグループを Layer 順に Worker を起動
 3. **Worker** が `einja-task-exec` Skill を実行（executer → reviewer → qa → commit）
-4. Worker 完了後、PR が自動作成される
-5. マージモードに応じて PR がマージされ、次のタスクが自動開始
+4. Worker 完了後、PR が自動作成され、**Director がゲートチェック（Fast Gate / Risk Gate）を実施**
+5. ゲート通過後、マージモードに応じて PR がマージされ、次のタスクが自動開始
 
 ユーザーは `tmux attach -t einja-{issue番号}` で全プロセスを監視できます。
 
@@ -225,9 +234,17 @@ task-executer → task-reviewer → task-qa → PR作成
 ### マージ後の自動処理（/einja:issue-exec 使用時）
 
 ```
-Worker: task-exec 完了 → commit & push → PR 作成
+Worker: task-exec 完了 → commit & push → PR 作成 → status: awaiting_review
       ↓
-Director: PR マージ検知
+Director: ゲートチェック実施
+├── Fast Gate: ステータス整合、PR整合、成果物存在、QA結果、CI、危険シグナル
+├── Risk Gate（条件付き）: 重要領域のスモークテスト
+├── 通過 → directorVerdict: approved → Worker 正常終了
+└── 不通過 → directorVerdict: fix_required → Worker 修正（最大2回、fixCount で管理）
+      ↓ ゲート通過後
+Director: マージモードに応じた PR 処理
+      ↓
+PR マージ検知
       ↓
 GitHub Issue チェックボックス更新
       ↓

@@ -105,14 +105,11 @@ flowchart TD
         D1 --> D4[Step 4: direnv インストール<br/>macOS: brew install direnv]
         D4 --> D5[Step 5: シェルに direnv hook 追加]
         D5 --> D6[Step 6: dotenvx インストール]
-        D6 --> D7["Step 7: .env 作成<br/>（.env.local + .env.keys で復号）"]
-        D7 --> D8["Step 8: .env.personal 作成<br/>+ GITHUB_TOKEN 設定（対話的）"]
-        D8 --> D9["Step 9: direnv allow<br/>→ .envrc 評価（Serena MCP 自動起動）"]
-        D9 --> D10["Step 10: PostgreSQL 起動<br/>（docker-compose up -d postgres）"]
-        D10 --> D11["Step 11: DB 初期化<br/>（pnpm db:generate + pnpm db:push）"]
+        D6 --> D7["Step 7: .env.personal 作成<br/>+ GITHUB_TOKEN 設定（対話的）"]
+        D7 --> D8["Step 8: direnv allow<br/>→ .envrc 評価（Serena MCP 自動起動）"]
     end
 
-    D11 --> E[pnpm dev で開発開始]
+    D8 --> E["pnpm dev で開発開始<br/>（.env自動復号・DB起動・マイグレーション含む）"]
 
     style init fill:#e8f4fd,stroke:#2196F3
     style devsetup fill:#e8f5e9,stroke:#4CAF50
@@ -128,11 +125,8 @@ flowchart TD
 | Step 4: direnv | `setup-dev.ts` | macOS では `brew install direnv` を自動実行。他 OS は手動案内 |
 | Step 5: direnv hook | `setup-dev.ts` | `~/.zshrc` 等に `eval "$(direnv hook zsh)"` を追記 |
 | Step 6: dotenvx | `setup-dev.ts` | `curl -sfS https://dotenvx.sh/install.sh` で導入。失敗時は `npm install -g @dotenvx/dotenvx` にフォールバック |
-| Step 7: .env 作成 | `setup-dev.ts` | `.env.local`（暗号化済み） + `.env.keys`（秘密鍵）から `dotenvx decrypt` で `.env` を生成。worktree 環境では親リポジトリから `.env.keys` を自動コピー。失敗時は `.env.example` にフォールバック |
-| Step 8: .env.personal | `setup-dev.ts` | `.env.personal.example` からコピー → GITHUB_TOKEN を対話的に入力（スキップ可） |
-| Step 9: direnv 有効化 | `setup-dev.ts` | `direnv allow` 実行 → `.envrc` が評価される → Serena MCP サーバー自動起動 |
-| Step 10: DB 起動 | `setup-dev.ts` | `docker-compose up -d postgres` + 3秒の起動待機 |
-| Step 11: DB 初期化 | `setup-dev.ts` | `pnpm db:generate`（Prisma クライアント生成） + `pnpm db:push`（スキーマ適用） |
+| Step 7: .env.personal | `setup-dev.ts` | `.env.personal.example` からコピー → GITHUB_TOKEN を対話的に入力（スキップ可） |
+| Step 8: direnv 有効化 | `setup-dev.ts` | `direnv allow` 実行 → `.envrc` が評価される → Serena MCP サーバー自動起動 |
 
 #### .envrc の役割
 
@@ -283,7 +277,7 @@ sequenceDiagram
 | ファイル | 役割 | 呼び出し元 |
 |---------|------|-----------|
 | `scripts/init.sh` | Volta/Node.js/pnpm/direnv 初期導入（初回のみ） | `create-einja-app`（`post-setup.ts` から `bash scripts/init.sh`） / 手動実行 |
-| `scripts/setup-dev.ts` | 環境構築一式（Volta確認・direnv・dotenvx・.env復号・DB起動） | `pnpm dev:setup` |
+| `scripts/setup-dev.ts` | ツールインストール（Volta確認・direnv・dotenvx・.env.personal設定） | `pnpm dev:setup` |
 | `scripts/ensure-serena.sh` | Serena MCP サーバーの冪等起動（PIDベース） | `.envrc` から `source`（direnv 評価時に自動実行） |
 | `scripts/env-rotate-secrets.ts` | AUTH_SECRET / DOTENV_PRIVATE_KEY のローテーション | `create-einja-app`（`post-setup.ts` から `--all --non-interactive`） / `pnpm env:rotate-secrets` |
 | `.envrc` | dotenv 読み込み + worktree 間 .env.personal 共有 + Serena MCP 起動 | direnv（シェルでディレクトリ進入時に自動評価） |

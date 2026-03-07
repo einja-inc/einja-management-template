@@ -6,7 +6,7 @@
 ## 基本原則
 
 1. **シンプルさ優先**: 必要最小限の変更に留める。過度な汎用化・抽象化をしない
-2. **根本原因の追求**: 一時的な回避策ではなく、根本原因を特定して他の開発者、他のAgentプロセスでも再現性のある修正をする
+2. **根本原因と再現性の追求**: 一時的な回避策ではなく、根本原因を特定して他の開発者、他のAgentプロセスでも再現性のある修正をする
 3. **影響範囲の最小化**: 変更は必要な箇所のみ。関係ないコードに触れない
 4. **直接実装の禁止**: あなたは絶対に直接実装を行わない。すべての作業はsubagentに委託し、可能な限り並行で呼び出す。サブエージェントの出力はユーザにも見える場所に出力すること
 5. **実装品質の自己検証**: 複雑な変更では完了前に「よりエレガントな方法はないか」を自問する。ただし単純な修正には不要
@@ -253,7 +253,8 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `einja cli` `@einja/dev-cli` `create-einja-app` `公開` `リリース` `publish` `release` | `.claude/skills/einja-npm-release/SKILL.md` |
 | `インフラ` `環境変数管理` `Vercel` `Neon` `デプロイ設定` `GitHub Secrets` `環境セットアップ` `ローカルセットアップ` `ローカル環境` `セットアップ` `GitHub Actions` `CI/CD` `ワークフロー` | `.claude/skills/einja-infra-maintenance/SKILL.md` |
 | `Skill作るべき？` `Skill化` `skill-first` `Skill-first` | `.claude/skills/einja-skill-first/SKILL.md` |
-| `prebuild` `copy-presets` `generate-template` `preset:update` `presets/default` `CLAUDE.md.template` `ファイルマッピング` `マーカー仕様` `@einja:excluded` `@einja:managed` `@einja:project-private` `FileCopier` `ビルドパイプライン` `テンプレート仕様` | `.claude/skills/cli-package-specs/SKILL.md` |
+| `react-doctor` `React診断` `ヘルススコア` `Reactヘルス` | `.claude/skills/einja-react-doctor/SKILL.md` |
+| `Skill更新` `参照元を最新化` `Skillを最新化` `ref-updater` | `.claude/skills/einja-skill-ref-updater/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 
@@ -276,7 +277,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 
 ### パッケージビルド仕様（テンプレートリポジトリ限定）
 
-`@einja/dev-cli` と `create-einja-app` の2パッケージのビルド・テンプレート仕様は、上記キーワードトリガーにより `cli-package-specs` Skillが自動参照される。
+`@einja/dev-cli` と `create-einja-app` の2パッケージのビルド・テンプレート仕様は、`.claude/rules/cli-package-specs.md` のpath-specificルールにより、関連ファイル編集時に `cli-package-specs` Skillが自動参照される。
 
 ### マネージドディレクトリの編集について（テンプレートリポジトリ限定）
 

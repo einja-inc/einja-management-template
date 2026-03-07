@@ -76,19 +76,23 @@ AskUserQuestion:
 | `docs` | `docs/einja/` | ON |
 | `env` | `.envrc` | ON |
 | `tools` | `.vscode/settings.json` | ON |
+| `claude-md` | `CLAUDE.md`, `AGENTS.md` | ON |
+| `scripts` | `scripts/` | ON |
+| `root-config` | `package.json`, `.mcp.json` | ON |
+| `claude-config` | `.claude/settings.json` | ON |
 
 **create-einja-app カテゴリ一覧:**
 
 | カテゴリ名 | 対象ファイル | デフォルト |
 |-----------|-------------|-----------|
 | `env` | `.env*`, `.node-version` | ON |
-| `tools` | `biome.json`, `.prettierrc`, `.editorconfig`（※ `.vscode/` はdev-cli管理のため除外） | ON |
+| `tools` | `biome.json`, `.biomeignore`, `.vibe-kanban.json`, `.prettierrc`, `.editorconfig` | ON |
 | `git` | `.gitignore`, `.gitattributes` | ON |
-| `git-hooks` | `.husky/` | ON |
+| `git-hooks` | `.husky/`, `.lintstagedrc.js` | ON |
 | `github` | `.github/workflows/`, `.github/actions/` | ON |
 | `docker` | `Dockerfile*`, `docker-compose*.yml` | ON |
 | `monorepo` | `turbo.json`, `pnpm-workspace.yaml` | ON |
-| `root-config` | `package.json`, `tsconfig.json` | ON |
+| `root-config` | `package.json`, `tsconfig.json`, `vitest.config.ts`, `postcss.config.cjs`, `next.config.ts`, `components.json`, `worktree.config.json` | ON |
 | `scripts` | `scripts/` | ON |
 | `docs` | `README.md`, `docs/` | ON |
 | `apps` | `apps/**` | **OFF** |

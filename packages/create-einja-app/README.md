@@ -148,7 +148,7 @@ $ npx create-einja-app add
 ```
 
 **除外されるファイル:**
-- `.claude/`, `docs/einja/`, `CLAUDE.md`, `.mcp.json` → @einja/cli管轄
+- `.claude/`, `docs/einja/`, `CLAUDE.md`, `AGENTS.md`, `.mcp.json`, `.envrc`, `.vscode/settings.json`, `scripts/` → @einja/cli管轄
 - `.gitignore`に含まれるファイル
 - 自動生成ファイル（node_modules/, styled-system/等）
 

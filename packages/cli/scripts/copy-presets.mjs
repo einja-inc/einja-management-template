@@ -127,6 +127,12 @@ const fileMappings = [
 		dest: path.join(cliDir, "presets/default/.vscode/settings.json"),
 		required: false,
 	},
+	// AGENTS.md
+	{
+		src: path.join(projectRoot, "AGENTS.md"),
+		dest: path.join(cliDir, "presets/default/AGENTS.md"),
+		required: true,
+	},
 	// package.json（JSON配布メカニズムの一部として）
 	{
 		src: path.join(projectRoot, "package.json"),

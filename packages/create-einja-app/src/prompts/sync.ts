@@ -27,8 +27,8 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
   },
   tools: {
     name: "開発ツール",
-    description: "biome.json, .prettierrc, .editorconfig, .vscode/",
-    patterns: ["biome.json", ".prettierrc*", ".editorconfig", ".vscode/"],
+    description: "biome.json, .biomeignore, .vibe-kanban.json, .prettierrc, .editorconfig",
+    patterns: ["biome.json", ".biomeignore", ".vibe-kanban.json", ".prettierrc*", ".editorconfig"],
     defaultChecked: true,
     firstRunDefault: true,
   },
@@ -41,8 +41,8 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
   },
   "git-hooks": {
     name: "Git Hooks",
-    description: ".husky/",
-    patterns: [".husky/"],
+    description: ".husky/, .lintstagedrc.js",
+    patterns: [".husky/", ".lintstagedrc.js"],
     defaultChecked: false,
     firstRunDefault: true,
   },
@@ -67,8 +67,8 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
   },
   "root-config": {
     name: "ルート設定",
-    description: "package.json, tsconfig.json",
-    patterns: ["package.json", "tsconfig.json"],
+    description: "package.json, tsconfig.json, vitest.config.ts, postcss.config.cjs, next.config.ts, components.json, worktree.config.json",
+    patterns: ["package.json", "tsconfig.json", "vitest.config.ts", "postcss.config.cjs", "next.config.ts", "components.json", "worktree.config.json"],
     defaultChecked: false,
     firstRunDefault: true,
   },

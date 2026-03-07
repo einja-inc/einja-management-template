@@ -105,7 +105,7 @@ describe("category-validator", () => {
 
   describe("VALID_CATEGORIES", () => {
     it("全ての有効なカテゴリが定義されている", () => {
-      expect(VALID_CATEGORIES).toEqual(["commands", "agents", "skills", "hooks", "docs", "scripts", "env", "tools"]);
+      expect(VALID_CATEGORIES).toEqual(["commands", "agents", "skills", "hooks", "docs", "scripts", "env", "tools", "claude-md", "root-config", "claude-config"]);
     });
   });
 
@@ -115,6 +115,38 @@ describe("category-validator", () => {
         expect(CATEGORY_DESCRIPTIONS[category]).toBeDefined();
         expect(typeof CATEGORY_DESCRIPTIONS[category]).toBe("string");
       }
+    });
+  });
+
+  describe("新カテゴリのバリデーション", () => {
+    it("claude-mdカテゴリが有効として受け入れられること", () => {
+      const result = validateCategories("claude-md");
+
+      expect(result.valid).toBe(true);
+      expect(result.validCategories).toEqual(["claude-md"]);
+      expect(result.invalidCategories).toEqual([]);
+    });
+
+    it("root-configカテゴリが有効として受け入れられること", () => {
+      const result = validateCategories("root-config");
+
+      expect(result.valid).toBe(true);
+      expect(result.validCategories).toEqual(["root-config"]);
+      expect(result.invalidCategories).toEqual([]);
+    });
+
+    it("claude-configカテゴリが有効として受け入れられること", () => {
+      const result = validateCategories("claude-config");
+
+      expect(result.valid).toBe(true);
+      expect(result.validCategories).toEqual(["claude-config"]);
+      expect(result.invalidCategories).toEqual([]);
+    });
+
+    it("新カテゴリのCATEGORY_DESCRIPTIONSが定義されていること", () => {
+      expect(CATEGORY_DESCRIPTIONS["claude-md"]).toBe("Claude Code 設定ファイル (CLAUDE.md, AGENTS.md)");
+      expect(CATEGORY_DESCRIPTIONS["root-config"]).toBe("ルート設定 (package.json, .mcp.json)");
+      expect(CATEGORY_DESCRIPTIONS["claude-config"]).toBe("Claude Code 設定 (.claude/settings.json)");
     });
   });
 });

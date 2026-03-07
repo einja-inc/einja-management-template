@@ -6,7 +6,7 @@
 /**
  * 有効なカテゴリのリスト
  */
-export const VALID_CATEGORIES = ["commands", "agents", "skills", "hooks", "docs", "scripts", "env", "tools"] as const;
+export const VALID_CATEGORIES = ["commands", "agents", "skills", "hooks", "docs", "scripts", "env", "tools", "claude-md", "root-config", "claude-config"] as const;
 
 /**
  * カテゴリの型定義
@@ -25,6 +25,9 @@ export const CATEGORY_DESCRIPTIONS: Record<ValidCategory, string> = {
   scripts: "ユーティリティスクリプト (scripts/)",
   env: "環境設定ファイル (.envrc)",
   tools: "開発ツール設定 (.vscode/settings.json)",
+  "claude-md": "Claude Code 設定ファイル (CLAUDE.md, AGENTS.md)",
+  "root-config": "ルート設定 (package.json, .mcp.json)",
+  "claude-config": "Claude Code 設定 (.claude/settings.json)",
 };
 
 /**

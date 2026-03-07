@@ -117,6 +117,32 @@ sequenceDiagram
 
 シナリオ2と同じ。`dev-cli sync` と `create-einja-app sync` を必要に応じて実行。
 
+### dev-cli と create-einja-app の管轄境界
+
+| ファイル/ディレクトリ | 管轄 | sync カテゴリ |
+|---------------------|------|-------------|
+| `.claude/commands/einja/` | dev-cli | `commands` |
+| `.claude/agents/einja/` | dev-cli | `agents` |
+| `.claude/skills/einja-*/` | dev-cli | `skills` |
+| `.claude/hooks/einja/` | dev-cli | `hooks` |
+| `.claude/settings.json` | dev-cli | `claude-config` |
+| `docs/einja/` | dev-cli | `docs` |
+| `scripts/` | dev-cli | `scripts` |
+| `CLAUDE.md` | dev-cli | `claude-md` |
+| `AGENTS.md` | dev-cli | `claude-md` |
+| `.envrc` | dev-cli | `env` |
+| `.vscode/settings.json` | dev-cli | `tools` |
+| `package.json` | dev-cli | `root-config` |
+| `.mcp.json` | dev-cli | `root-config` |
+| `biome.json`, `.biomeignore` | create-einja-app | `tools` |
+| `.gitignore`, `.gitattributes` | create-einja-app | `git` |
+| `.husky/`, `.lintstagedrc.js` | create-einja-app | `git-hooks` |
+| `turbo.json`, `pnpm-workspace.yaml` | create-einja-app | `monorepo` |
+| `tsconfig.json`, `vitest.config.ts` 等 | create-einja-app | `root-config` |
+| `Dockerfile*`, `docker-compose*.yml` | create-einja-app | `docker` |
+| `.github/workflows/` | create-einja-app | `github` |
+| `apps/**`, `packages/**` | create-einja-app | `apps` / `packages` |
+
 ## インストール
 
 ```bash
@@ -184,6 +210,9 @@ npx @einja/dev-cli sync --only hooks
 - `scripts` - ユーティリティスクリプト
 - `env` - 環境設定ファイル（`.envrc`）
 - `tools` - 開発ツール設定（`.vscode/settings.json`）
+- `claude-md` - Claude Code 設定ファイル（CLAUDE.md, AGENTS.md）
+- `root-config` - ルート設定（package.json, .mcp.json）
+- `claude-config` - Claude Code設定（.claude/settings.json）
 
 **マーカーによる部分同期:**
 

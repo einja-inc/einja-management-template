@@ -58,6 +58,29 @@ function mergeWithMarkers(
 }
 
 /**
+ * CLAUDE.md.template のプレースホルダーを展開する
+ */
+function expandClaudeMdPlaceholders(content: string, pm: string): string {
+  const replacements: [string, string][] = [
+    ["{{INSTALL_COMMAND}}", `${pm} install`],
+    ["{{DEV_BG_COMMAND}}", `${pm} dev:bg`],
+    ["{{DEV_COMMAND}}", `${pm} dev`],
+    ["{{BUILD_COMMAND}}", `${pm} build`],
+    ["{{START_COMMAND}}", `${pm} start`],
+    ["{{LINT_COMMAND}}", `${pm} lint`],
+    ["{{FORMAT_COMMAND}}", `${pm} format`],
+    ["{{TYPE_CHECK_COMMAND}}", `${pm} typecheck`],
+    ["{{TEST_COMMAND}}", `${pm} test`],
+  ];
+
+  let result = content;
+  for (const [placeholder, value] of replacements) {
+    result = result.replaceAll(placeholder, value);
+  }
+  return result;
+}
+
+/**
  * ログ出力用のユーティリティ関数
  * --jsonオプション時は標準エラー出力、それ以外は標準出力に出力
  */
@@ -83,6 +106,9 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   const __dirname = path.dirname(__filename);
   const packageRoot = path.resolve(__dirname, "../..");
   const templateRoot = path.join(packageRoot, "presets", "default");
+
+  // パッケージマネージャーを検出（CLAUDE.md.templateのプレースホルダー展開用）
+  const pm = await detectPackageManager(cwd);
 
   log(chalk.blue("\n🔄 テンプレート同期を開始...\n"), options);
 
@@ -259,7 +285,12 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     >();
 
     for (const target of filesToProcess) {
-      const templateContent = await fs.readFile(target.templatePath, "utf-8");
+      let templateContent = await fs.readFile(target.templatePath, "utf-8");
+
+      // CLAUDE.md.template のプレースホルダーを展開
+      if (target.templatePath.endsWith("CLAUDE.md.template")) {
+        templateContent = expandClaudeMdPlaceholders(templateContent, pm);
+      }
 
       if (!target.exists) {
         // 新規ファイル
@@ -412,7 +443,13 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
   // マージ計算を並列実行
   const mergeResults = await batchProcessor.processBatch(filesToProcess, async (target) => {
-    const templateContent = await fs.readFile(target.templatePath, "utf-8");
+    let templateContent = await fs.readFile(target.templatePath, "utf-8");
+
+    // CLAUDE.md.template のプレースホルダーを展開
+    if (target.templatePath.endsWith("CLAUDE.md.template")) {
+      templateContent = expandClaudeMdPlaceholders(templateContent, pm);
+    }
+
     const projectPath = path.join(cwd, target.path);
 
     if (!target.exists || options.force) {
@@ -764,7 +801,6 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         const preset = await loadPreset("default");
         if (preset.config.requirements) {
           log("", options); // 空行
-          const pm = await detectPackageManager(cwd);
           await checkAndInstallDependencies(
             cwd,
             preset.config.requirements,

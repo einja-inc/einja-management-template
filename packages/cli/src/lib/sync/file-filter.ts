@@ -18,6 +18,7 @@ const CATEGORY_MAPPING: Record<string, string> = {
   tools: ".vscode",
   "root-config": ".", // package.json, .mcp.json
   "claude-config": ".claude", // .claude/settings.json
+  "claude-md": ".", // CLAUDE.md, AGENTS.md
 };
 
 /**
@@ -124,6 +125,38 @@ export class FileFilter {
             path: settingsPath,
             category,
             templatePath,
+            exists,
+          });
+        }
+        continue;
+      }
+
+      // claude-mdカテゴリはCLAUDE.md(.template)とAGENTS.mdを対象とする特別処理
+      if (category === "claude-md") {
+        // CLAUDE.md.template → CLAUDE.md
+        const claudeMdTemplatePath = path.join(this.templateRoot, "CLAUDE.md.template");
+        const claudeMdProjectPath = path.join(this.projectRoot, "CLAUDE.md");
+
+        if (await fs.pathExists(claudeMdTemplatePath)) {
+          const exists = await fs.pathExists(claudeMdProjectPath);
+          targets.push({
+            path: "CLAUDE.md",
+            category,
+            templatePath: claudeMdTemplatePath,
+            exists,
+          });
+        }
+
+        // AGENTS.md
+        const agentsMdTemplatePath = path.join(this.templateRoot, "AGENTS.md");
+        const agentsMdProjectPath = path.join(this.projectRoot, "AGENTS.md");
+
+        if (await fs.pathExists(agentsMdTemplatePath)) {
+          const exists = await fs.pathExists(agentsMdProjectPath);
+          targets.push({
+            path: "AGENTS.md",
+            category,
+            templatePath: agentsMdTemplatePath,
             exists,
           });
         }
@@ -246,6 +279,14 @@ export class FileFilter {
       // claude-configカテゴリは.claude/settings.jsonのみ
       if (category === "claude-config") {
         if (filePath === ".claude/settings.json") {
+          return category;
+        }
+        continue;
+      }
+
+      // claude-mdカテゴリはCLAUDE.mdとAGENTS.mdのみ
+      if (category === "claude-md") {
+        if (filePath === "CLAUDE.md" || filePath === "AGENTS.md") {
           return category;
         }
         continue;

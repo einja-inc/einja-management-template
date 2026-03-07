@@ -8,13 +8,13 @@ import * as logger from "@/utils/logger.js";
  */
 const CATEGORY_PATTERNS: Record<SyncCategory, string[]> = {
   env: [".env*", ".envrc", ".volta", ".node-version"],
-  tools: ["biome.json", ".prettierrc*", ".editorconfig", ".vscode/**"],
+  tools: ["biome.json", ".biomeignore", ".vibe-kanban.json", ".prettierrc*", ".editorconfig"],
   git: [".gitignore", ".gitattributes"],
-  "git-hooks": [".husky/**"],
+  "git-hooks": [".husky/**", ".lintstagedrc.js"],
   github: [".github/workflows/**", ".github/actions/**", ".github/dependabot.yml"],
   docker: ["Dockerfile*", "docker-compose*.yml", ".dockerignore"],
   monorepo: ["turbo.json", "pnpm-workspace.yaml"],
-  "root-config": ["package.json", "tsconfig.json"],
+  "root-config": ["package.json", "tsconfig.json", "vitest.config.ts", "postcss.config.cjs", "next.config.ts", "components.json", "worktree.config.json"],
   scripts: ["scripts/**"],
   apps: ["apps/**"],
   packages: ["packages/**"],

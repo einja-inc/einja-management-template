@@ -426,4 +426,73 @@ describe("FileFilter", () => {
       expect(targets[0].category).toBe("claude-config");
     });
   });
+
+  describe("scanSyncTargets - claude-mdカテゴリ", () => {
+    it("claude-mdカテゴリでCLAUDE.md.templateをCLAUDE.mdとして検出すること", async () => {
+      // Given: テンプレートにCLAUDE.md.templateを作成
+      await fs.writeFile(path.join(templateDir, "CLAUDE.md.template"), "# Claude MD Template");
+
+      // When: claude-mdカテゴリのみをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["claude-md"] });
+
+      // Then: CLAUDE.mdとして検出される
+      expect(targets.length).toBe(1);
+      expect(targets[0].path).toBe("CLAUDE.md");
+      expect(targets[0].category).toBe("claude-md");
+      expect(targets[0].templatePath).toBe(path.join(templateDir, "CLAUDE.md.template"));
+    });
+
+    it("claude-mdカテゴリでAGENTS.mdを検出すること", async () => {
+      // Given: テンプレートにAGENTS.mdを作成
+      await fs.writeFile(path.join(templateDir, "AGENTS.md"), "# Agents");
+
+      // When: claude-mdカテゴリのみをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["claude-md"] });
+
+      // Then: AGENTS.mdが検出される
+      expect(targets.length).toBe(1);
+      expect(targets[0].path).toBe("AGENTS.md");
+      expect(targets[0].category).toBe("claude-md");
+    });
+
+    it("claude-mdカテゴリでCLAUDE.md.templateとAGENTS.mdの両方を検出すること", async () => {
+      // Given: テンプレートに両方のファイルを作成
+      await fs.writeFile(path.join(templateDir, "CLAUDE.md.template"), "# Claude MD Template");
+      await fs.writeFile(path.join(templateDir, "AGENTS.md"), "# Agents");
+
+      // When: claude-mdカテゴリのみをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["claude-md"] });
+
+      // Then: 両方が検出される
+      expect(targets.length).toBe(2);
+      expect(targets.some((t) => t.path === "CLAUDE.md")).toBe(true);
+      expect(targets.some((t) => t.path === "AGENTS.md")).toBe(true);
+      expect(targets.every((t) => t.category === "claude-md")).toBe(true);
+    });
+
+    it("claude-mdカテゴリでローカルにCLAUDE.mdが存在する場合、exists=trueになること", async () => {
+      // Given: テンプレートとプロジェクトの両方にファイルを作成
+      await fs.writeFile(path.join(templateDir, "CLAUDE.md.template"), "# Template");
+      await fs.writeFile(path.join(projectDir, "CLAUDE.md"), "# Local");
+
+      // When: claude-mdカテゴリをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["claude-md"] });
+
+      // Then: exists=trueになる
+      const claudeMd = targets.find((t) => t.path === "CLAUDE.md");
+      expect(claudeMd?.exists).toBe(true);
+    });
+  });
+
+  describe("getCategoryFromPath - claude-md", () => {
+    it("CLAUDE.mdはclaude-mdカテゴリとして判定されること", () => {
+      const category = fileFilter.getCategoryFromPath("CLAUDE.md");
+      expect(category).toBe("claude-md");
+    });
+
+    it("AGENTS.mdはclaude-mdカテゴリとして判定されること", () => {
+      const category = fileFilter.getCategoryFromPath("AGENTS.md");
+      expect(category).toBe("claude-md");
+    });
+  });
 });

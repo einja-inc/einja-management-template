@@ -292,3 +292,84 @@ jsonPaths:
 | 11 | データベース初期化（`pnpm db:generate` + `pnpm db:push`） | L610-613 |
 
 worktree 環境では `.env.keys` をメインリポジトリから自動コピーする機能あり（L45-67, L73-90）。
+
+---
+
+## 7. sync カテゴリ仕様
+
+### 7.1 dev-cli sync カテゴリ
+
+**実装**: `packages/cli/src/lib/sync/file-filter.ts`
+
+| カテゴリ | 対象ファイル | 特別処理 |
+|---------|------------|---------|
+| `commands` | `.claude/commands/einja/**` | - |
+| `agents` | `.claude/agents/einja/**` | - |
+| `skills` | `.claude/skills/{einja-,_einja-}*/**` | プレフィックスフィルタ |
+| `hooks` | `.claude/hooks/**` | - |
+| `docs` | `docs/einja/**` | - |
+| `scripts` | `scripts/**` | - |
+| `env` | `.envrc` | 単一ファイル |
+| `tools` | `.vscode/settings.json` | 単一ファイル |
+| `claude-md` | `CLAUDE.md`, `AGENTS.md` | CLAUDE.md.templateからプレースホルダー展開 |
+| `root-config` | `package.json`, `.mcp.json` | JSONマージ |
+| `claude-config` | `.claude/settings.json` | JSONマージ |
+
+**バリデーション**: `packages/cli/src/lib/sync/category-validator.ts`
+
+### 7.2 create-einja-app sync カテゴリ
+
+**実装**: `packages/create-einja-app/src/generators/sync.ts`
+
+| カテゴリ | 対象パターン |
+|---------|------------|
+| `env` | `.env*`, `.envrc`, `.volta`, `.node-version` |
+| `tools` | `biome.json`, `.biomeignore`, `.vibe-kanban.json`, `.prettierrc*`, `.editorconfig` |
+| `git` | `.gitignore`, `.gitattributes` |
+| `git-hooks` | `.husky/**`, `.lintstagedrc.js` |
+| `github` | `.github/workflows/**`, `.github/actions/**`, `.github/dependabot.yml` |
+| `docker` | `Dockerfile*`, `docker-compose*.yml`, `.dockerignore` |
+| `monorepo` | `turbo.json`, `pnpm-workspace.yaml` |
+| `root-config` | `package.json`, `tsconfig.json`, `vitest.config.ts`, `postcss.config.cjs`, `next.config.ts`, `components.json`, `worktree.config.json` |
+| `scripts` | `scripts/**` |
+| `apps` | `apps/**` |
+| `packages` | `packages/**` |
+| `docs` | `README.md`, `docs/**` |
+
+**プロンプト**: `packages/create-einja-app/src/prompts/sync.ts`
+
+---
+
+## 8. 管轄境界（dev-cli vs create-einja-app）
+
+### 8.1 ファイル管轄テーブル
+
+| ファイル/ディレクトリ | 管轄CLI | sync カテゴリ |
+|---------------------|---------|-------------|
+| `.claude/commands/einja/` | dev-cli | `commands` |
+| `.claude/agents/einja/` | dev-cli | `agents` |
+| `.claude/skills/einja-*/` | dev-cli | `skills` |
+| `.claude/hooks/einja/` | dev-cli | `hooks` |
+| `.claude/settings.json` | dev-cli | `claude-config` |
+| `docs/einja/` | dev-cli | `docs` |
+| `scripts/` | dev-cli | `scripts` |
+| `CLAUDE.md` | dev-cli | `claude-md` |
+| `AGENTS.md` | dev-cli | `claude-md` |
+| `.envrc` | dev-cli | `env` |
+| `.vscode/settings.json` | dev-cli | `tools` |
+| `package.json` | 両方（管理パスが異なる） | dev-cli: `root-config` / create-einja-app: `root-config` |
+| `.mcp.json` | dev-cli | `root-config` |
+| `biome.json`, `.biomeignore` | create-einja-app | `tools` |
+| `.gitignore`, `.gitattributes` | create-einja-app | `git` |
+| `.husky/`, `.lintstagedrc.js` | create-einja-app | `git-hooks` |
+| `turbo.json`, `pnpm-workspace.yaml` | create-einja-app | `monorepo` |
+| `tsconfig.json`, `vitest.config.ts` 等 | create-einja-app | `root-config` |
+| `Dockerfile*`, `docker-compose*.yml` | create-einja-app | `docker` |
+| `.github/workflows/` | create-einja-app | `github` |
+| `apps/**`, `packages/**` | create-einja-app | `apps` / `packages` |
+
+### 8.2 新規ファイル追加時の判断基準
+
+- **Claude Code関連**（.claude/, CLAUDE.md, AGENTS.md, docs/einja/）→ dev-cli
+- **プロジェクト基盤**（ビルドツール、CI/CD、Docker、lint、テスト設定）→ create-einja-app
+- **両方が関わる**（package.json）→ 管理パス（jsonPaths）で分離

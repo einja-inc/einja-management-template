@@ -59,19 +59,28 @@ $ARGUMENTSから以下を解析：
 └─────────────────────────────────────────────────────────┘
                            │
                            ↓ コミット完了
-                   追加指示待ち状態
+                   実行モード判定
                            │
               ┌────────────┴────────────┐
               ↓                         ↓
-    ユーザーが追加指示           ユーザーが「終了」
+    issue-exec経由              スタンドアロン実行
+    （Director配下）            （直接Skill呼び出し）
               │                         │
               ↓                         ↓
-    task-modification-analyzer      コマンド終了
-              │
-              ↓ 承諾後
-    推奨パターンで実行
-              │
-              └──→ 追加指示待ち状態に戻る
+    Director承認待ちループ       追加指示待ち状態
+    （awaiting_review）                 │
+              │                ┌────────┴────────┐
+              ↓                ↓                 ↓
+    directorVerdict確認    ユーザーが追加指示  ユーザーが「終了」
+    ├─ approved → 正常終了     │                 │
+    ├─ fix_required → 修正     ↓                 ↓
+    │    → 再度awaiting_review task-modification  コマンド終了
+    └─ rejected → 失敗終了     -analyzer
+                               │
+                               ↓ 承諾後
+                        推奨パターンで実行
+                               │
+                               └──→ 追加指示待ち状態に戻る
 ```
 
 ### Phase 99 タスクのフロー（ドキュメント反映）
@@ -203,7 +212,31 @@ while (未完了タスクが存在):
 - 変更がある場合のみ実行（変更なしの場合はスキップ）
 - コミット分割案の確認はスキップ（QA合格済みのため自動適用）
 - 品質チェック（lint/typecheck/test/build）はQAで実行済みのためスキップ
-- 完了後、追加指示待ち状態へ
+- 完了後、Step 8（issue-exec経由時）または追加指示待ち状態（スタンドアロン時）へ
+
+### Step 8: Director承認待ちループ（issue-exec経由時のみ）
+
+issue-exec経由で実行されている場合（セッションパスが存在する場合）、コミット完了後に以下のループに入る:
+
+1. PR作成完了を確認した後、ステータスファイル `task-{X.Y}.json` の `status` を `awaiting_review` に更新（Fast Gateは `prNumber` の存在を前提とするため、必ずPR作成後に遷移すること）
+2. 以下のループで Director の判定を待機:
+
+```
+while true:
+  1. task-{X.Y}.json の directorVerdict を確認（15秒間隔）
+  2. directorVerdict = "approved" → 正常終了（tmux window終了）
+  3. directorVerdict = "fix_required" → fixInstructions を読み、修正実行:
+     - fixInstructions の内容に基づいて task-executer で修正
+     - 修正後、再度 task-reviewer → task-qa → einja-task-commit
+     - status を再度 "awaiting_review" に更新
+     - directorVerdict をクリア（null に戻す）
+  4. directorVerdict = "rejected" → 失敗終了（status="failed"、tmux window終了）
+  sleep 15
+```
+
+3. スタンドアロン実行の場合（セッションパスなし）はこのステップをスキップし、従来の追加指示待ち状態へ進む
+
+**判定方法**: `~/.einja/sessions/issue-{N}/` ディレクトリが存在するかどうかで issue-exec経由かを判定する。
 
 ### 5. Phase 99 タスクの処理（docs-updater）
 
@@ -332,6 +365,8 @@ task-qa は以下の基準で失敗原因を分類し、適切な戻し先を決
 ---
 
 ## 追加指示待ち状態
+
+> **注意**: issue-exec経由で実行されている場合、この追加指示待ち状態には入らず、Step 8（Director承認待ちループ）に進みます。以下はスタンドアロン実行時のみ適用されます。
 
 QA合格後、以下を表示：
 

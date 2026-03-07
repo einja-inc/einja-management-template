@@ -67,7 +67,7 @@ Manager (Claude Code: /einja:issue-exec)
 | 階層 | 責務 | 実行方式 |
 |------|------|---------|
 | **Manager** | Issue パース、ブランチ管理、worktree 管理、tmux 管理、Director 起動、Phase マージ、質問エスカレーション、エラー監視 | Claude Code カスタムコマンド |
-| **Director** | Phase 内のタスクグループ管理、Worker 起動、並列制御、PR マージ検知、変更伝播、質問対応、worktree クリーンアップ | claude 対話モード（tmux window） |
+| **Director** | Phase 内のタスクグループ管理、**spec事前一括チェック**、**依存グラフ解析（DAG構築・Layer分け）**、Worker 起動、並列制御、**成果物ゲートチェック（Fast Gate / Risk Gate）**、**Worker異常終了リトライ（最大2回）**、PR マージ検知、変更伝播、質問対応、worktree クリーンアップ | claude 対話モード（tmux window） |
 | **Worker** | einja-task-exec Skill 実行（executer→reviewer→qa→commit）、Phase 変更取り込み、PR 作成、完了報告 | claude 対話モード（tmux window） |
 
 ### 各階層の通信方式
@@ -141,7 +141,8 @@ tmux session: einja-123
 session.json                    # セッション全体（Manager PID、開始時刻、マージモード等）
 phase-1/
   status.json                   # Phase状態 + Director PID
-  task-1.1.json                 # { status, prNumber, branch }
+  task-1.1.json                 # { status, prNumber, branch, retryCount, fixCount, directorVerdict, fixInstructions, gateResult }
+  spec-check.json               # specチェック結果（Director起動時に作成）
   task-1.2.json
 phase-2/
   status.json
@@ -212,14 +213,33 @@ Worker-1.1 作業中
  ├─ 1. task-exec 完了 → task/123-1.1 に commit & push
  ├─ 2. CI 完了待機（gh run list ポーリング）
  ├─ 3. gh pr create --base issue/123-phase1 --head task/123-1.1
- ├─ 4. ステータスファイル: { status: "pr_created", pr: 456 }
- └─ 5. claude プロセス終了
+ ├─ 4. ステータスファイル: { status: "awaiting_review", prNumber: 456 }
+ └─ 5. Director 承認待ちループ（15秒間隔で directorVerdict を確認）
+      ├─ approved → 正常終了（tmux window 終了）
+      ├─ fix_required → fixInstructions に基づき修正 → 再度 awaiting_review
+      └─ rejected → 失敗終了
 
-Director 検知（ステータスファイル + プロセス監視）
+Director 検知（ステータスファイル: status=awaiting_review）
  │
- ├─ manual モード: gh pr list --state merged ポーリング → マージ検知まで待機
- ├─ task-group-auto: gh pr merge --squash --auto 実行
- ├─ auto: CI通過確認後に gh pr merge --squash 実行
+ ├─ **Fast Gate チェック**（60-120秒目安）:
+ │   ├─ ステータス整合（status/prNumber/branch とPR実体が一致）
+ │   ├─ PR整合（base/head が正しいブランチ構成か）
+ │   ├─ 成果物存在（qa-tests/story{N}.md, modifications/task-{X}-{Y}.md）
+ │   ├─ QA結果確認（status=SUCCESS、対象AC、実行記録あり）
+ │   ├─ CI結果確認（required checks が success）
+ │   └─ 危険シグナル検知（TODO/FIXME、コンフリクト痕跡、PARTIAL/FAILURE）
+ │
+ ├─ **Risk Gate**（条件付き: 重要領域変更、大差分、QA記録薄い等）:
+ │   └─ 代表シナリオ1本のスモークテスト実施
+ │
+ ├─ ゲート通過 → directorVerdict = "approved" → Worker 正常終了
+ ├─ ゲート不通過 → directorVerdict = "fix_required" + fixInstructions（fixCount をインクリメント）
+ │   → Worker が修正 → 再チェック（最大2回、fixCount で管理）→ 3回目NG → "rejected" → Manager にエスカレーション
+ │
+ ├─ PR マージ処理:
+ │   ├─ manual モード: gh pr list --state merged ポーリング → マージ検知まで待機
+ │   ├─ task-group-auto: gh pr merge --squash --auto 実行
+ │   └─ auto: CI通過確認後に gh pr merge --squash 実行
  │
  ├─ マージ検知後:
  │   ├─ 他 active Worker にステータスで sync_required 通知
@@ -244,8 +264,9 @@ Manager 検知
 
 | 障害 | 検知 | リカバリ |
 |---|---|---|
-| Worker 異常終了（PR作成前） | tmux window 消失 + ステータス未更新 | リトライ（最大2回）→ 失敗時は Manager に報告 → 人間判断 |
+| Worker 異常終了（PR作成前） | tmux window 消失 + ステータス未更新 | **Directorが自力リトライ**（最大2回、15秒間隔監視）→ 3回目失敗時はManagerにエスカレーション → 人間判断 |
 | Worker 異常終了（PR作成済み） | tmux window 消失 + PR あり | スキップ（PR マージ待ちのまま継続） |
+| Worker 異常終了（修正中: fix_required 対応中） | tmux window 消失 + status=awaiting_review + directorVerdict=fix_required | **Directorが自力リトライ**（fixCount 引き継ぎ、最大2回まで）→ 超過時は Manager にエスカレーション |
 | Director 異常終了 | tmux window 消失 + ステータス未更新 | 各 Worker のステータスを確認 → 未完了 Worker のみ再実行 |
 | Manager 異常終了 | ユーザー手動 | `--resume` でステータスファイルから復元 |
 | rebase コンフリクト | git rebase 失敗 | einja-conflict-resolver Skill で自力解消 |

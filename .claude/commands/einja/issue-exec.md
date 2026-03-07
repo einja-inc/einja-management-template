@@ -147,6 +147,7 @@ session.json                    # セッション全体
 phase-{M}/
   status.json                   # Phase状態
   task-{X.Y}.json               # 各タスクグループの状態
+  spec-check.json              # specチェック結果（Director起動時に作成）
 questions/
   q-{uuid}.json                 # 質問ファイル
 events.jsonl                    # イベントログ
@@ -200,12 +201,39 @@ tmux send-keys -t einja-{N}:director-phase{M} '
 {タスクグループ一覧（番号、名前、依存関係を含む）}
 
 ## 責務
-1. 依存関係のないタスクグループは並列でWorkerを起動してください
+0. **spec事前一括チェック**: Worker起動前に全タスクグループのspec存在を一括確認
+   - `docs/specs/issues/*/issue{N}-*/` パターンで検索
+   - 3分類: 完全spec → 正常 / 部分的spec → Managerにエスカレーション / specなし → 警告ログ（Worker内でフォールバック）
+   - 部分的specがある場合、揃っているタスクグループのWorkerは先行起動可
+   - チェック結果を `phase-{M}/spec-check.json` に記録
+1. **Phase内依存関係の詳細解析**: タスクグループ間の依存DAGを構築し、トポロジカルソートでLayer分けする
+   - Layer 0（依存なし）→ 即時並列起動
+   - 循環依存検知 → Managerにエスカレーション
+   - 1タスクグループ完了時、依存が全て満たされた次Layerのタスクグループを即時起動（Layer全体の完了を待たない）
+   - 解析結果を `events.jsonl` に `dependency_graph` イベントとして記録
 2. 各Worker には tmux window + claude 対話モードで起動:
    - worktree作成: git worktree add ~/.einja/worktrees/issue-{N}/task-{X.Y} task/{N}-{X.Y}
    - tmux: tmux new-window + claude 起動 + einja-task-exec Skill で #{N} {X.Y} を実行
-3. Worker完了後:
-   - ステータスファイルでPR番号を確認
+3. **Worker完了後の成果物ゲートチェック**: Worker完了（status=awaiting_review）を検知したら、PRマージ前に2段階ゲートチェックを実施
+
+   **Fast Gate**（全タスクグループ、60-120秒目安）:
+   - ステータス整合: `task-{X.Y}.json` の status/prNumber/branch とPR実体が一致
+   - PR整合: base/headが `task/{N}-{X.Y} → issue/{N}-phase{M}` であること
+   - 成果物存在: `qa-tests/story{N}.md` と `modifications/task-{X}-{Y}.md` が存在
+   - QA結果の最小内容確認: qa-testsに `status=SUCCESS`、対象AC、実行記録（Playwright/curl/コマンド）がある
+   - CI結果確認: PRのrequired checksが `success`（またはauto-merge予約済み）
+   - 危険シグナル簡易検知: `TODO/FIXME`、コンフリクト痕跡（`<<<<<<<`）、`PARTIAL/FAILURE` が差分内にないこと
+
+   Fast Gate通過 → `directorVerdict = "approved"` をステータスファイルに書き込み → マージモードに応じたPR処理へ
+   Fast Gate不通過 → `directorVerdict = "fix_required"` + `fixInstructions` を書き込み → Worker修正（最大2回）→ 3回目NG → `rejected` → Managerにエスカレーション
+   Directorは `fixCount` フィールドで修正試行回数を管理する（`retryCount` は異常終了リトライ用で別管理）。Worker修正完了（status再度awaiting_review）の検知は15秒間隔でポーリングする。
+
+   **Risk Gate**（条件付き、重要変更時のみ発火）:
+   - 発火条件: auth/billing/prisma migration等の重要領域変更、差分行数が大きい、QA記録が薄い、CI再実行が多発
+   - 追加確認: Directorが代表シナリオ1本のスモークテスト実施（API→curl、UI→Playwright MCP）
+   - NG時: autoモードでもmanualに降格、段階的リカバリへ
+
+   ゲート通過後:
    - マージモードに応じたPR処理
    - 他active Workerにsync通知
    - 完了したworktree削除
@@ -213,6 +241,11 @@ tmux send-keys -t einja-{N}:director-phase{M} '
 5. 質問対応: Workerからの質問にspec/design/issueベースで回答。回答不可ならManagerにエスカレーション
 6. Phase完了時: ステータスファイルで Manager に報告
 7. GitHub Issue のチェックボックス更新
+8. **Worker異常終了のリトライ**: 15秒間隔の監視ループでWorker状態を確認
+   - `tmux list-windows` でworker window存在確認 + ステータスファイル確認
+   - window消失 + status=in_progress（PRなし）→ 異常終了、リトライ（最大2回）
+   - 3回目失敗 → status="failed"、Managerに質問エスカレーション
+   - `task-{X.Y}.json` に `retryCount`, `lastRetryAt`, `failureReason` フィールドを使用
 
 ## 質問エスカレーション
 回答不可な質問は ~/.einja/sessions/issue-{N}/questions/ にJSONファイルを作成してManagerに通知してください。
@@ -238,8 +271,10 @@ Manager は以下を定期的に監視:
    - マージ後、Phase worktree 削除
    - 他 active Phase への変更伝播通知
 
-4. **tmux window 消失検知**:
-   - Director/Worker の tmux window が消失した場合のリカバリ処理
+4. **Director 消失検知**（30秒間隔）:
+   - Director の tmux window が消失した場合のリカバリ処理
+   - 各 Worker のステータスを確認 → 未完了 Worker のみ再実行
+   - **注意**: Worker消失はDirectorが検知・リトライする（二重検知回避のためManagerはWorkerを直接監視しない）
 
 ### Step 7: 全Phase完了 → 最終PR
 1. 最終PR作成: `/einja-create-pr --auto --base {baseBranch}` を実行
@@ -312,9 +347,38 @@ Manager は以下を定期的に監視:
   "workerPid": "12347",
   "prNumber": 456,
   "startedAt": "2025-01-01T00:00:00Z",
-  "completedAt": "2025-01-01T01:00:00Z"
+  "completedAt": "2025-01-01T01:00:00Z",
+  "retryCount": 0,
+  "lastRetryAt": null,
+  "failureReason": null,
+  "directorVerdict": "approved",
+  "fixInstructions": null,
+  "fixCount": 0,
+  "gateResult": {
+    "fastGate": "passed",
+    "riskGate": "skipped",
+    "checkedAt": "2025-01-01T00:55:00Z"
+  }
 }
 ```
+
+### phase-{M}/spec-check.json
+```json
+{
+  "checkedAt": "2025-01-01T00:00:00Z",
+  "taskGroups": {
+    "1.1": { "result": "full", "specPath": "docs/specs/issues/auth/issue123-login/" },
+    "1.2": { "result": "partial", "missing": ["design.md"], "escalated": true },
+    "1.3": { "result": "none", "fallback": "general-context-loader" }
+  },
+  "summary": { "full": 1, "partial": 1, "none": 1 }
+}
+```
+
+result の値:
+- `full`: 完全spec（requirements.md + design.md + qa-tests/）
+- `partial`: 部分的spec → Managerにエスカレーション
+- `none`: specなし → Worker内で `_einja-general-context-loader` にフォールバック
 
 ### questions/q-{uuid}.json
 ```json
@@ -342,8 +406,9 @@ Manager は以下を定期的に監視:
 
 | 障害 | 検知方法 | リカバリ |
 |---|---|---|
-| Worker異常終了（PR作成前） | tmux window消失 + ステータス未更新 | リトライ（最大2回）→ 失敗時はManagerに報告 → 人間判断 |
+| Worker異常終了（PR作成前） | tmux window消失 + ステータス未更新 | **Directorが自力リトライ**（最大2回、15秒間隔監視）→ 3回目失敗時はManagerにエスカレーション → 人間判断 |
 | Worker異常終了（PR作成済み） | tmux window消失 + PRあり | スキップ（PRマージ待ち継続） |
+| Worker異常終了（修正中: fix_required対応中） | tmux window消失 + status=awaiting_review + directorVerdict=fix_required | **Directorが自力リトライ**（fixCount引き継ぎ、最大2回まで）→ 超過時はManagerにエスカレーション |
 | Director異常終了 | tmux window消失 + ステータス未更新 | 各Workerのステータスを確認 → 未完了Workerのみ再実行 |
 | Manager異常終了 | ユーザー手動 | `--resume` でセッション復元 |
 | rebaseコンフリクト | git rebase失敗 | einja-conflict-resolver Skillで自力解消 |

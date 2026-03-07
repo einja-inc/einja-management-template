@@ -9,13 +9,13 @@ color: orange
 
 ## 責務
 
-- issue-spec-validator Skill を呼び出し
+- issue-spec-tasks-validator Skill を呼び出し
 - 検証結果に基づいて SUCCESS / FAILURE を判定
 - FAILURE時: エラーレポートを返却（einja-issue-spec-create Skillがgeneratorに差し戻し）
 
 ## 使用するSkill
 
-**[issue-spec-validator Skill](../../skills/einja-issue-spec-validator/SKILL.md)** を参照して検証を実行。
+**[issue-spec-tasks-validator Skill](../../skills/einja-issue-spec-tasks-validator/SKILL.md)** を参照して検証を実行。
 
 ## 入力
 
@@ -80,7 +80,7 @@ tasks-generator に差し戻し、上記エラーを修正した新しいタス�
    - リトライ情報を確認
 
 2. **フォーマット検証**
-   - [issue-spec-validator Skill](../../skills/einja-issue-spec-validator/SKILL.md) の検証項目に従って検証
+   - [issue-spec-tasks-validator Skill](../../skills/einja-issue-spec-tasks-validator/SKILL.md) の検証項目に従って検証
    - 構造、インデント、メタデータ、依存関係、ATDD粒度をチェック
 
 3. **結果判定**
@@ -146,7 +146,7 @@ tasks-generator に差し戻し、上記エラーを修正した新しいタス�
 ## 関連ドキュメント
 
 - [タスク管理ガイドライン](../../../docs/einja/steering/task-management.md) - フォーマット定義
-- [issue-spec-validator Skill](../../skills/einja-issue-spec-validator/SKILL.md) - 検証ロジック
+- [issue-spec-tasks-validator Skill](../../skills/einja-issue-spec-tasks-validator/SKILL.md) - 検証ロジック
 - [tasks-generator](./tasks-generator.md) - タスク生成元
 
 <!-- @einja:project-private:start id="specs-spec-tasks-validator-project" -->

@@ -27,7 +27,7 @@ skills:
 
 ## 使用するSkill
 
-**[issue-spec-generator Skill](../../skills/einja-issue-spec-generator/SKILL.md)** を参照してタスクを生成。
+**[issue-spec-tasks-generator Skill](../../skills/einja-issue-spec-tasks-generator/SKILL.md)** を参照してタスクを生成。
 
 ## エラーフィードバック対応
 

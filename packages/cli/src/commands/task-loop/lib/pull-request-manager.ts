@@ -343,6 +343,8 @@ export function ensurePullRequestCreated(
 
     if (result.success) {
       console.log(`✅ PRを作成しました: ${result.url}`);
+    } else if (result.noDiff) {
+      console.log("✅ issueブランチとベースブランチに差分がないためPR作成をスキップしました");
     } else {
       console.warn("\n⚠️  PR作成に失敗しました");
       console.warn(`   エラー: ${result.error}`);

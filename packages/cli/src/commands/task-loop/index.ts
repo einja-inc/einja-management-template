@@ -334,7 +334,8 @@ export async function taskLoopCommand(
           parsedIssue,
           issueNumber,
           issueBranch,
-          stateManager
+          stateManager,
+          vibeKanban
         );
 
         // 新たに着手可能になったタスクを開始
@@ -410,7 +411,8 @@ async function checkAndHandlePhaseCompletion(
   parsedIssue: ParsedIssue,
   issueNumber: number,
   issueBranch: string,
-  stateManager: TaskStateManager
+  stateManager: TaskStateManager,
+  vibeKanban: VibeKanbanClient
 ): Promise<void> {
   const completedPhases = getCompletedPhaseNumbers(parsedIssue);
 
@@ -431,6 +433,10 @@ async function checkAndHandlePhaseCompletion(
       await mergePhaseBranchIntoIssue(issueNumber, phaseNumber, issueBranch);
       mergedPhaseNumbers.add(phaseNumber);
       console.log(`   ✅ Phase ${phaseNumber} マージ完了`);
+
+      // 親IssueをDoneに更新
+      await vibeKanban.updateTask(mapping.parentIssueId, "Done");
+      console.log(`   ✅ 親Issue Done更新: Phase ${phaseNumber}`);
     } catch (error) {
       console.error(`   ❌ Phase ${phaseNumber} のマージに失敗:`, error);
       throw error;

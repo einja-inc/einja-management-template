@@ -5,7 +5,7 @@
  * 使用方法: pnpm env
  */
 
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
@@ -15,34 +15,29 @@ import {
 	parseEnvFile,
 	getPrivateKey,
 	ENV_KEYS_PATH,
+	setEnvValue,
 } from "./lib/env-common.js";
+import {
+	type AllowedKey,
+	loadDefaults,
+	setDefault,
+	getDefault,
+	ALLOWED_DEFAULT_KEYS,
+} from "./lib/defaults.js";
 
 const cwd = process.cwd();
+
+/** トークンの先頭4文字を表示し、残りをマスクする */
+function maskToken(token: string): string {
+	if (token.length <= 4) return "***";
+	return `${token.slice(0, 4)}...`;
+}
 
 // ファイルパス
 const ENV_PATH = path.join(cwd, ".env");
 const ENV_LOCAL_PATH = path.join(cwd, ".env.local");
 const ENV_PERSONAL_PATH = path.join(cwd, ".env.personal");
 const ENV_PERSONAL_EXAMPLE_PATH = path.join(cwd, ".env.personal.example");
-
-/**
- * 環境変数ファイルに値を設定
- */
-function setEnvValue(filePath: string, key: string, value: string): void {
-	let content = "";
-	if (fs.existsSync(filePath)) {
-		content = fs.readFileSync(filePath, "utf-8");
-	}
-
-	const regex = new RegExp(`^${key}=.*$`, "m");
-	if (regex.test(content)) {
-		content = content.replace(regex, `${key}=${value}`);
-	} else {
-		content = content.trim() + `\n${key}=${value}\n`;
-	}
-
-	fs.writeFileSync(filePath, content);
-}
 
 /**
  * 現在の環境変数の状態を表示
@@ -73,9 +68,16 @@ function showStatus(): void {
 	for (const { key, file } of checkVars) {
 		const value = file === ".env.personal" ? envPersonal[key] : env[key];
 		const status = value ? "✅ 設定済み" : "❌ 未設定";
-		const masked = value ? `${value.slice(0, 8)}...` : "-";
+		const masked = value ? maskToken(value) : "-";
 		console.log(`   ${key}: ${status} (${masked})`);
 	}
+
+	const defaults = loadDefaults();
+	const defaultCount = Object.values(defaults).filter((v) => v).length;
+	console.log("");
+	console.log(
+		`   デフォルトトークン: ${defaultCount > 0 ? `✅ ${defaultCount}個設定済み` : "❌ 未設定"}`
+	);
 }
 
 /**
@@ -93,12 +95,61 @@ async function setupPersonalTokens(): Promise<void> {
 		}
 	}
 
-	const current = parseEnvFile(ENV_PERSONAL_PATH);
+	// デフォルトトークンが存在する場合、適用を提案
+	const personalDefaults = loadDefaults();
+	const hasDefaults = ["GITHUB_TOKEN", "VERCEL_TOKEN", "NEON_API_KEY"].some(
+		(key) => personalDefaults[key],
+	);
+
+	if (hasDefaults) {
+		const useDefaults = await p.confirm({
+			message:
+				"組織共通のデフォルトトークンを使用しますか？",
+			initialValue: true,
+		});
+
+		if (p.isCancel(useDefaults)) {
+			p.cancel("キャンセルしました");
+			process.exit(0);
+		}
+
+		if (useDefaults) {
+			// デフォルトを適用（既存値があるキーはスキップ）
+			const currentEnv = parseEnvFile(ENV_PERSONAL_PATH);
+			for (const key of [
+				"GITHUB_TOKEN",
+				"VERCEL_TOKEN",
+				"NEON_API_KEY",
+			] as const) {
+				const val = personalDefaults[key];
+				if (val) {
+					if (currentEnv[key]) {
+						p.log.info(`${key} は既に設定済みのためスキップしました`);
+					} else {
+						setEnvValue(ENV_PERSONAL_PATH, key, val);
+						p.log.success(`${key} をデフォルトから設定しました`);
+					}
+				}
+			}
+			// デフォルト適用後、GITHUB_TOKENが設定されていれば完了
+			const updatedEnv = parseEnvFile(ENV_PERSONAL_PATH);
+			if (updatedEnv.GITHUB_TOKEN) {
+				p.note(
+					"direnv allow を実行するか、新しいターミナルを開くと反映されます",
+					"💡 次のステップ"
+				);
+				return;
+			}
+			// GITHUB_TOKENが未設定なら手動入力フローへ
+		}
+		// デフォルトを使わない場合は手動入力フローへ
+	}
 
 	// GITHUB_TOKEN
-	const currentGithubToken = current.GITHUB_TOKEN;
+	const currentEnv = parseEnvFile(ENV_PERSONAL_PATH);
+	const currentGithubToken = currentEnv.GITHUB_TOKEN;
 	const githubTokenStatus = currentGithubToken
-		? `現在: ${currentGithubToken.slice(0, 8)}...`
+		? `現在: ${maskToken(currentGithubToken)}`
 		: "未設定";
 
 	const updateGithubToken = await p.confirm({
@@ -131,17 +182,31 @@ async function setupPersonalTokens(): Promise<void> {
 
 			// トークンの検証を試みる
 			try {
-				const result = execSync(
-					`curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${token}" https://api.github.com/user`,
-					{ encoding: "utf-8" }
-				).trim();
-				if (result === "200") {
+				const res = await fetch("https://api.github.com/user", {
+					headers: { Authorization: `token ${token}` },
+				});
+				await res.text();
+				if (res.ok) {
 					p.log.success("✅ トークンの検証に成功しました");
 				} else {
-					p.log.warn(`⚠️ トークンの検証に失敗しました (HTTP ${result})`);
+					p.log.warn(`⚠️ トークンの検証に失敗しました (HTTP ${res.status})`);
 				}
 			} catch {
 				p.log.warn("⚠️ トークンの検証をスキップしました");
+			}
+
+			// デフォルトへの保存を提案
+			if (token && !getDefault("GITHUB_TOKEN")) {
+				const saveAsDefault = await p.confirm({
+					message:
+						"このトークンをデフォルトに保存しますか？（他のプロジェクトでも使用可能になります）",
+					initialValue: true,
+				});
+
+				if (!p.isCancel(saveAsDefault) && saveAsDefault) {
+					setDefault("GITHUB_TOKEN", token);
+					p.log.success("デフォルトに保存しました");
+				}
 			}
 		}
 	}
@@ -187,6 +252,273 @@ async function setupPersonalTokens(): Promise<void> {
 	);
 }
 
+
+/**
+ * デフォルトトークン管理メニュー
+ */
+async function manageDefaults(): Promise<void> {
+	const current = loadDefaults();
+
+	// 現在の状態を表示
+	p.note(
+		[
+			"📁 保存先: ~/.config/einja/defaults.json",
+			"",
+			...ALLOWED_DEFAULT_KEYS.map((key) => {
+				const val = current[key];
+				return val
+					? `  ✅ ${key}: ${maskToken(val)}`
+					: `  ❌ ${key}: 未設定`;
+			}),
+		].join("\n"),
+		"デフォルトトークンの状態"
+	);
+
+	const action = await p.select({
+		message: "操作を選択してください",
+		options: [
+			{
+				value: "set",
+				label: "トークンを設定/更新",
+				hint: "個別にトークンを入力",
+			},
+			{
+				value: "apply",
+				label: "プロジェクトに適用",
+				hint: "デフォルトを .env.personal にコピー",
+			},
+			{
+				value: "verify",
+				label: "トークンを検証",
+				hint: "API接続テスト",
+			},
+		],
+	});
+
+	if (p.isCancel(action)) {
+		p.cancel("キャンセルしました");
+		return;
+	}
+
+	switch (action) {
+		case "set":
+			await setDefaultTokens();
+			break;
+		case "apply":
+			await applyDefaultsToProject();
+			break;
+		case "verify":
+			await verifyDefaultTokens();
+			break;
+	}
+}
+
+/**
+ * デフォルトトークンを個別に設定/更新
+ */
+async function setDefaultTokens(): Promise<void> {
+	const tokenConfigs = [
+		{
+			key: "VERCEL_TOKEN",
+			label: "Vercel Token",
+			url: "https://vercel.com/account/tokens",
+			hint: "Scope: Full Account",
+		},
+		{
+			key: "NEON_API_KEY",
+			label: "Neon API Key",
+			url: "https://console.neon.tech/app/settings/api-keys",
+			hint: "",
+		},
+		{
+			key: "GITHUB_TOKEN",
+			label: "GitHub Token",
+			url: "https://github.com/settings/tokens/new",
+			hint: "スコープ: repo, read:org",
+		},
+		{
+			key: "VERCEL_ORG_ID",
+			label: "Vercel Org ID",
+			url: "",
+			hint: "apps/web/.vercel/project.json の orgId",
+		},
+	];
+
+	for (const config of tokenConfigs) {
+		const current = getDefault(config.key as AllowedKey);
+		const status = current
+			? `現在: ${maskToken(current)}`
+			: "未設定";
+
+		const update = await p.confirm({
+			message: `${config.label} を設定しますか？ (${status})`,
+			initialValue: !current,
+		});
+
+		if (p.isCancel(update)) {
+			p.cancel("キャンセルしました");
+			return;
+		}
+
+		if (update) {
+			if (config.url) {
+				p.log.info(`取得方法: ${config.url}`);
+			}
+			if (config.hint) {
+				p.log.info(config.hint);
+			}
+
+			const value =
+				config.key === "VERCEL_ORG_ID"
+					? await p.text({
+							message: `${config.label}:`,
+							placeholder: "team_...",
+						})
+					: await p.password({ message: `${config.label}:` });
+
+			if (p.isCancel(value)) {
+				p.cancel("キャンセルしました");
+				return;
+			}
+
+			if (value) {
+				setDefault(config.key as AllowedKey, value);
+				p.log.success(
+					`${config.label} をデフォルトに保存しました`
+				);
+			}
+		}
+	}
+}
+
+/**
+ * デフォルトトークンをプロジェクトの .env.personal に適用
+ */
+async function applyDefaultsToProject(): Promise<void> {
+	const defaults = loadDefaults();
+	const availableKeys = Object.entries(defaults).filter(([, v]) => v);
+
+	if (availableKeys.length === 0) {
+		p.log.warn(
+			"デフォルトトークンが設定されていません。先に「トークンを設定/更新」を実行してください"
+		);
+		return;
+	}
+
+	// .env.personal がなければ作成
+	if (!fs.existsSync(ENV_PERSONAL_PATH)) {
+		if (fs.existsSync(ENV_PERSONAL_EXAMPLE_PATH)) {
+			fs.copyFileSync(ENV_PERSONAL_EXAMPLE_PATH, ENV_PERSONAL_PATH);
+		} else {
+			fs.writeFileSync(ENV_PERSONAL_PATH, "# 個人用トークン\n");
+		}
+		p.log.success(".env.personal を作成しました");
+	}
+
+	const current = parseEnvFile(ENV_PERSONAL_PATH);
+	const applyKeys = ["VERCEL_TOKEN", "NEON_API_KEY", "GITHUB_TOKEN"];
+
+	for (const key of applyKeys) {
+		const defaultVal = defaults[key];
+		if (!defaultVal) continue;
+
+		const currentVal = current[key];
+		const status = currentVal
+			? `現在: ${maskToken(currentVal)}`
+			: "未設定";
+
+		const apply = await p.confirm({
+			message: `${key} にデフォルト値（${maskToken(defaultVal)}）を適用しますか？ (${status})`,
+			initialValue: !currentVal,
+		});
+
+		if (p.isCancel(apply)) {
+			p.cancel("キャンセルしました");
+			return;
+		}
+
+		if (apply) {
+			setEnvValue(ENV_PERSONAL_PATH, key, defaultVal);
+			p.log.success(`${key} を .env.personal に適用しました`);
+		}
+	}
+
+	p.note(
+		"direnv allow を実行するか、新しいターミナルを開くと反映されます",
+		"💡 次のステップ"
+	);
+}
+
+/**
+ * デフォルトトークンをAPI接続テストで検証
+ */
+async function verifyDefaultTokens(): Promise<void> {
+	const defaults = loadDefaults();
+	const spinner = p.spinner();
+
+	// GITHUB_TOKEN検証
+	const githubToken = defaults.GITHUB_TOKEN;
+	if (githubToken) {
+		spinner.start("GITHUB_TOKEN を検証中...");
+		try {
+			const res = await fetch("https://api.github.com/user", {
+				headers: { Authorization: `token ${githubToken}` },
+			});
+			await res.text();
+			if (res.ok) {
+				spinner.stop("✅ GITHUB_TOKEN: 有効");
+			} else {
+				spinner.stop(`⚠️ GITHUB_TOKEN: 無効 (HTTP ${res.status})`);
+			}
+		} catch {
+			spinner.stop("⚠️ GITHUB_TOKEN: 検証失敗");
+		}
+	} else {
+		p.log.warn("GITHUB_TOKEN: 未設定");
+	}
+
+	// VERCEL_TOKEN検証
+	const vercelToken = defaults.VERCEL_TOKEN;
+	if (vercelToken) {
+		spinner.start("VERCEL_TOKEN を検証中...");
+		try {
+			const res = await fetch("https://api.vercel.com/v2/user", {
+				headers: { Authorization: `Bearer ${vercelToken}` },
+			});
+			await res.text();
+			if (res.ok) {
+				spinner.stop("✅ VERCEL_TOKEN: 有効");
+			} else {
+				spinner.stop(`⚠️ VERCEL_TOKEN: 無効 (HTTP ${res.status})`);
+			}
+		} catch {
+			spinner.stop("⚠️ VERCEL_TOKEN: 検証失敗");
+		}
+	} else {
+		p.log.warn("VERCEL_TOKEN: 未設定");
+	}
+
+	// NEON_API_KEY検証
+	const neonKey = defaults.NEON_API_KEY;
+	if (neonKey) {
+		spinner.start("NEON_API_KEY を検証中...");
+		try {
+			const res = await fetch("https://console.neon.tech/api/v2/projects", {
+				headers: { Authorization: `Bearer ${neonKey}` },
+			});
+			await res.text();
+			if (res.ok) {
+				spinner.stop("✅ NEON_API_KEY: 有効");
+			} else {
+				spinner.stop(`⚠️ NEON_API_KEY: 無効 (HTTP ${res.status})`);
+			}
+		} catch {
+			spinner.stop("⚠️ NEON_API_KEY: 検証失敗");
+		}
+	} else {
+		p.log.warn("NEON_API_KEY: 未設定");
+	}
+}
 
 /**
  * 環境設定を変更（汎用）
@@ -257,20 +589,25 @@ async function updateEnvironmentSettings(env: EnvironmentConfig): Promise<void> 
 	try {
 		// 1. 復号
 		spinner.start(`${env.file} を復号中...`);
-		const decrypted = execSync(`dotenvx decrypt -f ${env.file} --stdout`, {
+		const decryptResult = spawnSync("dotenvx", ["decrypt", "-f", env.file, "--stdout"], {
 			cwd,
 			encoding: "utf-8",
 			env: dotenvxEnv,
 		});
-		fs.writeFileSync(tmpPath, decrypted);
+		if (decryptResult.error || decryptResult.status !== 0) {
+			throw decryptResult.error ?? new Error(decryptResult.stderr?.toString() || "dotenvx decrypt failed");
+		}
+		const decrypted = decryptResult.stdout;
+		fs.writeFileSync(tmpPath, decrypted, { mode: 0o600 });
 		spinner.stop(`${env.file} を復号しました`);
 
 		// 2. エディタで開く
-		const editor = process.env.EDITOR || "vi";
+		const editorEnv = (process.env.EDITOR || "vi").trim();
+		const [editorBin, ...editorArgs] = editorEnv.split(/\s+/);
 
 		// vi/vimの場合はファイル先頭に使い方ヘルプをコメントとして追加
 		const vimHelpMarker = "# === ↓↓↓ ここから下を編集（この行より上は保存時に自動削除）↓↓↓ ===";
-		if (editor === "vi" || editor === "vim") {
+		if (editorBin === "vi" || editorBin === "vim") {
 			const vimHelp = `# ┌─────────────────────────────────────────────────┐
 # │  vi/vim の基本操作                              │
 # ├─────────────────────────────────────────────────┤
@@ -294,15 +631,19 @@ ${vimHelpMarker}
 
 `;
 			const currentContent = fs.readFileSync(tmpPath, "utf-8");
-			fs.writeFileSync(tmpPath, vimHelp + currentContent);
+			fs.writeFileSync(tmpPath, vimHelp + currentContent, { mode: 0o600 });
 		}
 
-		p.log.info(`${editor} で ${env.file}.tmp を開きます...`);
+		p.log.info(`${editorEnv} で ${env.file}.tmp を開きます...`);
 
-		execSync(`${editor} ${env.file}.tmp`, {
+		const editResult = spawnSync(editorBin, [...editorArgs, `${env.file}.tmp`], {
 			cwd,
 			stdio: "inherit",
 		});
+		if (editResult.error || editResult.status !== 0) {
+			try { fs.unlinkSync(tmpPath); } catch {}
+			throw editResult.error ?? new Error(`エディタが異常終了しました (exit ${editResult.status})`);
+		}
 
 		// 3. 編集確認
 		const confirmSave = await p.confirm({
@@ -320,7 +661,7 @@ ${vimHelpMarker}
 		spinner.start("再暗号化中...");
 
 		// vi/vimヘルプコメントを削除（ファイル先頭から）
-		if (editor === "vi" || editor === "vim") {
+		if (editorBin === "vi" || editorBin === "vim") {
 			let content = fs.readFileSync(tmpPath, "utf-8");
 			const markerIndex = content.indexOf(vimHelpMarker);
 			if (markerIndex !== -1) {
@@ -340,11 +681,14 @@ ${vimHelpMarker}
 			fs.renameSync(tmpPath, envFilePath);
 
 			// 暗号化
-			execSync(`dotenvx encrypt -f ${env.file}`, {
+			const encryptResult = spawnSync("dotenvx", ["encrypt", "-f", env.file], {
 				cwd,
 				stdio: "pipe",
 				env: dotenvxEnv,
 			});
+			if (encryptResult.error || encryptResult.status !== 0) {
+				throw encryptResult.error ?? new Error(encryptResult.stderr?.toString() || "dotenvx encrypt failed");
+			}
 
 			// 成功したらバックアップを削除
 			fs.unlinkSync(backupPath);
@@ -441,6 +785,11 @@ async function main(): Promise<void> {
 				hint: "GITHUB_TOKEN, API_KEY等",
 			},
 			{
+				value: "defaults",
+				label: "デフォルトトークン管理",
+				hint: "組織共通トークンの設定・確認",
+			},
+			{
 				value: "environment",
 				label: "環境設定を変更",
 				hint: "local, staging, production, ci 等",
@@ -461,6 +810,9 @@ async function main(): Promise<void> {
 	switch (action) {
 		case "personal":
 			await setupPersonalTokens();
+			break;
+		case "defaults":
+			await manageDefaults();
 			break;
 		case "environment":
 			await selectEnvironment();

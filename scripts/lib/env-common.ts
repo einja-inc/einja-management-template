@@ -106,3 +106,29 @@ export function getPrivateKey(privateKeyEnv: string): string | null {
   const keys = parseEnvFile(ENV_KEYS_PATH);
   return keys[privateKeyEnv] || null;
 }
+
+/**
+ * 環境変数ファイルに値を設定
+ *
+ * @param filePath - 環境変数ファイルのパス
+ * @param key - 設定する環境変数のキー名
+ * @param value - 設定する値
+ */
+export function setEnvValue(filePath: string, key: string, value: string): void {
+  let content = "";
+  if (fs.existsSync(filePath)) {
+    content = fs.readFileSync(filePath, "utf-8");
+  }
+
+  // 正規表現メタキャラクタをエスケープ
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`^${escapedKey}=.*$`, "gm");
+  const replaced = content.replace(regex, () => `${key}=${value}`);
+  if (replaced !== content) {
+    content = replaced;
+  } else {
+    content = content.trim() + `\n${key}=${value}\n`;
+  }
+
+  fs.writeFileSync(filePath, content);
+}

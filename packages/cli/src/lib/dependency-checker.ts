@@ -234,8 +234,59 @@ export async function checkAndInstallDependencies(
         );
         result.devDepsInstalled = true;
       } catch (error) {
-        spinner.fail("devDependencies のインストールに失敗しました");
-        console.error(chalk.red(`    ${error instanceof Error ? error.message : String(error)}`));
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const stderr =
+          error && typeof error === "object" && "stderr" in error
+            ? String(error.stderr)
+            : "";
+        const fullOutput = `${errorMsg}\n${stderr}`;
+        const isDirenvError =
+          fullOutput.includes("direnv") || fullOutput.includes(".envrc");
+
+        if (isDirenvError) {
+          if (isSystemCommandAvailable("direnv") && !isNonInteractive(options)) {
+            spinner.warn("direnv がブロックされているため失敗しました");
+            const { shouldAllow } = await inquirer.prompt([
+              {
+                type: "confirm",
+                name: "shouldAllow",
+                message: "direnv allow を実行してリトライしますか？",
+                default: true,
+              },
+            ]);
+            if (shouldAllow) {
+              try {
+                execSync("direnv allow", { cwd, stdio: "pipe", timeout: 10000 });
+                execSync(addCmd, { cwd, stdio: "pipe", timeout: 120000 });
+                spinner.succeed(
+                  `devDependencies インストール完了: ${checkResult.missingDevDeps.join(", ")}`
+                );
+                result.devDepsInstalled = true;
+              } catch (retryError) {
+                spinner.fail("devDependencies のインストールに失敗しました");
+                console.error(
+                  chalk.red(
+                    `    ${retryError instanceof Error ? retryError.message : String(retryError)}`
+                  )
+                );
+              }
+            }
+          } else if (isSystemCommandAvailable("direnv")) {
+            spinner.fail("devDependencies のインストールに失敗しました");
+            console.error(chalk.red(`    ${errorMsg}`));
+            console.log(
+              chalk.yellow(
+                "    💡 `direnv allow` を実行してから再度 sync を実行してください"
+              )
+            );
+          } else {
+            spinner.fail("devDependencies のインストールに失敗しました");
+            console.error(chalk.red(`    ${errorMsg}`));
+          }
+        } else {
+          spinner.fail("devDependencies のインストールに失敗しました");
+          console.error(chalk.red(`    ${errorMsg}`));
+        }
       }
     } else {
       console.log(chalk.yellow("  devDependencies のインストールをスキップしました"));

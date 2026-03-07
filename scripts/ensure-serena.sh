@@ -28,7 +28,7 @@ if [ -f "$_SERENA_PORT_FILE" ]; then
 
     if [ -n "$_cmd" ] \
        && printf '%s\n' "$_cmd" | grep -Eq -- "(^|[[:space:]])--project(=|[[:space:]])${_base_ere}([[:space:]]|$)"; then
-      # 自プロジェクトのSerenaプロセス → 再利用
+      # 自プロジェクトのSerenaプロセス → 再利用（起動中でもLISTEN済みでもOK）
       export SERENA_PORT="$_saved_port"
       return 0 2>/dev/null || true
     fi
@@ -74,21 +74,31 @@ uvx --from git+https://github.com/oraios/serena \
 _serena_pid=$!
 disown
 
-# --- 起動待機（PID生存 + ポートLISTEN、最大30秒） ---
-for _i in $(seq 1 60); do
-  if ! kill -0 "$_serena_pid" 2>/dev/null; then
-    echo "[ensure-serena] Warning: Serena process exited unexpectedly" >&2
-    return 0 2>/dev/null || true
-  fi
-  if nc -z 127.0.0.1 "$_port" > /dev/null 2>&1; then
-    echo "$_port $_serena_pid" > "$_SERENA_PORT_FILE"
-    export SERENA_PORT="$_port"
-    echo "[ensure-serena] Serena ready on port $_port (PID: $_serena_pid)"
-    return 0 2>/dev/null || true
-  fi
-  sleep 0.5
-done
+# ポートファイルとSERENA_PORTを即座に設定（direnvをブロックしない）
+# アトミックな書き込み（truncate→writeの空読みを防止）
+_tmp="${_SERENA_PORT_FILE}.$$"
+printf '%s %s\n' "$_port" "$_serena_pid" > "$_tmp" && mv -f "$_tmp" "$_SERENA_PORT_FILE"
+export SERENA_PORT="$_port"
 
-# タイムアウト（起動失敗してもdirenvはブロックしない）
-echo "[ensure-serena] Warning: Serena failed to start within 30s" >&2
-return 0 2>/dev/null || true
+# 起動確認はバックグラウンドで実行（FDを閉じてdirenvのpipe待ちを防止）
+(
+  _cleanup_if_own_pid() {
+    local _p _pid _r
+    if IFS=' ' read -r _p _pid _r < "$_SERENA_PORT_FILE" 2>/dev/null && [ "$_pid" = "$_serena_pid" ]; then
+      rm -f "$_SERENA_PORT_FILE"
+    fi
+  }
+  for _i in $(seq 1 60); do
+    if ! kill -0 "$_serena_pid" 2>/dev/null; then
+      echo "[ensure-serena] Warning: Serena process exited unexpectedly" >&2
+      _cleanup_if_own_pid
+      break
+    fi
+    if nc -z 127.0.0.1 "$_port" > /dev/null 2>&1; then
+      echo "[ensure-serena] Serena ready on port $_port (PID: $_serena_pid)"
+      break
+    fi
+    sleep 0.5
+  done
+) >/dev/null 2>&1 < /dev/null &
+disown

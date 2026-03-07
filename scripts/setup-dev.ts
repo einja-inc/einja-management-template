@@ -2,6 +2,9 @@ import { execSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { loadDefaults, setDefault } from "./lib/defaults.js";
+import { setEnvValue, parseEnvFile } from "./lib/env-common.js";
+import { commandExists } from "./lib/system-utils.js";
 
 // ANSI color codes
 const colors = {
@@ -23,69 +26,6 @@ function getPlatform(): "macos" | "linux" | "windows" | "unknown" {
 			return "windows";
 		default:
 			return "unknown";
-	}
-}
-
-function commandExists(cmd: string): boolean {
-	try {
-		// Use 'command -v' for POSIX compatibility, 'where' for Windows
-		const checkCmd =
-			process.platform === "win32" ? `where ${cmd}` : `command -v ${cmd}`;
-		execSync(checkCmd, { stdio: "ignore", shell: true });
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-/**
- * git worktreeのメインリポジトリのパスを取得
- * worktreeでない場合はnullを返す
- */
-function getMainWorktreePath(): string | null {
-	try {
-		const result = execSync("git worktree list --porcelain", {
-			encoding: "utf-8",
-			stdio: ["pipe", "pipe", "pipe"],
-		});
-		const lines = result.trim().split("\n");
-		// 最初の "worktree /path/to/main" がメインリポジトリ
-		for (const line of lines) {
-			if (line.startsWith("worktree ")) {
-				const mainPath = line.substring("worktree ".length);
-				// 現在のディレクトリと異なる場合のみ返す（worktree環境の場合）
-				if (mainPath !== process.cwd()) {
-					return mainPath;
-				}
-				break;
-			}
-		}
-		return null;
-	} catch {
-		return null;
-	}
-}
-
-/**
- * worktreeの親から.env.keysをコピー
- * 成功した場合はtrue、失敗またはworktreeでない場合はfalseを返す
- */
-function copyEnvKeysFromMainWorktree(targetPath: string): boolean {
-	const mainPath = getMainWorktreePath();
-	if (!mainPath) {
-		return false;
-	}
-
-	const sourceEnvKeysPath = path.join(mainPath, ".env.keys");
-	if (!fs.existsSync(sourceEnvKeysPath)) {
-		return false;
-	}
-
-	try {
-		fs.copyFileSync(sourceEnvKeysPath, targetPath);
-		return true;
-	} catch {
-		return false;
 	}
 }
 
@@ -132,6 +72,11 @@ function appendToRcFile(rcFile: string, content: string): void {
 
 function log(prefix: string, message: string): void {
 	console.log(`${prefix} ${message}`);
+}
+
+function maskToken(token: string): string {
+	if (token.length <= 4) return "***";
+	return `${token.slice(0, 4)}...`;
 }
 
 function succeed(message: string): void {
@@ -225,14 +170,23 @@ export VOLTA_FEATURE_PNPM=1
 		const voltaPath = path.join(home, ".volta", "bin", "volta");
 		const voltaCmd = fs.existsSync(voltaPath) ? voltaPath : "volta";
 
+		const versionPattern = /^\d+\.\d+\.\d+$/;
 		try {
 			if (voltaConfig.node) {
+				if (!versionPattern.test(voltaConfig.node)) {
+					fail(`不正なNode.jsバージョン形式: ${voltaConfig.node}`);
+					process.exit(1);
+				}
 				execSync(`${voltaCmd} install node@${voltaConfig.node}`, {
 					stdio: "inherit",
 					env: { ...process.env, VOLTA_FEATURE_PNPM: "1" },
 				});
 			}
 			if (voltaConfig.pnpm) {
+				if (!versionPattern.test(voltaConfig.pnpm)) {
+					fail(`不正なpnpmバージョン形式: ${voltaConfig.pnpm}`);
+					process.exit(1);
+				}
 				execSync(`${voltaCmd} install pnpm@${voltaConfig.pnpm}`, {
 					stdio: "inherit",
 					env: { ...process.env, VOLTA_FEATURE_PNPM: "1" },
@@ -307,6 +261,38 @@ async function promptPassword(message: string): Promise<string> {
 		};
 
 		stdin.on("data", onData);
+	});
+}
+
+/**
+ * Y/N の確認プロンプト
+ */
+async function promptConfirm(
+	message: string,
+	defaultYes = true,
+): Promise<boolean> {
+	const stdin = process.stdin;
+	if (!stdin.isTTY) {
+		return false;
+	}
+
+	const hint = defaultYes ? "[Y/n]" : "[y/N]";
+	const readline = await import("node:readline");
+	const rl = readline.createInterface({
+		input: stdin,
+		output: process.stdout,
+	});
+
+	return new Promise((resolve) => {
+		rl.question(`${message} ${hint} `, (answer) => {
+			rl.close();
+			const trimmed = answer.trim().toLowerCase();
+			if (trimmed === "") {
+				resolve(defaultYes);
+			} else {
+				resolve(trimmed === "y" || trimmed === "yes");
+			}
+		});
 	});
 }
 
@@ -418,106 +404,8 @@ async function main(): Promise<void> {
 		succeed("dotenvxは既にインストールされています");
 	}
 
-	// 7. .env.local復号 → .env作成
-	step(7, ".envファイルの作成（.env.localから復号）...");
-
-	const envPath = path.join(cwd, ".env");
-	const envLocalPath = path.join(cwd, ".env.local");
-	const envKeysPath = path.join(cwd, ".env.keys");
-	const envExamplePath = path.join(cwd, ".env.example");
-
-	if (!fs.existsSync(envPath)) {
-		// .env.local（暗号化済み）から復号して.envを作成
-		if (fs.existsSync(envLocalPath) && fs.existsSync(envKeysPath)) {
-			try {
-				// .env.keysから秘密鍵を読み込む
-				const keysContent = fs.readFileSync(envKeysPath, "utf-8");
-				const localKeyMatch = keysContent.match(
-					/DOTENV_PRIVATE_KEY_LOCAL=["']?([^"'\n]+)["']?/,
-				);
-				if (!localKeyMatch) {
-					throw new Error("DOTENV_PRIVATE_KEY_LOCAL が .env.keys に見つかりません");
-				}
-				const privateKey = localKeyMatch[1];
-
-				// dotenvxで復号
-				execSync("npx dotenvx decrypt -f .env.local --stdout > .env", {
-					shell: true,
-					cwd,
-					stdio: "pipe",
-					env: { ...process.env, DOTENV_PRIVATE_KEY_LOCAL: privateKey },
-				});
-				succeed(".env.local を復号して .env を作成しました");
-			} catch (error) {
-				fail(".env.local の復号に失敗しました");
-				console.log(colors.yellow("  秘密鍵が正しいか確認してください"));
-				console.log(
-					colors.gray("  .env.keys はチームから共有を受けてください"),
-				);
-				// フォールバック: .env.exampleからコピー
-				if (fs.existsSync(envExamplePath)) {
-					fs.copyFileSync(envExamplePath, envPath);
-					warn("フォールバック: .env.example から .env を作成しました");
-				}
-			}
-		} else if (!fs.existsSync(envKeysPath)) {
-			// .env.keysがない場合、まずworktreeの親からコピーを試みる
-			if (copyEnvKeysFromMainWorktree(envKeysPath)) {
-				succeed("worktreeのメインリポジトリから .env.keys をコピーしました");
-				// コピー成功後、復号を再試行
-				try {
-					const keysContent = fs.readFileSync(envKeysPath, "utf-8");
-					const localKeyMatch = keysContent.match(
-						/DOTENV_PRIVATE_KEY_LOCAL=["']?([^"'\n]+)["']?/,
-					);
-					if (localKeyMatch) {
-						const privateKey = localKeyMatch[1];
-						execSync("npx dotenvx decrypt -f .env.local --stdout > .env", {
-							shell: true,
-							cwd,
-							stdio: "pipe",
-							env: { ...process.env, DOTENV_PRIVATE_KEY_LOCAL: privateKey },
-						});
-						succeed(".env.local を復号して .env を作成しました");
-					} else {
-						throw new Error("DOTENV_PRIVATE_KEY_LOCAL が見つかりません");
-					}
-				} catch {
-					warn(".env.keys のコピー後、復号に失敗しました");
-					if (fs.existsSync(envExamplePath)) {
-						fs.copyFileSync(envExamplePath, envPath);
-						warn("フォールバック: .env.example から .env を作成しました");
-					}
-				}
-			} else {
-				// worktreeからのコピーも失敗した場合
-				warn(".env.keys が見つかりません（秘密鍵ファイル）");
-				console.log(
-					colors.yellow("  チームから .env.keys を共有してもらってください"),
-				);
-				console.log(colors.gray("  または 1Password 等で共有されています"));
-				// フォールバック: .env.exampleからコピー
-				if (fs.existsSync(envExamplePath)) {
-					fs.copyFileSync(envExamplePath, envPath);
-					warn("フォールバック: .env.example から .env を作成しました");
-				}
-			}
-		} else if (!fs.existsSync(envLocalPath)) {
-			// .env.localがない場合（古いリポジトリ）
-			if (fs.existsSync(envExamplePath)) {
-				fs.copyFileSync(envExamplePath, envPath);
-				succeed(".env.example から .env を作成しました（レガシーモード）");
-			} else {
-				fail(".env.example が見つかりません");
-				process.exit(1);
-			}
-		}
-	} else {
-		succeed(".env は既に存在します");
-	}
-
-	// 8. .env.personal作成 & GITHUB_TOKEN設定（対話的）
-	step(8, "個人用トークン設定（.env.personal）...");
+	// 7. .env.personal作成 & GITHUB_TOKEN設定（対話的）
+	step(7, "個人用トークン設定（.env.personal）...");
 
 	const envPersonalPath = path.join(cwd, ".env.personal");
 	const envPersonalExamplePath = path.join(cwd, ".env.personal.example");
@@ -537,55 +425,93 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// GITHUB_TOKENの確認
-	const envPersonalContent = fs.readFileSync(envPersonalPath, "utf-8");
-	const hasGithubToken =
-		envPersonalContent.includes("GITHUB_TOKEN=") &&
-		!envPersonalContent.match(/GITHUB_TOKEN=\s*$/m) &&
-		!envPersonalContent.match(/GITHUB_TOKEN=\s*\n/);
+	// デフォルトトークンの確認注入
+	let skipManualTokenSetup = false;
+	const defaults = loadDefaults();
+	const hasDefaults = ["GITHUB_TOKEN", "VERCEL_TOKEN", "NEON_API_KEY"].some(
+		(key) => defaults[key],
+	);
 
-	if (!hasGithubToken) {
-		console.log(colors.yellow("\n  ⚠️  GITHUB_TOKENが設定されていません"));
-		console.log(colors.gray("  GitHub Personal Access Token が必要です"));
+	if (hasDefaults) {
 		console.log(
-			colors.gray("  取得方法: https://github.com/settings/tokens/new"),
+			colors.yellow("\n  💡 組織共通のデフォルトトークンが見つかりました"),
 		);
-		console.log(colors.gray("  必要なスコープ: repo, read:org\n"));
+		const availableDefaults = Object.entries(defaults)
+			.filter(([, v]) => v)
+			.map(([k, v]) => `    ${k}: ${maskToken(v)}`);
+		console.log(colors.gray(availableDefaults.join("\n")));
 
-		const token = await promptPassword(
-			"  GITHUB_TOKENを入力してください（スキップはEnter）:",
+		const useDefaults = await promptConfirm(
+			"  デフォルトトークンを使用しますか？",
+			true,
 		);
 
-		const trimmedToken = token.trim();
-		if (trimmedToken) {
-			let updatedContent: string;
-			if (envPersonalContent.includes("GITHUB_TOKEN=")) {
-				// Replace existing line
-				updatedContent = envPersonalContent.replace(
-					/GITHUB_TOKEN=.*/,
-					`GITHUB_TOKEN=${trimmedToken}`,
-				);
-			} else {
-				// Append new line
-				updatedContent = envPersonalContent.endsWith("\n")
-					? `${envPersonalContent}GITHUB_TOKEN=${trimmedToken}\n`
-					: `${envPersonalContent}\nGITHUB_TOKEN=${trimmedToken}\n`;
+		if (useDefaults) {
+			const currentEnv = parseEnvFile(envPersonalPath);
+			for (const key of ["GITHUB_TOKEN", "VERCEL_TOKEN", "NEON_API_KEY"]) {
+				const val = defaults[key];
+				if (val) {
+					if (currentEnv[key]) {
+						succeed(`${key} は既に設定済みのためスキップしました`);
+					} else {
+						setEnvValue(envPersonalPath, key, val);
+						succeed(`${key} をデフォルトから設定しました`);
+					}
+				}
 			}
-			fs.writeFileSync(envPersonalPath, updatedContent);
-			succeed("GITHUB_TOKENを .env.personal に設定しました");
+			// デフォルト適用後、GITHUB_TOKENが設定済みの場合のみ手動入力をスキップ
+			const updatedEnv = parseEnvFile(envPersonalPath);
+			skipManualTokenSetup = !!updatedEnv.GITHUB_TOKEN;
 		} else {
-			console.log(
-				colors.yellow(
-					"  スキップしました。後で .env.personal を編集してください",
-				),
-			);
+			console.log(colors.gray("  手動入力フローへ進みます\n"));
 		}
-	} else {
-		succeed("GITHUB_TOKENは既に設定されています");
 	}
 
-	// 9. direnv有効化
-	step(9, "direnvの有効化...");
+	// GITHUB_TOKENの確認（デフォルト注入をスキップした場合のみ）
+	if (!skipManualTokenSetup) {
+		const currentEnv = parseEnvFile(envPersonalPath);
+		const hasGithubToken = !!currentEnv.GITHUB_TOKEN;
+
+		if (!hasGithubToken) {
+			console.log(colors.yellow("\n  ⚠️  GITHUB_TOKENが設定されていません"));
+			console.log(colors.gray("  GitHub Personal Access Token が必要です"));
+			console.log(
+				colors.gray("  取得方法: https://github.com/settings/tokens/new"),
+			);
+			console.log(colors.gray("  必要なスコープ: repo, read:org\n"));
+
+			const token = await promptPassword(
+				"  GITHUB_TOKENを入力してください（スキップはEnter）:",
+			);
+
+			const trimmedToken = token.trim();
+			if (trimmedToken) {
+				setEnvValue(envPersonalPath, "GITHUB_TOKEN", trimmedToken);
+				succeed("GITHUB_TOKENを .env.personal に設定しました");
+
+				// デフォルトへの保存を提案
+				const saveAsDefault = await promptConfirm(
+					"  このトークンをデフォルトに保存しますか？（他のプロジェクトでも使用可能）",
+					true,
+				);
+				if (saveAsDefault) {
+					setDefault("GITHUB_TOKEN", trimmedToken);
+					succeed("GITHUB_TOKEN をデフォルトに保存しました");
+				}
+			} else {
+				console.log(
+					colors.yellow(
+						"  スキップしました。後で .env.personal を編集してください",
+					),
+				);
+			}
+		} else {
+			succeed("GITHUB_TOKENは既に設定されています");
+		}
+	}
+
+	// 8. direnv有効化
+	step(8, "direnvの有効化...");
 	try {
 		execSync("direnv allow", { cwd, stdio: "ignore" });
 		succeed("direnvを有効化しました");
@@ -593,55 +519,18 @@ async function main(): Promise<void> {
 		warn("direnv allowに失敗（シェル再起動後に再実行してください）");
 	}
 
-	// 10. データベース起動
-	step(10, "データベース起動...");
-	const hasDocker = commandExists("docker");
-
-	if (hasDocker) {
-		try {
-			execSync("docker-compose up -d postgres", { cwd, stdio: "inherit" });
-			succeed("PostgreSQLを起動しました");
-
-			// 起動を待つ
-			console.log(colors.gray("  データベースの起動を待機中..."));
-			await new Promise((resolve) => setTimeout(resolve, 3000));
-
-			// 11. Prismaセットアップ
-			step(11, "データベース初期化...");
-			execSync("pnpm db:generate", { cwd, stdio: "inherit" });
-			execSync("pnpm db:push", { cwd, stdio: "inherit" });
-			succeed("データベースを初期化しました");
-		} catch {
-			warn("データベースの起動または初期化に失敗しました");
-			console.log(colors.gray("  手動で実行してください:"));
-			console.log(colors.gray("    docker-compose up -d postgres"));
-			console.log(colors.gray("    pnpm db:generate && pnpm db:push"));
-		}
-	} else {
-		warn("Dockerがインストールされていません");
-		if (platform === "macos") {
-			console.log(colors.yellow("  OrbStack（Docker互換の軽量ツール）のインストールを推奨します:"));
-			console.log(colors.cyan("    brew install orbstack"));
-			console.log(colors.gray("  または: https://orbstack.dev/"));
-		} else if (platform === "windows") {
-			console.log(colors.yellow("  Dockerをインストールしてください:"));
-			console.log(colors.gray("    https://docs.docker.com/desktop/install/windows-install/"));
-		} else {
-			console.log(colors.yellow("  Docker Engineをインストールしてください:"));
-			console.log(colors.gray("    https://docs.docker.com/engine/install/"));
-		}
-		console.log(colors.gray("  インストール後、以下を実行してください:"));
-		console.log(colors.gray("    docker-compose up -d postgres"));
-		console.log(colors.gray("    pnpm db:generate && pnpm db:push"));
-	}
-
 	// 完了
 	console.log(colors.green("\n=========================================="));
-	console.log(colors.green("✅ 環境セットアップが完了しました！"));
+	console.log(colors.green("✅ ツールセットアップが完了しました！"));
 	console.log(colors.green("==========================================\n"));
 
 	console.log("開発を始めるには:");
 	console.log(colors.cyan("  pnpm dev"));
+	console.log(
+		colors.gray(
+			"  → .env自動生成（.env.local復号）、DB起動、マイグレーションを含みます",
+		),
+	);
 	console.log("");
 
 	console.log("GitHubリポジトリのセットアップ:");

@@ -46,18 +46,22 @@ function step(num: number, message: string): void {
  */
 function parseRemoteUrl(url: string): { org: string; repo: string } | null {
 	// SSH形式: git@github.com:org/repo.git
-	const sshMatch = url.match(/git@github\.com:([^/]+)\/([^/.]+)(\.git)?/);
+	const sshMatch = url.trim().match(/^git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/);
 	if (sshMatch) {
 		return { org: sshMatch[1], repo: sshMatch[2] };
 	}
 	// HTTPS形式: https://github.com/org/repo.git
-	const httpsMatch = url.match(
-		/https:\/\/github\.com\/([^/]+)\/([^/.]+)(\.git)?/,
+	const httpsMatch = url.trim().match(
+		/^https:\/\/github\.com\/([^/]+)\/(.+?)(?:\.git)?$/,
 	);
 	if (httpsMatch) {
 		return { org: httpsMatch[1], repo: httpsMatch[2] };
 	}
 	return null;
+}
+
+function isValidGitHubIdentifier(value: string): boolean {
+	return /^[a-zA-Z0-9._-]+$/.test(value) && value.length <= 100;
 }
 
 /**
@@ -143,6 +147,10 @@ async function main(): Promise<void> {
 			process.exit(0);
 		}
 		org = orgInput;
+		if (!isValidGitHubIdentifier(org)) {
+			fail("無効な組織名です（英数字, ., -, _ のみ使用可能）");
+			process.exit(1);
+		}
 
 		const repoInput = await p.text({
 			message: "リポジトリ名を入力してください",
@@ -154,6 +162,10 @@ async function main(): Promise<void> {
 			process.exit(0);
 		}
 		repo = repoInput;
+		if (!isValidGitHubIdentifier(repo)) {
+			fail("無効なリポジトリ名です（英数字, ., -, _ のみ使用可能）");
+			process.exit(1);
+		}
 
 		const visibility = await p.select({
 			message: "リポジトリの公開設定を選択してください",
@@ -185,7 +197,7 @@ async function main(): Promise<void> {
 	} else {
 		// リモートが存在する場合、org/repoを解析
 		const parsed = parseRemoteUrl(remoteUrl);
-		if (parsed) {
+		if (parsed && isValidGitHubIdentifier(parsed.org) && isValidGitHubIdentifier(parsed.repo)) {
 			org = parsed.org;
 			repo = parsed.repo;
 			succeed(`リモートリポジトリ: ${org}/${repo}`);
@@ -278,8 +290,9 @@ async function main(): Promise<void> {
 
 			for (const { name, value } of keys) {
 				try {
-					const result = spawnSync("gh", ["secret", "set", name, "--body", value], {
-						stdio: "pipe",
+					const result = spawnSync("gh", ["secret", "set", name], {
+						input: value,
+						stdio: ["pipe", "pipe", "pipe"],
 						cwd,
 					});
 					if (result.status !== 0) {
@@ -337,6 +350,157 @@ async function main(): Promise<void> {
 		warn("org/repoが不明のため、Environmentsの作成をスキップしました");
 	}
 
+	// Step 9: 初回デプロイ状態の確認
+	step(9, "初回デプロイ状態の確認...");
+
+	// pendingSetupsをStep 9前に宣言（Step 9内外で使用）
+	const pendingSetups: string[] = [];
+
+	let vercelLinkedApps: string[] = [];
+	let appDirs: string[] = [];
+	let neonConfigured = false;
+
+	// Vercel未リンクの検出
+	try {
+		const appsDir = path.join(cwd, "apps");
+		appDirs = fs.existsSync(appsDir)
+			? fs
+					.readdirSync(appsDir)
+					.filter((d) =>
+						!d.startsWith(".") &&
+						d !== "node_modules" &&
+						fs.statSync(path.join(appsDir, d)).isDirectory(),
+					)
+			: [];
+		vercelLinkedApps = appDirs.filter((app) => {
+			const projectJsonPath = path.join(appsDir, app, ".vercel", "project.json");
+			if (!fs.existsSync(projectJsonPath)) return false;
+			try {
+				const projectData = JSON.parse(fs.readFileSync(projectJsonPath, "utf-8"));
+				return !!projectData.projectId;
+			} catch {
+				return false;
+			}
+		});
+
+		if (vercelLinkedApps.length === 0 && appDirs.length > 0) {
+			warn("Vercelプロジェクトが未リンクです");
+			console.log(
+				colors.yellow(
+					"  以下のコマンドでVercelプロジェクトをリンクしてください:",
+				),
+			);
+			console.log(
+				colors.cyan(
+					"    pnpm env  →  「デフォルトトークン管理」でVERCEL_TOKENを設定後",
+				),
+			);
+			for (const app of appDirs) {
+				console.log(
+					colors.gray(`    cd apps/${app} && vercel link --yes`),
+				);
+			}
+		} else if (vercelLinkedApps.length > 0) {
+			succeed(`Vercelリンク済み: ${vercelLinkedApps.join(", ")}`);
+			const unlinkedApps = appDirs.filter(
+				(app) => !vercelLinkedApps.includes(app),
+			);
+			if (unlinkedApps.length > 0) {
+				warn(`未リンクのアプリ: ${unlinkedApps.join(", ")}`);
+			}
+		}
+	} catch (error) {
+		warn("Vercel状態の確認中にエラーが発生しました");
+		console.log(colors.gray(`  ${error}`));
+	}
+
+	// Neon未設定の検出
+	try {
+		const envPath = path.join(cwd, ".env");
+		const envPreviewPath = path.join(cwd, ".env.preview");
+
+		for (const checkPath of [envPreviewPath, envPath]) {
+			if (neonConfigured) break;
+			if (fs.existsSync(checkPath)) {
+				const envContent = fs.readFileSync(checkPath, "utf-8");
+				const neonMatch = envContent.match(/^NEON_PROJECT_ID=(.+)$/m);
+				neonConfigured = !!(
+					neonMatch &&
+					neonMatch[1].trim() &&
+					!neonMatch[1].includes("your-") &&
+					!neonMatch[1].includes("placeholder")
+				);
+			}
+		}
+
+		if (!neonConfigured) {
+			if (fs.existsSync(envPreviewPath)) {
+				warn("Neonプロジェクトが未設定の可能性があります");
+			} else {
+				warn("Neonプロジェクトが未設定です（.env.preview が存在しません）");
+			}
+			console.log(
+				colors.yellow(
+					"  Neonデータベースの初期設定を実行してください:",
+				),
+			);
+			console.log(
+				colors.cyan(
+					"    pnpm env  →  「デフォルトトークン管理」でNEON_API_KEYを設定後",
+				),
+			);
+			console.log(
+				colors.gray(
+					"    neonctl projects create --name <project-name> --region-id aws-ap-northeast-1",
+				),
+			);
+		} else {
+			succeed("Neonプロジェクトが設定済みです");
+		}
+	} catch (error) {
+		warn("Neon状態の確認中にエラーが発生しました");
+		console.log(colors.gray(`  ${error}`));
+	}
+
+	// GitHub Secrets検出
+	if (org && repo) {
+		try {
+			const secretsJson = execSync("gh secret list --json name", {
+				encoding: "utf-8",
+				cwd,
+				stdio: ["pipe", "pipe", "pipe"],
+			});
+			const secrets: Array<{ name: string }> = JSON.parse(secretsJson);
+			const secretNames = secrets.map((s) => s.name);
+			const hasVercelProjectSecrets = secretNames.some((name) =>
+				/VERCEL_PROJECT_ID_/i.test(name),
+			);
+			if (!hasVercelProjectSecrets) {
+				warn("Vercel関連のGitHub Secretsが未設定です");
+				console.log(
+					colors.yellow(
+						"  GitHub Secretsの一括設定を実行してください:",
+					),
+				);
+				console.log(
+					colors.cyan(
+						"    pnpm env  →  「デフォルトトークン管理」でトークンを設定",
+					),
+				);
+				console.log(
+					colors.gray(
+						"    または: /einja-infra-maintenance → カテゴリ5: GitHub Secrets管理",
+					),
+				);
+				pendingSetups.push("GitHub Secrets（Vercel関連）");
+			} else {
+				succeed("Vercel関連のGitHub Secretsが設定済みです");
+			}
+		} catch {
+			warn("GitHub Secretsの確認をスキップしました");
+		}
+	}
+
 	// 完了サマリー
 	console.log(colors.green("\n=========================================="));
 	console.log(colors.green("✅ GitHubリポジトリのセットアップが完了しました！"));
@@ -352,7 +516,29 @@ async function main(): Promise<void> {
 	console.log(colors.gray("  - mainブランチの保護ルール"));
 	console.log(colors.gray("  - GitHub Secrets（.env.keys）"));
 	console.log(colors.gray("  - GitHub Environments（production, preview）"));
+	console.log(colors.gray("  - 初回デプロイ状態の確認"));
 	console.log("");
+
+	// 未設定項目の案内
+	if (vercelLinkedApps.length === 0 && appDirs.length > 0) {
+		pendingSetups.push("Vercelプロジェクトリンク");
+	}
+	if (!neonConfigured) {
+		pendingSetups.push("Neonデータベース設定");
+	}
+
+	if (pendingSetups.length > 0) {
+		console.log(colors.yellow("\n📋 追加セットアップが必要:"));
+		for (const item of pendingSetups) {
+			console.log(colors.yellow(`  - ${item}`));
+		}
+		console.log(
+			colors.cyan(
+				"\n  → pnpm env で環境変数を設定した後、各サービスの初期設定を実行してください",
+			),
+		);
+		console.log("");
+	}
 
 	p.outro(colors.green("セットアップが完了しました"));
 }

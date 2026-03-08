@@ -356,7 +356,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 
 ### 依存関係の記述形式（重要）
 
-**🔴 `/einja:issue-exec` が認識できる形式のみ使用すること**
+**🔴 `/einja-issue-exec` が認識できる形式のみ使用すること**
 
 | 記述形式 | 意味 | 例 |
 |---------|------|-----|
@@ -377,7 +377,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 ### 1. タスクグループを選定・実行
 - `einja-task-exec` Skillで `#{issue_number} {タスクグループ番号}` を指定して実行
 - タスクグループ番号は必須引数（例: `1.1`, `2.3`）
-- **注意**: 単一タスクグループを品質重視で確実に完了させたい場合に使用。`/einja:issue-exec` の Worker 内部でも呼ばれる
+- **注意**: 単一タスクグループを品質重視で確実に完了させたい場合に使用。`/einja-issue-exec` の Worker 内部でも呼ばれる
 - executer → reviewer → qa の3段階で実行
 
 ### 2. タスクを順次実装し、コミット
@@ -410,22 +410,29 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 - executer → reviewer → qa の3段階で実行
 - QA合格後は追加指示待ち状態に入る
 - GitHub Issue更新はユーザーの明示的指示時のみ
-- **位置づけ**: 単一タスクグループを品質重視で実行するSkill。`/einja:issue-exec` の Worker 内部でも使用される
+- **位置づけ**: 単一タスクグループを品質重視で実行するSkill。`/einja-issue-exec` の Worker 内部でも使用される
 
 **Issue全体の並列実行**:
 ```bash
-/einja:issue-exec #<issue番号>
-/einja:issue-exec #<issue番号> --merge-mode auto      # 全自動モード
-/einja:issue-exec #<issue番号> --max-phase <番号>      # 指定Phaseまで実行
-/einja:issue-exec #<issue番号> --base <ブランチ>       # ベースブランチ指定
+/einja-issue-exec #<issue番号>
+/einja-issue-exec #<issue番号> --merge-mode auto      # 全自動モード
+/einja-issue-exec #<issue番号> --max-phase <番号>      # 指定Phaseまで実行
+/einja-issue-exec #<issue番号> --base <ブランチ>       # ベースブランチ指定
 ```
 - Manager → Director → Worker の3階層で並列実行
 - tmux セッションで全プロセスを監視可能
 - マージモードで自動化レベルを制御
 
+**Issue全体の並列実行（Agent Teams版）**:
+`einja-issue-team-exec` Skillを使用し、Issue番号やオプションを引数に指定します。
+- Agent Teams による並列実行（tmux不要、Desktop/CLI両対応）
+- Lead(Manager) → Teammate(Director Pool) → Subagent(Worker) の3ロール体制
+- 共有TaskListとself-claimによるワーカープール方式
+- `einja-issue-exec`（tmux版）と同じブランチ構造・共通プロトコルに準拠
+
 **仕様書からドキュメント更新**:
 ```bash
-/einja:update-docs-by-issue-specs [Issue仕様書ディレクトリパス]
+/einja-update-docs-by-issue-specs [Issue仕様書ディレクトリパス]
 ```
 - Issue仕様書の内容をfeature仕様書とsteering仕様書に反映
 <!-- @einja:managed:end -->

@@ -297,7 +297,7 @@ function parseArgs(): { all: boolean; nonInteractive: boolean } {
 
 /**
  * 非対話モードで全環境のローテーションを実行
- * create-einja-app のセットアップ時に使用
+ * @einja-inc/create-app のセットアップ時に使用
  *
  * @returns 成功した環境数
  */

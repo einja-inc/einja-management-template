@@ -9,34 +9,34 @@ import {
 describe("category-validator", () => {
   describe("validateCategories", () => {
     it("単一の有効なカテゴリを受け入れる", () => {
-      const result = validateCategories("commands");
+      const result = validateCategories("agents");
 
       expect(result.valid).toBe(true);
-      expect(result.validCategories).toEqual(["commands"]);
+      expect(result.validCategories).toEqual(["agents"]);
       expect(result.invalidCategories).toEqual([]);
     });
 
     it("複数の有効なカテゴリを受け入れる", () => {
-      const result = validateCategories("commands,agents,skills");
+      const result = validateCategories("agents,skills,hooks");
 
       expect(result.valid).toBe(true);
-      expect(result.validCategories).toEqual(["commands", "agents", "skills"]);
+      expect(result.validCategories).toEqual(["agents", "skills", "hooks"]);
       expect(result.invalidCategories).toEqual([]);
     });
 
     it("全ての有効なカテゴリを受け入れる", () => {
-      const result = validateCategories("commands,agents,skills,docs");
+      const result = validateCategories("agents,skills,docs,hooks");
 
       expect(result.valid).toBe(true);
-      expect(result.validCategories).toEqual(["commands", "agents", "skills", "docs"]);
+      expect(result.validCategories).toEqual(["agents", "skills", "docs", "hooks"]);
       expect(result.invalidCategories).toEqual([]);
     });
 
     it("スペースを含む入力を正しくトリムする", () => {
-      const result = validateCategories(" commands , agents , skills ");
+      const result = validateCategories(" agents , skills , hooks ");
 
       expect(result.valid).toBe(true);
-      expect(result.validCategories).toEqual(["commands", "agents", "skills"]);
+      expect(result.validCategories).toEqual(["agents", "skills", "hooks"]);
       expect(result.invalidCategories).toEqual([]);
     });
 
@@ -57,10 +57,10 @@ describe("category-validator", () => {
     });
 
     it("有効と無効が混在する場合、無効として判定する", () => {
-      const result = validateCategories("commands,invalid,agents");
+      const result = validateCategories("agents,invalid,skills");
 
       expect(result.valid).toBe(false);
-      expect(result.validCategories).toEqual(["commands", "agents"]);
+      expect(result.validCategories).toEqual(["agents", "skills"]);
       expect(result.invalidCategories).toEqual(["invalid"]);
     });
 
@@ -73,10 +73,10 @@ describe("category-validator", () => {
     });
 
     it("連続したカンマを適切に処理する", () => {
-      const result = validateCategories("commands,,agents");
+      const result = validateCategories("agents,,skills");
 
       expect(result.valid).toBe(true);
-      expect(result.validCategories).toEqual(["commands", "agents"]);
+      expect(result.validCategories).toEqual(["agents", "skills"]);
       expect(result.invalidCategories).toEqual([]);
     });
   });
@@ -87,7 +87,7 @@ describe("category-validator", () => {
 
       expect(message).toContain("無効なカテゴリ: invalid-category");
       expect(message).toContain("有効なカテゴリは以下のいずれかです:");
-      expect(message).toContain("commands - Claude Code コマンド");
+      expect(message).toContain("agents - Claude Code エージェント");
       expect(message).toContain("scripts - ユーティリティスクリプト");
       expect(message).toContain("tools - 開発ツール設定");
     });
@@ -97,7 +97,7 @@ describe("category-validator", () => {
 
       expect(message).toContain("無効なカテゴリ: invalid1, invalid2, invalid3");
       expect(message).toContain("有効なカテゴリは以下のいずれかです:");
-      expect(message).toContain("commands - Claude Code コマンド");
+      expect(message).toContain("agents - Claude Code エージェント");
       expect(message).toContain("scripts - ユーティリティスクリプト");
       expect(message).toContain("tools - 開発ツール設定");
     });
@@ -105,7 +105,7 @@ describe("category-validator", () => {
 
   describe("VALID_CATEGORIES", () => {
     it("全ての有効なカテゴリが定義されている", () => {
-      expect(VALID_CATEGORIES).toEqual(["commands", "agents", "skills", "hooks", "docs", "scripts", "env", "tools", "claude-md", "root-config", "claude-config"]);
+      expect(VALID_CATEGORIES).toEqual(["agents", "skills", "hooks", "docs", "scripts", "env", "tools", "claude-md", "root-config", "claude-config"]);
     });
   });
 

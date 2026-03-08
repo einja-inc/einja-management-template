@@ -28,7 +28,7 @@ color: purple
 
 ## 処理フロー
 
-`.claude/commands/einja/update-docs-by-issue-specs.md` を Read で読み込み、そこに記載された実行フロー・反映ルール・マージロジックに従って処理を実行してください。
+`.claude/skills/einja-update-docs-by-issue-specs/SKILL.md` を Read で読み込み、そこに記載された実行フロー・反映ルール・マージロジックに従って処理を実行してください。
 
 ## 出力形式
 
@@ -63,7 +63,7 @@ color: purple
 
 このエージェントは以下から呼び出されます：
 - `einja-task-exec` SkillでPhase 99タスク（`99.*.*`）実行時
-- `/einja:update-docs-by-issue-specs` コマンド直接呼び出し時
+- `einja-update-docs-by-issue-specs` Skill直接呼び出し時
 
 ## 連携エージェント
 

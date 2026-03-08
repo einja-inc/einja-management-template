@@ -2,7 +2,7 @@
 /**
  * template:update スクリプト
  *
- * プロジェクトの最新コンテンツをcreate-einja-appテンプレートに反映する内部開発用スクリプト。
+ * プロジェクトの最新コンテンツを@einja-inc/create-appテンプレートに反映する内部開発用スクリプト。
  *
  * 使用例:
  *   pnpm template:update                # テンプレート更新
@@ -223,7 +223,7 @@ async function main(): Promise<void> {
   const templateDir = join(
     rootDir,
     "packages",
-    "create-einja-app",
+    "create-app",
     "templates",
     "default"
   );

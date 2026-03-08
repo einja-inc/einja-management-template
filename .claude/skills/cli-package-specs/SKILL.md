@@ -1,6 +1,6 @@
 ---
 name: cli-package-specs
-description: "@einja/dev-cli と create-einja-app のビルド・テンプレート仕様リファレンス。ファイルマッピング、マーカー仕様、コピーフィルタ条件を集約"
+description: "@einja-inc/dev-cli と @einja-inc/create-app のビルド・テンプレート仕様リファレンス。ファイルマッピング、マーカー仕様、コピーフィルタ条件を集約"
 ---
 
 # CLI パッケージ ビルド・テンプレート仕様リファレンス
@@ -12,14 +12,14 @@ description: "@einja/dev-cli と create-einja-app のビルド・テンプレー
 
 | パッケージ | 役割 |
 |-----------|------|
-| `@einja/dev-cli` (`packages/cli`) | 既存プロジェクトへの `.claude/` 設定・`docs/einja/` 同期。`einja init` / `einja sync` コマンドを提供 |
-| `create-einja-app` (`packages/create-einja-app`) | 新規プロジェクトのスキャフォールディング。テンプレートからプロジェクト全体を生成 |
+| `@einja-inc/dev-cli` (`packages/cli`) | 既存プロジェクトへの `.claude/` 設定・`docs/einja/` 同期。`einja init` / `einja sync` コマンドを提供 |
+| `@einja-inc/create-app` (`packages/create-app`) | 新規プロジェクトのスキャフォールディング。テンプレートからプロジェクト全体を生成 |
 
 ---
 
 ## 1. ビルドパイプライン
 
-### 1.1 `@einja/dev-cli` ビルド
+### 1.1 `@einja-inc/dev-cli` ビルド
 
 `packages/cli/package.json` L21:
 ```
@@ -42,10 +42,10 @@ description: "@einja/dev-cli と create-einja-app のビルド・テンプレー
   3. 単一ファイルのコピー（L125-156）
   4. シンボリックリンク情報の `symlinks.json` 出力（L284-295）
 
-### 1.2 `create-einja-app` テンプレート更新
+### 1.2 `@einja-inc/create-app` テンプレート更新
 
 - **スクリプト**: `scripts/_template-update.ts`（ルート）
-- **出力先**: `packages/create-einja-app/templates/default/`
+- **出力先**: `packages/create-app/templates/default/`
 - **処理**:
   1. `.templateignore` でフィルタリング（L93-103）
   2. `README.md` の `@einja:excluded` マーカー除去（L173-185）
@@ -53,7 +53,7 @@ description: "@einja/dev-cli と create-einja-app のビルド・テンプレー
   4. `tsconfig.json` の `@repo/` → `{{packageName}}/`（L136-161）
   5. `.ts/.tsx/.js/.jsx` の import文 `@repo/` → `{{packageName}}/`（L166-168）
 
-### 1.3 `@einja/dev-cli` プリセット更新（開発用）
+### 1.3 `@einja-inc/dev-cli` プリセット更新（開発用）
 
 - **スクリプト**: `scripts/_cli-template-update.ts`
 - **実行**: `pnpm preset:update`（`packages/cli/package.json` L30）
@@ -63,14 +63,13 @@ description: "@einja/dev-cli と create-einja-app のビルド・テンプレー
 
 ## 2. ファイルマッピング
 
-### 2.1 `@einja/dev-cli` コピー対象（`copy-presets.mjs`）
+### 2.1 `@einja-inc/dev-cli` コピー対象（`copy-presets.mjs`）
 
 #### ディレクトリマッピング（L47-122）
 
 | 原本 | コピー先（`presets/default/` 配下） | 備考 |
 |------|--------------------------------------|------|
 | `.claude/agents/einja/` | `.claude/agents/einja/` | |
-| `.claude/commands/einja/` | `.claude/commands/einja/` | |
 | `.claude/skills/einja-*` | `.claude/skills/einja-*/` | 個別列挙（L62-101） |
 | `.claude/hooks/einja/` | `.claude/hooks/einja/` | `cleanParent: true`（L107） |
 | `docs/einja/` | `docs/einja/` | `memory/`, `cli/` を除外（L114） |
@@ -102,7 +101,6 @@ description: "@einja/dev-cli と create-einja-app のビルド・テンプレー
 
 | source | destination | category |
 |--------|------------|----------|
-| `.claude/commands` | `.claude/commands/einja` | commands |
 | `.claude/agents` | `.claude/agents/einja` | agents |
 | `.claude/skills` | `.claude/skills` | skills |
 | `.claude/hooks` | `.claude/hooks` | hooks |
@@ -166,7 +164,7 @@ const prefixFilter = mapping.category === "skills" ? ["einja-", "_einja-"] : und
 ```
 
 - `generate-template.mjs` L53-56: CLAUDE.md → CLAUDE.md.template 変換時に除去
-- `template-update.ts` L56-67: create-einja-app テンプレート（README.md等）で除去
+- `template-update.ts` L56-67: @einja-inc/create-app テンプレート（README.md等）で除去
 - `_template-update.ts` L173-185: 同上
 
 ### 4.2 `@einja:managed`
@@ -256,9 +254,9 @@ jsonPaths:
 
 ## 5. `post-setup.ts` 処理フロー
 
-**ファイル**: `packages/create-einja-app/src/generators/post-setup.ts`
+**ファイル**: `packages/create-app/src/generators/post-setup.ts`
 
-`create-einja-app` でプロジェクト生成後に実行されるセットアップフロー。
+`@einja-inc/create-app` でプロジェクト生成後に実行されるセットアップフロー。
 
 | Step | 処理 | 行番号 |
 |------|------|--------|
@@ -266,7 +264,7 @@ jsonPaths:
 | 1 | 依存関係インストール（`pnpm install`） + Prismaクライアント生成（`pnpm db:generate`） | L68-87 |
 | 2 | 秘密鍵の自動ローテーション（`pnpm env:rotate-secrets --all --non-interactive`） | L90-99 |
 | 3 | Git初期化（`git init` → `git add .` → `git commit`） | L102-113 |
-| 4 | `@einja/dev-cli` 初期化（`npx @einja/dev-cli@latest init --force --no-backup`、`config.setupEinjaCli` が true の場合のみ） | L116-125 |
+| 4 | `@einja-inc/dev-cli` 初期化（`npx @einja-inc/dev-cli@latest init --force --no-backup`、`config.setupEinjaCli` が true の場合のみ） | L116-125 |
 | 5 | 完了メッセージ表示 | L128 |
 
 ---
@@ -303,7 +301,6 @@ worktree 環境では `.env.keys` をメインリポジトリから自動コピ�
 
 | カテゴリ | 対象ファイル | 特別処理 |
 |---------|------------|---------|
-| `commands` | `.claude/commands/einja/**` | - |
 | `agents` | `.claude/agents/einja/**` | - |
 | `skills` | `.claude/skills/{einja-,_einja-}*/**` | プレフィックスフィルタ |
 | `hooks` | `.claude/hooks/**` | - |
@@ -317,9 +314,9 @@ worktree 環境では `.env.keys` をメインリポジトリから自動コピ�
 
 **バリデーション**: `packages/cli/src/lib/sync/category-validator.ts`
 
-### 7.2 create-einja-app sync カテゴリ
+### 7.2 @einja-inc/create-app sync カテゴリ
 
-**実装**: `packages/create-einja-app/src/generators/sync.ts`
+**実装**: `packages/create-app/src/generators/sync.ts`
 
 | カテゴリ | 対象パターン |
 |---------|------------|
@@ -336,17 +333,16 @@ worktree 環境では `.env.keys` をメインリポジトリから自動コピ�
 | `packages` | `packages/**` |
 | `docs` | `README.md`, `docs/**` |
 
-**プロンプト**: `packages/create-einja-app/src/prompts/sync.ts`
+**プロンプト**: `packages/create-app/src/prompts/sync.ts`
 
 ---
 
-## 8. 管轄境界（dev-cli vs create-einja-app）
+## 8. 管轄境界（dev-cli vs @einja-inc/create-app）
 
 ### 8.1 ファイル管轄テーブル
 
 | ファイル/ディレクトリ | 管轄CLI | sync カテゴリ |
 |---------------------|---------|-------------|
-| `.claude/commands/einja/` | dev-cli | `commands` |
 | `.claude/agents/einja/` | dev-cli | `agents` |
 | `.claude/skills/einja-*/` | dev-cli | `skills` |
 | `.claude/hooks/einja/` | dev-cli | `hooks` |
@@ -357,19 +353,19 @@ worktree 環境では `.env.keys` をメインリポジトリから自動コピ�
 | `AGENTS.md` | dev-cli | `claude-md` |
 | `.envrc` | dev-cli | `env` |
 | `.vscode/settings.json` | dev-cli | `tools` |
-| `package.json` | 両方（管理パスが異なる） | dev-cli: `root-config` / create-einja-app: `root-config` |
+| `package.json` | 両方（管理パスが異なる） | dev-cli: `root-config` / @einja-inc/create-app: `root-config` |
 | `.mcp.json` | dev-cli | `root-config` |
-| `biome.json`, `.biomeignore` | create-einja-app | `tools` |
-| `.gitignore`, `.gitattributes` | create-einja-app | `git` |
-| `.husky/`, `.lintstagedrc.js` | create-einja-app | `git-hooks` |
-| `turbo.json`, `pnpm-workspace.yaml` | create-einja-app | `monorepo` |
-| `tsconfig.json`, `vitest.config.ts` 等 | create-einja-app | `root-config` |
-| `Dockerfile*`, `docker-compose*.yml` | create-einja-app | `docker` |
-| `.github/workflows/` | create-einja-app | `github` |
-| `apps/**`, `packages/**` | create-einja-app | `apps` / `packages` |
+| `biome.json`, `.biomeignore` | @einja-inc/create-app | `tools` |
+| `.gitignore`, `.gitattributes` | @einja-inc/create-app | `git` |
+| `.husky/`, `.lintstagedrc.js` | @einja-inc/create-app | `git-hooks` |
+| `turbo.json`, `pnpm-workspace.yaml` | @einja-inc/create-app | `monorepo` |
+| `tsconfig.json`, `vitest.config.ts` 等 | @einja-inc/create-app | `root-config` |
+| `Dockerfile*`, `docker-compose*.yml` | @einja-inc/create-app | `docker` |
+| `.github/workflows/` | @einja-inc/create-app | `github` |
+| `apps/**`, `packages/**` | @einja-inc/create-app | `apps` / `packages` |
 
 ### 8.2 新規ファイル追加時の判断基準
 
 - **Claude Code関連**（.claude/, CLAUDE.md, AGENTS.md, docs/einja/）→ dev-cli
-- **プロジェクト基盤**（ビルドツール、CI/CD、Docker、lint、テスト設定）→ create-einja-app
+- **プロジェクト基盤**（ビルドツール、CI/CD、Docker、lint、テスト設定）→ @einja-inc/create-app
 - **両方が関わる**（package.json）→ 管理パス（jsonPaths）で分離

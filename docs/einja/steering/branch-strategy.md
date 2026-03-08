@@ -30,7 +30,7 @@ graph TB
         ISSUE --> PHASE2[issue/123-phase2]
     end
 
-    subgraph "Worktree（einja:issue-exec管理）"
+    subgraph "Worktree（einja-issue-exec管理）"
         PHASE1 -.->|base_branch| WT1[worktree: task-1.1]
         PHASE1 -.->|base_branch| WT2[worktree: task-1.2]
         PHASE2 -.->|base_branch| WT3[worktree: task-2.1]
@@ -67,7 +67,7 @@ graph TB
 
 **目的**:
 - フェーズ単位での作業を分離
-- einja:issue-exec の Worker 実行ベースブランチとして使用（原則）
+- einja-issue-exec の Worker 実行ベースブランチとして使用（原則）
 - フェーズ完了後、親ブランチにマージ
 
 ## ブランチ命名例
@@ -80,9 +80,13 @@ graph TB
 
 ---
 
-## einja:issue-exec 実行時のブランチ運用
+## Issue並列実行時のブランチ運用
+
+einja-issue-exec（tmux版）と einja-issue-team-exec（Agent Teams版）の両方に共通するブランチ運用ルールを定義する。
 
 ### タスク実行シーケンス
+
+※ 以下は tmux版のシーケンス。Agent Teams版は SKILL.md を参照
 
 ```mermaid
 sequenceDiagram
@@ -92,7 +96,7 @@ sequenceDiagram
     participant Dir as Director
     participant Wkr as Worker
 
-    User->>Mgr: /einja:issue-exec #123
+    User->>Mgr: /einja-issue-exec #123
 
     rect rgb(230,240,255)
         Note over Mgr,Git: 初期化フェーズ（Issue & Phase ブランチ + worktree）
@@ -133,18 +137,30 @@ sequenceDiagram
 
 ### ブランチ CRUD タイミング
 
-| 操作 | タイミング | 実行者 | 備考 |
+| 操作 | タイミング | 実行者（共通ロール） | 備考 |
 |-----|----------|--------|------|
 | **Create** Issue ブランチ | コマンド起動時 | Manager | IssueBranchBase から作成 |
-| **Create** Phase ブランチ + worktree | コマンド起動時 | Manager | Issue ブランチから作成、`~/.einja/worktrees/issue-{N}/` に配置 |
-| **Create** Task ブランチ + worktree | タスク開始時 | Director | Phase ブランチから作成、`~/.einja/worktrees/issue-{N}/` に配置 |
+| **Create** Phase ブランチ | コマンド起動時（全Phase分）or Phase開始時 | Manager | Issue ブランチから作成 |
+| **Create** Task ブランチ | タスク開始時 | Director | Phase ブランチから作成 |
 | **Update** Phase ブランチ | タスク PR マージ時 | GitHub | タスク完了後のマージで更新 |
 | **Merge** Phase → Issue | Phase 全タスク完了時 | Manager | Phase PR 作成 → マージモードに応じた処理 |
-| **Delete** Task worktree | タスク完了後 | Director | タスク完了後に即削除 |
-| **Delete** Phase worktree | Phase 完了後 | Manager | Phase マージ後に即削除 |
-| **Delete** Phase ブランチ | Issue 完了後 | Manager | Issue ブランチにマージ後 |
+| **Delete** Task ブランチ/隔離環境 | タスク完了後 | Director | タスク完了後に即削除 |
+| **Delete** Phase ブランチ/隔離環境 | Phase 完了後 | Manager | Phase マージ後に即削除 |
 
-### Worktree ライフサイクル
+### 実行方式別のファイル隔離
+
+#### tmux版（einja-issue-exec）のファイル隔離
+
+```
+~/.einja/worktrees/issue-{N}/
+├── manager/                      ← Manager cwd
+├── phase{M}/                     ← Director cwd
+├── task-{X.Y}/                   ← Worker cwd
+```
+
+- Manager worktree: `git worktree add ~/.einja/worktrees/issue-{N}/manager issue/{N}`
+- Phase worktree: `git worktree add ~/.einja/worktrees/issue-{N}/phase{M} issue/{N}-phase{M}`
+- Task worktree: `git worktree add ~/.einja/worktrees/issue-{N}/task-{X.Y} task/{N}-{X.Y}`
 
 ```mermaid
 stateDiagram-v2
@@ -153,6 +169,22 @@ stateDiagram-v2
     Running --> Completed: タスク完了 & PR 作成
     Completed --> Merged: PR マージ
     Merged --> [*]: 即削除（Director が worktree remove）
+```
+
+#### Agent Teams版（einja-issue-team-exec）のファイル隔離
+
+- 各 Director Teammate は task ブランチ用の worktree を作成して作業
+- claim 前に `clean tree 確認 + phase branch 再同期 + task branch & worktree 新規作成` を必須化
+- 完了後に worktree を削除
+- worktree パス: プロジェクトルートからの相対パスで `../{project-name}-worktrees/task-{N}-{X.Y}/` を使用
+
+```mermaid
+stateDiagram-v2
+    [*] --> Created: Director Teammate が claim 時に worktree 作成
+    Created --> Running: einja-task-exec 実行
+    Running --> Completed: タスク完了 & PR 作成
+    Completed --> Merged: PR マージ
+    Merged --> [*]: worktree 削除 → 次タスク claim
 ```
 
 ### ブランチ同期の動作
@@ -356,9 +388,11 @@ git push origin タスクブランチ名
 
 ## 関連ドキュメント
 
-- [einja:issue-exec ワークフロー](../instructions/issue-exec-workflow.md) - コマンドの使用方法と3階層プロセスの詳細
+- [einja-issue-exec ワークフロー](../instructions/issue-exec-workflow.md) - コマンドの使用方法と3階層プロセスの詳細
+- [Issue実行共通プロトコル](../instructions/issue-exec-protocol.md) - 共通ルール
 - [タスク管理](task-management.md) - タスク階層と粒度基準
 - [開発ワークフロー](development-workflow.md) - 仕様書作成からタスク実行までの全体フロー
+- [einja-issue-team-exec SKILL.md](../../.claude/skills/einja-issue-team-exec/SKILL.md) - Agent Teams版
 <!-- @einja:managed:end -->
 
 <!-- @einja:project-private:start id="branch-strategy-project" -->

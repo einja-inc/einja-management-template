@@ -61,7 +61,7 @@
 - System overview and major boundaries: `docs/einja/steering/architecture.md`.
 - Environment variable policy and storage: `docs/einja/steering/infrastructure/environment-variables.md`.
 - Publishing guidance:
-  - `create-einja-app`: `packages/create-einja-app/RELEASING.md`.
+  - `@einja-inc/create-app`: `packages/create-app/RELEASING.md`.
   - `dev-cli`: `packages/cli/RELEASING.md` and `packages/cli/docs/PUBLISHING.md`.
 
 ## Security & Configuration Tips

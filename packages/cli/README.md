@@ -1,25 +1,25 @@
-# @einja/dev-cli
+# @einja-inc/dev-cli
 
 Claude Code用の`.claude`設定ディレクトリをnpxでインストールできるCLI。
 
 ## クイックスタート
 
 ```bash
-npx @einja/dev-cli init
+npx @einja-inc/dev-cli init
 ```
 
 ## 利用シーン
 
 | プロジェクトの状態 | 使うコマンド | 説明 |
 |-------------------|------------|------|
-| 新規作成（ゼロから） | `npx create-einja-app my-project` | テンプレートから完全なプロジェクトを生成 |
-| 既存プロジェクトに初回導入 | `npx @einja/dev-cli init` | Claude Code設定を追加+不足依存をインストール |
+| 新規作成（ゼロから） | `npx @einja-inc/create-app my-project` | テンプレートから完全なプロジェクトを生成 |
+| 既存プロジェクトに初回導入 | `npx @einja-inc/dev-cli init` | Claude Code設定を追加+不足依存をインストール |
 | 設定を最新版に更新 | `pnpm einja:sync` | テンプレートの更新分をマージ+不足依存をインストール |
-| 設定を再セットアップ | `npx @einja/dev-cli init --force` | .claudeを上書き（バックアップ自動作成） |
+| 設定を再セットアップ | `npx @einja-inc/dev-cli init --force` | .claudeを上書き（バックアップ自動作成） |
 
-### init vs sync vs create-einja-app の違い
+### init vs sync vs @einja-inc/create-app の違い
 
-| | `create-einja-app` | `dev-cli init` | `dev-cli sync` |
+| | `@einja-inc/create-app` | `dev-cli init` | `dev-cli sync` |
 |--|-------------------|----------------|----------------|
 | 対象 | 新規プロジェクト | 既存（初回導入） | 既存（更新） |
 | .claude/ | 新規生成 | 上書き | マーカーベースでマージ |
@@ -37,15 +37,15 @@ npx @einja/dev-cli init
 ```mermaid
 sequenceDiagram
     participant U as ユーザー
-    participant C as create-einja-app
-    participant D as @einja/dev-cli
+    participant C as @einja-inc/create-app
+    participant D as @einja-inc/dev-cli
 
-    U->>C: npx create-einja-app my-project
+    U->>C: npx @einja-inc/create-app my-project
     activate C
     C->>C: 対話プロンプト（名前・認証・ツール）
     C->>C: テンプレート展開<br/>apps/, packages/, docker-compose,<br/>package.json, tsconfig, turbo.json...
     C->>C: git init + pnpm install
-    C->>D: npx @einja/dev-cli init --force --no-backup
+    C->>D: npx @einja-inc/dev-cli init --force --no-backup
     activate D
     D->>D: .claude/ 生成
     D->>D: docs/einja/ コピー
@@ -64,18 +64,18 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as ユーザー
-    participant C as create-einja-app
-    participant D as @einja/dev-cli
+    participant C as @einja-inc/create-app
+    participant D as @einja-inc/dev-cli
 
     Note over U: CLIバージョンアップ後
 
-    U->>C: npx create-einja-app sync
+    U->>C: npx @einja-inc/create-app sync
     activate C
     C->>C: アプリ設定を差分マージ<br/>turbo.json, biome.json,<br/>docker-compose, .github/ 等
     C-->>U: アプリ設定が最新に
     deactivate C
 
-    U->>D: npx @einja/dev-cli sync
+    U->>D: npx @einja-inc/dev-cli sync
     activate D
     D->>D: AI環境を差分マージ<br/>.claude/, docs/einja/,<br/>CLAUDE.md, .mcp.json 等
     D-->>U: AI環境が最新に
@@ -89,12 +89,12 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as ユーザー
-    participant D as @einja/dev-cli
-    participant C as create-einja-app
+    participant D as @einja-inc/dev-cli
+    participant C as @einja-inc/create-app
 
     Note over U: 既にコードがあるプロジェクト
 
-    U->>D: npx @einja/dev-cli init
+    U->>D: npx @einja-inc/dev-cli init
     activate D
     D->>D: .claude/ 生成
     D->>D: docs/einja/ コピー
@@ -105,7 +105,7 @@ sequenceDiagram
     deactivate D
 
     alt アプリ設定も部分導入したい場合
-        U->>C: npx create-einja-app sync<br/>--categories tools,env,git
+        U->>C: npx @einja-inc/create-app sync<br/>--categories tools,env,git
         activate C
         C->>C: 選択したカテゴリのみマージ<br/>biome.json, .envrc, .gitignore
         C-->>U: 部分導入完了
@@ -115,13 +115,12 @@ sequenceDiagram
 
 #### シナリオ4: 定期的なアップデート
 
-シナリオ2と同じ。`dev-cli sync` と `create-einja-app sync` を必要に応じて実行。
+シナリオ2と同じ。`dev-cli sync` と `@einja-inc/create-app sync` を必要に応じて実行。
 
-### dev-cli と create-einja-app の管轄境界
+### dev-cli と @einja-inc/create-app の管轄境界
 
 | ファイル/ディレクトリ | 管轄 | sync カテゴリ |
 |---------------------|------|-------------|
-| `.claude/commands/einja/` | dev-cli | `commands` |
 | `.claude/agents/einja/` | dev-cli | `agents` |
 | `.claude/skills/einja-*/` | dev-cli | `skills` |
 | `.claude/hooks/einja/` | dev-cli | `hooks` |
@@ -134,24 +133,24 @@ sequenceDiagram
 | `.vscode/settings.json` | dev-cli | `tools` |
 | `package.json` | dev-cli | `root-config` |
 | `.mcp.json` | dev-cli | `root-config` |
-| `biome.json`, `.biomeignore` | create-einja-app | `tools` |
-| `.gitignore`, `.gitattributes` | create-einja-app | `git` |
-| `.husky/`, `.lintstagedrc.js` | create-einja-app | `git-hooks` |
-| `turbo.json`, `pnpm-workspace.yaml` | create-einja-app | `monorepo` |
-| `tsconfig.json`, `vitest.config.ts` 等 | create-einja-app | `root-config` |
-| `Dockerfile*`, `docker-compose*.yml` | create-einja-app | `docker` |
-| `.github/workflows/` | create-einja-app | `github` |
-| `apps/**`, `packages/**` | create-einja-app | `apps` / `packages` |
+| `biome.json`, `.biomeignore` | @einja-inc/create-app | `tools` |
+| `.gitignore`, `.gitattributes` | @einja-inc/create-app | `git` |
+| `.husky/`, `.lintstagedrc.js` | @einja-inc/create-app | `git-hooks` |
+| `turbo.json`, `pnpm-workspace.yaml` | @einja-inc/create-app | `monorepo` |
+| `tsconfig.json`, `vitest.config.ts` 等 | @einja-inc/create-app | `root-config` |
+| `Dockerfile*`, `docker-compose*.yml` | @einja-inc/create-app | `docker` |
+| `.github/workflows/` | @einja-inc/create-app | `github` |
+| `apps/**`, `packages/**` | @einja-inc/create-app | `apps` / `packages` |
 
 ## インストール
 
 ```bash
 # npx（推奨）
-npx @einja/dev-cli init
+npx @einja-inc/dev-cli init
 
 # グローバルインストール
-npm install -g @einja/dev-cli
-@einja/dev-cli init
+npm install -g @einja-inc/dev-cli
+@einja-inc/dev-cli init
 ```
 
 ## コマンド
@@ -161,7 +160,7 @@ npm install -g @einja/dev-cli
 `.claude`ディレクトリをセットアップします。
 
 ```bash
-npx @einja/dev-cli init
+npx @einja-inc/dev-cli init
 ```
 
 **オプション:**
@@ -184,11 +183,11 @@ npx @einja/dev-cli init
 
 ```bash
 # 全カテゴリを同期
-npx @einja/dev-cli sync
+npx @einja-inc/dev-cli sync
 
 # 特定カテゴリのみ同期
-npx @einja/dev-cli sync --only commands,agents
-npx @einja/dev-cli sync --only hooks
+npx @einja-inc/dev-cli sync --only agents,skills
+npx @einja-inc/dev-cli sync --only hooks
 ```
 
 **オプション:**
@@ -202,7 +201,6 @@ npx @einja/dev-cli sync --only hooks
 | `--skip-deps` | 依存関係のチェック・インストールをスキップ |
 
 **同期可能なカテゴリ:**
-- `commands` - Claude Code コマンド
 - `agents` - エージェント定義
 - `skills` - スキル定義
 - `hooks` - Git Hooks
@@ -248,7 +246,7 @@ npx @einja/dev-cli sync --only hooks
 - **seed パス**: ローカルに存在しない場合のみテンプレート値をコピー
 - **その他**: ローカル優先（ユーザー追加分を保持）
 
-**注意**: `jsonPaths`設定は`create-einja-app add`コマンドと共通です。
+**注意**: `jsonPaths`設定は`@einja-inc/create-app add`コマンドと共通です。
 
 ### `task:loop`
 
@@ -261,7 +259,7 @@ pnpm task:loop 123
 pnpm task:loop 123 --max-group 1.3
 
 # npx直接実行
-npx @einja/dev-cli task:loop 123
+npx @einja-inc/dev-cli task:loop 123
 ```
 
 **オプション:**
@@ -286,12 +284,8 @@ Einja ATDDワークフロー構成（Next.js、Vibe-Kanban統合）を配布し�
 │   ├── specs/           # 仕様書生成 (3)
 │   ├── task/            # タスク実行 (6)
 │   └── einja/frontend/  # フロントエンド (3)
-├── commands/
-│   ├── spec-create.md
-│   ├── task-exec.md
-│   └── einja-*/         # Einja固有コマンド
 ├── skills/
-│   └── einja-*/         # コーディング規約、設計ガイド
+│   └── einja-*/         # ATDDワークフロー用スキル
 └── hooks/               # Git Hooks (9個)
     ├── biome-format.sh
     ├── typecheck.sh
@@ -357,8 +351,8 @@ pnpm typecheck
 | `format:fix` | `biome format --write .` |
 | `typecheck` | `tsc --noEmit` |
 | `prepush` | `{pm} run lint && {pm} run typecheck` |
-| `task:loop` | `npx @einja/dev-cli task:loop` |
-| `einja:sync` | `npx @einja/dev-cli sync` |
+| `task:loop` | `npx @einja-inc/dev-cli task:loop` |
+| `einja:sync` | `npx @einja-inc/dev-cli sync` |
 
 ※ 既存scriptsは上書きされません。`--skip-deps`でスキップ可能。
 

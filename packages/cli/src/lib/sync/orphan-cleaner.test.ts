@@ -38,14 +38,14 @@ describe("OrphanCleaner", () => {
             hash: "abc123",
             syncedAt: "2025-01-01T00:00:00.000Z",
           },
-          ".claude/commands/einja/test.md": {
+          ".claude/agents/einja/test.md": {
             hash: "def456",
             syncedAt: "2025-01-01T00:00:00.000Z",
           },
         },
       };
 
-      const currentTemplateFiles = [".claude/commands/einja/test.md"];
+      const currentTemplateFiles = [".claude/agents/einja/test.md"];
       const orphans = await cleaner.detectOrphans(metadata, currentTemplateFiles);
 
       expect(orphans).toHaveLength(1);

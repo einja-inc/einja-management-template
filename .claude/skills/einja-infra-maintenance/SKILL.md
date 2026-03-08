@@ -676,8 +676,8 @@ gh run list --limit 5
 | PRプレビューデプロイ | `deploy-pr-preview.yml` | PR open/sync | PR毎のプレビュー環境作成 | `--env`実行時注入（env sync廃止） |
 | PRプレビューDB削除 | `cleanup-pr-preview-db.yml` | schedule/manual | 孤立Neonブランチのクリーンアップ | PR未存在のブランチを自動削除 |
 | PRクローズ時クリーンアップ | `cleanup-pr-preview-on-close.yml` | PR close | PR関連リソース削除 | Neonブランチ + Vercel Preview削除 |
-| CLIリリース | `release-cli.yml` | manual | @einja/cli NPM公開 | workflow_dispatch対応 |
-| create-einja-appリリース | `release-create-einja-app.yml` | manual | create-einja-app NPM公開 | workflow_dispatch対応 |
+| CLIリリース | `release-cli.yml` | manual | @einja-inc/dev-cli NPM公開 | workflow_dispatch対応 |
+| @einja-inc/create-appリリース | `release-create-app.yml` | manual | @einja-inc/create-app NPM公開 | workflow_dispatch対応 |
 | Claude Code | `claude.yml` | issue comment | Claude Codeによる自動対応 | `/claude`コメントでトリガー |
 
 ### 実行手順

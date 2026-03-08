@@ -12,7 +12,7 @@
     ↓
 仕様書レビュー（Discord + Spec PR）
     ↓
-タスク実行（/einja:issue-exec or einja-task-exec Skill）
+タスク実行（/einja-issue-exec or einja-task-exec Skill）
     ↓
 自己レビュー → PR作成（自動）
     ↓
@@ -57,10 +57,10 @@
                             Spec PRをマージ
                                     ↓
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Phase B: タスク実行（/einja:issue-exec or einja-task-exec Skill）                  │
+│ Phase B: タスク実行（/einja-issue-exec or einja-task-exec Skill）                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  /einja:issue-exec #<issue-number>                                          │
+│  /einja-issue-exec #<issue-number>                                          │
 │      │                                                                       │
 │      ├── Manager: Issue パース、Phase 毎に Director を tmux で起動            │
 │      │                                                                       │
@@ -183,19 +183,22 @@ Spec PR                # 仕様書レビュー用
 
 ```bash
 # Issue全体の並列実行（推奨：複数Phase・複数タスクグループの場合）
-/einja:issue-exec #123
-/einja:issue-exec #123 --merge-mode task-group-auto   # タスクPR自動マージ
-/einja:issue-exec #123 --merge-mode auto               # 全自動
-/einja:issue-exec #123 --max-phase 2                   # Phase 2 まで
-/einja:issue-exec #123 --base develop                  # ベースブランチ指定
+/einja-issue-exec #123
+/einja-issue-exec #123 --merge-mode task-group-auto   # タスクPR自動マージ
+/einja-issue-exec #123 --merge-mode auto               # 全自動
+/einja-issue-exec #123 --max-phase 2                   # Phase 2 まで
+/einja-issue-exec #123 --base develop                  # ベースブランチ指定
+
+# Issue全体の並列実行（Agent Teams版：tmux不要、Desktop対応）
+/einja-issue-team-exec #123
 
 # 単一タスクグループ実行（品質重視・複雑な実装向け）
 # einja-task-exec Skill を使用: Issue #123 のタスクグループ 1.1 を実行
 ```
 
-### 実行後の流れ（/einja:issue-exec）
+### 実行後の流れ（/einja-issue-exec）
 
-`/einja:issue-exec` は Manager → Director → Worker の3階層でタスクを並列実行します。
+`/einja-issue-exec` は Manager → Director → Worker の3階層でタスクを並列実行します。
 
 1. **Manager** が Issue をパースし、Phase 毎に Director を tmux で起動
 2. **Director** が spec事前一括チェック後、依存グラフ（DAG）を構築し、タスクグループを Layer 順に Worker を起動
@@ -205,12 +208,13 @@ Spec PR                # 仕様書レビュー用
 
 ユーザーは `tmux attach -t einja-{issue番号}` で全プロセスを監視できます。
 
-### `/einja:issue-exec` と `einja-task-exec` Skill の使い分け
+### `/einja-issue-exec` と `einja-task-exec` Skill の使い分け
 
 | 実行方法 | 用途 | 対象 | 推奨シーン |
 |---------|------|------|----------|
-| **`/einja:issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
+| **`/einja-issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
 | **`einja-task-exec` Skill** | 単一タスクグループの確実な完了 | 1つのタスクグループ | 複雑な実装、品質重視 |
+| **`/einja-issue-team-exec`** | Issue全体の並列実行（Agent Teams） | 複数Phase・複数タスクグループ | Desktop環境、tmux未インストール環境 |
 
 ### サブエージェントの役割
 
@@ -231,7 +235,7 @@ task-executer → task-reviewer → task-qa → PR作成
            問題発見時は自動ループ
 ```
 
-### マージ後の自動処理（/einja:issue-exec 使用時）
+### マージ後の自動処理（/einja-issue-exec 使用時）
 
 ```
 Worker: task-exec 完了 → commit & push → PR 作成 → status: awaiting_review
@@ -324,17 +328,17 @@ Phase 全タスク完了？
 
 ```bash
 # Issue全体の並列実行（推奨）
-/einja:issue-exec #<issue_number>
+/einja-issue-exec #<issue_number>
 
 # オプション指定
-/einja:issue-exec #<issue_number> --merge-mode auto --max-phase 2
+/einja-issue-exec #<issue_number> --merge-mode auto --max-phase 2
 
 # 単一タスクグループ実行（品質重視・複雑な実装向け）
 # einja-task-exec Skill を使用: #<issue_number> <task_group_number>
 
 # 例
-/einja:issue-exec #123                                   # Issue #123 の全タスクを並列実行
-/einja:issue-exec #123 --merge-mode task-group-auto      # タスクPR自動マージ
+/einja-issue-exec #123                                   # Issue #123 の全タスクを並列実行
+/einja-issue-exec #123 --merge-mode task-group-auto      # タスクPR自動マージ
 # einja-task-exec Skill: #123 1.1                        # タスクグループ 1.1 を単発実行
 ```
 

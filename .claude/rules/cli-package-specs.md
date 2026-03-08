@@ -1,10 +1,9 @@
 ---
 paths:
   - "packages/cli/**"
-  - "packages/create-einja-app/**"
+  - "packages/create-app/**"
   - "packages/cli/presets/**"
   - ".claude/agents/einja/**"
-  - ".claude/commands/einja/**"
   - ".claude/hooks/einja/**"
   - ".claude/skills/einja-*/**"
   - ".claude/skills/_einja-*/**"

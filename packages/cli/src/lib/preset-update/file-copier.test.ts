@@ -55,22 +55,22 @@ describe("FileCopier", () => {
   describe("scanSourceFiles", () => {
     it("プロジェクトの.claude/とdocs/をスキャンする", async () => {
       // テストファイルを作成
-      const commandsDir = join(testDir, ".claude", "commands");
       const agentsDir = join(testDir, ".claude", "agents");
-      mkdirSync(commandsDir, { recursive: true });
+      const hooksDir = join(testDir, ".claude", "hooks");
       mkdirSync(agentsDir, { recursive: true });
+      mkdirSync(hooksDir, { recursive: true });
 
-      writeFileSync(join(commandsDir, "spec-create.md"), "# spec-create");
       writeFileSync(join(agentsDir, "spec-requirements.md"), "# requirements");
+      writeFileSync(join(hooksDir, "pre-commit.sh"), "# pre-commit");
 
       // スキャン実行
       const files = await copier.scanSourceFiles(testDir);
 
       // 検証
       expect(files.length).toBe(2);
-      expect(files.some((f) => f.relativePath.includes("spec-create.md"))).toBe(true);
       expect(files.some((f) => f.relativePath.includes("spec-requirements.md"))).toBe(true);
-      expect(files.every((f) => f.category === "commands" || f.category === "agents")).toBe(true);
+      expect(files.some((f) => f.relativePath.includes("pre-commit.sh"))).toBe(true);
+      expect(files.every((f) => f.category === "agents" || f.category === "hooks")).toBe(true);
     });
 
     it("_プレフィックスファイルも含めてスキャンされる（フィルタリングはcopyToPresetで行う）", async () => {
@@ -102,13 +102,13 @@ describe("FileCopier", () => {
   describe("copyToPreset", () => {
     it("ファイルをプリセットの適切なディレクトリにコピーする", async () => {
       // テストファイルを作成
-      const commandsDir = join(testDir, ".claude", "commands");
       const agentsDir = join(testDir, ".claude", "agents");
-      mkdirSync(commandsDir, { recursive: true });
+      const hooksDir = join(testDir, ".claude", "hooks");
       mkdirSync(agentsDir, { recursive: true });
+      mkdirSync(hooksDir, { recursive: true });
 
-      writeFileSync(join(commandsDir, "spec-create.md"), "# spec-create");
       writeFileSync(join(agentsDir, "spec-requirements.md"), "# requirements");
+      writeFileSync(join(hooksDir, "pre-commit.sh"), "# pre-commit");
 
       // 元のcwdを保存
       const originalCwd = process.cwd();
@@ -129,11 +129,11 @@ describe("FileCopier", () => {
         expect(result.files.length).toBe(2);
 
         // 検証：ファイルが存在する
-        const copiedCommand = join(presetDir, ".claude", "commands", "einja", "spec-create.md");
         const copiedAgent = join(presetDir, ".claude", "agents", "einja", "spec-requirements.md");
+        const copiedHook = join(presetDir, ".claude", "hooks", "pre-commit.sh");
 
-        expect(existsSync(copiedCommand)).toBe(true);
         expect(existsSync(copiedAgent)).toBe(true);
+        expect(existsSync(copiedHook)).toBe(true);
       } finally {
         // cwdを元に戻す
         process.chdir(originalCwd);
@@ -179,9 +179,9 @@ describe("FileCopier", () => {
 
     it("ドライランモードではファイルをコピーしない", async () => {
       // テストファイルを作成
-      const commandsDir = join(testDir, ".claude", "commands");
-      mkdirSync(commandsDir, { recursive: true });
-      writeFileSync(join(commandsDir, "spec-create.md"), "# spec-create");
+      const agentsDir = join(testDir, ".claude", "agents");
+      mkdirSync(agentsDir, { recursive: true });
+      writeFileSync(join(agentsDir, "spec-requirements.md"), "# requirements");
 
       const originalCwd = process.cwd();
 
@@ -199,7 +199,7 @@ describe("FileCopier", () => {
         expect(result.success).toBe(true);
         expect(result.files.length).toBe(1);
 
-        const expectedPath = join(presetDir, ".claude", "commands", "einja", "spec-create.md");
+        const expectedPath = join(presetDir, ".claude", "agents", "einja", "spec-requirements.md");
         expect(existsSync(expectedPath)).toBe(false);
       } finally {
         process.chdir(originalCwd);
@@ -241,7 +241,7 @@ describe("FileCopier", () => {
 
     it("ネストされたディレクトリ構造も正しくコピーされる", async () => {
       // ネストされたディレクトリを作成
-      const nestedDir = join(testDir, ".claude", "commands", "subdir");
+      const nestedDir = join(testDir, ".claude", "agents", "subdir");
       mkdirSync(nestedDir, { recursive: true });
       writeFileSync(join(nestedDir, "nested-file.md"), "# nested");
 
@@ -265,7 +265,7 @@ describe("FileCopier", () => {
         const nestedCopied = join(
           presetDir,
           ".claude",
-          "commands",
+          "agents",
           "einja",
           "subdir",
           "nested-file.md"
@@ -323,19 +323,16 @@ describe("FileCopier", () => {
 
     it("全ディレクトリマッピングが正しく適用される（統合テスト）", async () => {
       // 全カテゴリのテストファイルを作成
-      const commandsDir = join(testDir, ".claude", "commands");
       const agentsDir = join(testDir, ".claude", "agents");
       const skillsDir = join(testDir, ".claude", "skills", "einja-coding-standards");
       const steeringDir = join(testDir, "docs", "einja", "steering");
       const templatesDir = join(testDir, "docs", "einja", "templates");
 
-      mkdirSync(commandsDir, { recursive: true });
       mkdirSync(agentsDir, { recursive: true });
       mkdirSync(skillsDir, { recursive: true });
       mkdirSync(steeringDir, { recursive: true });
       mkdirSync(templatesDir, { recursive: true });
 
-      writeFileSync(join(commandsDir, "spec-create.md"), "# spec-create");
       writeFileSync(join(agentsDir, "spec-requirements.md"), "# requirements");
       writeFileSync(join(skillsDir, "SKILL.md"), "# einja skill");
       writeFileSync(join(steeringDir, "terminology.md"), "# terminology");
@@ -355,11 +352,10 @@ describe("FileCopier", () => {
 
         // 検証：全ファイルがコピーされている
         expect(result.success).toBe(true);
-        expect(result.files.length).toBe(5);
+        expect(result.files.length).toBe(4);
 
         // 検証：各ファイルが正しいパスにコピーされている
         const expectedPaths = [
-          join(presetDir, ".claude", "commands", "einja", "spec-create.md"),
           join(presetDir, ".claude", "agents", "einja", "spec-requirements.md"),
           join(presetDir, ".claude", "skills", "einja-coding-standards", "SKILL.md"),
           join(presetDir, "docs", "einja", "steering", "terminology.md"),
@@ -372,10 +368,9 @@ describe("FileCopier", () => {
 
         // 検証：マッピングが正しい（einja/サブディレクトリまたはeinja-プレフィックスに配置されている）
         expect(result.files[0].destination).toContain("/einja/");
-        expect(result.files[1].destination).toContain("/einja/");
-        expect(result.files[2].destination).toContain("/einja-");
+        expect(result.files[1].destination).toContain("/einja-");
+        expect(result.files[2].destination).toContain("/einja/");
         expect(result.files[3].destination).toContain("/einja/");
-        expect(result.files[4].destination).toContain("/einja/");
       } finally {
         process.chdir(originalCwd);
       }
@@ -383,9 +378,9 @@ describe("FileCopier", () => {
 
     it("ファイル書き込みエラーが発生した場合は詳細なエラーメッセージを返す", async () => {
       // テストファイルを作成
-      const commandsDir = join(testDir, ".claude", "commands");
-      mkdirSync(commandsDir, { recursive: true });
-      writeFileSync(join(commandsDir, "spec-create.md"), "# spec-create");
+      const agentsDir = join(testDir, ".claude", "agents");
+      mkdirSync(agentsDir, { recursive: true });
+      writeFileSync(join(agentsDir, "spec-requirements.md"), "# requirements");
 
       // 書き込み不可能なプリセットディレクトリを使用（存在しないディレクトリの子パス）
       const invalidPreset: Preset = {

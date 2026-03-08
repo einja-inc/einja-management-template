@@ -316,7 +316,7 @@ einja-task-exec: 123
 
 ---
 
-### 3. `/einja:issue-exec` コマンド
+### 3. `/einja-issue-exec` コマンド
 
 **役割**: Issue全体のタスクをManager→Director→Workerの3階層で並列実行
 
@@ -327,7 +327,7 @@ einja-task-exec: 123
 
 | 実行方法 | 用途 | 対象 | 推奨シーン |
 |---------|------|------|----------|
-| **`/einja:issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
+| **`/einja-issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
 | **`einja-task-exec` Skill** | 単一タスクグループの確実な完了 | 1つのタスクグループ | 複雑な実装、品質重視 |
 
 **詳細な使い分け基準**: [issue-exec-workflow.md](./issue-exec-workflow.md#task-execとの使い分け)
@@ -452,7 +452,7 @@ stateDiagram-v2
     [*] --> 未着手: タスク作成
 
     未着手 --> 着手中_TaskExec: einja-task-exec Skill実行
-    未着手 --> IssueExec開始: /einja:issue-exec実行
+    未着手 --> IssueExec開始: /einja-issue-exec実行
 
     着手中_TaskExec --> 実装中: 実装フェーズ
     実装中 --> レビュー中: 実装完了

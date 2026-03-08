@@ -7,12 +7,38 @@ Turborepo + Next.js 15 + Auth.js + Prisma 構成のプロジェクトテンプ�
 <!-- @einja:excluded:start -->
 ## パッケージ利用者向け
 
-### create-einja-app - 新規プロジェクト作成
+### 推奨: Claude Code プラグイン経由
+
+Claude Code（CLI / VSCode / Claude Desktop Codeタブ）をお使いの場合、プラグイン経由が最も簡単です。
+
+```bash
+# 初回セットアップ（1回のみ）
+export GITHUB_TOKEN=ghp_xxxxx
+/plugin marketplace add einja-inc/einja-skills
+/plugin install einja-dev@einja-skills
+/plugin marketplace update einja-skills   # auto-updateを有効化
+
+# 新規プロジェクト作成
+/einja:init
+
+# テンプレート同期（定期的に実行）
+/einja:sync
+```
+
+> プラグインは内部で `@einja-inc/create-app` / `@einja-inc/dev-cli` を `npx` 経由で呼び出します。`.npmrc` の GitHub Packages 認証設定が必要です。
+
+---
+
+### 代替: CLI 直接実行
+
+プラグインを使用しない場合は、以下のCLIを直接実行できます。
+
+### @einja-inc/create-app - 新規プロジェクト作成
 
 新しいプロジェクトを作成したい場合に使用します。
 
 ```bash
-npx create-einja-app my-project
+npx @einja-inc/create-app my-project
 ```
 
 **何が起きるか:**
@@ -40,24 +66,24 @@ pnpm dev                       # PostgreSQL起動 + 開発サーバー起動
 | `--skip-git` | Git初期化をスキップ |
 | `--skip-install` | 依存関係インストールをスキップ |
 
-📖 詳細: [packages/create-einja-app/README.md](./packages/create-einja-app/README.md)
+📖 詳細: [packages/create-app/README.md](./packages/create-app/README.md)
 
 ---
 
-### @einja/dev-cli - 既存プロジェクトにClaude Code設定を追加
+### @einja-inc/dev-cli - 既存プロジェクトにClaude Code設定を追加
 
 既存のプロジェクトにClaude Code用のATDDワークフロー設定を追加したい場合に使用します。
 
 ```bash
 cd your-existing-project
-npx @einja/dev-cli init
+npx @einja-inc/dev-cli init
 ```
 
 **何が起きるか:**
 
 1. `.claude/` ディレクトリが作成される
    - `agents/` - タスク実行、仕様書生成、フロントエンド開発用サブエージェント
-   - `commands/` - `/einja:issue-exec` などのスラッシュコマンド、`einja-issue-spec-create`, `einja-task-exec` などのSkill tool
+   - `skills/` - `einja-issue-exec`, `einja-issue-spec-create`, `einja-task-exec` などのSkill tool
    - `skills/` - ATDDワークフロー用スキル（タスク実行、QAテスト、コミット管理、コンフリクト解消等）
    - `hooks/` - Claude Code Hooks（コード品質チェック、型検証、機密情報検出等）
    - `settings.json` - Claude Code設定（権限、MCPサーバー等）
@@ -73,17 +99,16 @@ npx @einja/dev-cli init
 
 ```bash
 pnpm task:loop 123      # GitHub Issue #123のタスクを自動実行
-pnpm einja:sync         # テンプレートから最新設定を同期
+# テンプレート同期はプラグイン /einja:sync を推奨（代替: npx --yes @einja-inc/dev-cli@latest sync）
 ```
 
-**その他のコマンド:**
+**テンプレート同期:**
+
+プラグイン `/einja:sync` の使用を推奨します。CLI直接実行の場合:
 
 ```bash
-# テンプレートから設定を同期（更新があった場合）
-npx --yes @einja/dev-cli sync
-
-# 特定カテゴリのみ同期
-npx --yes @einja/dev-cli sync --only commands,agents
+npx --yes @einja-inc/dev-cli@latest sync
+npx --yes @einja-inc/dev-cli@latest sync --only agents,skills
 ```
 
 📖 詳細: [packages/cli/README.md](./packages/cli/README.md)
@@ -92,11 +117,11 @@ npx --yes @einja/dev-cli sync --only commands,agents
 
 ### 使い分けガイド
 
-| やりたいこと | 使うパッケージ |
-|-------------|---------------|
-| 新規プロジェクトを作成したい | `npx create-einja-app my-project` |
-| 既存プロジェクトにClaude設定を追加したい | `npx @einja/dev-cli init` |
-| Claude設定を最新に更新したい | `npx --yes @einja/dev-cli sync` |
+| やりたいこと | 推奨（プラグイン） | 代替（CLI直接実行） |
+|-------------|-------------------|-------------------|
+| 新規プロジェクトを作成したい | `/einja:init` | `npx @einja-inc/create-app my-project` |
+| 既存プロジェクトにClaude設定を追加したい | — | `npx @einja-inc/dev-cli init` |
+| Claude設定を最新に更新したい | `/einja:sync` | `npx --yes @einja-inc/dev-cli@latest sync` |
 
 > 📖 各シナリオのセットアップで何が実行されるかの詳細は [セットアップフローガイド](docs/einja/instructions/setup-flow.md) を参照してください。
 <!-- @einja:excluded:end -->
@@ -130,8 +155,8 @@ einja-management-template/
 │       ├── package.json
 │       └── tsconfig.json
 ├── packages/
-│   ├── cli/                      # @einja/dev-cli
-│   ├── create-einja-app/         # create-einja-app
+│   ├── cli/                      # @einja-inc/dev-cli
+│   ├── create-app/               # @einja-inc/create-app
 │   ├── config/                   # 共通設定（Biome, TypeScript）
 │   ├── front-core/               # フロントエンド共通層
 │   │   └── src/
@@ -326,8 +351,8 @@ pnpm db:studio
 
 #### packages
 
-- **@einja/dev-cli**: Claude Code設定配布CLI（[詳細](./packages/cli/README.md)）
-- **create-einja-app**: プロジェクト作成CLI（[詳細](./packages/create-einja-app/README.md)）
+- **@einja-inc/dev-cli**: Claude Code設定配布CLI（[詳細](./packages/cli/README.md)）
+- **@einja-inc/create-app**: プロジェクト作成CLI（[詳細](./packages/create-app/README.md)）
 - **@repo/config**: Biome, TypeScriptの共通設定
 - **@repo/front-core**: フロントエンド共通層（認証共通設定、hooks、utils、context）
 - **@repo/server-core**: バックエンド共通層（Prismaクライアント・スキーマ、ドメインロジック）
@@ -337,7 +362,7 @@ pnpm db:studio
 <!-- @einja:excluded:start -->
 ### CLIパッケージの開発
 
-#### @einja/dev-cli
+#### @einja-inc/dev-cli
 
 ```bash
 cd packages/cli
@@ -348,10 +373,10 @@ pnpm typecheck  # 型チェック
 
 📖 [ビルドプロセス](./packages/cli/docs/BUILD.md) | [NPM公開手順](./packages/cli/docs/PUBLISHING.md) | [リリース手順](./packages/cli/RELEASING.md)
 
-#### create-einja-app
+#### @einja-inc/create-app
 
 ```bash
-cd packages/create-einja-app
+cd packages/create-app
 pnpm build      # ビルド（テンプレート更新含む）
 pnpm test       # テスト
 pnpm typecheck  # 型チェック

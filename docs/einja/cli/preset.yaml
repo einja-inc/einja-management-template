@@ -124,8 +124,8 @@ requirements:
     "format:fix": "biome format --write ."
     typecheck: "tsc --noEmit"
     prepush: "{pm} run lint && {pm} run typecheck"
-    "task:loop": "npx @einja/dev-cli@latest task:loop"
-    "einja:sync": "npx @einja/dev-cli@latest sync"
+    "task:loop": "npx @einja-inc/dev-cli@latest task:loop"
+    "einja:sync": "npx @einja-inc/dev-cli@latest sync"
 
   # システムコマンド（警告表示のみ、自動インストールしない）
   systemCommands:

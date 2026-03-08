@@ -47,7 +47,7 @@ describe("CLIRepoDetector", () => {
       expect(result.cliPackagePath).toBeUndefined();
     });
 
-    it("package.jsonのnameが@einja/cli以外の場合、validがfalseかつエラーメッセージが返ること", async () => {
+    it("package.jsonのnameが@einja-inc/dev-cli以外の場合、validがfalseかつエラーメッセージが返ること", async () => {
       // packages/cli/ディレクトリとpackage.jsonを作成（間違ったname）
       const cliDir = join(testDir, "packages", "cli");
       mkdirSync(cliDir, { recursive: true });
@@ -62,7 +62,7 @@ describe("CLIRepoDetector", () => {
 
       expect(result.valid).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error).toContain("@einja/cli");
+      expect(result.error).toContain("@einja-inc/dev-cli");
       expect(result.error).toContain("@wrong/package");
       expect(result.cliPackagePath).toBeUndefined();
     });
@@ -88,7 +88,7 @@ describe("CLIRepoDetector", () => {
       mkdirSync(cliDir, { recursive: true });
 
       const packageJson = {
-        name: "@einja/cli",
+        name: "@einja-inc/dev-cli",
         version: "1.0.0",
       };
       writeFileSync(join(cliDir, "package.json"), JSON.stringify(packageJson, null, 2));
@@ -114,7 +114,7 @@ describe("CLIRepoDetector", () => {
       mkdirSync(cliDir, { recursive: true });
 
       const packageJson = {
-        name: "@einja/cli",
+        name: "@einja-inc/dev-cli",
         version: "1.0.0",
       };
       writeFileSync(join(cliDir, "package.json"), JSON.stringify(packageJson, null, 2));
@@ -138,7 +138,7 @@ describe("CLIRepoDetector", () => {
       mkdirSync(cliDir, { recursive: true });
 
       const packageJson = {
-        name: "@einja/cli",
+        name: "@einja-inc/dev-cli",
         version: "1.0.0",
       };
       writeFileSync(join(cliDir, "package.json"), JSON.stringify(packageJson, null, 2));

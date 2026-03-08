@@ -4,7 +4,6 @@
  *
  * 原本（プロジェクト内）:
  * - .claude/agents/einja/
- * - .claude/commands/einja/
  * - .claude/skills/einja-* and _einja-* (プレフィックスマッチで自動スキャン)
  * - .claude/hooks/einja/
  * - .claude/settings.json
@@ -51,12 +50,6 @@ const mappings = [
 		dest: path.join(cliDir, "presets/default/.claude/agents/einja"),
 		// シンボリックリンク記録用のベースパス（リポジトリルートからの相対）
 		basePath: ".claude/agents/einja",
-	},
-	// コマンド
-	{
-		src: path.join(projectRoot, ".claude/commands/einja"),
-		dest: path.join(cliDir, "presets/default/.claude/commands/einja"),
-		basePath: ".claude/commands/einja",
 	},
 	// フック（hooks/ディレクトリ全体をクリーンアップしてから再コピー）
 	{
@@ -215,6 +208,10 @@ function copyPresets() {
 	const presetsSkillsDir = path.join(cliDir, "presets/default/.claude/skills");
 	removeDir(presetsSkillsDir);
 
+	// commandsディレクトリのクリーンアップ（Skills移行に伴い不要）
+	const presetsCommandsDir = path.join(cliDir, "presets/default/.claude/commands");
+	removeDir(presetsCommandsDir);
+
 	// ディレクトリのコピー
 	console.log("ディレクトリ:");
 	for (const { src, dest, basePath, cleanParent, exclude = [] } of mappings) {
@@ -307,7 +304,7 @@ function validateMarkers() {
 }
 
 /**
- * create-einja-app テンプレートの package.json に scripts と lint-staged を同期
+ * @einja-inc/create-app テンプレートの package.json に scripts と lint-staged を同期
  * ルートの package.json から scripts, lint-staged セクションを templates/default/package.json に同期する
  */
 function syncTemplatePackageJson() {

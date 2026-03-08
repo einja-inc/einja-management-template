@@ -33,7 +33,7 @@ describe("DiffEngine と ConflictReporter の統合テスト", () => {
       expect(result.content).toContain("This is LOCAL change");
       expect(result.content).toContain("=======");
       expect(result.content).toContain("This is TEMPLATE change");
-      expect(result.content).toContain(">>>>>>> TEMPLATE (from @einja/cli)");
+      expect(result.content).toContain(">>>>>>> TEMPLATE (from @einja-inc/dev-cli)");
 
       // Then: conflicts配列にコンフリクト情報が含まれる
       expect(result.conflicts).toHaveLength(1);
@@ -83,7 +83,7 @@ describe("DiffEngine と ConflictReporter の統合テスト", () => {
     it("formatExitMessageでコンフリクト情報とヘルプが含まれる", () => {
       // Given: コンフリクトが検出された
       const conflicts = new Map<string, Conflict[]>();
-      conflicts.set(".claude/commands/einja/test.md", [
+      conflicts.set(".claude/agents/einja/test.md", [
         {
           line: 10,
           localContent: "local content",
@@ -98,7 +98,7 @@ describe("DiffEngine と ConflictReporter の統合テスト", () => {
 
       // Then: コンフリクト情報が含まれる
       expect(message).toContain("1件のコンフリクトが検出されました");
-      expect(message).toContain(".claude/commands/einja/test.md");
+      expect(message).toContain(".claude/agents/einja/test.md");
       expect(message).toContain("行10");
 
       // Then: ヘルプメッセージが含まれる
@@ -132,7 +132,7 @@ describe("DiffEngine と ConflictReporter の統合テスト", () => {
 Local change
 =======
 Template change
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 Line 2`;
 
       // When: コンフリクトマーカーをチェック
@@ -155,7 +155,7 @@ Line 2`;
 
     it("formatUnresolvedConflictErrorが適切なエラーメッセージを生成する", () => {
       // Given: 未解決のコンフリクトが存在
-      const filePath = ".claude/commands/einja/test.md";
+      const filePath = ".claude/agents/einja/test.md";
 
       // When: エラーメッセージを生成
       const errorMessage = conflictReporter.formatUnresolvedConflictError(filePath);
@@ -175,7 +175,7 @@ Line 2`;
 Local change
 =======
 Template change
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 Line 2`;
 
       // When: hasUnresolvedConflictsでチェック
@@ -196,7 +196,7 @@ Local change 2
 =======
 Template change 1
 Template change 2
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 Line 2`;
 
       // When: コンフリクトマーカーをパース
@@ -218,13 +218,13 @@ Line 2`;
 Local A
 =======
 Template A
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 Line 2
 <<<<<<< LOCAL (your changes)
 Local B
 =======
 Template B
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 Line 3`;
 
       // When: パース

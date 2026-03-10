@@ -6,87 +6,59 @@
 - mainブランチが最新状態
 - レジストリ: `https://npm.pkg.github.com`（GitHub Packages）
 
-## リリース手順
+## 自動リリース（推奨）
 
-**重要**: `npm version` はデフォルトで `v{version}` タグを生成しますが、このワークフローでは `create-app-v{version}` タグが必要です。そのため、以下の手順でタグを手動作成します。
+main ブランチへの push 後、`deploy-stable-branches.yml` の成功を受けて `publish-packages.yml` が自動実行されます。
 
-### 1. バージョンを更新（タグなし）
+パッケージに変更がある場合、自動で以下が実行されます：
+1. 変更検出（最新タグからの差分）
+2. ビルド・テスト・型チェック・Lint
+3. バージョンバンプ（patch）
+4. NPM公開
+5. コミット・タグ作成（`chore: release create-app-v{version}`）
 
-```bash
-cd packages/create-app
+## 手動リリース
 
-# パッチバージョン (0.1.0 → 0.1.1)
-npm version patch --no-git-tag-version
+GitHub Actions UI または CLI から手動でワークフローを実行できます：
 
-# マイナーバージョン (0.1.0 → 0.2.0)
-npm version minor --no-git-tag-version
-
-# メジャーバージョン (0.1.0 → 1.0.0)
-npm version major --no-git-tag-version
-```
-
-### 2. 変更をコミット
+### CLI から実行（推奨）
 
 ```bash
-git add package.json
-git commit -m "chore(create-app): v<version>にバージョンアップ"
+# パッチリリース
+gh workflow run publish-packages.yml -f package=create-app -f version_type=patch
+
+# マイナーリリース
+gh workflow run publish-packages.yml -f package=create-app -f version_type=minor
+
+# メジャーリリース
+gh workflow run publish-packages.yml -f package=create-app -f version_type=major
 ```
 
-### 3. タグを手動作成
+### Dry-run テスト
+
+実際に公開せずにワークフローをテストできます：
 
 ```bash
-# 正しい形式のタグを作成
-git tag create-app-v<version>
-
-# 例: create-app-v0.1.1
-git tag create-app-v0.1.1
+gh workflow run publish-packages.yml -f package=create-app -f dry_run=true
 ```
 
-### 4. プッシュ
+### GitHub Actions UI から実行
 
-```bash
-git push origin main
-git push origin create-app-v<version>
+1. GitHub リポジトリの **Actions** タブを開く
+2. 左メニューから **Publish NPM Packages** を選択
+3. **Run workflow** をクリック
+4. Package: `create-app`、Version type、Dry run を選択
+5. **Run workflow** を実行
 
-# 例
-git push origin create-app-v0.1.1
-```
-
-### 5. GitHub Actions が自動実行
-
-- Actions タブで "Release @einja-inc/create-app" ワークフローの実行を確認
-- 成功すると npm に自動公開される
-
-### 6. 公開を確認
+## 公開の確認
 
 ```bash
 # npm で公開を確認
-npm view @einja-inc/create-app
+npm view @einja-inc/create-app --registry=https://npm.pkg.github.com
 
 # 実際に使用してみる
 npx @einja-inc/create-app --version
 ```
-
-## 手動リリース（緊急時）
-
-GitHub Actions UI から手動でワークフローを実行できます：
-
-1. GitHub リポジトリの **Actions** タブを開く
-2. 左メニューから **Release @einja-inc/create-app** を選択
-3. **Run workflow** をクリック
-4. ブランチを選択し、**Run workflow** を実行
-
-**注意**: 手動実行時はタグが作成されないため、Git履歴との整合性は手動で管理する必要があります。
-
-## Dry-run テスト
-
-実際に公開せずにワークフローをテストできます：
-
-1. GitHub リポジトリの **Actions** タブを開く
-2. 左メニューから **Release @einja-inc/create-app** を選択
-3. **Run workflow** をクリック
-4. **Dry run** にチェックを入れる
-5. **Run workflow** を実行
 
 ## トラブルシューティング
 
@@ -98,13 +70,9 @@ npm error code ENEEDAUTH
 
 → GitHub Actions の `GITHUB_TOKEN` パーミッションに `packages: write` が設定されているか確認
 
-### バージョン不一致エラー
+### バージョン重複エラー
 
-```
-Version mismatch: package.json=0.1.0, tag=0.2.0
-```
-
-→ タグ名と package.json の version が一致しているか確認
+パッケージが既に公開済みの場合、ワークフローは自動でスキップします（冪等性）。
 
 ### パッケージ内容の検証
 

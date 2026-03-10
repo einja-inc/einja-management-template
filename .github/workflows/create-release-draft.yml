@@ -1,0 +1,289 @@
+name: Create Release Draft
+
+on:
+  pull_request:
+    branches: [main, staging]
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  create-draft:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changesets
+        id: changesets
+        run: |
+          COUNT=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | wc -l | tr -d ' ')
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Changeset count: $COUNT"
+
+      - name: Detect package changes
+        id: packages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CLI_CHANGED=$(git diff --name-only $BASE_SHA...$HEAD_SHA -- packages/cli/ | wc -l | tr -d ' ')
+          CREATE_APP_CHANGED=$(git diff --name-only $BASE_SHA...$HEAD_SHA -- packages/create-app/ | wc -l | tr -d ' ')
+          echo "cli_changed=$CLI_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "create_app_changed=$CREATE_APP_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "CLI changed files: $CLI_CHANGED"
+          echo "create-app changed files: $CREATE_APP_CHANGED"
+
+      - name: Generate release notes body
+        id: notes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const changesetCount = parseInt('${{ steps.changesets.outputs.count }}', 10);
+            const cliChanged = parseInt('${{ steps.packages.outputs.cli_changed }}', 10);
+            const createAppChanged = parseInt('${{ steps.packages.outputs.create_app_changed }}', 10);
+
+            let body = '';
+
+            if (changesetCount > 0) {
+              body += '## Changesets\n\n';
+              const changesetDir = '.changeset';
+              const files = fs.readdirSync(changesetDir)
+                .filter(f => f.endsWith('.md') && f !== 'README.md');
+              for (const file of files) {
+                const content = fs.readFileSync(path.join(changesetDir, file), 'utf8');
+                body += `### ${file}\n\`\`\`\n${content.trim()}\n\`\`\`\n\n`;
+              }
+            }
+
+            if (cliChanged > 0 || createAppChanged > 0) {
+              body += '## Package Changes\n\n';
+              if (cliChanged > 0) {
+                body += `- \`@einja-inc/dev-cli\` (packages/cli/) — ${cliChanged} file(s) changed\n`;
+              }
+              if (createAppChanged > 0) {
+                body += `- \`@einja-inc/create-app\` (packages/create-app/) — ${createAppChanged} file(s) changed\n`;
+              }
+              body += '\n';
+            }
+
+            if (changesetCount === 0 && cliChanged === 0 && createAppChanged === 0) {
+              body = 'No release-worthy changes detected.\n';
+            }
+
+            core.setOutput('body', body);
+
+      - name: Handle temp tag
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const tagName = `draft-pr-${prNumber}`;
+            const ref = `tags/${tagName}`;
+            const sha = '${{ github.event.pull_request.head.sha }}';
+
+            if ('${{ github.event.action }}' === 'synchronize') {
+              // Delete existing tag then recreate
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: ref,
+                });
+                core.info(`Deleted existing tag ${tagName}`);
+              } catch (e) {
+                if (e.status !== 422) {
+                  core.warning(`Failed to delete tag: ${e.message}`);
+                }
+              }
+              try {
+                await github.rest.git.createRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `refs/${ref}`,
+                  sha: sha,
+                });
+                core.info(`Created tag ${tagName} at ${sha}`);
+              } catch (e) {
+                core.warning(`Failed to create tag: ${e.message}`);
+              }
+            } else {
+              // opened or reopened — create new tag
+              try {
+                await github.rest.git.createRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `refs/${ref}`,
+                  sha: sha,
+                });
+                core.info(`Created tag ${tagName} at ${sha}`);
+              } catch (e) {
+                if (e.status === 422) {
+                  // Tag already exists, update it
+                  try {
+                    await github.rest.git.updateRef({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      ref: ref,
+                      sha: sha,
+                      force: true,
+                    });
+                    core.info(`Updated existing tag ${tagName} to ${sha}`);
+                  } catch (updateErr) {
+                    core.warning(`Failed to update tag: ${updateErr.message}`);
+                  }
+                } else {
+                  core.warning(`Failed to create tag: ${e.message}`);
+                }
+              }
+            }
+
+      - name: Create or update draft release
+        id: release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_BODY: ${{ steps.notes.outputs.body }}
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const tagName = `draft-pr-${prNumber}`;
+            const sha = '${{ github.event.pull_request.head.sha }}';
+            const body = process.env.RELEASE_BODY || '';
+
+            let release;
+            try {
+              const existing = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tagName,
+              });
+              release = await github.rest.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: existing.data.id,
+                body: body,
+                draft: true,
+                target_commitish: sha,
+              });
+              core.info(`Updated draft release ${release.data.id}`);
+            } catch (e) {
+              if (e.status === 404) {
+                release = await github.rest.repos.createRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag_name: tagName,
+                  name: `Draft: PR #${prNumber}`,
+                  body: body,
+                  draft: true,
+                  target_commitish: sha,
+                });
+                core.info(`Created draft release ${release.data.id}`);
+              } else {
+                throw e;
+              }
+            }
+
+            core.setOutput('url', release.data.html_url);
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const marker = '<!-- release-draft-status -->';
+            const changesetCount = '${{ steps.changesets.outputs.count }}';
+            const cliChanged = '${{ steps.packages.outputs.cli_changed }}';
+            const createAppChanged = '${{ steps.packages.outputs.create_app_changed }}';
+            const releaseUrl = '${{ steps.release.outputs.url }}';
+
+            let body = `${marker}\n`;
+            body += `## 📦 Release Draft Status\n\n`;
+            body += `| Item | Status |\n`;
+            body += `|------|--------|\n`;
+            body += `| Changesets | ${changesetCount > 0 ? `✅ ${changesetCount} changeset(s)` : '➖ None'} |\n`;
+            body += `| \`@einja-inc/dev-cli\` | ${cliChanged > 0 ? `✅ ${cliChanged} file(s) changed` : '➖ No changes'} |\n`;
+            body += `| \`@einja-inc/create-app\` | ${createAppChanged > 0 ? `✅ ${createAppChanged} file(s) changed` : '➖ No changes'} |\n`;
+            body += `\n[📝 View Draft Release](${releaseUrl})\n`;
+
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existing = comments.data.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body,
+              });
+              core.info(`Updated existing comment ${existing.id}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body,
+              });
+              core.info('Created new comment');
+            }
+
+  cleanup:
+    if: github.event.action == 'closed' && !github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete draft release and temp tag
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const tagName = `draft-pr-${prNumber}`;
+
+            // Delete draft release
+            try {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tagName,
+              });
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release.data.id,
+              });
+              core.info(`Deleted draft release ${release.data.id}`);
+            } catch (e) {
+              if (e.status === 404) {
+                core.info('No draft release found, skipping');
+              } else {
+                core.warning(`Failed to delete release: ${e.message}`);
+              }
+            }
+
+            // Delete temp tag
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${tagName}`,
+              });
+              core.info(`Deleted tag ${tagName}`);
+            } catch (e) {
+              if (e.status === 422) {
+                core.info('Tag does not exist, skipping');
+              } else {
+                core.warning(`Failed to delete tag: ${e.message}`);
+              }
+            }

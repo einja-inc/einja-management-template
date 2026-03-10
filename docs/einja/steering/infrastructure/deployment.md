@@ -131,10 +131,9 @@ graph LR
         DeployPR[deploy-pr-preview.yml]
         CleanupClose[cleanup-pr-preview-on-close.yml]
         Cleanup[cleanup-pr-preview-db.yml]
-        ReleaseCLI[release-cli.yml]
-        ReleaseApp[release-create-app.yml]
+        CreateDraft[create-release-draft.yml]
+        PublishPkgs[publish-packages.yml]
         Claude[claude.yml]
-        ChangesetStatus[changeset-status.yml]
     end
 
     subgraph "Composite Actions"
@@ -156,14 +155,13 @@ graph LR
 
 | ワークフロー | ファイル | トリガー | 用途 |
 |------------|---------|---------|------|
-| **Deploy Stable** | `deploy-stable-branches.yml` | push to main/develop/staging | CI → 動的マトリクス → 変更アプリのみデプロイ（`--env`実行時注入） |
+| **Deploy Stable** | `deploy-stable-branches.yml` | push to main/develop/staging | CI → 動的マトリクス → 変更アプリのみデプロイ → Release/PreRelease公開 |
 | **PR Preview** | `deploy-pr-preview.yml` | PR opened/sync/closed | CI → Neonブランチ作成 → プレビューデプロイ |
-| **PR Close Cleanup** | `cleanup-pr-preview-on-close.yml` | PR closed | Neonブランチの即座削除（PR close時） |
-| **Cleanup DB** | `cleanup-pr-preview-db.yml` | 毎日00:00 UTC / 手動 | 孤立したNeonブランチ削除 |
-| **Release CLI** | `release-cli.yml` | tag `cli-v*` / 手動 | @einja-inc/dev-cli をNPM公開 |
-| **Release App** | `release-create-app.yml` | tag `create-app-v*` / 手動 | @einja-inc/create-app をNPM公開 |
+| **Release Draft** | `create-release-draft.yml` | PR to main/staging | Draft Release作成 → PRコメント → close時クリーンアップ |
+| **Publish Packages** | `publish-packages.yml` | workflow_run (Deploy Stable成功) / 手動 | NPMパッケージ差分検出 → build → publish |
+| **PR Close Cleanup** | `cleanup-pr-preview-on-close.yml` | PR closed | Neonブランチ削除 |
+| **Cleanup DB** | `cleanup-pr-preview-db.yml` | 毎日00:00 UTC / 手動 | 孤立Neonブランチ削除 |
 | **Claude** | `claude.yml` | @claude メンション | Claude Code実行 |
-| **Changeset Status** | `changeset-status.yml` | PR to main/staging | PR上にchangesetの有無を表示 |
 
 ### Composite Actions（2層構造）
 
@@ -683,39 +681,55 @@ sequenceDiagram
 
 ## 8. リリース管理
 
-### GitHub Release / PreRelease 自動作成フロー
+### リリースフロー全体像
 
 ```mermaid
-flowchart LR
-    subgraph staging
-        S1[staging push] --> S2[CI + Deploy]
-        S2 --> S3[PreRelease作成<br/>v0.2.0-rc.42]
-    end
+sequenceDiagram
+    participant Dev as 開発者
+    participant PR as GitHub PR
+    participant Draft as create-release-draft
+    participant Deploy as deploy-stable-branches
+    participant Publish as publish-packages
 
-    subgraph main
-        M1[main push] --> M2[CI]
-        M2 --> M3[⚠️承認待ち]
-        M3 --> M4[Migrate + Deploy]
-        M4 --> M5[changeset version]
-        M5 --> M6[Release作成<br/>v0.2.0]
-    end
+    Dev->>PR: PR作成 (→ staging/main)
+    PR->>Draft: draft release + PRコメント
+    Note over Draft: 仮タグ draft-pr-{N}
 
-    staging -->|昇格PR| main
+    Dev->>PR: コミット追加
+    PR->>Draft: draft release更新
+
+    alt マージせずクローズ
+        Dev->>PR: PRクローズ
+        PR->>Draft: draft release + 仮タグ削除
+    else マージ
+        Dev->>PR: PRマージ
+        PR->>Deploy: staging/main push
+        Deploy->>Deploy: CI → Deploy
+        Deploy->>Deploy: draft release → undraft (正式タグ)
+        alt mainブランチ
+            Deploy->>Publish: workflow_run トリガー
+            Publish->>Publish: 差分検出 → build → publish
+        end
+    end
 ```
+
+### GitHub Release / PreRelease 自動作成フロー
 
 | 環境 | リリース種別 | タグ形式 | changeset消費 | 承認 |
 |------|------------|---------|:------------:|:----:|
 | staging | PreRelease | `v{version}-rc.{run_number}` | ❌ | 不要 |
 | production | Release | `v{version}` | ✅ | 1名必要 |
 
-### ワークフロー内リリースジョブ
+### ワークフロー別リリースジョブ
 
-`deploy-stable-branches.yml` 内に統合:
-
-| ジョブ | トリガー | 処理内容 |
-|--------|---------|---------|
-| `release-staging` | staging デプロイ成功後 | RCタグ作成 → GitHub PreRelease作成 |
-| `release-production` | production デプロイ成功後 | changeset version → バージョンバンプ → タグ作成 → GitHub Release作成 |
+| ジョブ | ワークフロー | トリガー | 処理内容 |
+|--------|------------|---------|---------|
+| `create-draft` | `create-release-draft.yml` | PR opened/sync/reopen | Draft Release作成 + PRコメント |
+| `cleanup` | `create-release-draft.yml` | PR closed (マージなし) | Draft Release + 仮タグ削除 |
+| `release-staging` | `deploy-stable-branches.yml` | staging push | マージコミットからPR番号特定 → Draft Releaseをundraft (PreRelease) |
+| `release-production` | `deploy-stable-branches.yml` | main push | changeset version → Draft Releaseをundraft (Release) |
+| `publish-cli` | `publish-packages.yml` | workflow_run / 手動 | @einja-inc/dev-cli 差分検出 → build → publish |
+| `publish-create-app` | `publish-packages.yml` | workflow_run / 手動 | @einja-inc/create-app 差分検出 → build → publish |
 
 ### NPMリリースとの棲み分け
 
@@ -723,8 +737,9 @@ flowchart LR
 |-------------|------|--------|
 | `v1.2.0` | アプリ Stable Release | deploy-stable-branches.yml |
 | `v1.2.0-rc.42` | アプリ PreRelease | deploy-stable-branches.yml |
-| `cli-v0.1.41` | @einja-inc/dev-cli | 手動タグ（既存運用） |
-| `create-app-v0.3.2` | @einja-inc/create-app | 手動タグ（既存運用） |
+| `draft-pr-{N}` | PR Draft Release（仮タグ） | create-release-draft.yml |
+| `cli-v0.1.50` | @einja-inc/dev-cli | publish-packages.yml（自動/手動） |
+| `create-app-v0.3.5` | @einja-inc/create-app | publish-packages.yml（自動/手動） |
 
 ---
 

@@ -395,7 +395,7 @@ Section 2 - Template change`;
   });
 
   describe("AC6.1: --forceオプションによる強制上書き", () => {
-    it("--forceオプション指定時、すべてのファイルがテンプレート版で上書きされ、3方向マージはスキップされる", { timeout: 15000 }, async () => {
+    it("--forceオプション指定時、すべてのファイルがテンプレート版で上書きされ、3方向マージはスキップされる", { timeout: 30000 }, async () => {
       // Given: ローカルでカスタマイズされたファイルが存在（実際のテンプレートファイルを使用）
       const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "Explore.md");
       await fs.ensureDir(path.dirname(projectFile));

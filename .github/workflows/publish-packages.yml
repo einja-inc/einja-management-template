@@ -1,0 +1,255 @@
+name: Publish NPM Packages
+
+on:
+  workflow_run:
+    workflows: ["Deploy Stable Branches"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to publish'
+        type: choice
+        options: [dev-cli, create-app, both]
+        default: both
+      version_type:
+        description: 'Version bump type'
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      dry_run:
+        description: 'Dry run (skip actual publish)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: publish-packages-main
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      cli_changed: ${{ steps.detect.outputs.cli }}
+      create_app_changed: ${{ steps.detect.outputs.create_app }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Detect changes
+        id: detect
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            case "${{ github.event.inputs.package }}" in
+              dev-cli) echo "cli=true" >> $GITHUB_OUTPUT; echo "create_app=false" >> $GITHUB_OUTPUT ;;
+              create-app) echo "cli=false" >> $GITHUB_OUTPUT; echo "create_app=true" >> $GITHUB_OUTPUT ;;
+              both) echo "cli=true" >> $GITHUB_OUTPUT; echo "create_app=true" >> $GITHUB_OUTPUT ;;
+            esac
+          else
+            CLI_TAG=$(git tag --list 'cli-v*' --sort=-version:refname | head -1)
+            APP_TAG=$(git tag --list 'create-app-v*' --sort=-version:refname | head -1)
+
+            if [[ -n "$CLI_TAG" ]]; then
+              CLI_DIFF=$(git diff --name-only "$CLI_TAG"..HEAD -- packages/cli/ | wc -l | tr -d ' ')
+            else
+              CLI_DIFF=1  # No tag = assume changed
+            fi
+
+            if [[ -n "$APP_TAG" ]]; then
+              APP_DIFF=$(git diff --name-only "$APP_TAG"..HEAD -- packages/create-app/ | wc -l | tr -d ' ')
+            else
+              APP_DIFF=1
+            fi
+
+            echo "cli=$([[ $CLI_DIFF -gt 0 ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+            echo "create_app=$([[ $APP_DIFF -gt 0 ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+          fi
+
+  publish-cli:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cli_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@einja-inc'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter @einja-inc/dev-cli build
+
+      - name: Test
+        run: pnpm --filter @einja-inc/dev-cli test
+
+      - name: Typecheck
+        run: pnpm --filter @einja-inc/dev-cli typecheck
+
+      - name: Lint
+        run: pnpm --filter @einja-inc/dev-cli lint
+
+      - name: Check existing version
+        id: check_version
+        run: |
+          PKG_VERSION=$(node -p "require('./packages/cli/package.json').version")
+          EXISTING=$(npm view "@einja-inc/dev-cli@${PKG_VERSION}" version 2>/dev/null || echo "")
+          if [[ -n "$EXISTING" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::notice::Version ${PKG_VERSION} already published, skipping"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+          echo "current_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Version bump
+        id: version_bump
+        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        run: |
+          VERSION_TYPE="${{ github.event.inputs.version_type || 'patch' }}"
+          cd packages/cli
+          npm version "$VERSION_TYPE" --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Publish (dry run)
+        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run == 'true'
+        run: pnpm --filter @einja-inc/dev-cli publish --no-git-checks --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        run: pnpm --filter @einja-inc/dev-cli publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit and tag
+        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        run: |
+          NEW_VERSION="${{ steps.version_bump.outputs.new_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/cli/package.json
+          git commit -m "chore: release cli-v${NEW_VERSION}"
+          git tag "cli-v${NEW_VERSION}"
+          git push origin HEAD:main
+          git push origin "cli-v${NEW_VERSION}"
+
+  publish-create-app:
+    needs: [detect-changes, publish-cli]
+    if: always() && needs.detect-changes.outputs.create_app_changed == 'true' && needs.publish-cli.result != 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Pull latest changes
+        run: git pull origin main
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@einja-inc'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter @einja-inc/create-app build
+
+      - name: Test
+        run: pnpm --filter @einja-inc/create-app test
+
+      - name: Typecheck
+        run: pnpm --filter @einja-inc/create-app typecheck
+
+      - name: Lint
+        run: pnpm --filter @einja-inc/create-app lint
+
+      - name: Check existing version
+        id: check_version
+        run: |
+          PKG_VERSION=$(node -p "require('./packages/create-app/package.json').version")
+          EXISTING=$(npm view "@einja-inc/create-app@${PKG_VERSION}" version 2>/dev/null || echo "")
+          if [[ -n "$EXISTING" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::notice::Version ${PKG_VERSION} already published, skipping"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+          echo "current_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Version bump
+        id: version_bump
+        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        run: |
+          VERSION_TYPE="${{ github.event.inputs.version_type || 'patch' }}"
+          cd packages/create-app
+          npm version "$VERSION_TYPE" --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Publish (dry run)
+        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run == 'true'
+        run: pnpm --filter @einja-inc/create-app publish --no-git-checks --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        run: pnpm --filter @einja-inc/create-app publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit and tag
+        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        run: |
+          NEW_VERSION="${{ steps.version_bump.outputs.new_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/create-app/package.json
+          git commit -m "chore: release create-app-v${NEW_VERSION}"
+          git tag "create-app-v${NEW_VERSION}"
+          git push origin HEAD:main
+          git push origin "create-app-v${NEW_VERSION}"

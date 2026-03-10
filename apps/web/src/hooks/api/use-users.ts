@@ -6,8 +6,8 @@
 
 "use client";
 
-import { rpc } from "@/lib/api/rpc";
 import { parseResponse } from "@/lib/api/parse-response";
+import { rpc } from "@/lib/api/rpc";
 import {
   type PaginatedUserList,
   type UserListItem,

@@ -24,7 +24,7 @@ allowed-tools:
 |------|-------------|-------------------|
 | path | `packages/cli` | `packages/create-app` |
 | pnpm filter | `@einja-inc/dev-cli` | `@einja-inc/create-app` |
-| workflow | `release-cli.yml` | `release-create-app.yml` |
+| workflow | `publish-packages.yml` | `publish-packages.yml` |
 | tag prefix | `cli-v` | `create-app-v` |
 | commit scope | `cli` | `create-app` |
 | build/test | build, test, typecheck | build, test, typecheck, lint |
@@ -138,41 +138,33 @@ pnpm --filter @einja-inc/dev-cli build && pnpm --filter @einja-inc/dev-cli test 
 pnpm -F @einja-inc/create-app build && pnpm -F @einja-inc/create-app test && pnpm -F @einja-inc/create-app typecheck && pnpm -F @einja-inc/create-app lint
 ```
 
-### Step 6: バージョン更新・コミット・プッシュ
+### Step 6: publish-packages.yml ワークフローを実行
 
-**順次実行**（gitコミットは直列化が必要）。全パッケージ統一で `--no-git-tag-version` + 手動タグ方式:
-
-```bash
-# 1. バージョン更新（タグなし）
-npm version {type} --no-git-tag-version --prefix {path}
-
-# 2. package.jsonのみコミット
-git add {path}/package.json
-git commit -m "chore({scope}): v{version}にバージョンアップ"
-
-# 3. タグ作成
-git tag {tag_prefix}{version}
-```
-
-全パッケージ分のコミット・タグ作成が完了してから一括プッシュ:
+`gh workflow run` でワークフローをトリガー:
 
 ```bash
-git push origin main
-git push origin {tag1}
-git push origin {tag2}  # 2パッケージの場合
+# 単一パッケージの場合
+gh workflow run publish-packages.yml -f package={package_key} -f version_type={type}
+
+# 両方の場合
+gh workflow run publish-packages.yml -f package=both -f version_type={type}
 ```
 
-task-committer には委託しない（全変更をコミットしてしまうため）。
+| package_key | パッケージ |
+|-------------|----------|
+| `dev-cli` | @einja-inc/dev-cli |
+| `create-app` | @einja-inc/create-app |
+| `both` | 両方 |
 
 ### Step 7: GitHub Actions 監視・自律修正
 
-対象パッケージごとにワークフローを監視（並列監視可能）:
+`publish-packages.yml` ワークフローを監視:
 
 #### 7.1 監視ループ
 
 ```bash
 # 最新のワークフロー実行を取得
-gh run list --workflow={workflow} --limit=1 --json databaseId,status,conclusion
+gh run list --workflow=publish-packages.yml --limit=1 --json databaseId,status,conclusion
 ```
 
 - `status: in_progress` → 30秒待機して再確認
@@ -189,34 +181,12 @@ gh run view {run_id} --log-failed
 
 | 原因 | 対処 |
 |------|------|
-| ビルドエラー | コードを修正 |
-| テストエラー | テストを修正 |
+| ビルドエラー | コードを修正し、再度 `gh workflow run` を実行 |
+| テストエラー | テストを修正し、再度実行 |
 | NPM_TOKEN エラー | ユーザーに設定確認を依頼して終了 |
-| バージョン重複 | 次のpatchバージョンで再実行 |
+| バージョン重複 | ワークフローが自動スキップ（冪等性あり） |
 
-#### 7.4 修正後の再リリース
-
-**重要**: 同じタグ名は使えないため、バージョンを上げて再リリース
-
-```bash
-# 1. 修正をコミット
-git add {修正ファイル}
-git commit -m "fix({scope}): CIエラーを修正"
-
-# 2. 新しいバージョンに更新
-npm version patch --no-git-tag-version --prefix {path}
-
-# 3. バージョン更新をコミット
-git add {path}/package.json
-git commit -m "chore({scope}): v{new_version}にバージョンアップ"
-
-# 4. 新しいタグを作成・プッシュ
-git tag {tag_prefix}{new_version}
-git push origin main
-git push origin {tag_prefix}{new_version}
-```
-
-#### 7.5 リトライ制限
+#### 7.4 リトライ制限
 
 最大3回まで自動リトライ。3回失敗したらユーザーに報告して終了。
 

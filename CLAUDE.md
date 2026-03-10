@@ -66,22 +66,25 @@
 - 承認済み計画の継続実行・追加指示 → Task APIで進捗管理しながら実装を継続
 
 ### Planモード時の必須フロー
-1. 問題・要件を調査・分析する [`Explore` サブエージェント]
-2. `docs/plans/` の過去Planを検索し、類似対応がないか確認する [`Grep`/`Glob`]
+1. 計画策定に必要なSkillを選定する
+   - 「Skill・エージェント作成時のルール」の対応表を参照し、今回の作業に該当するSkillを特定する
+   - 該当Skillがあれば、調査サブエージェントに読み込ませて計画策定の入力とする
+2. 問題・要件を調査・分析する [`Explore` サブエージェント]
+3. `docs/plans/` の過去Planを検索し、類似対応がないか確認する [`Grep`/`Glob`]
    - 類似Planがあれば知見を計画に取り入れる
-   - 類似Planの存在はステップ3でSkill化の強い根拠とする
-3. `einja-skill-first` で「Skill を先に作るべきか」を評価する [`einja-skill-first`]
+   - 類似Planの存在はステップ4でSkill化の強い根拠とする
+4. `einja-skill-first` で「Skill を先に作るべきか」を評価する [`einja-skill-first`]
    - Plan mode中は `UserPromptSubmit` hookにより自動でリマインダーが注入される
    - `.claude/skills/einja-skill-first/SKILL.md` を読み込んで評価を実施する
    - 推奨判定 → AskUserQuestion でユーザーに提案
    - 承認 → 計画の TODO-0 に Skill 作成を追加
    - 不要判定 → そのまま次へ進む
    - ※ スキップ基準に該当する場合は評価自体を省略
-4. 実装で使用するSkill・サブエージェントを選定する
+5. 実装で使用するSkill・サブエージェントを選定する
    - サブエージェント委託ルール表と照合し、各作業に適切なSkill/サブエージェントを割り当てる
    - 選定結果はplanファイルの「使用予定Skill・サブエージェント」セクションに記載する
-5. planファイルに計画を記述する
-6. ExitPlanMode で承認を得る
+6. planファイルに計画を記述する
+7. ExitPlanMode で承認を得る
 
 ### Planファイルの必須セクション
 - **Context**: なぜこの変更が必要か

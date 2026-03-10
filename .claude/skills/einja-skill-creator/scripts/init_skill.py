@@ -17,7 +17,13 @@ from pathlib import Path
 
 SKILL_TEMPLATE = """---
 name: {skill_name}
-description: [TODO: このSkillが何をするか、いつ使用すべきかについての完全かつ有益な説明。特定のシナリオ、ファイルタイプ、またはトリガーとなるタスクを含めてください。]
+description: [TODO: このSkillが何をするか、いつ使用すべきかについての完全かつ有益な説明。3要素公式を使用: [What it does] + [When to use it] + [Key capabilities]。特定のシナリオ、ファイルタイプ、またはトリガーとなるタスクを含めてください。類似Skillがあれば Do NOT use for: で除外条件も記述。]
+# metadata:        # オプション: 必要に応じてコメントを外す
+#   author: your-team
+#   version: 1.0.0
+# allowed-tools:   # オプション: ツール制限が必要な場合
+#   - Read
+#   - Edit
 ---
 
 # {skill_title}
@@ -102,6 +108,17 @@ Claudeの処理と思考を導くためにコンテキストに読み込まれ�
 ---
 
 **不要なディレクトリは削除できます。** すべてのSkillが3種類のリソースすべてを必要とするわけではありません。
+
+## Troubleshooting
+
+### よくある問題
+
+| 症状 | 原因 | 対処法 |
+|------|------|--------|
+| Skillがトリガーされない | descriptionが曖昧/不十分 | 3要素公式でdescriptionを改善 |
+| 意図しないクエリでトリガーされる | descriptionが広すぎる | ネガティブトリガー（Do NOT use for）を追加 |
+| 出力品質が不安定 | 指示が曖昧 | 具体例を追加し、出力フォーマットを明示 |
+| コンテキストが大きすぎる | SKILL.md本文が肥大化 | referenceファイルに分割（段階的開示） |
 
 <!-- @einja:excluded:start -->
 ## プロジェクト固有セクションの記入

@@ -39,7 +39,7 @@ def validate_skill(skill_path):
         return False, f"フロントマターの無効なYAML: {e}"
 
     # 許可されたプロパティを定義
-    ALLOWED_PROPERTIES = {'name', 'description', 'license', 'allowed-tools', 'metadata', 'compatibility'}
+    ALLOWED_PROPERTIES = {'name', 'description', 'license', 'allowed-tools', 'metadata', 'compatibility', 'user-invocable', 'user_invocable', 'invocation'}
 
     # 予期しないプロパティを確認（metadata配下のネストされたキーを除く）
     unexpected_keys = set(frontmatter.keys()) - ALLOWED_PROPERTIES
@@ -70,6 +70,10 @@ def validate_skill(skill_path):
         if len(name) > 64:
             return False, f"Nameが長すぎます（{len(name)}文字）。最大64文字です。"
 
+        # セキュリティ: 予約語チェック
+        if 'claude' in name.lower() or 'anthropic' in name.lower():
+            return False, f"Name '{name}' に予約語が含まれています。'claude'や'anthropic'をSkill名に使用することはできません"
+
         # einja固有: einja-プレフィックスの推奨（警告レベル）
         if not name.startswith('einja-'):
             print(f"⚠️  警告: einjaプロジェクトでは 'einja-' プレフィックスを推奨します（現在: '{name}'）")
@@ -99,6 +103,17 @@ def validate_skill(skill_path):
     line_count = len(content.split('\n'))
     if line_count > 500:
         print(f"⚠️  警告: SKILL.mdが500行を超えています（{line_count}行）。コンテンツをreferenceファイルに分割することを検討してください。")
+
+    # 本文の語数チェック（5,000語超は警告）
+    # フロントマター以降の本文を抽出
+    body_match = re.match(r'^---\n.*?\n---\n?(.*)', content, re.DOTALL)
+    if body_match:
+        body_text = body_match.group(1)
+        # 日本語と英語の両方に対応（簡易的な語数カウント）
+        # 英語: スペース区切り、日本語: 文字数ベース（1文字≈0.5語として概算）
+        word_count = len(body_text.split())
+        if word_count > 5000:
+            print(f"⚠️  警告: SKILL.md本文が5,000語を超えています（約{word_count}語）。コンテンツをreferenceファイルに分割することを推奨します。")
 
     # einja固有: references/ディレクトリ名チェック（reference/は警告）
     reference_dir = skill_path / 'reference'

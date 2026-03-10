@@ -7,123 +7,83 @@ Turborepo + Next.js 15 + Auth.js + Prisma 構成のプロジェクトテンプ�
 <!-- @einja:excluded:start -->
 ## パッケージ利用者向け
 
-### 推奨: Claude Code プラグイン経由
+[einja-skills](https://github.com/einja-inc/einja-skills) プラグインを使って、プロジェクトの作成・テンプレート同期を行います。
 
-Claude Code（CLI / VSCode / Claude Desktop Codeタブ）をお使いの場合、プラグイン経由が最も簡単です。
+### 前提条件
+
+- Claude Code（CLI / VSCode / Claude Desktop Codeタブ）
+- GitHub Packages 認証設定済みの `.npmrc`
+
+### プラグインのインストール（初回のみ）
 
 ```bash
-# 初回セットアップ（1回のみ）
 export GITHUB_TOKEN=ghp_xxxxx
 /plugin marketplace add einja-inc/einja-skills
 /plugin install einja-dev@einja-skills
 /plugin marketplace update einja-skills   # auto-updateを有効化
-
-# 新規プロジェクト作成
-/einja:init
-
-# テンプレート同期（定期的に実行）
-/einja:sync
 ```
 
-> プラグインは内部で `@einja-inc/create-app` / `@einja-inc/dev-cli` を `npx` 経由で呼び出します。`.npmrc` の GitHub Packages 認証設定が必要です。
-
----
-
-### 代替: CLI 直接実行
-
-プラグインを使用しない場合は、以下のCLIを直接実行できます。
-
-### @einja-inc/create-app - 新規プロジェクト作成
-
-新しいプロジェクトを作成したい場合に使用します。
+### 新規プロジェクト作成
 
 ```bash
-npx @einja-inc/create-app my-project
+/einja:init
 ```
 
-**何が起きるか:**
+対話形式でプロジェクト名・オプションを選択すると、以下が自動で行われます:
 
-1. `my-project/` ディレクトリが作成される
-2. Turborepo + Next.js 15 + Prisma のモノレポ構成が展開される（メイン管理画面 `apps/web/` + 管理者画面 `apps/admin/`）
-3. `.claude/` ディレクトリ（Claude Code設定）が自動セットアップされる
-4. 依存関係がインストールされる
-5. Gitリポジトリが初期化される
+1. Turborepo + Next.js 15 + Prisma のモノレポ構成を展開
+2. `.claude/` ディレクトリ（agents, skills, hooks, settings）を自動セットアップ
+3. `docs/einja/`（steering, templates, instructions）を配置
+4. `CLAUDE.md` テンプレートを作成
+5. 依存関係のインストールとGit初期化
 
-**作成後の開始手順:**
+作成後:
 
 ```bash
 cd my-project
 pnpm dev                       # PostgreSQL起動 + 開発サーバー起動
 ```
 
-ブラウザで http://localhost:3000 にアクセス
-
-**オプション:**
-
-| オプション | 説明 |
-|-----------|------|
-| `--yes` | 対話プロンプトをスキップ（デフォルト値使用） |
-| `--skip-git` | Git初期化をスキップ |
-| `--skip-install` | 依存関係インストールをスキップ |
-
-📖 詳細: [packages/create-app/README.md](./packages/create-app/README.md)
-
----
-
-### @einja-inc/dev-cli - 既存プロジェクトにClaude Code設定を追加
-
-既存のプロジェクトにClaude Code用のATDDワークフロー設定を追加したい場合に使用します。
+### テンプレート同期（定期的に実行）
 
 ```bash
+/einja:sync
+```
+
+カテゴリ選択式で `agents`, `skills`, `hooks`, `steering` 等を最新に更新します。コンフリクトも自動解消されます。
+
+### やりたいこと早見表
+
+| やりたいこと | コマンド |
+|-------------|---------|
+| 新規プロジェクトを作成したい | `/einja:init` |
+| Claude設定を最新に更新したい | `/einja:sync` |
+| プラグインの詳細を確認したい | `/einja:about` |
+
+> 📖 各シナリオのセットアップで何が実行されるかの詳細は [セットアップフローガイド](docs/einja/instructions/setup-flow.md) を参照してください。
+
+<details>
+<summary>代替: CLI直接実行（プラグインを使用しない場合）</summary>
+
+プラグインは内部で `@einja-inc/create-app` / `@einja-inc/dev-cli` を `npx` 経由で呼び出しています。プラグインを使わない場合は直接実行できます。
+
+```bash
+# 新規プロジェクト作成
+npx @einja-inc/create-app my-project
+
+# 既存プロジェクトにClaude Code設定を追加
 cd your-existing-project
 npx @einja-inc/dev-cli init
-```
 
-**何が起きるか:**
-
-1. `.claude/` ディレクトリが作成される
-   - `agents/` - タスク実行、仕様書生成、フロントエンド開発用サブエージェント
-   - `skills/` - `einja-issue-exec`, `einja-issue-spec-create`, `einja-task-exec` などのSkill tool
-   - `skills/` - ATDDワークフロー用スキル（タスク実行、QAテスト、コミット管理、コンフリクト解消等）
-   - `hooks/` - Claude Code Hooks（コード品質チェック、型検証、機密情報検出等）
-   - `settings.json` - Claude Code設定（権限、MCPサーバー等）
-2. `docs/einja/` ディレクトリが作成される
-   - `steering/` - コミットルール、テスト戦略、レビューガイドライン
-   - `templates/` - 仕様書テンプレート
-   - `instructions/` - 操作手順書（セットアップ、デプロイ等）
-   - `example/` - サンプル仕様書
-3. `CLAUDE.md` テンプレートが作成される
-4. `package.json` にスクリプトが追加される（`lint`, `format`, `typecheck`, `prepush` 等）
-
-**追加されるnpm scripts:**
-
-```bash
-pnpm task:loop 123      # GitHub Issue #123のタスクを自動実行
-# テンプレート同期はプラグイン /einja:sync を推奨（代替: npx --yes @einja-inc/dev-cli@latest sync）
-```
-
-**テンプレート同期:**
-
-プラグイン `/einja:sync` の使用を推奨します。CLI直接実行の場合:
-
-```bash
+# テンプレート同期
 npx --yes @einja-inc/dev-cli@latest sync
 npx --yes @einja-inc/dev-cli@latest sync --only agents,skills
 ```
 
-📖 詳細: [packages/cli/README.md](./packages/cli/README.md)
+📖 詳細: [create-app](./packages/create-app/README.md) | [dev-cli](./packages/cli/README.md)
 
----
+</details>
 
-### 使い分けガイド
-
-| やりたいこと | 推奨（プラグイン） | 代替（CLI直接実行） |
-|-------------|-------------------|-------------------|
-| 新規プロジェクトを作成したい | `/einja:init` | `npx @einja-inc/create-app my-project` |
-| 既存プロジェクトにClaude設定を追加したい | — | `npx @einja-inc/dev-cli init` |
-| Claude設定を最新に更新したい | `/einja:sync` | `npx --yes @einja-inc/dev-cli@latest sync` |
-
-> 📖 各シナリオのセットアップで何が実行されるかの詳細は [セットアップフローガイド](docs/einja/instructions/setup-flow.md) を参照してください。
 <!-- @einja:excluded:end -->
 
 ---

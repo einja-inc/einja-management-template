@@ -217,6 +217,8 @@ TeamCreate:
    - worktree 作成: `git worktree add ../${project-name}-worktrees/task-${N}-{X.Y} task/${N}-{X.Y}`
    - worktree ディレクトリに移動して作業
 3. **タスク実行**: einja-task-exec Skill を使用して `#{N} {X.Y}` を実行
+   - **進捗報告**: 各個別タスク（X.Y.Z）の開始時・完了時に Lead へ SendMessage で報告
+   - 形式: `[progress] Task {X.Y.Z}: {started|completed} - {タスク名}`
 4. **PR作成**: `gh pr create --base issue/${N}-phase{M} --head task/${N}-{X.Y}`
 5. **完了報告**: Lead に SendMessage で報告（PR番号、タスク番号を含む）
 6. **クリーンアップ**: worktree 削除
@@ -246,6 +248,7 @@ Lead の監視ループ:
 
 | メッセージ種別 | 対応 |
 |--------------|------|
+| 進捗報告 | ログとして記録（ユーザーへの表示は任意） |
 | PR作成報告 | ゲートチェック実施（protocol.md 準拠の Fast Gate / Risk Gate） |
 | エラー報告 | リトライ判断 |
 | idle 通知 | 次の Phase/タスク状況確認 |

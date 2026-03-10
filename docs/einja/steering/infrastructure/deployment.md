@@ -132,7 +132,7 @@ graph LR
         CleanupClose[cleanup-pr-preview-on-close.yml]
         Cleanup[cleanup-pr-preview-db.yml]
         ReleaseCLI[release-cli.yml]
-        ReleaseApp[release-create-einja-app.yml]
+        ReleaseApp[release-create-app.yml]
         Claude[claude.yml]
         ChangesetStatus[changeset-status.yml]
     end
@@ -160,8 +160,8 @@ graph LR
 | **PR Preview** | `deploy-pr-preview.yml` | PR opened/sync/closed | CI → Neonブランチ作成 → プレビューデプロイ |
 | **PR Close Cleanup** | `cleanup-pr-preview-on-close.yml` | PR closed | Neonブランチの即座削除（PR close時） |
 | **Cleanup DB** | `cleanup-pr-preview-db.yml` | 毎日00:00 UTC / 手動 | 孤立したNeonブランチ削除 |
-| **Release CLI** | `release-cli.yml` | tag `cli-v*` / 手動 | @einja/dev-cli をNPM公開 |
-| **Release App** | `release-create-einja-app.yml` | tag `create-einja-app-v*` / 手動 | create-einja-app をNPM公開 |
+| **Release CLI** | `release-cli.yml` | tag `cli-v*` / 手動 | @einja-inc/dev-cli をNPM公開 |
+| **Release App** | `release-create-app.yml` | tag `create-app-v*` / 手動 | @einja-inc/create-app をNPM公開 |
 | **Claude** | `claude.yml` | @claude メンション | Claude Code実行 |
 | **Changeset Status** | `changeset-status.yml` | PR to main/staging | PR上にchangesetの有無を表示 |
 
@@ -723,8 +723,8 @@ flowchart LR
 |-------------|------|--------|
 | `v1.2.0` | アプリ Stable Release | deploy-stable-branches.yml |
 | `v1.2.0-rc.42` | アプリ PreRelease | deploy-stable-branches.yml |
-| `cli-v0.1.41` | @einja/dev-cli | 手動タグ（既存運用） |
-| `create-einja-app-v0.3.2` | create-einja-app | 手動タグ（既存運用） |
+| `cli-v0.1.41` | @einja-inc/dev-cli | 手動タグ（既存運用） |
+| `create-app-v0.3.2` | @einja-inc/create-app | 手動タグ（既存運用） |
 
 ---
 

@@ -22,12 +22,12 @@ assistant: "tasks-generatorエージェントを使用して、要件と設計�
 model: sonnet
 color: yellow
 skills:
-  - einja-subagent-question-protocol
+  - _einja-subagent-question-protocol
 ---
 
 ## 使用するSkill
 
-**[issue-spec-tasks-generator Skill](../../skills/einja-issue-spec-tasks-generator/SKILL.md)** を参照してタスクを生成。
+**[issue-spec-tasks-generator Skill](../../skills/_einja-issue-spec-tasks-generator/SKILL.md)** を参照してタスクを生成。
 
 ## エラーフィードバック対応
 
@@ -44,7 +44,7 @@ skills:
 ## あなたの中核的責務
 
 ## タスク管理
-TodoWriteツールを使用して詳細な進捗を可視化します：
+TaskCreateツールを使用して詳細な進捗を可視化します：
 - ドキュメント読み込み、要件分析、タスク分解、GitHub Issue更新の各ステップをタスクとして登録
 - 現在作業中のタスクは必ず「in_progress」状態に更新
 - 完了したタスクは即座に「completed」状態に更新
@@ -239,7 +239,7 @@ einja-issue-spec-create Skillから呼ばれた場合（Issue番号が渡され�
 - タスク階層一覧表（Phase / タスクグループ / タスク / サブタスク）
 - ATDDタスクグループ設計原則（縦切り/横切り）
 - アンチパターン（画面/レイヤー/クラス単位の分割禁止）
-- 依存関係の記述形式（einja:issue-exec互換）
+- 依存関係の記述形式（einja-issue-exec互換）
 - Phase完了確認タスクグループの書き方
 - メタデータの記述形式
 
@@ -495,7 +495,7 @@ tasks-validatorは以下の場合に横切り分割としてエラーを出し�
 - 依存関係が明確で循環していない
 - 並列実行の機会が最大化されている
 - タスクグループ間、タスク間の依存関係が適切に設定されている
-- **依存関係の記述形式がeinja:issue-exec互換であること**
+- **依存関係の記述形式がeinja-issue-exec互換であること**
   - ✅ `なし` / `X.Y` / `X.Y, X.Y` / `Phase X完了`
   - ❌ `X.Y完了` は使用禁止
 

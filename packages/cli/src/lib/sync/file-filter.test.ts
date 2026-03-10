@@ -29,22 +29,22 @@ describe("FileFilter", () => {
   describe("scanSyncTargets", () => {
     it("einja/サブディレクトリ内のファイルをスキャンできること", async () => {
       // Given: テンプレートディレクトリにファイルを作成
-      const commandsDir = path.join(templateDir, ".claude/commands/einja");
       const agentsDir = path.join(templateDir, ".claude/agents/einja");
+      const hooksDir = path.join(templateDir, ".claude/hooks");
 
-      await fs.ensureDir(commandsDir);
       await fs.ensureDir(agentsDir);
+      await fs.ensureDir(hooksDir);
 
-      await fs.writeFile(path.join(commandsDir, "test-command.md"), "# Test Command");
       await fs.writeFile(path.join(agentsDir, "test-agent.md"), "# Test Agent");
+      await fs.writeFile(path.join(hooksDir, "test-hook.md"), "# Test Hook");
 
       // When: スキャンを実行
       const targets = await fileFilter.scanSyncTargets();
 
       // Then: ファイルが検出される
       expect(targets.length).toBe(2);
-      expect(targets.some((t) => t.path.endsWith("test-command.md"))).toBe(true);
       expect(targets.some((t) => t.path.endsWith("test-agent.md"))).toBe(true);
+      expect(targets.some((t) => t.path.endsWith("test-hook.md"))).toBe(true);
     });
 
     it("skillsカテゴリはeinja-プレフィックスのみをスキャンすること", async () => {
@@ -86,38 +86,35 @@ describe("FileFilter", () => {
 
     it("カテゴリでフィルタリングできること", async () => {
       // Given: 複数のカテゴリにファイルを作成
-      const commandsDir = path.join(templateDir, ".claude/commands/einja");
       const agentsDir = path.join(templateDir, ".claude/agents/einja");
       const docsDir = path.join(templateDir, "docs/einja");
 
-      await fs.ensureDir(commandsDir);
       await fs.ensureDir(agentsDir);
       await fs.ensureDir(docsDir);
 
-      await fs.writeFile(path.join(commandsDir, "test-command.md"), "# Test Command");
       await fs.writeFile(path.join(agentsDir, "test-agent.md"), "# Test Agent");
       await fs.writeFile(path.join(docsDir, "test-doc.md"), "# Test Doc");
 
-      // When: commandsのみをスキャン
-      const targets = await fileFilter.scanSyncTargets({ categories: ["commands"] });
+      // When: agentsのみをスキャン
+      const targets = await fileFilter.scanSyncTargets({ categories: ["agents"] });
 
-      // Then: commandsのみが検出される
+      // Then: agentsのみが検出される
       expect(targets.length).toBe(1);
-      expect(targets[0].category).toBe("commands");
-      expect(targets[0].path).toContain("test-command.md");
+      expect(targets[0].category).toBe("agents");
+      expect(targets[0].path).toContain("test-agent.md");
     });
 
     it("ローカルに存在するファイルをexists=trueとしてマークすること", async () => {
       // Given: テンプレートとプロジェクトの両方にファイルを作成
-      const templateCommandsDir = path.join(templateDir, ".claude/commands/einja");
-      const projectCommandsDir = path.join(projectDir, ".claude/commands/einja");
+      const templateAgentsDir = path.join(templateDir, ".claude/agents/einja");
+      const projectAgentsDir = path.join(projectDir, ".claude/agents/einja");
 
-      await fs.ensureDir(templateCommandsDir);
-      await fs.ensureDir(projectCommandsDir);
+      await fs.ensureDir(templateAgentsDir);
+      await fs.ensureDir(projectAgentsDir);
 
-      await fs.writeFile(path.join(templateCommandsDir, "existing.md"), "# Existing");
-      await fs.writeFile(path.join(projectCommandsDir, "existing.md"), "# Existing Local");
-      await fs.writeFile(path.join(templateCommandsDir, "new.md"), "# New");
+      await fs.writeFile(path.join(templateAgentsDir, "existing.md"), "# Existing");
+      await fs.writeFile(path.join(projectAgentsDir, "existing.md"), "# Existing Local");
+      await fs.writeFile(path.join(templateAgentsDir, "new.md"), "# New");
 
       // When: スキャンを実行
       const targets = await fileFilter.scanSyncTargets();
@@ -156,7 +153,7 @@ describe("FileFilter", () => {
 
     it("バイナリファイルを除外すること", () => {
       // Given: 画像ファイル
-      const imagePath = ".claude/commands/einja/image.png";
+      const imagePath = ".claude/agents/einja/image.png";
 
       // When: 除外判定
       const result = fileFilter.shouldExclude(imagePath);
@@ -167,7 +164,7 @@ describe("FileFilter", () => {
 
     it("追加の除外パターンで除外できること", () => {
       // Given: 追加の除外パターン
-      const filePath = ".claude/commands/einja/test.md";
+      const filePath = ".claude/agents/einja/test.md";
       const excludePatterns = ["**/*test*"];
 
       // When: 除外判定
@@ -201,12 +198,6 @@ describe("FileFilter", () => {
       // Given: 複数のカテゴリのファイル
       const files = [
         {
-          path: ".claude/commands/einja/cmd1.md",
-          category: "commands",
-          templatePath: "/template/cmd1.md",
-          exists: false,
-        },
-        {
           path: ".claude/agents/einja/agent1.md",
           category: "agents",
           templatePath: "/template/agent1.md",
@@ -218,23 +209,28 @@ describe("FileFilter", () => {
           templatePath: "/template/doc1.md",
           exists: false,
         },
+        {
+          path: "scripts/test.sh",
+          category: "scripts",
+          templatePath: "/template/test.sh",
+          exists: false,
+        },
       ];
 
-      // When: commandsとdocsでフィルタリング
-      const filtered = fileFilter.filterByCategory(files, ["commands", "docs"]);
+      // When: agentsとdocsでフィルタリング
+      const filtered = fileFilter.filterByCategory(files, ["agents", "docs"]);
 
-      // Then: commandsとdocsのみが返される
+      // Then: agentsとdocsのみが返される
       expect(filtered.length).toBe(2);
-      expect(filtered.some((f) => f.category === "commands")).toBe(true);
+      expect(filtered.some((f) => f.category === "agents")).toBe(true);
       expect(filtered.some((f) => f.category === "docs")).toBe(true);
-      expect(filtered.some((f) => f.category === "agents")).toBe(false);
+      expect(filtered.some((f) => f.category === "scripts")).toBe(false);
     });
   });
 
   describe("getCategoryFromPath", () => {
     it("パスからカテゴリを推測できること", () => {
       // Given & When: 各カテゴリのパス
-      const commandsCategory = fileFilter.getCategoryFromPath(".claude/commands/einja/test.md");
       const agentsCategory = fileFilter.getCategoryFromPath(".claude/agents/einja/test.md");
       const skillsCategory = fileFilter.getCategoryFromPath(
         ".claude/skills/einja-coding-standards/SKILL.md"
@@ -242,7 +238,6 @@ describe("FileFilter", () => {
       const docsCategory = fileFilter.getCategoryFromPath("docs/einja/test.md");
 
       // Then: 正しいカテゴリが返される
-      expect(commandsCategory).toBe("commands");
       expect(agentsCategory).toBe("agents");
       expect(skillsCategory).toBe("skills");
       expect(docsCategory).toBe("docs");
@@ -272,7 +267,7 @@ describe("FileFilter", () => {
 
     it("einja/外のパスはnullを返すこと", () => {
       // Given: einja/外のパス
-      const customPath = ".claude/commands/my-custom.md";
+      const customPath = ".claude/agents/my-custom.md";
 
       // When: カテゴリ推測
       const category = fileFilter.getCategoryFromPath(customPath);

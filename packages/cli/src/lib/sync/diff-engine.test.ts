@@ -61,7 +61,7 @@ describe("DiffEngine", () => {
       expect(result.content).toContain("行1（ローカル編集）");
       expect(result.content).toContain("=======");
       expect(result.content).toContain("行1（テンプレート編集）");
-      expect(result.content).toContain(">>>>>>> TEMPLATE (from @einja/cli)");
+      expect(result.content).toContain(">>>>>>> TEMPLATE (from @einja-inc/dev-cli)");
     });
 
     it("複数のコンフリクトがある場合、すべて検出する", () => {
@@ -97,7 +97,7 @@ describe("DiffEngine", () => {
 ローカル版
 =======
 テンプレート版
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 行2`;
 
       expect(engine.hasConflictMarkers(content)).toBe(true);
@@ -119,7 +119,7 @@ describe("DiffEngine", () => {
 =======
 テンプレート版の行1
 テンプレート版の行2
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 行2`;
 
       const conflicts = engine.parseConflictMarkers(content);
@@ -138,13 +138,13 @@ describe("DiffEngine", () => {
 ローカル1
 =======
 テンプレート1
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 行2
 <<<<<<< LOCAL (your changes)
 ローカル2
 =======
 テンプレート2
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 行3`;
 
       const conflicts = engine.parseConflictMarkers(content);

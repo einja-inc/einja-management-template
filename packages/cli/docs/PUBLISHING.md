@@ -4,8 +4,8 @@
 
 | 項目 | 値 |
 |------|-----|
-| パッケージ名 | `@einja/cli` |
-| レジストリ | npm (public) |
+| パッケージ名 | `@einja-inc/dev-cli` |
+| レジストリ | GitHub Packages (restricted) |
 | 実行コマンド | `einja-claude` |
 
 ## 配布されるディレクトリ
@@ -55,7 +55,7 @@ git push origin cli-v0.2.0
 ```bash
 cd packages/cli
 pnpm build
-npm publish --access public
+npm publish --no-git-checks
 ```
 
 **注意**: ローカル公開は履歴管理が困難なため、緊急時のみ使用してください。
@@ -101,7 +101,7 @@ tar -tzf einja-cli-*.tgz
 npm error code ENEEDAUTH
 ```
 
-→ `NPM_TOKEN` が GitHub Secrets に設定されているか確認
+→ `GITHUB_TOKEN` の `packages: write` 権限があるか確認（Actions内では自動提供）
 
 ### バージョン不一致
 
@@ -117,7 +117,7 @@ Version mismatch: package.json=0.1.0, tag=0.2.0
 npm error code E403
 ```
 
-→ パッケージ名が既に使用されている可能性。スコープ付き名前 (`@einja/cli`) を使用
+→ パッケージ名が既に使用されている可能性。スコープ付き名前 (`@einja-inc/dev-cli`) を使用
 
 ## 関連ドキュメント
 

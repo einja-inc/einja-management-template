@@ -5,7 +5,7 @@ describe("HashCache", () => {
   describe("ハッシュの保存と取得", () => {
     it("ハッシュを保存し、同じキーで取得できること", () => {
       const cache = new HashCache();
-      const filePath = ".claude/commands/einja/spec-create.md";
+      const filePath = ".claude/agents/einja/spec-create.md";
       const content = "a".repeat(1024);
       const hash = "abc123def456";
 
@@ -123,7 +123,7 @@ describe("HashCache", () => {
   describe("同一ファイルの2回目以降のハッシュ計算をスキップ", () => {
     it("同じファイルパスとコンテンツで2回getした場合、2回目はキャッシュから取得されること", () => {
       const cache = new HashCache();
-      const filePath = ".claude/commands/einja/spec-create.md";
+      const filePath = ".claude/agents/einja/spec-create.md";
       const content = "a".repeat(1024);
       const hash = "abc123def456";
 

@@ -708,7 +708,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
 - **packages層でも `@/` エイリアスを使用すること**: 各パッケージの `tsconfig.json` に `"@/*": ["./src/*"]` が設定済み
   - `packages/server-core`: `@/` → `src/`（例: `@/domain/entities/User`, `@/core/result`）
   - `packages/cli`: `@/` → `src/`（例: `@/lib/sync/diff-engine.js`, `@/types/sync.js`）
-  - `packages/create-einja-app`: `@/` → `src/`（例: `@/utils/merger.js`, `@/types/index.js`）
+  - `packages/create-app`: `@/` → `src/`（例: `@/utils/merger.js`, `@/types/index.js`）
 - **index.ts不使用**: パッケージエクスポートにindex.tsは使わず、直接ファイルパスを指定する（`@repo/server-core/infrastructure/database/client` 等）
 
 ## 関連ドキュメント

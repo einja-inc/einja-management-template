@@ -6,7 +6,7 @@
 /**
  * 有効なカテゴリのリスト
  */
-export const VALID_CATEGORIES = ["commands", "agents", "skills", "hooks", "docs", "scripts", "env", "tools", "claude-md", "root-config", "claude-config"] as const;
+export const VALID_CATEGORIES = ["agents", "skills", "hooks", "docs", "scripts", "env", "tools", "claude-md", "root-config", "claude-config"] as const;
 
 /**
  * カテゴリの型定義
@@ -17,7 +17,6 @@ export type ValidCategory = (typeof VALID_CATEGORIES)[number];
  * カテゴリの説明マップ（エラーメッセージ・ヘルプ表示用）
  */
 export const CATEGORY_DESCRIPTIONS: Record<ValidCategory, string> = {
-  commands: "Claude Code コマンド (.claude/commands/)",
   agents: "Claude Code エージェント (.claude/agents/)",
   skills: "Claude Code スキル (.claude/skills/)",
   hooks: "Claude Code フック (.claude/hooks/)",
@@ -44,7 +43,7 @@ export interface CategoryValidationResult {
 
 /**
  * カテゴリ文字列をパースしてバリデーションする
- * @param categoryString カンマ区切りのカテゴリ文字列（例: "commands,agents"）
+ * @param categoryString カンマ区切りのカテゴリ文字列（例: "agents,skills"）
  * @returns バリデーション結果
  */
 export function validateCategories(categoryString: string): CategoryValidationResult {

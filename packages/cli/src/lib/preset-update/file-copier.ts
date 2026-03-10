@@ -43,11 +43,6 @@ export class FileCopier {
    */
   private readonly directoryMappings: DirectoryMapping[] = [
     {
-      source: ".claude/commands",
-      destination: ".claude/commands/einja",
-      category: "commands",
-    },
-    {
       source: ".claude/agents",
       destination: ".claude/agents/einja",
       category: "agents",

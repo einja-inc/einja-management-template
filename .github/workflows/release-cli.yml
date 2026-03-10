@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write  # npm provenance用
+      packages: write
     steps:
       # actions/checkout@v4.2.2
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -32,22 +32,23 @@ jobs:
         with:
           node-version: '22.16.0'
           cache: 'pnpm'
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@einja-inc'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build CLI package
-        run: pnpm --filter @einja/dev-cli build
+        run: pnpm --filter @einja-inc/dev-cli build
 
       - name: Run tests
-        run: pnpm --filter @einja/dev-cli test
+        run: pnpm --filter @einja-inc/dev-cli test
 
       - name: Type check
-        run: pnpm --filter @einja/dev-cli typecheck
+        run: pnpm --filter @einja-inc/dev-cli typecheck
 
       - name: Lint
-        run: pnpm --filter @einja/dev-cli lint
+        run: pnpm --filter @einja-inc/dev-cli lint
 
       - name: Get version info
         id: version
@@ -74,7 +75,7 @@ jobs:
 
       - name: Show release info
         run: |
-          echo "📦 Package: @einja/dev-cli"
+          echo "📦 Package: @einja-inc/dev-cli"
           echo "📌 Version: ${{ steps.version.outputs.pkg_version }}"
           echo "🎯 Trigger: ${{ steps.version.outputs.source }}"
           echo "🧪 Dry run: ${{ github.event.inputs.dry_run || 'false' }}"
@@ -86,10 +87,10 @@ jobs:
 
       - name: Publish to npm (dry-run)
         if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: pnpm --filter @einja/dev-cli publish --no-git-checks --access public --provenance --dry-run
+        run: pnpm --filter @einja-inc/dev-cli publish --no-git-checks --dry-run
 
       - name: Publish to npm
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: pnpm --filter @einja/dev-cli publish --no-git-checks --access public --provenance
+        run: pnpm --filter @einja-inc/dev-cli publish --no-git-checks
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -104,7 +104,7 @@ describe("ConflictReporter", () => {
 ローカル版
 =======
 テンプレート版
->>>>>>> TEMPLATE (from @einja/cli)
+>>>>>>> TEMPLATE (from @einja-inc/dev-cli)
 行2`;
 
       expect(reporter.hasUnresolvedConflicts(content)).toBe(true);

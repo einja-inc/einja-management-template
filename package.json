@@ -45,9 +45,8 @@
 		"env:encrypt": "dotenvx encrypt",
 		"env:show": "tsx scripts/env-show.ts",
 		"env:rotate-secrets": "tsx scripts/env-rotate-secrets.ts",
-		"einja:sync": "npx --yes @einja/dev-cli@latest sync",
 		"init:github": "tsx scripts/init-github.ts",
-		"task:loop": "npx --yes @einja/dev-cli@latest task:loop",
+		"task:loop": "npx --yes @einja-inc/dev-cli@latest task:loop",
 		"changeset": "changeset"
 	},
 	"devDependencies": {

@@ -1,11 +1,14 @@
 <!-- @einja:managed:start -->
-# `einja:issue-exec` コマンド
+# `einja-issue-exec` コマンド
+
+> **Agent Teams版**: tmux不要でDesktop/CLI両対応の `einja-issue-team-exec` Skill も利用可能です。
+> 共通プロトコル（ステータス遷移、ゲートチェック、マージモード等）は [Issue実行共通プロトコル](issue-exec-protocol.md) を参照。
 
 ## 概要
 
 GitHub Issue のタスクを Manager → Director → Worker の3階層プロセスで並列実行する Claude Code カスタムコマンド。tmux セッション、git worktree、ステータスファイルで全プロセスを管理する。
 
-**⚠️ 重要**: Vibe-Kanban（`pnpm task:loop`）は廃止され、`/einja:issue-exec` に移行しました。
+**⚠️ 重要**: Vibe-Kanban（`pnpm task:loop`）は廃止され、`/einja-issue-exec` に移行しました。
 
 ---
 
@@ -15,14 +18,14 @@ GitHub Issue のタスクを Manager → Director → Worker の3階層プロセ
 
 ```bash
 # 基本
-/einja:issue-exec #123
+/einja-issue-exec #123
 
 # オプション指定
-/einja:issue-exec #123 --merge-mode task-group-auto   # タスクPR自動マージ
-/einja:issue-exec #123 --merge-mode auto               # 全自動
-/einja:issue-exec #123 --max-phase 2                   # Phase 2 まで
-/einja:issue-exec #123 --base develop                  # ベースブランチ指定
-/einja:issue-exec #123 --resume                        # セッション復旧
+/einja-issue-exec #123 --merge-mode task-group-auto   # タスクPR自動マージ
+/einja-issue-exec #123 --merge-mode auto               # 全自動
+/einja-issue-exec #123 --max-phase 2                   # Phase 2 まで
+/einja-issue-exec #123 --base develop                  # ベースブランチ指定
+/einja-issue-exec #123 --resume                        # セッション復旧
 ```
 
 ### 事前準備
@@ -38,7 +41,7 @@ GitHub Issue のタスクを Manager → Director → Worker の3階層プロセ
 ### 3階層プロセス
 
 ```
-Manager (Claude Code: /einja:issue-exec)
+Manager (Claude Code: /einja-issue-exec)
 │  メインリポ or Issue worktree
 │
 ├─ tmux window → Director Phase1 (claude 対話モード)
@@ -279,7 +282,7 @@ Manager 検知
 
 | 実行方法 | 用途 | 対象 | 推奨シーン |
 |---------|------|------|----------|
-| **`/einja:issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
+| **`/einja-issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
 | **`einja-task-exec` Skill** | 単一タスクグループの実行 | 1つのタスクグループ | 品質重視、複雑な実装 |
 
 ---
@@ -290,6 +293,8 @@ Manager 検知
 - [タスク管理ガイドライン](../steering/task-management.md)
 - [仕様書作成ワークフロー](./task-execute.md#フェーズ1-issue仕様書作成-einja-issue-spec-create-skill)
 - [ブランチ運用戦略](../steering/branch-strategy.md)
+- [Issue実行共通プロトコル](issue-exec-protocol.md) - 両方式共通のルール
+- [einja-issue-team-exec SKILL.md](../../../.claude/skills/einja-issue-team-exec/SKILL.md) - Agent Teams版
 <!-- @einja:managed:end -->
 
 <!-- @einja:project-private:start id="issue-exec-workflow-project" -->

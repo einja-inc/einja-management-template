@@ -1,9 +1,9 @@
 {
   "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_TEAMMATE_MODE": "tmux"
   },
   "includeCoAuthoredBy": false,
-  "plansDirectory": "docs/plans",
   "permissions": {
     "allow": [
       "Bash(npm:*)",
@@ -44,8 +44,6 @@
       "Task(*)",
       "Skill",
       "Skill(*)",
-      "TodoRead(*)",
-      "TodoWrite(*)",
       "AskUserQuestion",
       "NotebookRead(*)",
       "NotebookEdit(*)",
@@ -209,6 +207,9 @@
     ]
   },
   "enabledPlugins": {
-    "code-simplifier@claude-plugins-official": true
-  }
+    "code-simplifier@claude-plugins-official": true,
+    "einja-dev@einja-skills": true,
+    "einja-marketing@einja-skills": true
+  },
+  "plansDirectory": "docs/plans"
 }

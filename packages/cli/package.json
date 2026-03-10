@@ -1,5 +1,5 @@
 {
-  "name": "@einja/dev-cli",
+  "name": "@einja-inc/dev-cli",
   "version": "0.1.49",
   "description": "Einja CLI - .claude設定とテンプレート同期をnpxでインストール",
   "type": "module",
@@ -57,7 +57,8 @@
     "node": ">=20.0.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
   },
   "repository": {
     "type": "git",
@@ -71,5 +72,5 @@
     "einja",
     "atdd"
   ],
-  "license": "MIT"
+  "license": "UNLICENSED"
 }

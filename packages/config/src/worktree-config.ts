@@ -2,7 +2,7 @@
  * Worktree設定のスキーマ定義
  *
  * worktree.config.jsonファイルの型安全な読み込みを提供する。
- * create-einja-appやpnpm devで使用される設定を定義。
+ * @einja-inc/create-appやpnpm devで使用される設定を定義。
  */
 
 import { z } from "zod";

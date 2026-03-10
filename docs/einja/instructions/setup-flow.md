@@ -6,29 +6,29 @@
 
 | シナリオ | 対象者 | 目的 |
 |---------|--------|------|
-| **1. `npx create-einja-app`** | 新規プロジェクト作成者 | テンプレートからプロジェクトを一括生成 |
+| **1. `npx @einja-inc/create-app`** | 新規プロジェクト作成者 | テンプレートからプロジェクトを一括生成 |
 | **2. `git clone` 後の環境構築** | 既存プロジェクトへの参加者 | 開発環境を手元に再現 |
-| **3. `einja sync`** | 既存プロジェクト運用者 | テンプレートの最新変更をプロジェクトに同期 |
+| **3. `/einja:sync`（プラグイン）** | 既存プロジェクト運用者 | テンプレートの最新変更をプロジェクトに同期 |
 
 ---
 
 ## シナリオ別フロー
 
-### 1. `npx create-einja-app`（新規プロジェクト作成）
+### 1. `npx @einja-inc/create-app`（新規プロジェクト作成）
 
 テンプレートからプロジェクトを新規作成し、初回セットアップまで自動で完了するフローです。
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant CLI as create-einja-app<br/>cli.ts
+    participant CLI as @einja-inc/create-app<br/>cli.ts
     participant Tmpl as generators/<br/>template.ts
     participant Post as generators/<br/>post-setup.ts
     participant Init as scripts/<br/>init.sh
     participant Rotate as scripts/<br/>env-rotate-secrets.ts
-    participant DevCLI as @einja/dev-cli
+    participant DevCLI as @einja-inc/dev-cli
 
-    User->>CLI: npx create-einja-app my-app
+    User->>CLI: npx @einja-inc/create-app my-app
     Note over CLI: 対話プロンプト<br/>（プロジェクト名・スコープ・認証方式等）
 
     CLI->>Tmpl: generateTemplate(config, targetPath)
@@ -60,7 +60,7 @@ sequenceDiagram
     Post->>Post: git init + git add . + git commit
 
     opt setupEinjaCli=true の場合
-        Post->>DevCLI: npx --yes @einja/dev-cli init --force --no-backup
+        Post->>DevCLI: npx --yes @einja-inc/dev-cli init --force --no-backup
     end
 
     Post-->>User: 完了メッセージ表示
@@ -78,7 +78,7 @@ sequenceDiagram
 | Step 1: 依存関係 | `generators/post-setup.ts` | `pnpm install` + `pnpm db:generate`（Prisma クライアント生成） |
 | Step 2: 秘密鍵ローテーション | `env-rotate-secrets.ts` | `--all --non-interactive` モードで全環境の AUTH_SECRET と DOTENV_PRIVATE_KEY を自動ローテーション |
 | Step 3: Git初期化 | `generators/post-setup.ts` | `git init` → `git add .` → `git commit -m "Initial commit"` |
-| Step 4: dev-cli 初期化 | `generators/post-setup.ts` | `setupEinjaCli=true` 時のみ `npx --yes @einja/dev-cli@latest init --force --no-backup` を実行 |
+| Step 4: dev-cli 初期化 | `generators/post-setup.ts` | `setupEinjaCli=true` 時のみ `npx --yes @einja-inc/dev-cli@latest init --force --no-backup` を実行 |
 
 ---
 
@@ -150,45 +150,44 @@ flowchart TD
 
 ---
 
-### 3. `einja sync`（テンプレート同期）
+### 3. `/einja:sync`（テンプレート同期）
 
-テンプレートの最新変更を既存プロジェクトに同期するフローです。2つの CLI ツールがそれぞれ異なる対象を担当します。
+テンプレートの最新変更を既存プロジェクトに同期するフローです。プラグイン `/einja:sync` 経由で2つの CLI ツールを呼び出し、それぞれ異なる対象を担当します。
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant Skill as einja:einja-sync<br/>Skill
-    participant DevCLI as @einja/dev-cli<br/>sync
-    participant CEA as create-einja-app<br/>sync
+    participant Plugin as /einja:sync<br/>プラグイン
+    participant DevCLI as @einja-inc/dev-cli<br/>sync
+    participant CEA as @einja-inc/create-app<br/>sync
 
-    User->>Skill: einja sync（Skill経由）
+    User->>Plugin: /einja:sync（プラグイン経由）
 
     rect rgb(232, 244, 253)
         Note over DevCLI: dev-cli sync — Claude Code 関連ファイル
-        Skill->>DevCLI: einja sync [--only categories]
+        Plugin->>DevCLI: npx --yes @einja-inc/dev-cli@latest sync [--only categories]
         activate DevCLI
         Note over DevCLI: 1. カテゴリ指定（--only）のパース<br/>2. メタデータ読み込み<br/>3. 同期対象スキャン<br/>4. ハッシュベース差分計算<br/>5. dry-run / 確認プロンプト<br/>6. バックアップ作成<br/>7. ファイルマージ（マーカー / 3方向 / JSON）<br/>8. 孤児ファイル検出・削除<br/>9. メタデータ保存<br/>10. 依存関係チェック + インストール
-        DevCLI-->>Skill: 結果レポート
+        DevCLI-->>Plugin: 結果レポート
         deactivate DevCLI
     end
 
     rect rgb(232, 245, 233)
-        Note over CEA: create-einja-app sync — プロジェクト構成ファイル
-        Skill->>CEA: npx create-einja-app sync
+        Note over CEA: @einja-inc/create-app sync — プロジェクト構成ファイル
+        Plugin->>CEA: npx --yes @einja-inc/create-app@latest sync
         activate CEA
         Note over CEA: 1. Git状態チェック<br/>2. カテゴリ選択（対話 / --all / --categories）<br/>3. プロジェクト設定検出（変数置換用）<br/>4. ファイル収集（globパターン）<br/>5. バックアップ作成<br/>6. マージ・コピー処理<br/>7. テンプレート変数置換<br/>8. 置換漏れ検証<br/>9. 結果レポート
-        CEA-->>Skill: 結果レポート
+        CEA-->>Plugin: 結果レポート
         deactivate CEA
     end
 
-    Skill-->>User: 同期完了報告
+    Plugin-->>User: 同期完了報告
 ```
 
 #### dev-cli sync の同期対象とマージ方式
 
 | カテゴリ | 対象パス | 説明 |
 |---------|---------|------|
-| `commands` | `.claude/commands/einja/` | Claude Code コマンド定義 |
 | `agents` | `.claude/agents/einja/` | サブエージェント定義 |
 | `skills` | `.claude/skills/einja-*/`, `_einja-*/` | Skill 定義（`einja-` / `_einja-` プレフィックス） |
 | `hooks` | `.claude/hooks/` | フック定義 |
@@ -247,7 +246,7 @@ sequenceDiagram
 - 初回sync（baseなし）: ローカル優先 + テンプレートの新規キーのみ追加
 - 2回目以降: base/local/template の3方向比較でマージ
 
-#### create-einja-app sync の同期対象カテゴリ
+#### @einja-inc/create-app sync の同期対象カテゴリ
 
 | カテゴリ | 対象パターン | デフォルト選択 |
 |---------|-------------|--------------|
@@ -276,15 +275,15 @@ sequenceDiagram
 
 | ファイル | 役割 | 呼び出し元 |
 |---------|------|-----------|
-| `scripts/init.sh` | Volta/Node.js/pnpm/direnv 初期導入（初回のみ） | `create-einja-app`（`post-setup.ts` から `bash scripts/init.sh`） / 手動実行 |
+| `scripts/init.sh` | Volta/Node.js/pnpm/direnv 初期導入（初回のみ） | `@einja-inc/create-app`（`post-setup.ts` から `bash scripts/init.sh`） / 手動実行 |
 | `scripts/setup-dev.ts` | ツールインストール（Volta確認・direnv・dotenvx・.env.personal設定） | `pnpm dev:setup` |
 | `scripts/ensure-serena.sh` | Serena MCP サーバーの冪等起動（PIDベース） | `.envrc` から `source`（direnv 評価時に自動実行） |
-| `scripts/env-rotate-secrets.ts` | AUTH_SECRET / DOTENV_PRIVATE_KEY のローテーション | `create-einja-app`（`post-setup.ts` から `--all --non-interactive`） / `pnpm env:rotate-secrets` |
+| `scripts/env-rotate-secrets.ts` | AUTH_SECRET / DOTENV_PRIVATE_KEY のローテーション | `@einja-inc/create-app`（`post-setup.ts` から `--all --non-interactive`） / `pnpm env:rotate-secrets` |
 | `.envrc` | dotenv 読み込み + worktree 間 .env.personal 共有 + Serena MCP 起動 | direnv（シェルでディレクトリ進入時に自動評価） |
-| `packages/create-einja-app/src/generators/post-setup.ts` | プロジェクト作成後のセットアップ（init.sh → install → rotate → git → dev-cli） | `create-einja-app` create コマンド |
-| `packages/create-einja-app/src/generators/template.ts` | テンプレート展開・変数置換・リネーム処理 | `create-einja-app` create コマンド |
-| `packages/create-einja-app/src/generators/sync.ts` | create-einja-app 用同期ファイル収集（カテゴリ → glob パターン → フィルタリング） | `create-einja-app` sync コマンド |
-| `packages/create-einja-app/src/commands/sync.ts` | create-einja-app sync のメインフロー（バックアップ・マージ・検証） | `npx create-einja-app sync` |
+| `packages/create-app/src/generators/post-setup.ts` | プロジェクト作成後のセットアップ（init.sh → install → rotate → git → dev-cli） | `@einja-inc/create-app` create コマンド |
+| `packages/create-app/src/generators/template.ts` | テンプレート展開・変数置換・リネーム処理 | `@einja-inc/create-app` create コマンド |
+| `packages/create-app/src/generators/sync.ts` | @einja-inc/create-app 用同期ファイル収集（カテゴリ → glob パターン → フィルタリング） | `@einja-inc/create-app` sync コマンド |
+| `packages/create-app/src/commands/sync.ts` | @einja-inc/create-app sync のメインフロー（バックアップ・マージ・検証） | `npx @einja-inc/create-app sync` |
 | `packages/cli/src/commands/sync.ts` | dev-cli sync のメインフロー（ハッシュ差分・マーカーマージ・孤児管理） | `einja sync` コマンド |
 | `packages/cli/src/lib/sync/file-filter.ts` | dev-cli sync の同期対象スキャン・カテゴリマッピング | `packages/cli/src/commands/sync.ts` |
 
@@ -299,15 +298,15 @@ sequenceDiagram
 | 観点 | 説明 |
 |------|------|
 | **冪等性** | 両スクリプトともに「既にインストール済み」を検出するガードがあり、何度実行しても安全 |
-| **init.sh の位置づけ** | 最小限の初期導入スクリプト。`create-einja-app` からは `bash scripts/init.sh` で一括実行。手動実行も可能 |
+| **init.sh の位置づけ** | 最小限の初期導入スクリプト。`@einja-inc/create-app` からは `bash scripts/init.sh` で一括実行。手動実行も可能 |
 | **setup-dev.ts の位置づけ** | 環境構築の包括スクリプト。init.sh 相当の処理を内包した上で、direnv/dotenvx/.env/DB 等の追加セットアップを実行 |
 | **分離の理由** | `init.sh` は bash スクリプトで Node.js 不要。`setup-dev.ts` は TypeScript で Node.js 必須。初回セットアップ時は Node.js がまだ存在しない可能性があるため、`init.sh` で Node.js 導入 → `setup-dev.ts` で残りの処理という順序が必要 |
 
-### dev-cli sync と create-einja-app sync の分担
+### dev-cli sync と @einja-inc/create-app sync の分担
 
 | ツール | 同期対象 | マージ方式 |
 |--------|---------|-----------|
 | **dev-cli sync** | Claude Code 関連（`.claude/`、`docs/einja/`、`scripts/`、`.envrc`、`.vscode/settings.json`） | マーカーベース + 3方向マージ + JSON マージ。ハッシュキャッシュによる差分検出 |
-| **create-einja-app sync** | プロジェクト構成全般（CI/CD、Docker、モノレポ設定、apps/、packages/ 等） | カテゴリ選択式。テンプレート変数置換 + マーカーベースマージ。置換漏れ検証つき |
+| **@einja-inc/create-app sync** | プロジェクト構成全般（CI/CD、Docker、モノレポ設定、apps/、packages/ 等） | カテゴリ選択式。テンプレート変数置換 + マーカーベースマージ。置換漏れ検証つき |
 
-両ツールは対象領域が異なり、通常は競合しません。`einja:einja-sync` Skill から統合的に呼び出されます。
+両ツールは対象領域が異なり、通常は競合しません。プラグイン `/einja:sync` から統合的に呼び出されます。

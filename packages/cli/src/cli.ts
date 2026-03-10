@@ -15,14 +15,16 @@ const pkg = JSON.parse(readFileSync(resolve(__dirname, "..", "package.json"), "u
 const program = new Command();
 
 // 旧パッケージ名での実行時に非推奨警告を表示
-const isLegacyPackageName = process.argv[1]?.includes("@einja/claude-cli");
+const isLegacyPackageName =
+  process.argv[1]?.includes("@einja/claude-cli") ||
+  process.argv[1]?.includes("@einja/dev-cli");
 if (isLegacyPackageName) {
   console.warn(
     chalk.yellow(
-      "⚠️  警告: @einja/claude-cli は非推奨です。今後は @einja/dev-cli をご使用ください。"
+      "⚠️  警告: 旧パッケージ名は非推奨です。今後は @einja-inc/dev-cli をご使用ください。"
     )
   );
-  console.warn(chalk.yellow("   新しいパッケージ名: npx @einja/dev-cli\n"));
+  console.warn(chalk.yellow("   新しいパッケージ名: npx @einja-inc/dev-cli\n"));
 }
 
 program

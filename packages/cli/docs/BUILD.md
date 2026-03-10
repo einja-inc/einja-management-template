@@ -19,7 +19,6 @@ prebuild → build → postbuild
 | ソース（プロジェクト本体） | コピー先（CLI配布用） |
 |------------------------|-------------------|
 | `.claude/agents/einja/` | `presets/default/.claude/agents/einja/` |
-| `.claude/commands/einja/` | `presets/default/.claude/commands/einja/` |
 | `.claude/skills/einja-*/` | `presets/default/.claude/skills/einja-*/` |
 | `.claude/hooks/einja/` | `presets/default/.claude/hooks/einja/` |
 | `.vscode/settings.json` | `presets/default/.vscode/settings.json` |

@@ -8,7 +8,6 @@ import ignore from "ignore";
  * カテゴリマッピング
  */
 const CATEGORY_MAPPING: Record<string, string> = {
-  commands: ".claude/commands/einja",
   agents: ".claude/agents/einja",
   skills: ".claude/skills",
   hooks: ".claude/hooks",

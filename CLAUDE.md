@@ -10,7 +10,8 @@
 3. **影響範囲の最小化**: 変更は必要な箇所のみ。関係ないコードに触れない
 4. **直接実装の禁止**: あなたは絶対に直接実装を行わない。すべての作業はsubagentに委託し、可能な限り並行で呼び出す。サブエージェントの出力はユーザにも見える場所に出力すること
 5. **実装品質の自己検証**: 複雑な変更では完了前に「よりエレガントな方法はないか」を自問する。ただし単純な修正には不要
-6. **Skill-First原則**: 実装着手前に `einja-skill-first` Skillで「Skillを先に作るべきか」を評価する。反復性のある作業はSkill化してから本作業を開始する
+6. **Skill-First原則**: 実装着手前に `einja-skill-first` Skillで「Skillを先に作るべきか」を評価する。反復性のある作業はSkill化してから本作業を開始する。過去Planに類似対応がある場合はSkill化を強く推奨
+7. **完了前レビュー必須**: コード変更を伴うタスクは、完了宣言前に必ず「完了判定の基準」セクションに従って検証する。サブエージェントの報告を鵜呑みにせず、ディスク上の実在確認・prepush・レビューを実施すること
 
 ## Agent Teams の使用制限
 
@@ -33,7 +34,7 @@
 | フロントエンド コーディング | `frontend-coder` |
 | バックエンド アーキテクチャ設計 | `backend-architect` |
 
-#### Skill・コマンド（直接呼び出し）
+#### Skill（直接呼び出し）
 
 | 名前 | 用途 |
 |------|------|
@@ -42,51 +43,67 @@
 | `einja-skill-creator` | Skill作成・更新 |
 | `einja-skill-first` | 作業前のSkill作成必要性評価（Plan/einja-issue-spec-create時に自動起動） |
 | `einja-infra-maintenance` | インフラ環境セットアップ・メンテナンス |
-| `einja:issue-exec` | Issue全体の階層的並列実行（Command） |
+| `einja-issue-exec` | Issue全体の階層的並列実行（Skill） |
+| `einja-issue-team-exec` | Agent TeamsによるIssue並列実行（tmux不要） |
 | `einja-task-exec` | タスクグループ実行（Skill tool） |
 | `einja-issue-spec-create` | Issue仕様書作成（Skill tool） |
+| `einja-review-code` | コード変更の完了レビュー（レビューサブエージェント + codex-agent並行） |
 
 #### サブエージェント質問プロトコル（PENDING_QUESTIONS）
 
-サブエージェントではAskUserQuestionが動作しないため、質問が必要な場合は `## PENDING_QUESTIONS` 形式で返却される。
+**全サブエージェントのプロンプトに以下を含めること:**
+> 不明点や判断が必要な場合は、推測で進めず `.claude/skills/_einja-subagent-question-protocol/SKILL.md` を参照してPENDING_QUESTIONS形式で質問を返却し、作業を停止すること。
 
-サブエージェント出力に `## PENDING_QUESTIONS` が含まれている場合:
-1. 質問内容を解析し、AskUserQuestionでユーザーに確認する
-2. Agent toolの `resume` パラメータで同じサブエージェントを再開（コンテキスト維持）
-3. プロンプトにユーザーの回答を含めて渡す（例: `ユーザーの回答: Q1→A、Q2→B。これを踏まえて作業を継続してください。`）
-4. 再度PENDING_QUESTIONSがある場合は同様に処理（最大2回まで）
+サブエージェント出力に `## PENDING_QUESTIONS` が含まれている場合、`_einja-subagent-question-protocol` Skillに従って処理する（調査可能な質問は自律解決、判断必須の質問はユーザーに確認し、`resume` で再開）。
 
 ## コード変更時の動作方針
 
 **【厳守事項】コード変更の指示があった場合、絶対に即座に実装を開始してはならない。（サブエージェントとしての動作時は除く）**
 
-### 必須フロー
-1. 問題・要件を調査・分析する
-2. 修正計画を `docs/plans/` に作成する
-3. `einja-skill-first` で「Skill を先に作るべきか」を評価する
+### 非Planモード時の判断フロー
+- 新しいコード変更の指示 → Planモードを提案（「まずPlanモードで計画を立てましょうか？」）
+- 質問への回答・情報調査 → そのまま対応（承認不要）
+- 承認済み計画の継続実行・追加指示 → Task APIで進捗管理しながら実装を継続
+
+### Planモード時の必須フロー
+1. 問題・要件を調査・分析する [`Explore` サブエージェント]
+2. `docs/plans/` の過去Planを検索し、類似対応がないか確認する [`Grep`/`Glob`]
+   - 類似Planがあれば知見を計画に取り入れる
+   - 類似Planの存在はステップ3でSkill化の強い根拠とする
+3. `einja-skill-first` で「Skill を先に作るべきか」を評価する [`einja-skill-first`]
    - Plan mode中は `UserPromptSubmit` hookにより自動でリマインダーが注入される
    - `.claude/skills/einja-skill-first/SKILL.md` を読み込んで評価を実施する
    - 推奨判定 → AskUserQuestion でユーザーに提案
    - 承認 → 計画の TODO-0 に Skill 作成を追加
    - 不要判定 → そのまま次へ進む
    - ※ スキップ基準に該当する場合は評価自体を省略
-4. 計画をユーザーに提示し、**明示的な承認を得る**
-5. 承認後、`docs/plans/todo-{plan名}.md` で進捗管理しながら実装を開始する（TODO-0 があれば Skill 作成から）
+4. 実装で使用するSkill・サブエージェントを選定する
+   - サブエージェント委託ルール表と照合し、各作業に適切なSkill/サブエージェントを割り当てる
+   - 選定結果はplanファイルの「使用予定Skill・サブエージェント」セクションに記載する
+5. planファイルに計画を記述する
+6. ExitPlanMode で承認を得る
 
-### 例外（承認不要）
-- 読み取り専用操作（質問への回答、情報調査、コード調査）
+### Planファイルの必須セクション
+- **Context**: なぜこの変更が必要か
+- **変更内容**: 推奨アプローチのみ記載（対象ファイルパス含む）
+- **使用予定Skill・サブエージェント**: 実装で使用するSkill名・サブエージェント種別のリスト
+- **検証方法**: 変更をどう検証するか
 
-### 提案文言
-「この変更について、まずPlanモードで計画を立てて提示しましょうか？」
+### 実装フェーズ（承認後）
+- Task API（TaskCreate/TaskUpdate）で進捗管理しながら実装を開始する
+- TODO-0（Skill作成）がある場合はそこから
+- 完了時は「完了判定の基準」セクションに従って検証する
 
-**注意**: この規則は新規セッションだけでなく、セッション継続中のすべてのコード変更に適用される。ユーザーが「直して」「修正して」「なおしたい」等と言った場合も、必ず計画を提示して承認を得ること。
+### 計画・進捗管理の規約
 
-### 計画・進捗ファイルの規約
+| 種別 | 管理方法 | 管理者 |
+|------|---------|--------|
+| Plan | `docs/plans/{name}.md`（Planモード時に自動生成） | 親エージェント |
+| 進捗 | Task API（TaskCreate/TaskUpdate） | 親エージェント |
 
-| ファイル | パス | 管理者 |
-|---------|------|--------|
-| Plan | `docs/plans/{name}.md` | 親エージェント |
-| Todo | `docs/plans/todo-{name}.md` | 親エージェントのみ（サブエージェント編集禁止） |
+### TaskCreate タスク概要の記述ルール
+- タスク概要には使用するSkill名を `[Skill名]` 形式で含める
+- 例: `「過去Plan検索 [Grep/Glob]」` `「Skill-First評価 [einja-skill-first]」`
 
 ### 実装中のブロッカー対応
 
@@ -142,7 +159,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 
 ## マネージドディレクトリ（編集禁止）
 
-`docs/einja/` は `@einja/dev-cli` パッケージで管理されている。`einja sync` で同期されるため、以下のルールを厳守すること。
+`docs/einja/` は `@einja-inc/dev-cli` パッケージで管理されている。`/einja:sync`（プラグイン）で同期されるため、以下のルールを厳守すること。
 
 | ディレクトリ | 操作 | 理由 |
 |------------|------|------|
@@ -176,9 +193,20 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 - 推奨オプションには `（推奨）` と理由を付記
 
 ### 選択肢の記述ルール
-- 各選択肢の `description` に**必ず詳細説明・注意点・補足**を記載する
-- トレードオフ、影響範囲、前提条件など判断に必要な情報を含める
-- ラベルだけで選択させない。ユーザーが十分な情報に基づいて判断できるようにする
+
+各選択肢は **`description`（何をするか）** と **`Note:`（選ぶとどうなるか）** の2層で記述する。ラベルだけで選択させない。
+
+| 項目 | 役割 | 記載内容 |
+|------|------|---------|
+| `description` | **What**: 選択肢の概要・動作内容 | 何をするか、スコープ、対象範囲を端的に説明 |
+| `Note:` | **So What**: 判断材料 | メリット・デメリット、注意事項・制約・副作用、他選択肢との比較ポイント、リスクや影響範囲 |
+
+#### 記述例
+```
+選択肢A: Zustandに移行
+  description: 現在のContext APIをZustandに置き換え、状態管理を一元化する
+  Note: メリット: ボイラープレート削減、devtools対応。デメリット: 依存追加、既存20箇所のContext書き換えが必要。リスク: テスト修正範囲が広い
+```
 
 ## 報告ルール
 
@@ -211,6 +239,13 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 ## 完了判定の基準
 
 タスク完了を宣言する前に、以下を必ず検証する。
+
+コード変更を伴うタスクが完了した時点で、以下のいずれにも該当しない場合は `einja-review-code` Skillを呼び出してレビューを実施する。
+
+- **スキップ条件**: task-exec経由での実行（task-reviewerが仕様照合+品質チェックを担当済み）
+- **スキップ条件**: 読み取り専用の作業（コード変更なし）
+
+Skill内でレビュー用サブエージェントを呼び出す（Codex MCP有効時は `codex-agent` も並行で呼び出す）。MAJOR判定の場合はユーザーに報告し、修正方針を確認する。
 
 ### 必須チェック
 - [ ] 変更ファイルがディスク上に実在する（`grep`や`Read`で確認。サブエージェント報告を鵜呑みにしない）
@@ -250,11 +285,13 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 
 | キーワード | 使用するSkill |
 |-----------|--------------|
-| `einja cli` `@einja/dev-cli` `create-einja-app` `公開` `リリース` `publish` `release` | `.claude/skills/einja-npm-release/SKILL.md` |
+| `einja cli` `@einja-inc/dev-cli` `@einja-inc/create-app` `公開` `リリース` `publish` `release` | `.claude/skills/npm-release/SKILL.md` |
 | `インフラ` `環境変数管理` `Vercel` `Neon` `デプロイ設定` `GitHub Secrets` `環境セットアップ` `ローカルセットアップ` `ローカル環境` `セットアップ` `GitHub Actions` `CI/CD` `ワークフロー` | `.claude/skills/einja-infra-maintenance/SKILL.md` |
 | `Skill作るべき？` `Skill化` `skill-first` `Skill-first` | `.claude/skills/einja-skill-first/SKILL.md` |
 | `react-doctor` `React診断` `ヘルススコア` `Reactヘルス` | `.claude/skills/einja-react-doctor/SKILL.md` |
 | `Skill更新` `参照元を最新化` `Skillを最新化` `ref-updater` | `.claude/skills/einja-skill-ref-updater/SKILL.md` |
+| `issue-team-exec` `Agent Teams` `チーム実行` `team exec` `Desktop実行` | `.claude/skills/einja-issue-team-exec/SKILL.md` |
+| `Pencil` `pencil` `.pen` `design-master` `デザインマスター` `デザイン管理` | `.claude/skills/einja-pencil-design-manager/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 
@@ -263,7 +300,6 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | 原本 | コピー先 | 備考 |
 |-----|---------|------|
 | `.claude/agents/einja/` | `presets/default/.claude/agents/einja/` | 単純コピー |
-| `.claude/commands/einja/` | `presets/default/.claude/commands/einja/` | 単純コピー |
 | `.claude/skills/einja-*/` | `presets/default/.claude/skills/` | `einja-*` / `_einja-*` プレフィックスのディレクトリを自動スキャンしてコピー |
 | `.claude/hooks/einja/` | `presets/default/.claude/hooks/einja/` | 単純コピー |
 | `.claude/settings.json` | `presets/default/.claude/settings.json` | 単純コピー |
@@ -277,12 +313,12 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 
 ### パッケージビルド仕様（テンプレートリポジトリ限定）
 
-`@einja/dev-cli` と `create-einja-app` の2パッケージのビルド・テンプレート仕様は、`.claude/rules/cli-package-specs.md` のpath-specificルールにより、関連ファイル編集時に `cli-package-specs` Skillが自動参照される。
+`@einja-inc/dev-cli` と `@einja-inc/create-app` の2パッケージのビルド・テンプレート仕様は、`.claude/rules/cli-package-specs.md` のpath-specificルールにより、関連ファイル編集時に `cli-package-specs` Skillが自動参照される。
 
 ### マネージドディレクトリの編集について（テンプレートリポジトリ限定）
 
 このリポジトリは `docs/einja/` の**原本（Single Source of Truth）**である。
-上記「マネージドディレクトリ（編集禁止）」ルールは下流リポジトリ（create-einja-appで生成されたプロジェクト）向けであり、
+上記「マネージドディレクトリ（編集禁止）」ルールは下流リポジトリ（@einja-inc/create-appで生成されたプロジェクト）向けであり、
 **このリポジトリでは `docs/einja/` 配下の全ファイルを編集してよい**。
 変更はビルド時に `presets/default/` へ自動コピーされる。
 <!-- @einja:excluded:end -->

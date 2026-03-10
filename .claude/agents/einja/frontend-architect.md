@@ -5,7 +5,7 @@ model: sonnet
 color: purple
 skills:
   - _einja-output-format
-  - einja-subagent-question-protocol
+  - _einja-subagent-question-protocol
 ---
 
 ## ✅ 最重要: 出力形式

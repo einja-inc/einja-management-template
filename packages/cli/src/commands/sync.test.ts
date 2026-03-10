@@ -33,7 +33,6 @@ describe("syncCommand", () => {
     tempTemplateDir = await fs.mkdtemp(path.join(os.tmpdir(), "sync-test-template-"));
 
     // テンプレート用のディレクトリ構造を作成
-    await fs.ensureDir(path.join(tempTemplateDir, ".claude", "commands", "einja"));
     await fs.ensureDir(path.join(tempTemplateDir, ".claude", "agents", "einja"));
     await fs.ensureDir(path.join(tempTemplateDir, "docs", "einja"));
 
@@ -44,7 +43,7 @@ describe("syncCommand", () => {
   describe("AC1.1: 基本的なテンプレート同期", () => {
     it("テンプレート最新版との差分がマージされる", async () => {
       // Given: 既存プロジェクトに.claude/, docs/が存在する
-      const projectClaudeDir = path.join(tempProjectDir, ".claude", "commands", "einja");
+      const projectClaudeDir = path.join(tempProjectDir, ".claude", "agents", "einja");
       const projectDocsDir = path.join(tempProjectDir, "docs", "einja");
       await fs.ensureDir(projectClaudeDir);
       await fs.ensureDir(projectDocsDir);
@@ -57,7 +56,7 @@ describe("syncCommand", () => {
       const templateFile = path.join(
         tempTemplateDir,
         ".claude",
-        "commands",
+        "agents",
         "einja",
         "test-command.md"
       );
@@ -69,7 +68,7 @@ describe("syncCommand", () => {
         lastSync: new Date().toISOString(),
         templateVersion: "0.1.0",
         files: {
-          ".claude/commands/einja/test-command.md": {
+          ".claude/agents/einja/test-command.md": {
             hash: "old-hash",
             syncedAt: new Date().toISOString(),
           },
@@ -95,7 +94,7 @@ describe("syncCommand", () => {
   describe("AC1.2: 更新不要時のメッセージ", () => {
     it('テンプレート更新がない場合、"すでに最新です"とメッセージ表示される', async () => {
       // Given: テンプレート更新がない
-      const projectClaudeDir = path.join(tempProjectDir, ".claude", "commands", "einja");
+      const projectClaudeDir = path.join(tempProjectDir, ".claude", "agents", "einja");
       await fs.ensureDir(projectClaudeDir);
 
       const existingFile = path.join(projectClaudeDir, "test-command.md");
@@ -106,7 +105,7 @@ describe("syncCommand", () => {
       const templateFile = path.join(
         tempTemplateDir,
         ".claude",
-        "commands",
+        "agents",
         "einja",
         "test-command.md"
       );
@@ -121,7 +120,7 @@ describe("syncCommand", () => {
         lastSync: new Date().toISOString(),
         templateVersion: "0.1.0",
         files: {
-          ".claude/commands/einja/test-command.md": {
+          ".claude/agents/einja/test-command.md": {
             hash: currentHash,
             syncedAt: new Date().toISOString(),
           },
@@ -141,7 +140,7 @@ describe("syncCommand", () => {
   describe("AC1.3: 3方向マージによるローカル変更保持", () => {
     it("ローカルでカスタマイズしたファイルが保持される", async () => {
       // Given: ローカルでカスタマイズしたファイルが存在
-      const projectFile = path.join(tempProjectDir, ".claude", "commands", "einja", "test.md");
+      const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(projectFile));
 
       // ベース版（前回同期時のテンプレート）
@@ -163,7 +162,7 @@ Section 3 - New section`;
       await fs.writeFile(projectFile, localContent, "utf-8");
 
       // テンプレートファイル作成
-      const templateFile = path.join(tempTemplateDir, ".claude", "commands", "einja", "test.md");
+      const templateFile = path.join(tempTemplateDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(templateFile));
       await fs.writeFile(templateFile, templateContent, "utf-8");
 
@@ -176,7 +175,7 @@ Section 3 - New section`;
         lastSync: new Date().toISOString(),
         templateVersion: "0.1.0",
         files: {
-          ".claude/commands/einja/test.md": {
+          ".claude/agents/einja/test.md": {
             hash: baseHash,
             syncedAt: new Date().toISOString(),
           },
@@ -197,12 +196,12 @@ Section 3 - New section`;
   describe("AC5.1: ドライラン機能の基本動作", () => {
     it("--dry-runオプションでファイル変更が発生せず、差分サマリーが表示される", async () => {
       // Given: 変更があるファイルが存在
-      const projectFile = path.join(tempProjectDir, ".claude", "commands", "einja", "test.md");
+      const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(projectFile));
       const originalContent = "Old content";
       await fs.writeFile(projectFile, originalContent, "utf-8");
 
-      const templateFile = path.join(tempTemplateDir, ".claude", "commands", "einja", "test.md");
+      const templateFile = path.join(tempTemplateDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(templateFile));
       await fs.writeFile(templateFile, "New content", "utf-8");
 
@@ -215,7 +214,7 @@ Section 3 - New section`;
         lastSync: new Date().toISOString(),
         templateVersion: "0.1.0",
         files: {
-          ".claude/commands/einja/test.md": {
+          ".claude/agents/einja/test.md": {
             hash: oldHash,
             syncedAt: new Date().toISOString(),
           },
@@ -252,7 +251,7 @@ Section 3 - New section`;
       const templateFile = path.join(
         tempTemplateDir,
         ".claude",
-        "commands",
+        "agents",
         "einja",
         "new-file.md"
       );
@@ -276,7 +275,7 @@ Section 3 - New section`;
       await syncCommand({ dryRun: true });
 
       // Then: 新規ファイルが作成されていないことを確認
-      const projectFile = path.join(tempProjectDir, ".claude", "commands", "einja", "new-file.md");
+      const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "new-file.md");
       const exists = await fs.pathExists(projectFile);
       expect(exists).toBe(false);
     });
@@ -292,7 +291,7 @@ Section 3 - New section`;
 
     it("--dry-run実行時にコンフリクトがない場合は成功メッセージ表示", async () => {
       // Given: コンフリクトが発生しない状況
-      const projectFile = path.join(tempProjectDir, ".claude", "commands", "einja", "test.md");
+      const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(projectFile));
 
       // ベース版
@@ -313,7 +312,7 @@ Section 2 - Template change`;
       await fs.writeFile(projectFile, localContent, "utf-8");
 
       // テンプレートファイル作成
-      const templateFile = path.join(tempTemplateDir, ".claude", "commands", "einja", "test.md");
+      const templateFile = path.join(tempTemplateDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(templateFile));
       await fs.writeFile(templateFile, templateContent, "utf-8");
 
@@ -326,7 +325,7 @@ Section 2 - Template change`;
         lastSync: new Date().toISOString(),
         templateVersion: "0.1.0",
         files: {
-          ".claude/commands/einja/test.md": {
+          ".claude/agents/einja/test.md": {
             hash: baseHash,
             syncedAt: new Date().toISOString(),
           },
@@ -356,11 +355,11 @@ Section 2 - Template change`;
   describe("オプション処理", () => {
     it("--dry-runオプションで実際の変更を行わない", async () => {
       // Given: 変更があるファイルが存在
-      const projectFile = path.join(tempProjectDir, ".claude", "commands", "einja", "test.md");
+      const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(projectFile));
       await fs.writeFile(projectFile, "Old content", "utf-8");
 
-      const templateFile = path.join(tempTemplateDir, ".claude", "commands", "einja", "test.md");
+      const templateFile = path.join(tempTemplateDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(templateFile));
       await fs.writeFile(templateFile, "New content", "utf-8");
 
@@ -370,11 +369,11 @@ Section 2 - Template change`;
 
     it("--forceオプションでローカル変更を無視して上書き", async () => {
       // Given: ローカル変更があるファイル
-      const projectFile = path.join(tempProjectDir, ".claude", "commands", "einja", "test.md");
+      const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(projectFile));
       await fs.writeFile(projectFile, "Local changes", "utf-8");
 
-      const templateFile = path.join(tempTemplateDir, ".claude", "commands", "einja", "test.md");
+      const templateFile = path.join(tempTemplateDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(templateFile));
       await fs.writeFile(templateFile, "Template content", "utf-8");
 
@@ -384,21 +383,21 @@ Section 2 - Template change`;
 
     it("--onlyオプションで特定カテゴリのみ同期", async () => {
       // Given: 複数カテゴリのファイルが存在
-      const commandFile = path.join(tempProjectDir, ".claude", "commands", "einja", "test.md");
+      const commandFile = path.join(tempProjectDir, ".claude", "agents", "einja", "test.md");
       await fs.ensureDir(path.dirname(commandFile));
 
       const docsFile = path.join(tempProjectDir, "docs", "einja", "test.md");
       await fs.ensureDir(path.dirname(docsFile));
 
-      // When: --only commandsオプションでsyncを実行
-      // Then: commandsカテゴリのみ同期されることを確認
+      // When: --only agentsオプションでsyncを実行
+      // Then: agentsカテゴリのみ同期されることを確認
     });
   });
 
   describe("AC6.1: --forceオプションによる強制上書き", () => {
     it("--forceオプション指定時、すべてのファイルがテンプレート版で上書きされ、3方向マージはスキップされる", { timeout: 15000 }, async () => {
       // Given: ローカルでカスタマイズされたファイルが存在（実際のテンプレートファイルを使用）
-      const projectFile = path.join(tempProjectDir, ".claude", "commands", "einja", "start-dev.md");
+      const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "Explore.md");
       await fs.ensureDir(path.dirname(projectFile));
 
       const localContent = `# Custom Local Content
@@ -415,9 +414,9 @@ This is a local customization that should be overwritten.`;
         "presets",
         "default",
         ".claude",
-        "commands",
+        "agents",
         "einja",
-        "start-dev.md"
+        "Explore.md"
       );
       const templateContent = await fs.readFile(templateFile, "utf-8");
 
@@ -430,7 +429,7 @@ This is a local customization that should be overwritten.`;
         lastSync: new Date().toISOString(),
         templateVersion: "0.1.0",
         files: {
-          ".claude/commands/einja/start-dev.md": {
+          ".claude/agents/einja/Explore.md": {
             hash: oldHash,
             syncedAt: new Date().toISOString(),
           },
@@ -456,7 +455,7 @@ This is a local customization that should be overwritten.`;
   describe("AC6.2: --force時の確認プロンプト", () => {
     it('--forceオプション指定時、実行前に確認プロンプト"すべてのローカル変更が失われます。続けますか？"が表示される', async () => {
       // Given: ローカル変更があるファイル（実際のテンプレートファイルを使用）
-      const projectFile = path.join(tempProjectDir, ".claude", "commands", "einja", "start-dev.md");
+      const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "Explore.md");
       await fs.ensureDir(path.dirname(projectFile));
       await fs.writeFile(projectFile, "Local changes", "utf-8");
 
@@ -469,7 +468,7 @@ This is a local customization that should be overwritten.`;
         lastSync: new Date().toISOString(),
         templateVersion: "0.1.0",
         files: {
-          ".claude/commands/einja/start-dev.md": {
+          ".claude/agents/einja/Explore.md": {
             hash: oldHash,
             syncedAt: new Date().toISOString(),
           },
@@ -504,7 +503,7 @@ This is a local customization that should be overwritten.`;
   describe("AC6.3: --force --yesによる確認スキップ", () => {
     it("--force --yesオプション指定時、確認プロンプトなしで強制上書きが実行される", async () => {
       // Given: ローカル変更があるファイル（実際のテンプレートファイルを使用）
-      const projectFile = path.join(tempProjectDir, ".claude", "commands", "einja", "start-dev.md");
+      const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "Explore.md");
       await fs.ensureDir(path.dirname(projectFile));
       await fs.writeFile(projectFile, "Local changes", "utf-8");
 
@@ -517,9 +516,9 @@ This is a local customization that should be overwritten.`;
         "presets",
         "default",
         ".claude",
-        "commands",
+        "agents",
         "einja",
-        "start-dev.md"
+        "Explore.md"
       );
       const templateContent = await fs.readFile(templateFile, "utf-8");
 
@@ -532,7 +531,7 @@ This is a local customization that should be overwritten.`;
         lastSync: new Date().toISOString(),
         templateVersion: "0.1.0",
         files: {
-          ".claude/commands/einja/start-dev.md": {
+          ".claude/agents/einja/Explore.md": {
             hash: oldHash,
             syncedAt: new Date().toISOString(),
           },
@@ -608,7 +607,7 @@ This is a local customization that should be overwritten.`;
         },
         files: [
           {
-            path: ".claude/commands/einja/task-exec.md",
+            path: ".claude/agents/einja/task-exec.md",
             status: "conflict",
             action: "marked",
             conflicts: [
@@ -686,12 +685,12 @@ This is a local customization that should be overwritten.`;
         },
         files: [
           {
-            path: ".claude/commands/einja/spec-create.md",
+            path: ".claude/agents/einja/spec-create.md",
             status: "success",
             action: "merged",
           },
           {
-            path: ".claude/commands/einja/task-exec.md",
+            path: ".claude/agents/einja/task-exec.md",
             status: "conflict",
             action: "marked",
             conflicts: [

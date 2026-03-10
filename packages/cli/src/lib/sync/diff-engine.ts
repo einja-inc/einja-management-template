@@ -49,7 +49,7 @@ export class DiffEngine {
         mergedLines.push(...chunk.conflict.a);
         mergedLines.push("=======");
         mergedLines.push(...chunk.conflict.b);
-        mergedLines.push(">>>>>>> TEMPLATE (from @einja/cli)");
+        mergedLines.push(">>>>>>> TEMPLATE (from @einja-inc/dev-cli)");
 
         // 行番号を更新（マーカー3行 + コンフリクト内容）
         currentLine += 3 + chunk.conflict.a.length + chunk.conflict.b.length;

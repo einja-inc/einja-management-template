@@ -36,7 +36,7 @@ export class CLIRepoDetector {
    * 以下を検証します:
    * 1. packages/cli/ディレクトリが存在するか
    * 2. packages/cli/package.jsonが存在するか
-   * 3. package.jsonのnameが"@einja/cli"であるか
+   * 3. package.jsonのnameが"@einja-inc/dev-cli"であるか
    *
    * @param cwd - 検証対象のディレクトリパス（デフォルト: process.cwd()）
    * @returns 検証結果
@@ -70,10 +70,10 @@ export class CLIRepoDetector {
         name?: string;
       };
 
-      if (packageJson.name !== "@einja/cli") {
+      if (packageJson.name !== "@einja-inc/dev-cli") {
         return {
           valid: false,
-          error: `packages/cli/package.jsonのnameが"@einja/cli"ではありません（実際: "${packageJson.name}"）`,
+          error: `packages/cli/package.jsonのnameが"@einja-inc/dev-cli"ではありません（実際: "${packageJson.name}"）`,
         };
       }
 

@@ -1,9 +1,10 @@
-# @einja/dev-cli リリース手順
+# @einja-inc/dev-cli リリース手順
 
 ## 前提条件
 
-- npm アクセストークンが GitHub Secrets の `NPM_TOKEN` として設定済み
+- GitHub Packages への公開権限を持つ `GITHUB_TOKEN` が利用可能（GitHub Actions では自動提供）
 - mainブランチが最新状態
+- レジストリ: `https://npm.pkg.github.com`（GitHub Packages）
 
 ## リリース手順
 
@@ -46,11 +47,11 @@ git push origin cli-v0.2.0
 ### 5. 公開を確認
 
 ```bash
-# npm で公開を確認
-npm view @einja/dev-cli
+# GitHub Packages で公開を確認
+npm view @einja-inc/dev-cli --registry=https://npm.pkg.github.com
 
 # 実際に使用してみる
-npx @einja/dev-cli --version
+npx @einja-inc/dev-cli --version
 ```
 
 ## 手動リリース（緊急時）
@@ -76,13 +77,13 @@ GitHub Actions UI から手動でワークフローを実行できます：
 
 ## トラブルシューティング
 
-### NPM_TOKEN エラー
+### 認証エラー
 
 ```
 npm error code ENEEDAUTH
 ```
 
-→ GitHub Secrets に `NPM_TOKEN` が正しく設定されているか確認
+→ GitHub Actions の `GITHUB_TOKEN` パーミッションに `packages: write` が設定されているか確認
 
 ### バージョン不一致エラー
 
@@ -101,11 +102,8 @@ cd packages/cli
 pnpm pack --dry-run
 ```
 
-## NPM_TOKEN の取得方法
+## 認証について
 
-1. [npmjs.com](https://www.npmjs.com) にログイン
-2. 右上のアバター → **Access Tokens** をクリック
-3. **Generate New Token** → **Automation** を選択
-4. トークンをコピー
-5. GitHub リポジトリの **Settings** → **Secrets and variables** → **Actions**
-6. **New repository secret** で `NPM_TOKEN` として追加
+GitHub Packages への公開には `GITHUB_TOKEN` を使用します。GitHub Actions では自動的に提供されるため、追加のトークン設定は不要です。
+
+ワークフローの `permissions` に `packages: write` が含まれていることを確認してください。

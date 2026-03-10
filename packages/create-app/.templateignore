@@ -2,8 +2,7 @@ packages/cli/
 packages/create-app/
 node_modules/
 .git/
-.github/workflows/release-create-app.yml
-.github/workflows/release-cli.yml
+.github/workflows/publish-packages.yml
 .next/
 out/
 dist/

@@ -17,7 +17,7 @@ concurrency:
 jobs:
   ci:
     # github-actions[bot] のバージョンバンプコミットはスキップ
-    if: "!contains(github.event.head_commit.message, 'chore: release v')"
+    if: "!contains(github.event.head_commit.message, 'chore: release v') && !contains(github.event.head_commit.message, 'chore: release cli-v') && !contains(github.event.head_commit.message, 'chore: release create-app-v')"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -306,18 +306,31 @@ jobs:
 
   # staging: PreRelease作成（changeset未消費）
   release-staging:
-    needs: deploy-staging
-    if: github.ref_name == 'staging'
+    needs: [ci]
+    if: always() && github.ref_name == 'staging' && needs.ci.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Resolve merged PR number
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha
+            });
+            const merged = prs.data.find(p => p.merged_at && p.base.ref === 'staging');
+            core.setOutput('pr_number', merged ? merged.number : '');
+
       - name: Check for changesets
         id: check
         run: |
-          COUNT=$(ls .changeset/*.md 2>/dev/null | grep -cv README.md || echo 0)
+          COUNT=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | wc -l | tr -d ' ')
           echo "has_changesets=$([[ $COUNT -gt 0 ]] && echo true || echo false)" >> $GITHUB_OUTPUT
 
       - name: Create PreRelease tag
@@ -330,13 +343,74 @@ jobs:
           git push origin "$TAG"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub PreRelease
+      - name: Publish PreRelease
         if: steps.tag.outputs.tag
-        run: |
-          PREV=$(git tag --list 'v*-rc.*' --sort=-v:refname | grep -v "${{ steps.tag.outputs.tag }}" | head -1)
-          OPTS="--prerelease --target staging --generate-notes"
-          [[ -n "$PREV" ]] && OPTS="$OPTS --notes-start-tag $PREV"
-          gh release create "${{ steps.tag.outputs.tag }}" --title "Pre-release ${{ steps.tag.outputs.tag }}" $OPTS
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = '${{ steps.tag.outputs.tag }}';
+            const prNumber = '${{ steps.pr.outputs.pr_number }}';
+
+            if (prNumber) {
+              const draftTag = `draft-pr-${prNumber}`;
+              let draft = null;
+              try {
+                const resp = await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: draftTag
+                });
+                draft = resp.data;
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                core.warning(`No draft release found for PR #${prNumber}`);
+              }
+
+              if (draft) {
+                // Tag already exists from git push above, just update the release
+                await github.rest.repos.updateRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: draft.id,
+                  tag_name: tag,
+                  name: `Pre-release ${tag}`,
+                  draft: false,
+                  prerelease: true,
+                  target_commitish: context.sha
+                });
+
+                // Delete the old temp tag
+                try {
+                  await github.rest.git.deleteRef({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: `tags/${draftTag}`
+                  });
+                } catch (e) {
+                  core.warning(`Failed to delete temp tag ${draftTag}: ${e.message}`);
+                }
+
+                core.info(`Published pre-release ${tag} from draft-pr-${prNumber}`);
+              } else {
+                // Fallback: create a new release
+                await exec.exec('gh', [
+                  'release', 'create', tag,
+                  '--title', `Pre-release ${tag}`,
+                  '--prerelease',
+                  '--target', 'staging',
+                  '--generate-notes'
+                ]);
+              }
+            } else {
+              // No PR found, create release directly
+              await exec.exec('gh', [
+                'release', 'create', tag,
+                '--title', `Pre-release ${tag}`,
+                '--prerelease',
+                '--target', 'staging',
+                '--generate-notes'
+              ]);
+            }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -454,8 +528,12 @@ jobs:
 
   # main: changeset消費 + Release作成
   release-production:
-    needs: deploy-production
-    if: always() && github.ref_name == 'main' && needs.deploy-production.result != 'failure'
+    needs: [ci, migrate-production, deploy-production]
+    if: >
+      always() && github.ref_name == 'main' &&
+      needs.ci.result == 'success' &&
+      needs.migrate-production.result == 'success' &&
+      contains(fromJSON('["success","skipped"]'), needs.deploy-production.result)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -465,10 +543,23 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - name: Resolve merged PR number
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha
+            });
+            const merged = prs.data.find(p => p.merged_at && p.base.ref === 'main');
+            core.setOutput('pr_number', merged ? merged.number : '');
+
       - name: Check for changesets
         id: check
         run: |
-          COUNT=$(ls .changeset/*.md 2>/dev/null | grep -cv README.md || echo 0)
+          COUNT=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | wc -l | tr -d ' ')
           echo "has_changesets=$([[ $COUNT -gt 0 ]] && echo true || echo false)" >> $GITHUB_OUTPUT
 
       - name: Version packages
@@ -478,18 +569,82 @@ jobs:
       - name: Commit version bump and create Release
         if: steps.check.outputs.has_changesets == 'true'
         id: release
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          TAG="v${VERSION}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore: release ${TAG}" || echo "No changes"
-          git tag "$TAG"
-          git push origin main --follow-tags
-          PREV=$(git tag --list 'v*' --sort=-v:refname | grep -v 'rc' | grep -v "$TAG" | head -1)
-          OPTS="--target main --generate-notes"
-          [[ -n "$PREV" ]] && OPTS="$OPTS --notes-start-tag $PREV"
-          gh release create "$TAG" --title "Release ${TAG}" $OPTS
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = require('./package.json').version;
+            const tag = `v${version}`;
+            const prNumber = '${{ steps.pr.outputs.pr_number }}';
+
+            // Git config, add, commit, tag, push
+            await exec.exec('git', ['config', 'user.name', 'github-actions[bot]']);
+            await exec.exec('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']);
+            await exec.exec('git', ['add', 'package.json', 'pnpm-lock.yaml', '.changeset/']);
+            try {
+              await exec.exec('git', ['commit', '-m', `chore: release ${tag}`]);
+            } catch (e) {
+              core.info('No changes to commit');
+            }
+            await exec.exec('git', ['tag', tag]);
+            await exec.exec('git', ['push', 'origin', 'main', '--follow-tags']);
+
+            if (prNumber) {
+              const draftTag = `draft-pr-${prNumber}`;
+              let draft = null;
+              try {
+                const resp = await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: draftTag
+                });
+                draft = resp.data;
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                core.warning(`No draft release found for PR #${prNumber}`);
+              }
+
+              if (draft) {
+                // Update the draft release to the real tag
+                await github.rest.repos.updateRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: draft.id,
+                  tag_name: tag,
+                  name: `Release ${tag}`,
+                  draft: false,
+                  prerelease: false,
+                  target_commitish: context.sha
+                });
+
+                // Delete the old temp tag
+                try {
+                  await github.rest.git.deleteRef({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: `tags/${draftTag}`
+                  });
+                } catch (e) {
+                  core.warning(`Failed to delete temp tag ${draftTag}: ${e.message}`);
+                }
+
+                core.info(`Published release ${tag} from draft-pr-${prNumber}`);
+              } else {
+                // Fallback: create a new release
+                await exec.exec('gh', [
+                  'release', 'create', tag,
+                  '--title', `Release ${tag}`,
+                  '--target', 'main',
+                  '--generate-notes'
+                ]);
+              }
+            } else {
+              // No PR found, create release directly
+              await exec.exec('gh', [
+                'release', 'create', tag,
+                '--title', `Release ${tag}`,
+                '--target', 'main',
+                '--generate-notes'
+              ]);
+            }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

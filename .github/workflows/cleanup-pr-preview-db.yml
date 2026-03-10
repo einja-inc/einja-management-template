@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   cleanup:
+    if: github.repository != 'einja-inc/einja-management-template'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

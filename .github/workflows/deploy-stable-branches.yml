@@ -17,7 +17,7 @@ concurrency:
 jobs:
   ci:
     # github-actions[bot] のバージョンバンプコミットはスキップ
-    if: "!contains(github.event.head_commit.message, 'chore: release v') && !contains(github.event.head_commit.message, 'chore: release cli-v') && !contains(github.event.head_commit.message, 'chore: release create-app-v')"
+    if: "github.repository != 'einja-inc/einja-management-template' && !contains(github.event.head_commit.message, 'chore: release v') && !contains(github.event.head_commit.message, 'chore: release cli-v') && !contains(github.event.head_commit.message, 'chore: release create-app-v')"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -46,6 +46,7 @@ jobs:
 
   # 変更検知
   changes:
+    if: github.repository != 'einja-inc/einja-management-template'
     runs-on: ubuntu-latest
     outputs:
       web: ${{ steps.filter.outputs.web }}
@@ -102,7 +103,7 @@ jobs:
   # ========================================
   deploy-develop:
     needs: [ci, changes]
-    if: github.ref_name == 'develop' && needs.changes.outputs.deploy_matrix != '[]'
+    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'develop' && needs.changes.outputs.deploy_matrix != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -198,7 +199,7 @@ jobs:
   # ========================================
   migrate-staging:
     needs: ci
-    if: github.ref_name == 'staging'
+    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'staging'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -212,7 +213,7 @@ jobs:
 
   deploy-staging:
     needs: [ci, migrate-staging, changes]
-    if: github.ref_name == 'staging' && needs.changes.outputs.deploy_matrix != '[]'
+    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'staging' && needs.changes.outputs.deploy_matrix != '[]'
     environment: staging
     runs-on: ubuntu-latest
     strategy:
@@ -307,7 +308,7 @@ jobs:
   # staging: PreRelease作成（changeset未消費）
   release-staging:
     needs: [ci]
-    if: always() && github.ref_name == 'staging' && needs.ci.result == 'success'
+    if: github.repository != 'einja-inc/einja-management-template' && always() && github.ref_name == 'staging' && needs.ci.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -419,7 +420,7 @@ jobs:
   # ========================================
   migrate-production:
     needs: ci
-    if: github.ref_name == 'main'
+    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'main'
     environment: production
     runs-on: ubuntu-latest
     steps:
@@ -434,7 +435,7 @@ jobs:
 
   deploy-production:
     needs: [migrate-production, changes]
-    if: github.ref_name == 'main' && needs.changes.outputs.deploy_matrix != '[]'
+    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'main' && needs.changes.outputs.deploy_matrix != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -530,6 +531,7 @@ jobs:
   release-production:
     needs: [ci, migrate-production, deploy-production]
     if: >
+      github.repository != 'einja-inc/einja-management-template' &&
       always() && github.ref_name == 'main' &&
       needs.ci.result == 'success' &&
       needs.migrate-production.result == 'success' &&

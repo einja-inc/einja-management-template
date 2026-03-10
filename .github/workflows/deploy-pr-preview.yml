@@ -15,7 +15,7 @@ concurrency:
 jobs:
   # CI チェック（PostgreSQLサービスコンテナ付き）
   ci:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.repository != 'einja-inc/einja-management-template' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -42,6 +42,7 @@ jobs:
 
   # Neon Branch作成 + スキーマ同期 + シード
   neon-and-schema:
+    if: github.repository != 'einja-inc/einja-management-template'
     needs: ci
     runs-on: ubuntu-latest
     outputs:
@@ -167,6 +168,7 @@ jobs:
 
   # Web/Adminデプロイ（並列実行）
   deploy:
+    if: github.repository != 'einja-inc/einja-management-template'
     needs: neon-and-schema
     runs-on: ubuntu-latest
     strategy:
@@ -329,7 +331,7 @@ jobs:
   # PRコメント
   comment:
     needs: [neon-and-schema, deploy]
-    if: always() && needs.neon-and-schema.result == 'success'
+    if: github.repository != 'einja-inc/einja-management-template' && always() && needs.neon-and-schema.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Download deploy URLs

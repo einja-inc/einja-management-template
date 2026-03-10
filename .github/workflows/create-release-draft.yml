@@ -7,7 +7,7 @@ on:
 
 jobs:
   create-draft:
-    if: github.event.action != 'closed'
+    if: github.repository != 'einja-inc/einja-management-template' && github.event.action != 'closed'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -239,7 +239,7 @@ jobs:
             }
 
   cleanup:
-    if: github.event.action == 'closed' && !github.event.pull_request.merged
+    if: github.repository != 'einja-inc/einja-management-template' && github.event.action == 'closed' && !github.event.pull_request.merged
     runs-on: ubuntu-latest
     permissions:
       contents: write

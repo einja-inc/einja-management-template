@@ -132,8 +132,17 @@ jobs:
         run: |
           VERSION_TYPE="${{ github.event.inputs.version_type || 'patch' }}"
           cd packages/cli
-          pnpm version "$VERSION_TYPE" --no-git-tag-version
-          NEW_VERSION=$(node -p "require('./package.json').version")
+          NEW_VERSION=$(node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const [major, minor, patch] = pkg.version.split('.').map(Number);
+            const type = '$VERSION_TYPE';
+            if (type === 'major') pkg.version = (major+1)+'.0.0';
+            else if (type === 'minor') pkg.version = major+'.'+(minor+1)+'.0';
+            else pkg.version = major+'.'+minor+'.'+(patch+1);
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            console.log(pkg.version);
+          ")
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       - name: Publish (dry run)
@@ -226,8 +235,17 @@ jobs:
         run: |
           VERSION_TYPE="${{ github.event.inputs.version_type || 'patch' }}"
           cd packages/create-app
-          pnpm version "$VERSION_TYPE" --no-git-tag-version
-          NEW_VERSION=$(node -p "require('./package.json').version")
+          NEW_VERSION=$(node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const [major, minor, patch] = pkg.version.split('.').map(Number);
+            const type = '$VERSION_TYPE';
+            if (type === 'major') pkg.version = (major+1)+'.0.0';
+            else if (type === 'minor') pkg.version = major+'.'+(minor+1)+'.0';
+            else pkg.version = major+'.'+minor+'.'+(patch+1);
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            console.log(pkg.version);
+          ")
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       - name: Publish (dry run)

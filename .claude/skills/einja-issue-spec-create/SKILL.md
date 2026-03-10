@@ -1,3 +1,8 @@
+---
+name: einja-issue-spec-create
+description: "Issue仕様書作成Skill"
+---
+
 # Issue仕様書作成Skill
 
 ## あなたの役割

@@ -1,4 +1,5 @@
 ---
+name: einja-create-pr
 description: "PR作成時にchangeset自動生成 + ラベル付与 + PR作成を一括実行するSkill。task-exec/issue-exec経由では自動モード、手動 /einja-create-pr では対話モードで動作"
 ---
 

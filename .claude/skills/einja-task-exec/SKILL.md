@@ -1,3 +1,8 @@
+---
+name: einja-task-exec
+description: "タスク実行 Skill"
+---
+
 # タスク実行 Skill
 
 ## 役割

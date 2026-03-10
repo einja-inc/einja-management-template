@@ -2,7 +2,7 @@ import fsExtra from "fs-extra";
 const { copySync, readFileSync, writeFileSync, existsSync, removeSync } = fsExtra;
 import { glob } from "glob";
 import { chmodSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, parse, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ProjectConfig } from "@/prompts/project.js";
 import { ensureDir } from "@/utils/fs.js";
@@ -16,6 +16,23 @@ export interface TemplateVariables {
   projectName: string;
   packageName: string;
   description: string;
+}
+
+/**
+ * package.jsonを上方探索してパッケージルートを特定する
+ * @param startDir - 探索開始ディレクトリ
+ * @returns パッケージルートパス（見つからない場合はnull）
+ */
+function findPackageRoot(startDir: string): string | null {
+  let dir = startDir;
+  const { root } = parse(dir);
+  while (dir !== root) {
+    if (existsSync(join(dir, "package.json"))) {
+      return dir;
+    }
+    dir = dirname(dir);
+  }
+  return null;
 }
 
 /**
@@ -38,6 +55,17 @@ function getTemplatePath(templateName: string): string {
   }
   if (existsSync(srcPath)) {
     return srcPath;
+  }
+
+  // フォールバック: package.jsonを上方探索してパッケージルートを特定し、
+  // そこからの相対パスでテンプレートを探す（CI環境などでimport.meta.urlの
+  // パス解決が想定と異なる場合の対策）
+  const packageRoot = findPackageRoot(__dirname);
+  if (packageRoot) {
+    const fallbackPath = join(packageRoot, "templates", templateName);
+    if (existsSync(fallbackPath)) {
+      return fallbackPath;
+    }
   }
 
   // どちらも存在しない場合はdistPathを返す（エラーメッセージ用）

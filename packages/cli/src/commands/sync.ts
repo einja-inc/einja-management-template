@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
@@ -22,6 +23,44 @@ import { MetadataManager } from "@/lib/sync/metadata-manager.js";
 import { ProjectPrivateSynchronizer } from "@/lib/sync/project-private-synchronizer.js";
 import type { SyncOptions } from "@/types/index.js";
 import type { JsonFileInfo, JsonOutput, SyncTarget } from "@/types/sync.js";
+
+/**
+ * package.jsonを上方探索してパッケージルートを特定する
+ * @param startDir - 探索開始ディレクトリ
+ * @param expectedName - 期待するパッケージ名（オプション、指定時はnameフィールドを照合）
+ * @returns パッケージルートパス
+ */
+function findPackageRoot(startDir: string, expectedName?: string): string {
+  let dir = startDir;
+  const { root } = path.parse(dir);
+
+  // まず import.meta.url ベースの相対パスを試す（最も高速）
+  const relativeRoot = path.resolve(startDir, "../..");
+  const relativePackageJson = path.join(relativeRoot, "package.json");
+  if (existsSync(relativePackageJson)) {
+    if (!expectedName) return relativeRoot;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(relativePackageJson, "utf-8"));
+      if (pkg.name === expectedName) return relativeRoot;
+    } catch { /* continue to search */ }
+  }
+
+  // フォールバック: 上方探索でpackage.jsonを見つける
+  while (dir !== root) {
+    const pkgPath = path.join(dir, "package.json");
+    if (existsSync(pkgPath)) {
+      if (!expectedName) return dir;
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+        if (pkg.name === expectedName) return dir;
+      } catch { /* continue to search */ }
+    }
+    dir = path.dirname(dir);
+  }
+
+  // 見つからない場合はrelativeRootをフォールバックとして返す
+  return relativeRoot;
+}
 
 /**
  * ファイル内容にマーカーが含まれているかチェック
@@ -104,7 +143,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   // パッケージのルートディレクトリを取得（ESモジュール対応）
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  const packageRoot = path.resolve(__dirname, "../..");
+  const packageRoot = findPackageRoot(__dirname, "@einja-inc/dev-cli");
   const templateRoot = path.join(packageRoot, "presets", "default");
 
   // パッケージマネージャーを検出（CLAUDE.md.templateのプレースホルダー展開用）

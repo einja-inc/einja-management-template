@@ -96,6 +96,7 @@ Skillが完成した後（順序は柔軟）、Skillのdescription最適化も�
     version: 1.0.0
   ```
 - **allowed-tools**（オプション）: Skillが使用するツールを制限する場合に指定
+- **context: fork の制約**: `context: fork` を設定したSkillは隔離サブエージェントで実行される。Skill tool（他Skill呼び出し）やAgent tool（サブエージェント起動）は使用できない。他Skillとの連携が必要な場合は `context: fork` を使用しないこと
 - **Skillの残りの部分 :)**
 
 ### Skill記述ガイド

@@ -48,13 +48,14 @@
 | `einja-task-exec` | タスクグループ実行（Skill tool） |
 | `einja-issue-spec-create` | Issue仕様書作成（Skill tool） |
 | `einja-review-code` | コード変更の完了レビュー（レビューサブエージェント + codex-agent並行） |
+| `einja-review-plan` | Planレビュー（ExitPlanMode前） |
 
 #### サブエージェント質問プロトコル（PENDING_QUESTIONS）
 
 **全サブエージェントのプロンプトに以下を含めること:**
 > 不明点や判断が必要な場合は、推測で進めず `.claude/skills/_einja-subagent-question-protocol/SKILL.md` を参照してPENDING_QUESTIONS形式で質問を返却し、作業を停止すること。
 
-サブエージェント出力に `## PENDING_QUESTIONS` が含まれている場合、`_einja-subagent-question-protocol` Skillに従って処理する（調査可能な質問は自律解決、判断必須の質問はユーザーに確認し、`resume` で再開）。
+サブエージェント出力に `## PENDING_QUESTIONS` が含まれている場合、`_einja-subagent-question-protocol` Skillに従って処理する（調査・分析して確実に判定可能な質問は自律解決、不可能な質問はユーザーに確認し、`resume` で再開）。
 
 ## コード変更時の動作方針
 
@@ -67,50 +68,43 @@
 
 ### Planモード時の必須フロー
 
-ツールの使い分け:
-- **Skill tool**: Skill（`einja-*`）を呼び出す。親プロセスが直接実行する
-- **Agent tool**: サブエージェント（`Explore`等）を起動して作業を委託する
-- **Read / Grep / Glob**: 親プロセスがファイル読み込み・検索を直接行う
+> **注意**: Planモード中はClaude Codeが自動生成したパスをそのまま使うこと。リネームするとPlanモードがファイルを見失う。
 
-1. **該当Skillの選定・読み込み** — Read ツールで直接実施
-   - 「委託ルール」のSkill表・サブエージェント表を参照し、今回の作業に該当するSkillを特定する
-   - 該当SkillのSKILL.mdを Read ツールで読み込み、ルール・制約を把握する
-2. **問題・要件の調査** — Agent tool で `Explore` サブエージェントに委託
-   - ステップ1で把握したSkillのルール・制約を調査指示に含める
-3. **過去Planの検索** — Grep / Glob で直接実施
-   - `docs/plans/` から類似対応がないか検索する
-   - 類似Planがあれば知見を計画に取り入れる
-   - 類似Planの存在はステップ4でSkill化の強い根拠とする
-4. **Skill-First評価** — Skill tool で `einja-skill-first` を呼び出し
-   - Plan mode中は `UserPromptSubmit` hookにより自動でリマインダーが注入される
-   - `.claude/skills/einja-skill-first/SKILL.md` を読み込んで評価を実施する
-   - 推奨判定 → AskUserQuestion でユーザーに提案
-   - 承認 → 計画の TODO-0 に Skill 作成を追加
-   - 不要判定 → そのまま次へ進む
-   - ※ スキップ基準に該当する場合は評価自体を省略
-5. **実装・レビューで使用するSkill・サブエージェントの選定** — 親プロセスが直接実施
-   - 「委託ルール」のSkill表・サブエージェント表の両方と照合し、各作業にSkill（Skill tool）かサブエージェント（Agent tool）かを割り当てる
-   - 実装だけでなく、レビュー・検証フェーズで使用するSkill・サブエージェントも選定する
-   - 選定結果はplanファイルの「使用予定Skill・サブエージェント」セクションに、実装用・レビュー用を区別して記載する
-6. **planファイルに計画を記述する**
-7. **ExitPlanMode で承認を得る**
+1. 計画策定に必要なSkillを選定する
+   - 「委託ルール」の対応表やSkillリストを参照し、関連Skillがあれば読み込む
+2. 問題・要件を調査する [`Explore`]
+3. `docs/plans/` 配下（`YYYYMM/YYYYMMDD-機能名.plan.md`）で類似Planを検索し、あれば参考にする
+4. 実装・レビューで使うSkill/サブエージェントを選定し、planに記載
+   - **Skill作成の計画時**: 親エージェントが `einja-skill-plan-guide` を Skill ツールで読み込み、ワークフローAに従ってSkill仕様を策定する。策定した仕様はplanファイルの「Skill仕様」セクションに記載する
+5. リスク・不明点があればAskUserQuestionで確認する
+   - 回答内容により再調査・再検討が必要なら 2〜4 に戻る
+6. planファイルに計画を記述
+6.5. planファイルのレビューを実施する
+   - `einja-review-plan` Skillを呼び出す
+   - MAJOR判定時は親エージェントがplan修正→再レビュー（最大2回）。解消しない場合はレビュー結果付記でExitPlanMode
+   - スキップ条件: 軽微な変更（1ファイル・10行以下）またはユーザー明示スキップ
+7. ExitPlanMode で承認を得る
 
 ### Planファイルの必須セクション
 - **Context**: なぜこの変更が必要か
+- **現状**: 修正箇所周辺の現状仕様・実装
 - **変更内容**: 推奨アプローチのみ記載（対象ファイルパス含む）
-- **使用予定Skill・サブエージェント**: 実装用・レビュー用それぞれのSkill名・サブエージェント種別のリスト
-- **検証方法**: 変更をどう検証するか
+- **タスク概要**: ステップと使用するSkill/サブエージェントのリスト。**タスク0は必ず「Planファイルを `docs/plans/YYYYMM/YYYYMMDD-機能名.plan.md` にリネーム」とする**
+- **並列実行計画**: 並列可能なサブエージェントと依存関係の整理
+- **リスク・不明点**: 技術的リスク、ブロッカー候補、要確認事項
+- **検証・動作確認方法**: 変更をどう検証するか
 
 ### 実装フェーズ（承認後）
+- タスク概要のタスク0（Planファイルリネーム）から順に実行する
 - Task API（TaskCreate/TaskUpdate）で進捗管理しながら実装を開始する
-- TODO-0（Skill作成）がある場合はそこから
+- TODO-0（Skill作成）がある場合はリネーム後にそこから
 - 完了時は「完了判定の基準」セクションに従って検証する
 
 ### 計画・進捗管理の規約
 
 | 種別 | 管理方法 | 管理者 |
 |------|---------|--------|
-| Plan | `docs/plans/{name}.md`（Planモード時に自動生成） | 親エージェント |
+| Plan | `docs/plans/YYYYMM/YYYYMMDD-機能名.plan.md`（承認後のタスク0でリネーム） | 親エージェント |
 | 進捗 | Task API（TaskCreate/TaskUpdate） | 親エージェント |
 
 ### TaskCreate タスク概要の記述ルール
@@ -304,6 +298,8 @@ Skill内でレビュー用サブエージェントを呼び出す（Codex MCP有
 | `Skill更新` `参照元を最新化` `Skillを最新化` `ref-updater` | `.claude/skills/einja-skill-ref-updater/SKILL.md` |
 | `issue-team-exec` `Agent Teams` `チーム実行` `team exec` `Desktop実行` | `.claude/skills/einja-issue-team-exec/SKILL.md` |
 | `Pencil` `pencil` `.pen` `design-master` `デザインマスター` `デザイン管理` | `.claude/skills/einja-pencil-design-manager/SKILL.md` |
+| `Skill計画` `Skill仕様策定` `skill-plan-guide` `Skill品質チェック` | `.claude/skills/einja-skill-plan-guide/SKILL.md` |
+| `Planレビュー` `plan review` `計画レビュー` | `.claude/skills/einja-review-plan/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 

@@ -116,6 +116,11 @@ AskUserQuestion:
 1. requirements-generatorエージェントで作成
    - エージェント内で既存コードの分析を実施
    - ATDD形式のユーザーストーリーと受け入れ基準
+   - **追加指示（呼び出し時にプロンプトに含める）**:
+     - 以下のsteering文書を事前に読み込んでから作業すること:
+       - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
+       - `docs/einja/steering/development/testing-strategy.md`
+     - また、過去Planを `docs/plans/` ディレクトリから検索し、類似Issueがあれば「実装参考情報」セクションに参考情報として記載すること。
 2. **ユーザーに内容確認を依頼**
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（要件の過不足、受け入れ基準の明確性など）
@@ -143,12 +148,23 @@ AskUserQuestion:
 2. requirements.mdの内容を参照
 3. Pencil MCPでビジュアルモックアップを作成
 4. 出力: `{仕様書ディレクトリ}/ui-design.pen`
+- **追加指示（呼び出し時にプロンプトに含める）**:
+  - 以下のsteering文書を事前に読み込んでから作業すること:
+    - `docs/einja/steering/development/pencil-design-management.md`
 
 **[並列-2] design-generatorエージェント → design.md**
 1. エージェント内で既存アーキテクチャの調査を実施
 2. 技術アーキテクチャとデータモデル
 3. requirements.mdの内容を参照
 4. **⚠️ ui-design.pen は並列生成中のため参照不可。UI関連セクション（9-11）では、UIの詳細仕様は `ui-design.pen` を参照先として記載すること（例: 「UIレイアウトの詳細は ui-design.pen を参照」）**
+- **追加指示（呼び出し時にプロンプトに含める）**:
+  - 以下のsteering文書を事前に読み込んでから作業すること:
+    - `docs/einja/steering/development/backend-architecture.md`
+    - `docs/einja/steering/development/frontend-development.md`
+    - `docs/einja/steering/development/api-development.md`
+    - `docs/einja/steering/development/testing-strategy.md`
+    - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
+  - requirements.mdの「実装参考情報」セクションを参照し、design.mdに「関連ドキュメント」「関連Skill・サブエージェント」セクションを出力すること。
 
 **両方完了後、順番に承認:**
 
@@ -170,6 +186,14 @@ AskUserQuestion:
    - エージェント内で既存アーキテクチャの調査を実施
    - 技術アーキテクチャとデータモデル
    - requirements.mdの内容を参照
+   - **追加指示（呼び出し時にプロンプトに含める）**:
+     - 以下のsteering文書を事前に読み込んでから作業すること:
+       - `docs/einja/steering/development/backend-architecture.md`
+       - `docs/einja/steering/development/frontend-development.md`
+       - `docs/einja/steering/development/api-development.md`
+       - `docs/einja/steering/development/testing-strategy.md`
+       - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
+     - requirements.mdの「実装参考情報」セクションを参照し、design.mdに「関連ドキュメント」「関連Skill・サブエージェント」セクションを出力すること。
 2. **ユーザーに内容確認を依頼**
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（アーキテクチャの妥当性、実装方針など）
@@ -184,6 +208,10 @@ AskUserQuestion:
    - **シナリオテスト（scenarios.md）**: 複数タスクをまたぐ継続操作フローのテスト仕様
    - **Story別テスト仕様**: 各ユーザーストーリー（AC単位）のテスト仕様
    - 受け入れ基準（AC）との対応付け
+   - **追加指示（呼び出し時にプロンプトに含める）**:
+     - 以下のsteering文書を事前に読み込んでから作業すること:
+       - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
+       - `docs/einja/steering/development/testing-strategy.md`
 2. **ユーザーに内容確認を依頼**
    - 作成したqa-tests/ディレクトリの構成と概要を提示
    - 確認ポイントを明示（シナリオテストの網羅性、実施タイミングの妥当性など）
@@ -222,6 +250,15 @@ AskUserQuestion:
    - requirements.md、design.md、**qa-tests/scenarios.md**の内容を参照
    - 各タスクに**シナリオテスト実施タイミング**を明記
    - **GitHub Issueの説明文にタスク一覧を記述**
+   - **追加指示（呼び出し時にプロンプトに含める）**:
+     - requirements.mdの「実装参考情報」とdesign.mdの「関連ドキュメント」「関連Skill・サブエージェント」セクションを参照し、各タスクグループ/タスクに `**実行サブエージェント**` と `**使用Skill**` を付与すること。
+     - 委託ルール対応表（参考）:
+       | 作業 | 推奨サブエージェント |
+       |------|---------------------|
+       | フロントエンド アーキテクチャ設計 | [frontend-architect] |
+       | フロントエンド デザイン実装 | [design-engineer] |
+       | フロントエンド コーディング | [frontend-coder] |
+       | バックエンド アーキテクチャ設計 | [backend-architect] |
 
 2. **tasks-validatorエージェントでフォーマット検証**
    - タスク階層（Phase/タスクグループ/タスク/サブタスク）の形式チェック

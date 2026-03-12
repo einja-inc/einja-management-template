@@ -33,6 +33,8 @@ Issue本文には以下のセクションを含みます：
 ### Phase 1: [フェーズ名]
 
 - [ ] 1.1 [タスクグループ名]
+  **実行サブエージェント**: [frontend-coder]
+  **使用Skill**: [einja-pencil-design-manager]
 
   - 1.1.1 [タスク名]
     - サブタスク内容
@@ -59,6 +61,8 @@ Issue本文には以下のセクションを含みます：
     - **完了条件**: ...
     - **対応設計**: design.md「[セクション名]」セクション
     - **シナリオテスト**: シナリオ2 Step 1-5
+    - **実行サブエージェント**: [backend-architect]
+    - **使用Skill**: [steering:api-development]
 
 ### Phase 2: [フェーズ名]
 
@@ -325,6 +329,8 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 
 ```markdown
 - [ ] 1.1 Server Core構築とDB設定
+  **実行サブエージェント**: [backend-architect]
+  **使用Skill**: [steering:api-development]
 
   - 1.1.1 packages/server-core初期化とtsconfig設定
     - tsconfig.jsonの設定
@@ -343,6 +349,8 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
     - **完了条件**: DBに接続できること（AC1.2〜AC1.3を満たす）
     - **対応設計**: design.md「DB設計」セクション
     - **シナリオテスト**: なし（DB設定のみ、UIフロー未実装のため）
+    - **実行サブエージェント**: [frontend-coder]
+    - **使用Skill**: [einja-pencil-design-manager]
 ```
 
 **メタデータ項目（全て必須）**:
@@ -351,6 +359,15 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 - **完了条件**: AC番号を含む完了条件
 - **対応設計**: design.mdの参照セクション
 - **シナリオテスト**: 該当タスク完了時に実行するシナリオ（該当なければ「なし」と理由を明記）
+
+**メタデータ項目（任意）**:
+- **実行サブエージェント**: タスク実行時に使用するサブエージェント。`[エージェント名]` 形式で記載。複数指定はカンマ区切り。例: `[frontend-coder]`, `[design-engineer]`, `[backend-architect]`
+- **使用Skill**: タスク実行時に読み込むSkill。`[Skill名]` または `[steering:ファイル名]` 形式で記載。複数指定はカンマ区切り。例: `[einja-pencil-design-manager]`, `[steering:api-development]`
+
+**任意メタデータの継承ルール**:
+- **タスクグループレベル**: タスクグループ名行の直下（2スペースインデント）、最初のタスクより前に記載。配下の全タスクに継承される
+- **タスクレベル**: タスクのメタデータとして他の必須項目と同列（4スペースインデント）に記載。タスクグループレベルの指定をオーバーライドする
+- **省略時**: task-executerがデフォルトで処理
 
 **注意**: サブタスクは**任意**で記載。詳細はrequirements.md/design.mdを参照。
 

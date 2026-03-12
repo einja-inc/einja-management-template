@@ -136,6 +136,7 @@ TaskCreateツールを使用して詳細な進捗を可視化します：
 - 非機能要件（パフォーマンス、セキュリティ等）
 - 技術的制約
 - 依存関係
+- **実装参考情報**（「実装参考情報」セクションが存在する場合）: 類似Issue・Plan・既存実装の情報を抽出し、「関連ドキュメント」「関連Skill・サブエージェント」セクションの作成に活用する
 
 ### 3. 技術設計の自動生成
 収集した情報を基に、各ユーザーストーリーを実現するための技術設計を自動的に構築：
@@ -374,6 +375,55 @@ stateDiagram-v2
 - Domain層
 - Infrastructure層
 - ...
+
+### 16. 関連ドキュメント
+
+この機能の実装で参照すべきドキュメントを整理する。requirements.mdの「実装参考情報」セクションの内容を踏まえ、技術設計の観点から整理すること。
+
+- **参照すべきsteering文書**: 設計で準拠したsteering文書とその関連箇所
+- **参考リソース**: 類似Issue、類似Plan、既存の類似実装など
+
+※ 以下はあくまで出力例。実際の内容は設計対象の機能に応じて適切に生成すること。
+
+```markdown
+## 関連ドキュメント
+
+### 参照すべきsteering文書
+- backend-architecture.md: 4層アーキテクチャ、Repository/Mapper パターン
+- api-development.md: RPC APIルーティング規約
+- frontend-development.md: Server Components / Client Components使い分け
+- testing-strategy.md: テストレベル・テスト対象の判断
+
+### 参考リソース
+- 類似Issue: #42（認証機能） - 同じ認証パターンを使用
+- 類似Plan: docs/plans/202602/20250215-auth-flow.plan.md
+- 既存実装: src/features/users/ （類似のCRUD実装）
+```
+
+### 17. 関連Skill・サブエージェント
+
+この機能全体で使用が想定されるSkill・サブエージェントをフラットなテーブル形式で列挙する。requirements.mdの「実装参考情報」セクションの内容も踏まえること。
+
+**注意**: タスクグループ別のSkill割り当ては行わない（それはtasks-generatorの責務）。ここでは機能全体で使用が想定されるものを列挙する。
+
+※ 以下はあくまで出力例。実際の内容は設計対象の機能に応じて適切に生成すること。
+
+```markdown
+## 関連Skill・サブエージェント
+
+### この機能で使用が想定されるサブエージェント
+| サブエージェント | 用途 |
+|----------------|------|
+| [frontend-coder] | フォーム・ダッシュボード等のUI実装 |
+| [design-engineer] | ui-design.penからのデザイン実装 |
+
+### この機能で使用が想定されるSkill
+| Skill | 用途 |
+|-------|------|
+| [steering:api-development] | RPC APIの新規追加時に参照 |
+| [steering:backend-architecture] | 4層アーキテクチャに従った実装 |
+| [einja-pencil-design-manager] | デザインマスターとの同期（UI変更時） |
+```
 
 ## 品質ガイドライン
 

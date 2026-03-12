@@ -877,3 +877,26 @@ Prismaを使用しているため、通常のスキーマ変更は`prisma migrat
 - 設定値は環境変数やコンフィグファイルで管理し、変更を容易に
 - ログは構造化形式で出力し、分析や監視を容易に
 - テストカバレッジ80%以上を維持し、リグレッションを防止
+
+## 関連ドキュメント
+
+### 参照すべきsteering文書
+- backend-architecture.md: 4層アーキテクチャ、Repository/Mapper パターン
+- testing-strategy.md: テストレベル・テスト対象の判断
+
+### 参考リソース
+- 参考steering: backend-architecture.md（4層アーキテクチャ）
+
+## 関連Skill・サブエージェント
+
+### この機能で使用が想定されるサブエージェント
+| サブエージェント | 用途 |
+|----------------|------|
+| [frontend-coder] | フォーム等のUI実装 |
+| [backend-architect] | API・ドメインロジックの設計 |
+
+### この機能で使用が想定されるSkill
+| Skill | 用途 |
+|-------|------|
+| [steering:backend-architecture] | 4層アーキテクチャに従った実装 |
+| [steering:testing-strategy] | テストレベルの判断 |

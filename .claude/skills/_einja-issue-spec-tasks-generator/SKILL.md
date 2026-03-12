@@ -53,6 +53,26 @@ GitHub Issueの本文（Markdown形式）:
 - **実装AC**: ACX.X, ACX.Y（このタスクで実装するAC番号）
 - **シナリオテスト**: なし / シナリオX Step Y-Z
 
+### タスクの任意メタデータ
+
+以下は任意項目。該当する場合に付与する：
+- **実行サブエージェント**: `[エージェント名]`（例: `[frontend-coder]`, `[design-engineer]`, `[backend-architect]`）
+- **使用Skill**: `[Skill名]` or `[steering:ファイル名]`（例: `[einja-pencil-design-manager]`, `[steering:api-development]`）
+
+複数指定はカンマ区切り（例: `[frontend-coder], [design-engineer]`）。
+
+**継承ルール**: タスクグループレベルで指定した場合、配下の全タスクに継承される。タスクレベルで指定した場合はタスクグループの指定をオーバーライドする。
+
+## サブエージェント・Skill の割り当て
+
+タスク生成時、以下の情報源を参照して各タスクグループ/タスクに `実行サブエージェント` と `使用Skill` を付与すること：
+
+1. **requirements.md** の「実装参考情報」セクション
+2. **design.md** の「関連ドキュメント」「関連Skill・サブエージェント」セクション
+3. **CLAUDE.md** の「委託ルール」対応表
+
+上記に該当がない場合は省略してよい（任意項目のため）。
+
 ## TDDデフォルト適用
 
 **原則**: ロジック・コード実装があるタスクは**TDDをデフォルトで適用**する。
@@ -83,6 +103,8 @@ TDDは**1タスク内のサブタスク**として記載（3タスク分割で�
   - **対応設計**: ...
   - **実装AC**: ACX.X, ACX.Y
   - **シナリオテスト**: ...
+  - **実行サブエージェント**: [frontend-coder]（任意）
+  - **使用Skill**: [einja-pencil-design-manager]（任意）
 ```
 
 詳細は[タスク管理ガイドライン](../../../docs/einja/steering/task-management.md)の「TDDタスク構造」セクションを参照。

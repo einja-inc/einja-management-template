@@ -23,6 +23,8 @@
 ## Phase 1: 認証・プロフィール管理基盤構築
 
 - [ ] 1.1 ユーザー認証機能実装
+  **実行サブエージェント**: [frontend-coder]
+  **使用Skill**: [steering:backend-architecture]
 
   - 1.1.1 データベーススキーマ設計と実装
     - Prisma schema.prismaにUserモデルを定義（id、email、name、createdAt、updatedAt）
@@ -36,6 +38,7 @@
     - **完了条件**: Prismaスキーマが定義され、マイグレーションが実行され、データベースにテーブルが作成されていること（AC1.1を満たす）
     - **対応設計**: design.md「データベース設計」セクション（L100-L150）
     - **シナリオテスト**: なし（DB設計のみ、UIフロー未実装のため）
+    - **実行サブエージェント**: [backend-architect]（タスクレベルでオーバーライド）
 
   - 1.1.2 認証ロジック実装
     - src/auth/magic-link.tsを作成

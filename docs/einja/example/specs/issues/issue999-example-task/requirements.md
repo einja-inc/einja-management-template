@@ -523,3 +523,16 @@ P1 (重要)
 - Phase 1: 基本的なマジックリンク機能（Story 1, 2）
 - Phase 2: セキュリティ強化（Story 3）
 - Phase 3: 分析とモニタリング機能
+
+## 実装参考情報
+
+### 推奨Skill/サブエージェント
+| 対象領域 | 推奨 | 理由 |
+|---------|------|------|
+| UI実装 | [frontend-coder] | フォーム画面の実装あり |
+| バックエンド設計 | [backend-architect] | API・ドメインロジックの設計 |
+| テスト戦略 | [steering:testing-strategy] | テストレベルの判断 |
+
+### 参考リソース
+- 参考steering: backend-architecture.md（4層アーキテクチャ）
+- 参考steering: testing-strategy.md（テスト戦略）

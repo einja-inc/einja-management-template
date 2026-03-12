@@ -69,16 +69,17 @@ export async function createCommand(
     // プロンプトで設定収集
     let config: ProjectConfig;
 
-    if (options.yes && projectName) {
+    if (options.yes) {
       // --yes オプション: デフォルト値を使用
-      const error = validateProjectName(projectName);
+      const resolvedName = projectName || "my-project";
+      const error = validateProjectName(resolvedName);
       if (error) {
         logger.error(error);
         process.exit(1);
       }
 
       config = {
-        projectName,
+        projectName: resolvedName,
         packageScope: "@repo",
         template: "default",
         authMethod: "default",

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import fsExtra from "fs-extra";
 import inquirer from "inquirer";
 import { collectSyncFiles } from "@/generators/sync.js";
-import { promptSyncCategories } from "@/prompts/sync.js";
+import { getAllSyncCategories, promptSyncCategories } from "@/prompts/sync.js";
 import type { SyncCategory, SyncMetadata, SyncOptions, SyncResult } from "@/types/index.js";
 import { createBackup, getLatestBackup, restoreFromBackup } from "@/utils/backup.js";
 import { checkGitStatusForSync } from "@/utils/git.js";
@@ -172,19 +172,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       logger.info(`指定されたカテゴリ: ${categories.join(", ")}`);
     } else if (options.all || options.yes) {
       // --all または --yes: 全カテゴリ選択
-      categories = [
-        "env",
-        "tools",
-        "git",
-        "git-hooks",
-        "github",
-        "docker",
-        "monorepo",
-        "root-config",
-        "apps",
-        "packages",
-        "docs",
-      ];
+      categories = getAllSyncCategories();
       appsDetail = undefined; // 全apps
       packagesDetail = undefined; // 全packages
       conflictStrategy = "merge";

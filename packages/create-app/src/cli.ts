@@ -23,12 +23,14 @@ program
   .argument("[project-name]", "Project name")
   .option("--skip-git", "Skip git initialization")
   .option("--skip-install", "Skip package installation")
+  .option("-y, --yes", "Use default values without prompts")
   .action(
     async (
       projectName: string | undefined,
       options: {
         skipGit?: boolean;
         skipInstall?: boolean;
+        yes?: boolean;
       }
     ) => {
       await createCommand(projectName, options);

@@ -113,6 +113,14 @@ export function getDefaultSyncCategories(): SyncCategory[] {
 }
 
 /**
+ * 全同期カテゴリを取得
+ * --all/--yes 時に使用
+ */
+export function getAllSyncCategories(): SyncCategory[] {
+  return Object.keys(CATEGORY_CONFIGS) as SyncCategory[];
+}
+
+/**
  * テンプレートディレクトリからアプリ一覧を取得
  * @param templateDir - テンプレートディレクトリのパス
  * @returns アプリ名の配列

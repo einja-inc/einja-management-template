@@ -158,6 +158,7 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
    git worktree add ~/.einja/worktrees/issue-{N}/manager issue/{N}
    git push -u origin issue/{N}
    ```
+   - `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ
 3. **以降の操作は全て Manager worktree 内から実行**（cwd: `~/.einja/worktrees/issue-{N}/manager`）
 4. 各 Phase のブランチ作成（Manager worktree から）: `issue/{issue番号}-phase{N}`（issue ブランチから）
 5. Phase worktree 作成（Manager worktree から）:
@@ -165,6 +166,7 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
    git worktree add ~/.einja/worktrees/issue-{N}/phase{M} issue/{N}-phase{M}
    git push -u origin issue/{N}-phase{M}
    ```
+   - `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ
 
 ### Step 3: セッションファイル初期化
 パス: `~/.einja/sessions/issue-{N}/`

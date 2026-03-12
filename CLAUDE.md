@@ -95,10 +95,12 @@
 - **検証・動作確認方法**: 変更をどう検証するか
 
 ### 実装フェーズ（承認後）
-- タスク概要のタスク0（Planファイルリネーム）から順に実行する
-- Task API（TaskCreate/TaskUpdate）で進捗管理しながら実装を開始する
-- TODO-0（Skill作成）がある場合はリネーム後にそこから
-- 完了時は「完了判定の基準」セクションに従って検証する
+
+1. **タスク0**: Planファイルを `docs/plans/YYYYMM/YYYYMMDD-機能名.plan.md` にリネーム
+2. **Skill作成**（TODO-0がある場合）
+3. **worktree作成**: `_einja-worktree-guide` Skillに従い、EnterWorktree → セットアップ → 作業開始
+   - 例外（worktree不要）: ドキュメントのみ、設定のみ、1ファイル30行未満の軽微修正
+4. Task API で進捗管理しながら実装。完了時は「完了判定の基準」に従って検証
 
 ### 計画・進捗管理の規約
 

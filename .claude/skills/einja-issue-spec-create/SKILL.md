@@ -65,9 +65,10 @@ AskUserQuestion:
 - ブランチ名をユーザーに確認し、IssueBranchBaseとして記録する
 
 **ワークツリーの作成**:
-1. `EnterWorktree` でワークツリーを作成（名前: `issue-{issue番号}`）
+1. `EnterWorktree` でワークツリーを作成（名前: `issue-{issue番号}-spec`）
    - `.claude/worktrees/` 配下に作成される（issue-execの `~/.einja/worktrees/` とは競合しない）
-2. ワークツリー内でIssueブランチ（`issue/{issue番号}`）を作成・チェックアウト
+2. `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ
+   - ブランチ名: `issue/{issue番号}`、ベース: `origin/{IssueBranchBase}`
 3. 以降のPhase 1〜5はすべてワークツリー内で作業
 
 #### 0.4 Skill作成必要性の評価
@@ -124,38 +125,51 @@ AskUserQuestion:
    - 他のメンバーがレビューできるようにする
 4. **承認を得てから次のステップ（design.md）に進む**
 
-#### Phase 2: ui-design.pen（UIデザイン）
+#### Phase 2+3: UIデザイン＆設計書（並列生成）
 
-**スキップ判定**: requirements.mdに画面・UI関連の要件がない場合はスキップ
+**Phase 2 スキップ判定**（Phase 2+3 開始前に実施）:
+- requirements.mdに画面・UI関連の要件がない場合、Phase 2（ui-design.pen）をスキップ
 - 判定基準: requirements.md内に「画面」「UI」「フォーム」「ダッシュボード」「表示」「ボタン」「入力」等のキーワードが含まれるか確認
 - 判断が曖昧な場合はAskUserQuestionでユーザーに確認
 
-**実行手順:**
-1. **既存画面確認（改修の場合）**
+##### パターンA: UI要件あり（Phase 2+3 並列実行）
+
+以下の2つのエージェントを**並列（同時にTask呼び出し）**で起動する:
+
+**[並列-1] ui-design-generatorエージェント → ui-design.pen**
+1. 既存画面確認（改修の場合）
    - Playwright MCPで既存画面のスクリーンショットを取得
    - 改修対象のUIパターンを把握
+2. requirements.mdの内容を参照
+3. Pencil MCPでビジュアルモックアップを作成
+4. 出力: `{仕様書ディレクトリ}/ui-design.pen`
 
-2. **ui-design-generatorエージェントで.pen生成**
-   - requirements.mdの内容を参照
-   - Pencil MCPでビジュアルモックアップを作成
-   - 出力: `{仕様書ディレクトリ}/ui-design.pen`
+**[並列-2] design-generatorエージェント → design.md**
+1. エージェント内で既存アーキテクチャの調査を実施
+2. 技術アーキテクチャとデータモデル
+3. requirements.mdの内容を参照
+4. **⚠️ ui-design.pen は並列生成中のため参照不可。UI関連セクション（9-11）では、UIの詳細仕様は `ui-design.pen` を参照先として記載すること（例: 「UIレイアウトの詳細は ui-design.pen を参照」）**
 
-3. **ユーザーに内容確認を依頼**
+**両方完了後、順番に承認:**
+
+1. **ui-design.pen の承認**
    - Pencil MCPのget_screenshotで各画面プレビューを提示
    - 確認ポイントを明示（UIの方向性、レイアウト、コンポーネント選択など）
+   - 承認後、コミット＆プッシュ（コミットメッセージ: `docs: {機能名}のUIデザインを追加`）
 
-4. **ユーザー承認後、コミット＆プッシュ**
-   - コミットメッセージ: `docs: {機能名}のUIデザインを追加`
-   - ブランチは `issue/{issue番号}` にプッシュ
+2. **design.md の承認**
+   - 作成したファイルのパスと概要を提示
+   - 確認ポイントを明示（アーキテクチャの妥当性、実装方針など）
+   - 承認後、コミット＆プッシュ（コミットメッセージ: `docs: {機能名}の設計を追加`）
 
-5. **承認を得てから次のステップ（design.md）に進む**
+3. **両方の承認を得てから次のステップ（QAテスト仕様生成）に進む**
 
-#### Phase 3: design.md（設計書）
+##### パターンB: UI要件なし（Phase 3 のみ実行）
+
 1. design-generatorエージェントで作成
    - エージェント内で既存アーキテクチャの調査を実施
    - 技術アーキテクチャとデータモデル
    - requirements.mdの内容を参照
-   - **ui-design.penが存在する場合、Pencil MCPでビジュアルモックアップを参照してUI関連セクション（9-11）を作成**
 2. **ユーザーに内容確認を依頼**
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（アーキテクチャの妥当性、実装方針など）
@@ -237,11 +251,9 @@ AskUserQuestion:
    - 0.3でワークツリー内にIssueブランチ（`issue/{issue番号}`）は作成済み
    - リモートへの反映は `mcp__github__create_branch` で実施（未作成時のみ）
 
-   b. **仕様書ファイルをプッシュ（MCP）**
-   - `mcp__github__push_files` を使用
-   - branch: `issue/{issue番号}`
-   - files: requirements.md, design.md, qa-tests/（または分割された各ファイル）
-   - message: `docs: {機能名}の仕様書を追加 (Issue #{issue_number})`
+   b. **仕様書ファイルをプッシュ**
+   - worktree内で `git push origin issue/{issue番号}` を実行
+   - ※ 各Phase承認時にコミット＆プッシュ済みのため、最終プッシュは不要な場合が多い
 
    c. **PR作成（MCP）**
    - `mcp__github__create_pull_request` を使用

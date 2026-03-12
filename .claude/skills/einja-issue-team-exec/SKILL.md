@@ -212,10 +212,10 @@ TeamCreate:
 
 1. **タスク claim**: TaskList から status=open かつ blocked でないタスクを1つ claim（TaskUpdate で status を in_progress に変更）
 2. **作業環境準備**:
-   - Phase ブランチの最新を取得: `git fetch origin && git checkout issue/${N}-phase{M} && git pull`
-   - Task ブランチ作成: `git checkout -b task/${N}-{X.Y} issue/${N}-phase{M}`
-   - worktree 作成: `git worktree add ../${project-name}-worktrees/task-${N}-{X.Y} task/${N}-{X.Y}`
-   - worktree ディレクトリに移動して作業
+   - worktree 作成: `git worktree add ../${project-name}-worktrees/task-${N}-{X.Y}`
+   - worktree ディレクトリに移動
+   - `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ:
+     - ブランチ名: `task/${N}-{X.Y}`、ベース: `origin/issue/${N}-phase{M}`
 3. **タスク実行**: einja-task-exec Skill を使用して `#{N} {X.Y}` を実行
    - **進捗報告**: 各個別タスク（X.Y.Z）の開始時・完了時に Lead へ SendMessage で報告
    - 形式: `[progress] Task {X.Y.Z}: {started|completed} - {タスク名}`

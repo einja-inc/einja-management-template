@@ -20,7 +20,7 @@ let isSyncing = false;
 /**
  * 中断時のクリーンアップ処理
  */
-async function handleInterrupt(): Promise<void> {
+async function handleInterrupt(yes?: boolean): Promise<void> {
   if (!isSyncing) {
     // 同期処理開始前の中断は単純に終了
     logger.info("\n\n処理を中断しました");
@@ -32,6 +32,20 @@ async function handleInterrupt(): Promise<void> {
   if (!currentBackupDir) {
     logger.info("バックアップが作成されていないため、クリーンアップは不要です");
     process.exit(0);
+  }
+
+  if (yes) {
+    // --yes の場合、自動でロールバック
+    logger.info("--yes モード: 自動でロールバックします");
+    const targetDir = process.cwd();
+    const success = await restoreFromBackup(currentBackupDir, targetDir);
+    if (success) {
+      logger.success("✓ ロールバック完了");
+    } else {
+      logger.error("❌ ロールバック失敗");
+      logger.info(`手動で復元: cp -r ${currentBackupDir}/* .`);
+    }
+    process.exit(success ? 0 : 1);
   }
 
   // バックアップからのロールバック確認
@@ -90,7 +104,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   const { existsSync } = fsExtra;
   // Ctrl+C (SIGINT) ハンドラーを登録
   const sigintHandler = () => {
-    handleInterrupt().catch((error) => {
+    handleInterrupt(options.yes).catch((error) => {
       logger.error(`クリーンアップ中にエラー: ${error}`);
       process.exit(1);
     });
@@ -148,8 +162,16 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     let conflictStrategy: "merge" | "overwrite" | "skip";
     let packageJsonSections: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines"> | undefined;
 
-    if (options.all) {
-      // デフォルト: 全カテゴリ選択
+    if (options.categories) {
+      // コマンドラインで指定されたカテゴリのみ（--yesや--allより優先）
+      categories = options.categories as SyncCategory[];
+      appsDetail = undefined;
+      packagesDetail = undefined;
+      conflictStrategy = "merge";
+
+      logger.info(`指定されたカテゴリ: ${categories.join(", ")}`);
+    } else if (options.all || options.yes) {
+      // --all または --yes: 全カテゴリ選択
       categories = [
         "env",
         "tools",
@@ -168,14 +190,6 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       conflictStrategy = "merge";
 
       logger.info("全カテゴリを同期対象に設定しました");
-    } else if (options.categories) {
-      // コマンドラインで指定されたカテゴリのみ
-      categories = options.categories as SyncCategory[];
-      appsDetail = undefined;
-      packagesDetail = undefined;
-      conflictStrategy = "merge";
-
-      logger.info(`指定されたカテゴリ: ${categories.join(", ")}`);
     } else {
       // 対話式プロンプト
       const promptResult = await promptSyncCategories(templatePath);
@@ -218,9 +232,16 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       logger.info(`  ✓ プロジェクト名: ${detectedConfig.projectName}`);
       logger.info(`  ✓ パッケージスコープ: ${detectedConfig.packageScope}`);
     } else {
-      // 検出失敗 → 対話的に入力を求める
+      // 検出失敗
       logger.warn("⚠️ プロジェクト設定を自動検出できませんでした");
 
+      if (options.yes) {
+        logger.error("❌ --yes モードではプロジェクト設定の自動検出が必須です");
+        logger.error("プロジェクトのpackage.jsonにnameフィールドを設定してから再試行してください");
+        process.exit(1);
+      }
+
+      // 対話的に入力を求める
       const inputAnswers = await inquirer.prompt([
         {
           type: "input",

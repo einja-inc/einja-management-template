@@ -106,6 +106,7 @@ export type SyncOptions = {
   backup?: boolean; // --backup (default: true)
   rollback?: boolean; // --rollback
   force?: boolean; // --force（Git未コミット時に強制実行）
+  yes?: boolean; // --yes 確認プロンプトスキップ
   conflictStrategy?: "merge" | "overwrite" | "skip";
   packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">;
 };

@@ -45,6 +45,7 @@ program
   .option("--backup", "Create backup before syncing (default: true)", true)
   .option("--rollback", "Rollback to previous backup")
   .option("--force", "Force sync even with uncommitted changes")
+  .option("-y, --yes", "Sync all categories without confirmation prompts")
   .action(
     async (options: {
       categories?: string;
@@ -53,6 +54,7 @@ program
       backup?: boolean;
       rollback?: boolean;
       force?: boolean;
+      yes?: boolean;
     }) => {
       await syncCommand({
         categories: options.categories?.split(","),
@@ -61,6 +63,7 @@ program
         backup: options.backup !== false, // デフォルトtrue
         rollback: options.rollback || false,
         force: options.force || false,
+        yes: options.yes || false,
       });
     }
   );

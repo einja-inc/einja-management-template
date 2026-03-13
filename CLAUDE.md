@@ -285,7 +285,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | キーワード | 使用するSkill |
 |-----------|--------------|
 | `einja cli` `@einja-inc/dev-cli` `@einja-inc/create-app` `公開` `リリース` `publish` `release` | `.claude/skills/npm-release/SKILL.md` |
-| `インフラ` `環境変数管理` `Vercel` `Neon` `デプロイ設定` `GitHub Secrets` `環境セットアップ` `ローカルセットアップ` `ローカル環境` `セットアップ` `GitHub Actions` `CI/CD` `ワークフロー` | `.claude/skills/einja-infra-maintenance/SKILL.md` |
+| `インフラ` `環境変数管理` `Vercel` `Neon` `デプロイ設定` `GitHub Secrets` `環境セットアップ` `ローカルセットアップ` `ローカル環境` `セットアップ` `GitHub Actions` `CI/CD` `ワークフロー` `デフォルトトークン` | `.claude/skills/einja-infra-maintenance/SKILL.md` |
 | `Skill作るべき？` `Skill化` `skill-first` `Skill-first` | `.claude/skills/einja-skill-first/SKILL.md` |
 | `react-doctor` `React診断` `ヘルススコア` `Reactヘルス` | `.claude/skills/einja-react-doctor/SKILL.md` |
 | `Skill更新` `参照元を最新化` `Skillを最新化` `ref-updater` | `.claude/skills/einja-skill-ref-updater/SKILL.md` |

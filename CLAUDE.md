@@ -79,8 +79,8 @@
 5. リスク・不明点があればAskUserQuestionで確認する
    - 回答内容により再調査・再検討が必要なら 2〜4 に戻る
 6. planファイルに計画を記述
-6.5. planファイルのレビューを実施する
-   - `einja-review-plan` Skillを呼び出す
+6.5. planファイルのレビューを実施する [`einja-review-plan` + `codex-agent`]
+   - `einja-review-plan` Skillを呼び出す（レビューサブエージェント + codex-agent並行実行）
    - MAJOR判定時は親エージェントがplan修正→再レビュー（最大2回）。解消しない場合はレビュー結果付記でExitPlanMode
    - スキップ条件: 軽微な変更（1ファイル・10行以下）またはユーザー明示スキップ
 7. ExitPlanMode で承認を得る
@@ -105,10 +105,10 @@
 
 | タスクID | 内容 | 実行方法 |
 |---------|------|---------|
-| 99-1 | コードレビュー | `einja-review-code`（MAJOR → 修正→再レビュー）。差分確認（`git diff --stat`）もここで実施 |
-| 99-2 | 動作確認 | API→curl、画面→Playwright MCP、スクリプト→実行確認 |
-| 99-G | **コミット承認ゲート** | 完了報告（①修正概要 ②レビュー結果とその修正内容サマリ ③動作確認結果サマリ）を出力した上で、AskUserQuestionで「コミット・プッシュしてよいか」を確認。承認されるまで99-3に進まない |
-| 99-3 | コミット・プッシュ | `einja-task-commit` で実行（内部で `pnpm prepush` を実行） |
+| 99-1 | コードレビュー [`einja-review-code` + `codex-agent`] | `einja-review-code` Skill（MAJOR → 修正→再レビュー）。Codex MCP有効時は `codex-agent` も並列実行。差分確認（`git diff --stat`）もここで実施 |
+| 99-2 | 動作確認 [`Playwright MCP` / `Bash`] | API→curl、画面→Playwright MCP、スクリプト→実行確認 |
+| 99-G | **コミット承認ゲート** [`AskUserQuestion`] | 完了報告（①修正概要 ②レビュー結果とその修正内容サマリ ③動作確認結果サマリ）を出力した上で、AskUserQuestionで「コミット・プッシュしてよいか」を確認。承認されるまで99-3に進まない |
+| 99-3 | コミット・プッシュ [`einja-task-commit`] | `einja-task-commit` Skillで実行（内部で `pnpm prepush` を実行）。Skill内で `docs/einja/steering/commit-rules.md` を必ず参照すること |
 
 ### 計画・進捗管理の規約
 
@@ -207,6 +207,11 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 - テーブル形式: 複数項目の比較
 - 番号付きリスト: 詳細説明が必要な場合
 - 推奨オプションには `（推奨）` と理由を付記
+
+### 自由入力選択肢の必須化
+- **【厳守】** AskUserQuestionの選択肢には、必ず**自由入力用の選択肢**（例: `「その他（自由入力）」`）を含めること
+- AskUserQuestionツールは自動で「Other」選択肢を提供するが、それだけに頼らず、選択肢の中に明示的に自由入力を促すオプションを設けること
+- ユーザーが想定外の回答をしたい場合に、選択肢に縛られずに意図を伝えられるようにする
 
 ### 選択肢の記述ルール
 

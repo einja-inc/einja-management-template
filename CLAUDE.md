@@ -98,9 +98,9 @@
 
 1. **タスク0-0**: Planの「タスク概要」に基づき、タスクを分解してTaskCreateで一括登録する。依存関係を明示し、並行実行可能なタスクが分かる状態にすること
 2. **タスク0-1**: Planファイルを `docs/plans/YYYYMM/YYYYMMDD-機能名.plan.md` にリネーム
-3. **タスク0-2**: Skill作成（TODO-0がある場合）
-4. **タスク0-3**: worktree作成: `_einja-worktree-guide` Skillに従い、EnterWorktree → セットアップ → 作業開始
+3. **タスク0-2**: worktree作成: `_einja-worktree-guide` Skillに従い、EnterWorktree → セットアップ → 作業開始
    - 例外（worktree不要）: ドキュメントのみ、設定のみ、1ファイル30行未満の軽微修正
+4. **タスク0-3**: Skill作成（TODO-0がある場合）
 5. TaskUpdateで進捗管理しながら実装
 6. **完了検証タスク（99系）**: 全実装タスク完了後、以下を順次実行する。**全タスクが完了するまでコミット・プッシュ禁止**
 

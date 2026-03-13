@@ -111,24 +111,9 @@ jobs:
       - name: Lint
         run: pnpm --filter @einja-inc/dev-cli lint
 
-      - name: Check existing version
-        id: check_version
-        run: |
-          PKG_VERSION=$(node -p "require('./packages/cli/package.json').version")
-          EXISTING=$(npm view "@einja-inc/dev-cli@${PKG_VERSION}" version 2>/dev/null || echo "")
-          if [[ -n "$EXISTING" ]]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "::notice::Version ${PKG_VERSION} already published, skipping"
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-          echo "current_version=$PKG_VERSION" >> $GITHUB_OUTPUT
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Version bump
         id: version_bump
-        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        if: github.event.inputs.dry_run != 'true'
         run: |
           VERSION_TYPE="${{ github.event.inputs.version_type || 'patch' }}"
           cd packages/cli
@@ -145,8 +130,23 @@ jobs:
           ")
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
+      - name: Check existing version
+        id: check_version
+        if: steps.version_bump.outputs.new_version != ''
+        run: |
+          NEW_VERSION="${{ steps.version_bump.outputs.new_version }}"
+          EXISTING=$(npm view "@einja-inc/dev-cli@${NEW_VERSION}" version 2>/dev/null || echo "")
+          if [[ -n "$EXISTING" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::notice::Version ${NEW_VERSION} already published, skipping publish"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Publish (dry run)
-        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run == 'true'
+        if: github.event.inputs.dry_run == 'true'
         run: pnpm --filter @einja-inc/dev-cli publish --no-git-checks --dry-run
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -158,7 +158,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit and tag
-        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        if: steps.version_bump.outputs.new_version != '' && github.event.inputs.dry_run != 'true'
         run: |
           NEW_VERSION="${{ steps.version_bump.outputs.new_version }}"
           git config user.name "github-actions[bot]"
@@ -214,24 +214,9 @@ jobs:
       - name: Lint
         run: pnpm --filter @einja-inc/create-app lint
 
-      - name: Check existing version
-        id: check_version
-        run: |
-          PKG_VERSION=$(node -p "require('./packages/create-app/package.json').version")
-          EXISTING=$(npm view "@einja-inc/create-app@${PKG_VERSION}" version 2>/dev/null || echo "")
-          if [[ -n "$EXISTING" ]]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "::notice::Version ${PKG_VERSION} already published, skipping"
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-          echo "current_version=$PKG_VERSION" >> $GITHUB_OUTPUT
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Version bump
         id: version_bump
-        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        if: github.event.inputs.dry_run != 'true'
         run: |
           VERSION_TYPE="${{ github.event.inputs.version_type || 'patch' }}"
           cd packages/create-app
@@ -248,8 +233,23 @@ jobs:
           ")
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
+      - name: Check existing version
+        id: check_version
+        if: steps.version_bump.outputs.new_version != ''
+        run: |
+          NEW_VERSION="${{ steps.version_bump.outputs.new_version }}"
+          EXISTING=$(npm view "@einja-inc/create-app@${NEW_VERSION}" version 2>/dev/null || echo "")
+          if [[ -n "$EXISTING" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::notice::Version ${NEW_VERSION} already published, skipping publish"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Publish (dry run)
-        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run == 'true'
+        if: github.event.inputs.dry_run == 'true'
         run: pnpm --filter @einja-inc/create-app publish --no-git-checks --dry-run
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -261,7 +261,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit and tag
-        if: steps.check_version.outputs.skip != 'true' && github.event.inputs.dry_run != 'true'
+        if: steps.version_bump.outputs.new_version != '' && github.event.inputs.dry_run != 'true'
         run: |
           NEW_VERSION="${{ steps.version_bump.outputs.new_version }}"
           git config user.name "github-actions[bot]"

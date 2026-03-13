@@ -122,6 +122,18 @@ EOF
   --label "${LABEL}"
 ```
 
+### Step 6: CI確認（条件付き）
+
+PR作成後、CIの結果を確認する。`_einja-ci-check` インナーSkillの手順に従う。
+
+#### スキップ条件:
+- `--auto` モード（task-exec/issue-exec経由）の場合はスキップ
+
+#### 実行方法:
+1. `.claude/skills/_einja-ci-check/SKILL.md` の手順に従う
+2. `prNumber` パラメータに作成したPR番号を指定
+3. その他パラメータはデフォルト値を使用（`maxRetries: 2`, `timeout: 300`）
+
 ## エラーハンドリング
 
 | エラー | 対処 |
@@ -137,3 +149,4 @@ PR作成後、以下を出力:
 - PR URL
 - 付与したラベル
 - changeset情報（生成した場合）
+- CI確認結果（実行した場合）

@@ -25,7 +25,7 @@ allowed-tools:
 - Plan指定あり: `einja-task-commit planFile=docs/plans/202603/20260313-feature-auth.plan.md`
 - Plan指定なし: `einja-task-commit`（従来通りの動作）
 
-## 実行手順（6ステップ）
+## 実行手順（7ステップ）
 
 ### ステップ1: 最新化（必要な場合のみ）
 
@@ -269,6 +269,20 @@ EOF
 
 1. `git push` を実行
 2. 結果を出力
+
+---
+
+### ステップ7: CI確認（条件付き）
+
+プッシュ完了後、PRが存在する場合のみ `_einja-ci-check` インナーSkillの手順に従ってCI確認を実行する。
+
+#### スキップ条件（以下のいずれかに該当する場合はスキップ）:
+- PRが存在しない（mainブランチ直プッシュ等）
+- einja-task-exec Skill経由での呼び出し（task-exec側でCI確認を管理するため）
+
+#### 実行方法:
+1. `.claude/skills/_einja-ci-check/SKILL.md` の手順に従う
+2. パラメータはデフォルト値を使用（`maxRetries: 2`, `timeout: 300`）
 
 ---
 

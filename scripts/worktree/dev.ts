@@ -740,6 +740,18 @@ function startDevServer(
 		fs.writeFileSync(pidFile, child.pid?.toString() ?? "");
 
 		log(`✅ 開発サーバーが起動しました (PID: ${child.pid})`);
+
+		// URL情報を表示
+		const portEntries = Object.entries(envVars)
+			.filter(([key]) => key.startsWith("PORT_"))
+			.map(([key, value]) => [key.replace("PORT_", "").toLowerCase(), value] as const);
+		if (portEntries.length > 0) {
+			log(`\n🌐 アクセスURL:`);
+			for (const [appId, port] of portEntries) {
+				log(`  ${appId}: http://localhost:${port}`);
+			}
+		}
+
 		log(`\n📋 ログを確認: tail -f ${logFile}`);
 		log(`🛑 停止: pnpm dev:stop`);
 
@@ -933,13 +945,19 @@ export function showDevStatus(): void {
 		console.log(`状態: ⚪ 未起動`);
 	}
 
-	// ポート使用状況
+	// ポート使用状況とURL
 	const calculatedPorts = calculatePorts(branch, cfg.apps);
 	console.log(`\nポート使用状況:`);
 	for (const [appId, port] of Object.entries(calculatedPorts)) {
 		const status = isPortInUse(port) ? "🟢 使用中" : "⚪ 空き";
-		console.log(`  ${appId}: ${port} ${status}`);
+		console.log(`  ${appId}: ${port} ${status}  → http://localhost:${port}`);
 	}
+
+	// データベース情報（ローカル開発環境のデフォルト値）
+	const databaseName = generateDatabaseName(branch);
+	console.log(`\nデータベース:`);
+	console.log(`  名前: ${databaseName}`);
+	console.log(`  URL:  postgresql://postgres:postgres@localhost:${cfg.postgres.port}/${databaseName}?schema=public`);
 
 	console.log(`\nログファイル: ${logFile}`);
 	console.log(`${"=".repeat(50)}\n`);

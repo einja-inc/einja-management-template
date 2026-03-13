@@ -4,42 +4,76 @@ description: "ローカル開発環境を起動します"
 user-invocable: true
 allowed-tools:
   - Bash
+  - Read
 ---
 
 # ローカル開発環境起動コマンド
 
 ## コマンドの目的
 
-開発サーバーを起動します。`pnpm dev` は自動的にWorktree環境を検出し、適切なポート・DB設定を行います。
+開発サーバーを起動します。`pnpm dev` は自動的にWorktree環境を検出し、適切なポート・DB設定を行います。node_modulesが未インストールの場合は自動で `pnpm install` を実行します。
 
-**新機能**: 複数のClaude CodeやCodexセッションが並列で実行されている場合でも、ポート競合を自動解決します。
+**並列対応**: 複数のClaude CodeやCodexセッションが並列で実行されている場合でも、ポート競合を自動解決します。
 
-## 実行手順
+## Claude向け実行フロー
 
-### 通常起動（フォアグラウンド）
+### Step 1: 前提チェック
 ```bash
-# 開発サーバー起動（Worktree対応・自動セットアップ）
-# 同じポートを使用しているプロセスがあれば自動終了してから起動
-pnpm dev
+# Dockerが起動しているか確認（PostgreSQLコンテナに必要）
+docker info > /dev/null 2>&1 && echo "OK" || echo "Docker未起動"
 ```
+- Docker未起動の場合: ユーザーに「Docker Desktopを起動してください」と伝えて待機
 
-### バックグラウンド起動（推奨：並列セッション時）
+### Step 2: バックグラウンド起動
 ```bash
-# バックグラウンドで起動（ログは log/dev.log に出力）
 pnpm dev:bg
 ```
+- node_modulesがない場合は自動で `pnpm install` が実行される
+- 既存のサーバーが起動中の場合は自動停止→再起動される
 
-## 管理コマンド
-
+### Step 3: 起動確認
 ```bash
-# 開発サーバーの状態確認
+# ステータス確認（URL情報も表示される）
 pnpm dev:status
 
-# ログをリアルタイムで確認
-pnpm dev:logs
+# ログの末尾を確認（エラーがないか）
+tail -20 log/dev.log
+```
+- `dev:status` で「🟢 実行中」が表示されればOK
+- ログに `Error` や `EADDRINUSE` が含まれていないことを確認
 
-# 開発サーバーを停止
-pnpm dev:stop
+### Step 4: ユーザーへの報告
+以下をユーザーに報告する:
+- 各アプリのURL（dev:statusの出力から取得）
+- ログ確認コマンド: `pnpm dev:logs`
+- 停止コマンド: `pnpm dev:stop`
+
+### Step 5: エラー時のリカバリ
+起動に失敗した場合、以下の順で対応:
+
+1. **ポート競合** (`EADDRINUSE`): `pnpm dev:stop` → `pnpm dev:bg` で再起動
+2. **DB接続エラー**: Docker起動確認 → `pnpm dev:bg` で再起動
+3. **依存関係エラー**: `pnpm install` → `pnpm dev:bg` で再起動
+4. **上記で解決しない場合**: ユーザーに `einja-infra-maintenance` Skillの実行を提案する
+
+## コマンド一覧
+
+### 起動コマンド
+```bash
+pnpm dev        # フォアグラウンド起動（自動セットアップ）
+pnpm dev:bg     # バックグラウンド起動（Claude/Codex推奨）
+```
+
+### 管理コマンド
+```bash
+pnpm dev:status  # ステータス・URL・ポート確認
+pnpm dev:logs    # リアルタイムログ表示
+pnpm dev:stop    # サーバー停止
+```
+
+### セットアップコマンド
+```bash
+pnpm dev:setup   # 初回環境セットアップ（.env作成、DB初期化）
 ```
 
 ## オプション
@@ -47,57 +81,24 @@ pnpm dev:stop
 | オプション | 説明 |
 |-----------|------|
 | `--background`, `-b` | バックグラウンドで起動（ログはlog/dev.logに出力） |
-| `--no-kill` | 既存プロセスを終了せずにポート競合時はエラー |
 | `--setup-only` | 環境セットアップのみ（サーバー起動なし） |
+| `--skip-setup` | セットアップをスキップして直接turbo run dev |
 | `--stop` | 実行中の開発サーバーを停止 |
 | `--status` | 開発サーバーのステータス表示 |
-
-## 注意事項
-
-- 初回実行時は `pnpm dev:setup` で環境セットアップが必要です
-- `pnpm dev` はWorktree環境を自動検出してポート・DB名を調整します
-- **並列実行時**: 同じポートを使用しているプロセスは自動的に終了されます
-- ログファイルは `log/dev.log` に出力されます
-
-## ターミナルから直接実行する場合
-
-### 初回セットアップ
-```bash
-pnpm dev:setup  # .env作成、DB起動・初期化
-```
-
-### 開発サーバー起動
-```bash
-pnpm dev     # フォアグラウンド（全自動・Worktree対応）
-pnpm dev:bg  # バックグラウンド（Claude Code/Codex並列実行時推奨）
-```
-
-### セットアップのみ（開発サーバーは手動起動）
-```bash
-pnpm env:prepare
-```
 
 ## トラブルシューティング
 
 ### ポートが解放されない場合
 ```bash
-# ステータス確認
-pnpm dev:status
-
-# 強制終了
-pnpm dev:stop
-
-# 特定ポートのプロセスを確認
-lsof -i :3000
+pnpm dev:status        # ステータス確認
+pnpm dev:stop          # サーバー停止
+lsof -i :3000          # 特定ポートのプロセスを確認
 ```
 
 ### ログが見たい場合
 ```bash
-# リアルタイムログ
-pnpm dev:logs
-
-# または直接
-tail -f log/dev.log
+pnpm dev:logs          # リアルタイムログ
+tail -f log/dev.log    # 直接確認
 ```
 
 <!-- @einja:project-private:start id="start-dev-project" -->

@@ -1,16 +1,14 @@
 #!/usr/bin/env tsx
 
 import path from "node:path";
-import { readFileSync, existsSync } from "node:fs";
-import { glob } from "glob";
-import ignore from "ignore";
+import { existsSync, readdirSync } from "node:fs";
 import fse from "fs-extra";
 import chalk from "chalk";
 
 /**
  * テンプレート更新スクリプト
  *
- * ルートディレクトリからファイルを収集し、プレースホルダー変数に変換して
+ * ホワイトリスト方式でルートディレクトリからファイルを収集し、プレースホルダー変数に変換して
  * templates/default/ にコピーします。
  *
  * 使い方:
@@ -27,26 +25,121 @@ const TEMPLATE_DIR = path.join(
   "../templates/default"
 );
 
-// .templateignore ファイルのパス
-const TEMPLATE_IGNORE_PATH = path.join(import.meta.dirname, "../.templateignore");
+interface DirMapping {
+  src: string;
+  /** 直下サブディレクトリまたはファイルの除外パス（srcからの相対） */
+  exclude?: string[];
+  /** この文字で始まるファイル名を除外 */
+  excludeFilePrefix?: string;
+}
+
+const dirMappings: DirMapping[] = [
+  { src: "apps" },
+  { src: "packages", exclude: ["cli", "create-app"] },
+  { src: "prisma" },
+  { src: "public" },
+  { src: "scripts", exclude: ["task-vibe-kanban-loop"], excludeFilePrefix: "_" },
+  { src: "test" },
+  { src: ".claude/rules" },
+  { src: ".changeset" },
+  { src: ".github", exclude: ["workflows/publish-packages.yml"] },
+  { src: ".husky" },
+  { src: ".serena" },
+  { src: ".vscode" },
+];
+
+const fileMappings: string[] = [
+  "package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml",
+  "tsconfig.json", "turbo.json", "biome.json",
+  "next.config.ts", "postcss.config.cjs", "vitest.config.ts",
+  "docker-compose.yml", "components.json",
+  ".gitignore", ".envrc", ".npmrc",
+  ".biomeignore", ".dockerignore", ".gitattributes",
+  ".lintstagedrc.js", ".node-version",
+  ".mcp.json",
+  "README.md", "CLAUDE.md", "AGENTS.md",
+  ".claude/settings.json",
+  "worktree.config.json",
+];
+
+/** サブディレクトリ内でも常に除外するディレクトリ名 */
+const GLOBAL_EXCLUDE_DIRS = new Set([
+  "node_modules", ".next", "out", "dist", "build", ".turbo", ".git",
+]);
+
+/** ホワイトリスト外だが意図的に除外しているルート直下エントリ（警告抑制用） */
+const knownIgnoreList: string[] = [
+  // ビルド成果物・キャッシュ（GLOBAL_EXCLUDE_DIRSと重複するがルート直下の警告抑制用）
+  "node_modules", ".next", "out", "dist", "build", ".turbo",
+  // 一時ファイル
+  "log", "tmp", "tsconfig.tsbuildinfo", "package-lock.json",
+  // 環境変数
+  ".env", ".env.develop", ".env.example", ".env.keys", ".env.local",
+  ".env.personal", ".env.personal.example", ".env.preview",
+  ".env.production", ".env.staging",
+  // dev-cli sync で別途配布（.claude はホワイトリストに含まれるためここではルート直下のみ）
+  "docs",
+  // プロジェクト固有
+  "modifications", "qa-tests", ".einja-sync.json", ".vibe-kanban.json",
+  // IDE・ツール固有
+  ".cursor", ".git",
+  // ローカル実行環境
+  ".playwright-mcp", ".serena-port",
+];
 
 interface TemplateUpdateOptions {
   dryRun: boolean;
 }
 
 /**
- * .templateignoreファイルを読み込み、ignoreオブジェクトを生成
+ * ディレクトリ内のファイルを再帰的に収集
  */
-function loadIgnorePatterns(): ReturnType<typeof ignore> {
-  if (!existsSync(TEMPLATE_IGNORE_PATH)) {
-    console.warn(chalk.yellow(`警告: .templateignore が見つかりません: ${TEMPLATE_IGNORE_PATH}`));
-    return ignore();
+function collectFiles(
+  baseDir: string,
+  dir: string,
+  mapping: DirMapping
+): string[] {
+  const fullDir = path.join(baseDir, dir);
+  if (!existsSync(fullDir)) return [];
+
+  const entries = readdirSync(fullDir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const relativePath = path.join(dir, entry.name);
+    // srcからの相対パス（exclude比較用）
+    const relativeFromSrc = path.relative(mapping.src, relativePath);
+
+    // excludeチェック
+    if (mapping.exclude) {
+      const shouldExclude = mapping.exclude.some(pattern => {
+        if (pattern.includes("/")) {
+          // パスパターン: 相対パスと完全一致
+          return relativeFromSrc === pattern;
+        }
+        // ディレクトリ名: 直下エントリ名と一致、またはそのサブパス
+        return entry.name === pattern && path.dirname(relativeFromSrc) === ".";
+      });
+      // パスパターンの場合はファイル単位で除外
+      // ディレクトリの場合は再帰ごとスキップ
+      if (shouldExclude) continue;
+    }
+
+    // excludeFilePrefixチェック
+    if (mapping.excludeFilePrefix && entry.name.startsWith(mapping.excludeFilePrefix)) {
+      continue;
+    }
+
+    if (entry.isDirectory()) {
+      // グローバル除外ディレクトリをスキップ（node_modules, .next 等）
+      if (GLOBAL_EXCLUDE_DIRS.has(entry.name)) continue;
+      files.push(...collectFiles(baseDir, relativePath, mapping));
+    } else if (entry.isFile()) {
+      files.push(relativePath);
+    }
   }
 
-  const ignoreContent = readFileSync(TEMPLATE_IGNORE_PATH, "utf-8");
-  const ig = ignore();
-  ig.add(ignoreContent);
-  return ig;
+  return files;
 }
 
 /**
@@ -143,13 +236,44 @@ function transformContent(filePath: string, content: string): string {
 }
 
 /**
+ * ホワイトリスト未登録のエントリを検出して警告
+ */
+function detectUnregisteredEntries(): void {
+  const entries = readdirSync(PROJECT_ROOT, { withFileTypes: true });
+
+  // ホワイトリストのトップレベルディレクトリ/ファイルを収集
+  const whitelistedTopLevel = new Set<string>();
+  for (const mapping of dirMappings) {
+    // src の最初のパスセグメント（例: ".claude/rules" → ".claude"）
+    whitelistedTopLevel.add(mapping.src.split("/")[0]);
+  }
+  for (const file of fileMappings) {
+    whitelistedTopLevel.add(file.split("/")[0]);
+  }
+
+  const knownIgnoreSet = new Set(knownIgnoreList);
+  const unregistered: string[] = [];
+
+  for (const entry of entries) {
+    if (entry.name === "." || entry.name === "..") continue;
+    if (whitelistedTopLevel.has(entry.name)) continue;
+    if (knownIgnoreSet.has(entry.name)) continue;
+    unregistered.push(entry.name);
+  }
+
+  if (unregistered.length > 0) {
+    console.log(chalk.yellow("\n⚠ ホワイトリスト未登録のエントリを検出:"));
+    for (const name of unregistered) {
+      console.log(chalk.yellow(`  - ${name}（テンプレートに含めるべきか確認してください）`));
+    }
+  }
+}
+
+/**
  * テンプレート更新のメイン処理
  */
 async function updateTemplate(options: TemplateUpdateOptions): Promise<void> {
   console.log(chalk.blue("\n🔄 テンプレート更新を開始します...\n"));
-
-  // 1. .templateignoreを読み込み
-  const ig = loadIgnorePatterns();
 
   // 2. 既存のテンプレートディレクトリを削除（dry-runでない場合）
   if (!options.dryRun) {
@@ -161,22 +285,27 @@ async function updateTemplate(options: TemplateUpdateOptions): Promise<void> {
     await fse.ensureDir(TEMPLATE_DIR);
   }
 
-  // 3. ルートディレクトリからファイルを列挙
-  console.log(chalk.gray(`ファイルを列挙中: ${PROJECT_ROOT}`));
-  const allFiles = await glob("**/*", {
-    cwd: PROJECT_ROOT,
-    dot: true,
-    nodir: true,
-    ignore: ["**/node_modules/**"], // node_modulesは確実に除外
-  });
+  // 3. ホワイトリストからファイルを列挙
+  console.log(chalk.gray("ホワイトリストからファイルを列挙中..."));
+  const filesToCopy: string[] = [];
 
-  console.log(chalk.gray(`合計 ${allFiles.length} 個のファイルを検出\n`));
+  // ディレクトリマッピングからファイルを収集
+  for (const mapping of dirMappings) {
+    const collected = collectFiles(PROJECT_ROOT, mapping.src, mapping);
+    filesToCopy.push(...collected);
+  }
 
-  // 4. ignoreパターンでフィルタリング
-  const filesToCopy = allFiles.filter((file) => !ig.ignores(file));
+  // 個別ファイルを追加
+  for (const file of fileMappings) {
+    const fullPath = path.join(PROJECT_ROOT, file);
+    if (existsSync(fullPath)) {
+      filesToCopy.push(file);
+    } else {
+      console.warn(chalk.yellow(`警告: ホワイトリストのファイルが見つかりません: ${file}`));
+    }
+  }
 
-  console.log(chalk.green(`✅ コピー対象: ${filesToCopy.length} 個のファイル`));
-  console.log(chalk.red(`❌ 除外: ${allFiles.length - filesToCopy.length} 個のファイル\n`));
+  console.log(chalk.green(`✅ コピー対象: ${filesToCopy.length} 個のファイル\n`));
 
   if (options.dryRun) {
     console.log(chalk.yellow("--dry-run モード: ファイルリストをプレビュー\n"));
@@ -186,6 +315,7 @@ async function updateTemplate(options: TemplateUpdateOptions): Promise<void> {
     if (filesToCopy.length > 20) {
       console.log(chalk.gray(`  ... 他 ${filesToCopy.length - 20} 個のファイル`));
     }
+    detectUnregisteredEntries();
     console.log(chalk.blue("\n✨ --dry-run 完了。実際のコピーは行われませんでした。"));
     return;
   }
@@ -233,6 +363,8 @@ async function updateTemplate(options: TemplateUpdateOptions): Promise<void> {
   console.log(chalk.gray(`  - コピー: ${copiedCount} 個のファイル`));
   console.log(chalk.gray(`  - 変換: ${transformedCount} 個のファイル`));
   console.log(chalk.gray(`  - 出力先: ${TEMPLATE_DIR}\n`));
+
+  detectUnregisteredEntries();
 }
 
 // メイン実行

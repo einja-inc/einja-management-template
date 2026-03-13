@@ -99,10 +99,24 @@ jobs:
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   # ========================================
-  # develop: 環境なし、承認なし、マイグレーションなし
+  # develop: 環境なし、承認なし
   # ========================================
+  migrate-develop:
+    needs: ci
+    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'develop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Migrate develop
+        uses: ./.github/actions/migrate
+        with:
+          dotenv-file: ${{ github.workspace }}/.env.develop
+          dotenv-private-key: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
+          run-seed: 'false'
+
   deploy-develop:
-    needs: [ci, changes]
+    needs: [ci, migrate-develop, changes]
     if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'develop' && needs.changes.outputs.deploy_matrix != '[]'
     runs-on: ubuntu-latest
     strategy:

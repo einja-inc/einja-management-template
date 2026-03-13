@@ -126,12 +126,12 @@ jobs:
 
             # connection_uri APIで直接URL取得（sed不要）
             DB_URL=$(curl -s \
-              "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=false&database_name=neondb" \
+              "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=false&database_name=neondb&role_name=neondb_owner" \
               -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
               -H "Accept: application/json" | jq -r '.uri')
 
             DB_URL_POOLED=$(curl -s \
-              "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=true&database_name=neondb" \
+              "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=true&database_name=neondb&role_name=neondb_owner" \
               -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
               -H "Accept: application/json" | jq -r '.uri')
 
@@ -155,9 +155,9 @@ jobs:
             echo "NEON_EOF"
           } >> "$GITHUB_OUTPUT"
 
-      # 3. スキーマ同期 + シード（直接接続）
-      - name: Push Schema
-        run: pnpm db:push -- --accept-data-loss
+      # 3. マイグレーション + シード（直接接続）
+      - name: Run Migration
+        run: pnpm db:migrate:deploy
         env:
           DATABASE_URL: ${{ steps.resolve-db.outputs.db_url }}
 
@@ -198,12 +198,12 @@ jobs:
 
           # connection_uri APIで直接URL取得
           DB_URL=$(curl -s \
-            "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=false&database_name=neondb" \
+            "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=false&database_name=neondb&role_name=neondb_owner" \
             -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
             -H "Accept: application/json" | jq -r '.uri')
 
           DB_URL_POOLED=$(curl -s \
-            "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=true&database_name=neondb" \
+            "https://console.neon.tech/api/v2/projects/${{ env.NEON_PROJECT_ID }}/connection_uri?branch_id=$BRANCH_ID&pooled=true&database_name=neondb&role_name=neondb_owner" \
             -H "Authorization: Bearer ${{ env.NEON_API_KEY }}" \
             -H "Accept: application/json" | jq -r '.uri')
 

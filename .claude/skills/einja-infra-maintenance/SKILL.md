@@ -663,6 +663,7 @@ gh run list --limit 5
 ## カテゴリ7: GitHub Actions CI/CD管理
 
 ### サブメニュー
+- **リポジトリ設定**: ブランチ保護ルールの初期設定
 - **ワークフロー状態確認**: 最新の実行結果一覧
 - **失敗調査**: 失敗したワークフローのログ分析
 - **手動トリガー**: ワークフローの手動実行
@@ -681,6 +682,41 @@ gh run list --limit 5
 | Claude Code | `claude.yml` | issue comment | Claude Codeによる自動対応 | `/claude`コメントでトリガー |
 
 ### 実行手順
+
+#### リポジトリ設定（初回のみ）
+
+mainブランチの保護ルールを設定する。`publish-packages.yml` 等のワークフローがmainに直接push（バージョンバンプ・タグ作成）するため、GitHub Actionsにbypass権限が必要。
+
+```bash
+# 現在のブランチ保護ルールを確認
+gh api repos/{owner}/{repo}/branches/main/protection
+
+# ブランチ保護ルールを設定（GitHub Actionsにbypass権限付与）
+gh api repos/{owner}/{repo}/branches/main/protection -X PUT \
+  --input - <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": []
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": false,
+    "require_last_push_approval": false,
+    "required_approving_review_count": 1,
+    "bypass_pull_request_allowances": {
+      "apps": ["github-actions"]
+    }
+  },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+EOF
+```
+
+> **重要**: `bypass_pull_request_allowances.apps` に `github-actions` を含めること。これがないと `publish-packages.yml` のCommit and tagステップが `GH006: Protected branch update failed` で失敗する。
 
 #### ワークフロー状態確認
 ```bash
@@ -712,6 +748,7 @@ gh run list --status=in_progress
 | `vercel deploy failed` | → カテゴリ3（Vercel管理）で状態確認 |
 | `neonctl: authentication failed` | → カテゴリ5でNEON_API_KEY更新 |
 | `Permission denied` | → `.github/workflows/`のpermissions設定確認を案内 |
+| `GH006: Protected branch update failed` | → カテゴリ7（リポジトリ設定）でGitHub Actionsのbypass権限を設定 |
 | その他 | エラーログ全文を表示し、対処方法をAskUserQuestionで相談 |
 
 #### 手動トリガー

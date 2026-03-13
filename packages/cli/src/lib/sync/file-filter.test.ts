@@ -174,24 +174,7 @@ describe("FileFilter", () => {
       expect(result).toBe(true);
     });
 
-    it(".gitignoreパターンで除外できること", async () => {
-      // Given: .gitignoreファイルを作成
-      const gitignorePath = path.join(projectDir, ".gitignore");
-      await fs.writeFile(gitignorePath, "*.log\ntemp/\n");
-
-      // 新しいFileFilterインスタンスを作成して.gitignoreを読み込む
-      const filter = new FileFilter(projectDir, templateDir);
-      await filter.scanSyncTargets(); // .gitignoreの読み込みをトリガー
-
-      // When: 除外判定
-      const result1 = filter.shouldExclude("debug.log");
-      const result2 = filter.shouldExclude("temp/file.txt");
-
-      // Then: 除外される
-      expect(result1).toBe(true);
-      expect(result2).toBe(true);
-    });
-  });
+});
 
   describe("filterByCategory", () => {
     it("指定されたカテゴリのファイルのみを返すこと", () => {

@@ -2,7 +2,6 @@ import path from "node:path";
 import type { ScanOptions, SyncTarget } from "@/types/sync.js";
 import fs from "fs-extra";
 import { glob } from "glob";
-import ignore from "ignore";
 
 /**
  * カテゴリマッピング
@@ -32,7 +31,6 @@ const EINJA_PREFIX_CATEGORIES = ["skills"];
 export class FileFilter {
   private projectRoot: string;
   private templateRoot: string;
-  private ignoreFilter: ReturnType<typeof ignore> | null = null;
 
   constructor(projectRoot: string, templateRoot: string) {
     this.projectRoot = projectRoot;
@@ -44,9 +42,6 @@ export class FileFilter {
    */
   async scanSyncTargets(options: ScanOptions = {}): Promise<SyncTarget[]> {
     const targets: SyncTarget[] = [];
-
-    // .gitignoreを読み込む
-    await this.loadGitignore();
 
     // カテゴリごとにスキャン
     const categories = options.categories || Object.keys(CATEGORY_MAPPING);
@@ -217,11 +212,6 @@ export class FileFilter {
       return true;
     }
 
-    // .gitignoreパターンで除外
-    if (this.ignoreFilter?.ignores(filePath)) {
-      return true;
-    }
-
     // 追加の除外パターンで除外
     if (additionalPatterns) {
       for (const pattern of additionalPatterns) {
@@ -307,24 +297,6 @@ export class FileFilter {
       }
     }
     return null;
-  }
-
-  /**
-   * .gitignoreを読み込む
-   */
-  private async loadGitignore(): Promise<void> {
-    const gitignorePath = path.join(this.projectRoot, ".gitignore");
-    if (!(await fs.pathExists(gitignorePath))) {
-      this.ignoreFilter = null;
-      return;
-    }
-
-    try {
-      const content = await fs.readFile(gitignorePath, "utf-8");
-      this.ignoreFilter = ignore().add(content);
-    } catch {
-      this.ignoreFilter = null;
-    }
   }
 
   /**

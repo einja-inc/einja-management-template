@@ -179,6 +179,27 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
   const jsonProcessor = new JsonProcessor();
   const orphanCleaner = new OrphanCleaner(cwd, fileFilter);
 
+  // 2.5. .gitignore から .claude/ 行を自動除去
+  try {
+    const gitignorePath = path.join(cwd, ".gitignore");
+    if (await fs.pathExists(gitignorePath)) {
+      const gitignoreContent = await fs.readFile(gitignorePath, "utf-8");
+      const lines = gitignoreContent.split("\n");
+      const claudePattern = /^\s*\.claude\/?\s*$/;
+      const filteredLines = lines.filter((line) => !claudePattern.test(line));
+      if (filteredLines.length !== lines.length) {
+        if (options.dryRun) {
+          log(chalk.yellow("  ⚠️  .gitignore から .claude/ 行を除去予定"), options);
+        } else {
+          await fs.writeFile(gitignorePath, filteredLines.join("\n"), "utf-8");
+          log(chalk.cyan("  ✓ .gitignore から .claude/ 行を除去しました"), options);
+        }
+      }
+    }
+  } catch {
+    // .gitignore の読み書き失敗は sync 処理をブロックしない
+  }
+
   // 3. メタデータ読み込み
   spinner.start("メタデータを読み込み中...");
   const metadata = await metadataManager.load();

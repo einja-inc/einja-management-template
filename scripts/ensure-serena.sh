@@ -70,7 +70,7 @@ uvx --from git+https://github.com/oraios/serena \
   --port "$_port" \
   --context claude-code \
   --project "$_SERENA_BASE" \
-  > /dev/null 2>&1 &
+  < /dev/null > /dev/null 2>&1 &
 _serena_pid=$!
 disown
 

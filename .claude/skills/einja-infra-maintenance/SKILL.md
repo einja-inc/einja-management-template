@@ -55,6 +55,17 @@ for f in .env .env.local .env.keys .env.personal .env.develop .env.staging .env.
   [ -f "$f" ] && echo "✅ $f" || echo "❌ $f"
 done
 
+# === 旧名envファイル検出（リネーム案内） ===
+LEGACY_ENV_MAP=".env.development:.env.develop"
+for pair in $LEGACY_ENV_MAP; do
+  old="${pair%%:*}"; new="${pair##*:}"
+  if [ -f "$old" ] && [ ! -f "$new" ]; then
+    echo "⚠️ 旧名ファイル検出: $old → $new にリネームしてください (git mv $old $new)"
+  elif [ -f "$old" ] && [ -f "$new" ]; then
+    echo "⚠️ 旧名ファイル残存: $old は不要です（$new が正）。削除してください (git rm $old)"
+  fi
+done
+
 # === CLI存在確認 ===
 for cmd in vercel neonctl gh dotenvx docker; do
   command -v "$cmd" >/dev/null 2>&1 && echo "✅ $cmd" || echo "❌ $cmd"
@@ -83,11 +94,11 @@ fi
 
 # === トークン有効性検証（.env.personal 存在時のみ） ===
 if [ -f ".env.personal" ]; then
-  # 並行実行で高速化（各コマンドにタイムアウト設定）
-  timeout 5 gh auth status 2>/dev/null && echo "✅ GITHUB_TOKEN 有効" || echo "⚠️ GITHUB_TOKEN 無効/未設定" &
-  timeout 5 vercel whoami 2>/dev/null && echo "✅ VERCEL_TOKEN 有効" || echo "⚠️ VERCEL_TOKEN 無効/未設定" &
+  # 並行実行で高速化
+  gh auth status 2>/dev/null && echo "✅ GITHUB_TOKEN 有効" || echo "⚠️ GITHUB_TOKEN 無効/未設定" &
+  vercel whoami 2>/dev/null && echo "✅ VERCEL_TOKEN 有効" || echo "⚠️ VERCEL_TOKEN 無効/未設定" &
   if [ -n "$NEON_API_KEY" ]; then
-    timeout 5 neonctl projects list --api-key "$NEON_API_KEY" >/dev/null 2>&1 && echo "✅ NEON_API_KEY 有効" || echo "⚠️ NEON_API_KEY 無効/期限切れ" &
+    neonctl projects list --api-key "$NEON_API_KEY" >/dev/null 2>&1 && echo "✅ NEON_API_KEY 有効" || echo "⚠️ NEON_API_KEY 無効/期限切れ" &
   else
     echo "⚠️ NEON_API_KEY 未設定"
   fi
@@ -208,7 +219,7 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
 5. API検証（可能な場合）:
    - GitHub: `gh auth status`
    - Vercel: `vercel whoami`
-   - Neon: `neonctl projects list --api-key $NEON_API_KEY`
+   - Neon: `neonctl projects list --api-key $NEON_API_KEY --org-id $NEON_ORG_ID`
 
 #### チーム共有設定変更
 1. AskUserQuestionで対象ファイルを選択（.env.local / .env.develop / .env.production / .env.preview）
@@ -244,6 +255,8 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
 
 ### 実行手順
 
+> **非対話モードの必須オプション**: チームアカウントで `--yes` を使用する場合、`--scope $VERCEL_TEAM_SLUG` の指定が必須。省略すると `missing_scope` エラーになる。`$VERCEL_TEAM_SLUG` は `.env.personal` または `vercel team ls` から取得する。
+
 #### 新規プロジェクト作成（初回のみ）
 > Vercelにプロジェクトが存在しない場合（ゼロ状態）のみ実行。VERCEL_TOKEN 取得済みが前提。
 
@@ -264,7 +277,7 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
 
 2. **既存プロジェクトの確認**:
    ```bash
-   vercel project ls
+   vercel project ls --scope $VERCEL_TEAM_SLUG
    ```
    既にプロジェクトが存在する場合は「既にVercelに存在します。スキップしますか？」と確認。
 
@@ -276,10 +289,8 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
    # apps/ 配下のディレクトリを動的取得
    APP_DIRS=$(ls -d apps/*/  2>/dev/null | xargs -I{} basename {})
    for APP_NAME in $APP_DIRS; do
-     cd "apps/$APP_NAME"
-     vercel link --project="${BASE_NAME}-${APP_NAME}" --yes
-     vercel git connect "https://github.com/${GH_ORG}/${GH_REPO}" --yes
-     cd ../..
+     (cd "apps/$APP_NAME" && vercel link --project="${BASE_NAME}-${APP_NAME}" --yes --scope $VERCEL_TEAM_SLUG)
+     (cd "apps/$APP_NAME" && vercel git connect "https://github.com/${GH_ORG}/${GH_REPO}" --yes --scope $VERCEL_TEAM_SLUG)
    done
    ```
    > `vercel link` はプロジェクトが存在しない場合に自動作成する（`vercel-cli-reference.md` L287）
@@ -291,10 +302,11 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
    for APP_NAME in $APP_DIRS; do
      PROJECT_ID=$(cat "apps/$APP_NAME/.vercel/project.json" | jq -r '.projectId')
      VERCEL_ORG_ID=$(cat "apps/$APP_NAME/.vercel/project.json" | jq -r '.orgId')
-     curl -X PATCH "https://api.vercel.com/v9/projects/$PROJECT_ID?teamId=$VERCEL_ORG_ID" \
-       -H "Authorization: Bearer $VERCEL_TOKEN" \
+     # 注意: $VERCEL_TOKEN は事前に export されていること
+     curl -s -X PATCH "https://api.vercel.com/v9/projects/${PROJECT_ID}?teamId=${VERCEL_ORG_ID}" \
+       -H "Authorization: Bearer ${VERCEL_TOKEN}" \
        -H "Content-Type: application/json" \
-       -d "{\"rootDirectory\": \"apps/$APP_NAME\"}"
+       -d "{\"rootDirectory\": \"apps/${APP_NAME}\"}"
    done
    ```
 
@@ -313,13 +325,14 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
 #### 初期設定
 1. VERCEL_TOKEN確認 → 未設定時はURL案内 + `.env.personal`保存
 2. AskUserQuestionでアプリ選択（web / admin）
-3. `vercel link --project=$NAME --yes` で接続
+3. `vercel link --project=$NAME --yes --scope $VERCEL_TEAM_SLUG` で接続
 4. Root Directory設定:
    ```bash
-   curl -X PATCH "https://api.vercel.com/v9/projects/$PROJECT_ID?teamId=$VERCEL_ORG_ID" \
-     -H "Authorization: Bearer $VERCEL_TOKEN" \
+   # 注意: $VERCEL_TOKEN は事前に export されていること
+   curl -s -X PATCH "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}" \
+     -H "Authorization: Bearer ${VERCEL_TOKEN}" \
      -H "Content-Type: application/json" \
-     -d '{"rootDirectory": "apps/$APP_NAME"}'
+     -d "{\"rootDirectory\": \"apps/${APP_NAME}\"}"
    ```
 5. `.vercel/project.json` からプロジェクトIDとORG IDを自動取得:
    ```bash
@@ -329,19 +342,19 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
 6. 取得結果を表示し、GitHub Secretsへの登録を提案（→ カテゴリ5）
 
 #### 環境変数同期
-> **注意**: CI/CDではmainブランチのみ`vercel env add`で自動同期。develop/staging/PRは`--env`実行時注入。
+> **重要**: `vercel env add` は**production環境のみ**で実行する。preview環境では `git_branch_required` エラーが発生するため、develop/staging/PRの環境変数はCI/CDワークフローの `vercel deploy --env` で実行時注入する。
 > 以下の手動同期は**初回セットアップ時のみ**実行。
 
 1. `.env.keys`からDOTENV_PRIVATE_KEY_*を抽出
 2. AskUserQuestionで同期対象を確認（値はマスク表示）
-3. 承認後、`vercel env rm` + `vercel env add` でVercelに同期
-4. 設定結果を `vercel env ls` で確認
+3. 承認後、`vercel env rm --scope $VERCEL_TEAM_SLUG` + `vercel env add --scope $VERCEL_TEAM_SLUG` でVercelに同期
+4. 設定結果を `vercel env ls --scope $VERCEL_TEAM_SLUG` で確認
 
 > **詳細手順**: `docs/einja/instructions/vercel-cli-reference.md`の「環境変数同期自動化」を参照
 
 #### デプロイ状態確認
 ```bash
-vercel ls
+vercel ls --scope $VERCEL_TEAM_SLUG
 ```
 
 ### 参照ドキュメント
@@ -360,6 +373,8 @@ vercel ls
 
 ### 実行手順
 
+> **非対話モードの必須オプション**: 複数のOrganizationに所属している場合、`--org-id $NEON_ORG_ID` を指定しないと対話プロンプトでスタックする。`$NEON_ORG_ID` は `.env.personal` から取得する。
+
 #### 初期設定
 1. NEON_API_KEY確認 → 未設定時はURL案内 + `.env.personal`保存
    - 取得URL: https://console.neon.tech/app/settings/api-keys
@@ -367,19 +382,21 @@ vercel ls
 
 2. **既存プロジェクトの確認**:
    ```bash
-   neonctl projects list --api-key $NEON_API_KEY
+   neonctl projects list --api-key $NEON_API_KEY --org-id $NEON_ORG_ID
    ```
    既存プロジェクトがあれば一覧表示し、使用するプロジェクトをAskUserQuestionで確認。
-   既存プロジェクトを使用する場合 → `neonctl projects get $PROJECT_ID` でIDを取得してステップ4へ。
+   既存プロジェクトを使用する場合 → `neonctl projects get $PROJECT_ID --api-key $NEON_API_KEY --org-id $NEON_ORG_ID` でIDを取得してステップ4へ。
 
 3. **プロジェクト名の推定・確認・作成**:
    共通推定ロジック（カテゴリ3と同様）で `$BASE_NAME` を取得。AskUserQuestionで確認（デフォルト値として提示）。
    ```bash
-   neonctl projects create --name "$NEON_PROJECT_NAME" --region-id aws-ap-northeast-1 --api-key $NEON_API_KEY
+   neonctl projects create --name "$NEON_PROJECT_NAME" --region-id aws-ap-northeast-1 --api-key $NEON_API_KEY --org-id $NEON_ORG_ID
    ```
+   > **リージョン選択**: `aws-ap-northeast-1`（東京）が利用不可の場合（プランによる制限）、最寄りの `aws-ap-southeast-1`（シンガポール）をフォールバックとして使用する。利用可能なリージョンは `neonctl regions list --api-key $NEON_API_KEY` で確認できる。
+
    作成後、`neonctl projects list` でプロジェクトIDを取得:
    ```bash
-   NEON_PROJECT_ID=$(neonctl projects list --api-key $NEON_API_KEY --output json | jq -r ".[] | select(.name==\"$NEON_PROJECT_NAME\") | .id")
+   NEON_PROJECT_ID=$(neonctl projects list --api-key $NEON_API_KEY --org-id $NEON_ORG_ID --output json | jq -r ".[] | select(.name==\"$NEON_PROJECT_NAME\") | .id")
    ```
 
 4. **`.env.preview` に自動設定** → dotenvx暗号化:
@@ -400,19 +417,19 @@ vercel ls
 #### ブランチ管理
 ```bash
 # 一覧
-neonctl branches list --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY
+neonctl branches list --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY --org-id $NEON_ORG_ID
 
 # 作成
-neonctl branches create --project-id $NEON_PROJECT_ID --name $NAME --api-key $NEON_API_KEY
+neonctl branches create --project-id $NEON_PROJECT_ID --name $NAME --api-key $NEON_API_KEY --org-id $NEON_ORG_ID
 
 # 削除
-neonctl branches delete $BRANCH_ID --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY
+neonctl branches delete $BRANCH_ID --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY --org-id $NEON_ORG_ID
 ```
 
 #### 接続文字列取得
 ```bash
 # CLI（単一ブランチ）
-neonctl connection-string <branch-name> --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY
+neonctl connection-string <branch-name> --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY --org-id $NEON_ORG_ID
 
 # API（複数ブランチ一括取得時）
 curl -s "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/connection_uri?branch_id=$BRANCH_ID&database_name=neondb&role_name=$ROLE_NAME" \
@@ -420,8 +437,8 @@ curl -s "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/connection_u
 ```
 
 > **pooled/unpooled接続の使い分け**:
-> - **マイグレーション用（unpooled）**: `neonctl connection-string <branch> --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY`（デフォルトはpooled=false）
-> - **アプリruntime用（pooled）**: `neonctl connection-string <branch> --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY --pooled`
+> - **マイグレーション用（unpooled）**: `neonctl connection-string <branch> --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY --org-id $NEON_ORG_ID`（デフォルトはpooled=false）
+> - **アプリruntime用（pooled）**: `neonctl connection-string <branch> --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY --org-id $NEON_ORG_ID --pooled`
 > - CI/CDワークフローではマイグレーション時にunpooled、アプリビルド時にpooled接続を使い分けている
 
 > **注意**: 孤立ブランチのクリーンアップは`cleanup-pr-preview-db.yml`ワークフローが自動実行するため、このSkillでは手動クリーンアップを提供しない。
@@ -473,12 +490,12 @@ done
 AskUserQuestionで値を入力してもらう。取得手順:
 - Vercel Dashboard（https://vercel.com/account/tokens）> 「Create Token」
 - Scope: Full Account を選択
-- 入力後、`vercel whoami --token $TOKEN` で有効性を自動検証
+- 入力後、`vercel whoami --token $VERCEL_TOKEN` で有効性を自動検証
 
 2-b. `VERCEL_ORG_ID`（自動取得）:
 ```bash
-# apps/web/.vercel/project.json から取得（vercel link 実行済みの場合）
-VERCEL_ORG_ID=$(cat apps/web/.vercel/project.json 2>/dev/null | jq -r '.orgId')
+# apps/ 配下で最初に見つかった .vercel/project.json から取得（vercel link 実行済みの場合）
+VERCEL_ORG_ID=$(for d in apps/*/; do [ -f "${d}.vercel/project.json" ] && jq -r '.orgId' "${d}.vercel/project.json" 2>/dev/null && break; done)
 # 未取得の場合はAPI経由
 if [ -z "$VERCEL_ORG_ID" ] || [ "$VERCEL_ORG_ID" = "null" ]; then
   VERCEL_ORG_ID=$(curl -s "https://api.vercel.com/v2/teams" \
@@ -514,17 +531,32 @@ gh secret set TURBO_TOKEN --body "$VERCEL_TOKEN"
 echo "✅ TURBO_TOKEN を設定しました（VERCEL_TOKENと同一値）"
 ```
 
-3-b. `TURBO_TEAM`（自動取得）:
+3-b. `TURBO_TEAM`（自動取得・設定）:
+
+`npx turbo link` は対話モードでスタックすることがあるため、`.turbo/config.json` を直接作成する:
 ```bash
-TURBO_TEAM=$(cat .turbo/config.json 2>/dev/null | jq -r '.teamId // empty')
-if [ -z "$TURBO_TEAM" ]; then
-  echo "⚠️ .turbo/config.json 未生成。先に npx turbo login && npx turbo link を実行します"
-  npx turbo login && npx turbo link
-  TURBO_TEAM=$(cat .turbo/config.json | jq -r '.teamId')
+# VERCEL_ORG_IDはapps/*/.vercel/project.jsonから取得済み（Step 2-b）
+TURBO_TEAM="$VERCEL_ORG_ID"
+TURBO_TEAM_SLUG=$(vercel team ls --token $VERCEL_TOKEN 2>/dev/null | grep -E '^\s+\S+' | head -1 | awk '{print $1}')
+# フォールバック: team slugが取得できない場合はVercel Dashboard (Settings > General > Team URL)から確認
+if [ -z "$TURBO_TEAM_SLUG" ]; then
+  echo "⚠️ TURBO_TEAM_SLUGを取得できません。AskUserQuestionでチームslugを確認してください"
 fi
+
+# .turbo/config.json を直接作成（npx turbo linkの代替）
+mkdir -p .turbo
+cat > .turbo/config.json <<EOF
+{
+  "teamId": "$TURBO_TEAM",
+  "teamSlug": "$TURBO_TEAM_SLUG"
+}
+EOF
+
 gh secret set TURBO_TEAM --body "$TURBO_TEAM"
 echo "✅ TURBO_TEAM = $TURBO_TEAM を設定しました"
 ```
+
+> **注意**: `npx turbo link` は非対話モードが不安定なため使用しない。`.turbo/config.json` を直接作成することで確実に設定できる。
 
 ### 参照ドキュメント
 - `docs/einja/instructions/deployment-setup.md`（セクション6: GitHub Secrets登録）
@@ -542,8 +574,19 @@ node --version
 pnpm --version
 
 # 環境変数ファイル
-for f in .env .env.local .env.keys .env.personal; do
+for f in .env .env.local .env.keys .env.personal .env.develop .env.staging .env.production .env.preview; do
   [ -f "$f" ] && echo "✅ $f" || echo "❌ $f"
+done
+
+# 旧名envファイル検出
+LEGACY_ENV_MAP=".env.development:.env.develop"
+for pair in $LEGACY_ENV_MAP; do
+  old="${pair%%:*}"; new="${pair##*:}"
+  if [ -f "$old" ] && [ ! -f "$new" ]; then
+    echo "⚠️ 旧名ファイル検出: $old → $new にリネームしてください (git mv $old $new)"
+  elif [ -f "$old" ] && [ -f "$new" ]; then
+    echo "⚠️ 旧名ファイル残存: $old は不要です（$new が正）。削除してください (git rm $old)"
+  fi
 done
 
 # Docker/PostgreSQL
@@ -568,11 +611,11 @@ fi
 
 # === トークン有効性検証（.env.personal 存在時のみ） ===
 if [ -f ".env.personal" ]; then
-  # 並行実行で高速化（各コマンドにタイムアウト設定）
-  timeout 5 gh auth status 2>/dev/null && echo "✅ GITHUB_TOKEN 有効" || echo "⚠️ GITHUB_TOKEN 無効/未設定" &
-  timeout 5 vercel whoami 2>/dev/null && echo "✅ VERCEL_TOKEN 有効" || echo "⚠️ VERCEL_TOKEN 無効/未設定" &
+  # 並行実行で高速化
+  gh auth status 2>/dev/null && echo "✅ GITHUB_TOKEN 有効" || echo "⚠️ GITHUB_TOKEN 無効/未設定" &
+  vercel whoami 2>/dev/null && echo "✅ VERCEL_TOKEN 有効" || echo "⚠️ VERCEL_TOKEN 無効/未設定" &
   if [ -n "$NEON_API_KEY" ]; then
-    timeout 5 neonctl projects list --api-key "$NEON_API_KEY" >/dev/null 2>&1 && echo "✅ NEON_API_KEY 有効" || echo "⚠️ NEON_API_KEY 無効/期限切れ" &
+    neonctl projects list --api-key "$NEON_API_KEY" >/dev/null 2>&1 && echo "✅ NEON_API_KEY 有効" || echo "⚠️ NEON_API_KEY 無効/期限切れ" &
   else
     echo "⚠️ NEON_API_KEY 未設定"
   fi
@@ -582,12 +625,12 @@ fi
 
 #### Vercel
 ```bash
-vercel ls
+vercel ls --scope $VERCEL_TEAM_SLUG
 ```
 
 #### Neon
 ```bash
-neonctl branches list --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY
+neonctl branches list --project-id $NEON_PROJECT_ID --api-key $NEON_API_KEY --org-id $NEON_ORG_ID
 ```
 
 #### GitHub
@@ -685,15 +728,37 @@ gh run list --limit 5
 
 #### リポジトリ設定（初回のみ）
 
-mainブランチの保護ルールを設定する。`publish-packages.yml` 等のワークフローがmainに直接push（バージョンバンプ・タグ作成）するため、GitHub Actionsにbypass権限が必要。
+##### ブランチ作成
+
+develop / staging ブランチが存在しない場合、mainから作成する。
 
 ```bash
-# 現在のブランチ保護ルールを確認
-gh api repos/{owner}/{repo}/branches/main/protection
+# develop / staging ブランチの存在確認・作成
+for BRANCH in develop staging; do
+  if gh api "repos/{owner}/{repo}/branches/$BRANCH" >/dev/null 2>&1; then
+    echo "✅ $BRANCH ブランチは既に存在します"
+  else
+    echo "📝 $BRANCH ブランチを main から作成します..."
+    MAIN_SHA=$(gh api "repos/{owner}/{repo}/git/refs/heads/main" --jq '.object.sha')
+    gh api "repos/{owner}/{repo}/git/refs" -X POST \
+      -f "ref=refs/heads/$BRANCH" \
+      -f "sha=$MAIN_SHA"
+    echo "✅ $BRANCH ブランチを作成しました"
+  fi
+done
+```
 
-# ブランチ保護ルールを設定（GitHub Actionsにbypass権限付与）
-gh api repos/{owner}/{repo}/branches/main/protection -X PUT \
-  --input - <<'EOF'
+##### ブランチ保護ルール
+
+mainブランチとstagingブランチにはPRレビュー承認を必須とし、developブランチはPR必須だが承認不要とする。`publish-packages.yml` 等のワークフローがmainに直接push（バージョンバンプ・タグ作成）するため、GitHub Actionsにbypass権限が必要。
+
+**main / staging ブランチ（承認必須）:**
+
+```bash
+for BRANCH in main staging; do
+  echo "📝 $BRANCH ブランチの保護ルールを設定します..."
+  gh api "repos/{owner}/{repo}/branches/$BRANCH/protection" -X PUT \
+    --input - <<'EOF'
 {
   "required_status_checks": {
     "strict": true,
@@ -714,9 +779,42 @@ gh api repos/{owner}/{repo}/branches/main/protection -X PUT \
   "allow_deletions": false
 }
 EOF
+  echo "✅ $BRANCH ブランチの保護ルールを設定しました"
+done
+```
+
+**develop ブランチ（承認不要・PR必須）:**
+
+```bash
+echo "📝 develop ブランチの保護ルールを設定します..."
+gh api "repos/{owner}/{repo}/branches/develop/protection" -X PUT \
+  --input - <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": []
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": false,
+    "require_code_owner_reviews": false,
+    "require_last_push_approval": false,
+    "required_approving_review_count": 0,
+    "bypass_pull_request_allowances": {
+      "apps": ["github-actions"]
+    }
+  },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+EOF
+echo "✅ develop ブランチの保護ルールを設定しました"
 ```
 
 > **重要**: `bypass_pull_request_allowances.apps` に `github-actions` を含めること。これがないと `publish-packages.yml` のCommit and tagステップが `GH006: Protected branch update failed` で失敗する。
+
+> **develop ブランチ**: `required_approving_review_count: 0` により、PRの作成は必須だがレビュー承認なしでマージ可能。開発フローの迅速化のため承認を省略している。
 
 #### ワークフロー状態確認
 ```bash
@@ -749,6 +847,9 @@ gh run list --status=in_progress
 | `neonctl: authentication failed` | → カテゴリ5でNEON_API_KEY更新 |
 | `Permission denied` | → `.github/workflows/`のpermissions設定確認を案内 |
 | `GH006: Protected branch update failed` | → カテゴリ7（リポジトリ設定）でGitHub Actionsのbypass権限を設定 |
+| `prisma migrate deploy` 失敗 / DBスキーマ不整合 | Neonブランチのマイグレーション履歴を確認。`db:push`（スキーマ直接プッシュ）が使われていた場合は `db:migrate:deploy` に変更する |
+| `database "neondb" does not exist` / DB接続エラー | Neonブランチが正しく作成されているか確認。NEON_API_KEY・NEON_PROJECT_IDの設定を確認 |
+| Neon `connection_uri` APIが空URLを返す | `role_name=neondb_owner` パラメータが未指定。全API呼び出しに追加する |
 | その他 | エラーログ全文を表示し、対処方法をAskUserQuestionで相談 |
 
 #### 手動トリガー
@@ -809,7 +910,7 @@ gh workflow view <workflow-file>
 | `VERCEL_TOKEN` | Vercel CLI認証 | https://vercel.com/account/tokens |
 | `NEON_API_KEY` | Neon CLI認証 | https://console.neon.tech/app/settings/api-keys |
 | `GITHUB_TOKEN` | GitHub API認証 | https://github.com/settings/tokens/new |
-| `VERCEL_ORG_ID` | Vercel組織ID | `apps/web/.vercel/project.json` の `orgId` |
+| `VERCEL_ORG_ID` | Vercel組織ID | `apps/*/.vercel/project.json` の `orgId` |
 
 ### 実行手順
 
@@ -888,6 +989,7 @@ gh workflow view <workflow-file>
 | API呼び出し失敗 | エラー内容表示 → リトライ or 代替手段提示 |
 | dotenvx復号失敗 | `.env.keys`確認 → 秘密鍵再設定ガイド |
 | ネットワークエラー | 3回リトライ → 失敗時は手動手順提示 |
+| macOSコマンド互換性 | GNU `timeout` は macOS に存在しない。タイムアウトが必要な場合はコマンドを直接実行し、ハング時はCtrl+Cで対処する |
 
 ---
 
@@ -899,6 +1001,24 @@ gh workflow view <workflow-file>
 - **初回セットアップ**: Skillでは初回セットアップ時のみ手動同期。以降はGitHub Actionsが自動管理
 - **Neonブランチクリーンアップ**: `cleanup-pr-preview-db.yml`が定期実行。Skillでは手動クリーンアップは提供しない
 - **GitHub Secrets更新**: Skillで設定した値はワークフローでそのまま使用される（同じdotenvxコマンド体系）
+
+---
+
+## CLI非対話モード トラブルシューティング
+
+CLIツールをClaude Code（非対話モード）から実行する際の既知の問題と対処法。**大半がCLIの非対話モード対応不足（scope・org-id・branchの明示指定が必要）に起因する。**
+
+| # | 症状 | 原因 | 対処 |
+|---|------|------|------|
+| 1 | `timeout 5 gh auth status` → `command not found: timeout` | macOSのzshにはGNU `timeout` がない | `timeout` を使わず直接実行する |
+| 2 | `neonctl projects list` が対話プロンプトでスタック | 複数のOrganizationに所属しており、`--org-id` 未指定で対話モードになる | 全neonctlコマンドに `--org-id $NEON_ORG_ID` を明示指定する |
+| 3 | `neonctl projects create --region-id aws-ap-northeast-1` → `requested region not found` | orgのプランで東京リージョンが対象外 | 最寄りの `aws-ap-southeast-1`（シンガポール）でフォールバック。`neonctl regions list` で確認可能 |
+| 4 | `vercel link --project=... --yes` → `missing_scope` エラー | チームアカウントで非対話モード（`--yes`）の場合、scopeが自動選択されない | 全vercelコマンドに `--scope $VERCEL_TEAM_SLUG` を追加 |
+| 5 | `curl -H "Authorization: Bearer $VERCEL_TOKEN"` → `forbidden` / `missingToken` | Bash変数を1行で代入＋使用すると展開タイミングで失敗する | 変数は事前にexportしておくか、`${VERCEL_TOKEN}` 形式で使用する |
+| 6 | `npx turbo link` がVercel scope選択で無限ループ（1.3GBログ生成） | `--yes` フラグが効かず、対話選択をスキップできない | `.turbo/config.json` を `{"teamId":"...","teamSlug":"..."}` で手動作成する |
+| 7 | `vercel env add ... preview` → `git_branch_required` | preview環境では対象ブランチの指定が必須 | production環境のみ `vercel env add` で設定。preview/staging/developはCI/CDの `--env` 実行時注入で対応 |
+| 8 | PRプレビューCIでDBマイグレーションが適用されず失敗 | `pnpm db:push`（スキーマ直接プッシュ）を使用しており、マイグレーション履歴テーブルに記録されない | `pnpm db:migrate:deploy`（Prisma migrate deploy）に変更。本番・ステージングと同じマイグレーション方式に統一する |
+| 9 | Neon `connection_uri` APIが空/エラーを返す | `role_name` パラメータが未指定。Neon APIは `role_name` なしだとDB URLを返せない | 全ての `connection_uri` API呼び出しに `&role_name=neondb_owner` を追加する |
 
 ---
 

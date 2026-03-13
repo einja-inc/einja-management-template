@@ -340,6 +340,74 @@ function syncTemplatePackageJson() {
 	}
 }
 
+/**
+ * ルート直下のホワイトリスト未登録エントリを検出して警告
+ */
+function detectUnregisteredEntries() {
+	const entries = fs.readdirSync(projectRoot, { withFileTypes: true });
+
+	// mappings と fileMappings からトップレベルのエントリ名を収集
+	const whitelistedTopLevel = new Set();
+
+	// ディレクトリマッピングのソースから最上位パスを抽出
+	for (const mapping of mappings) {
+		const relativeSrc = path.relative(projectRoot, mapping.src);
+		whitelistedTopLevel.add(relativeSrc.split(path.sep)[0]);
+	}
+
+	// ファイルマッピングのソースからトップレベル名を抽出
+	for (const fileMapping of fileMappings) {
+		const relativeSrc = path.relative(projectRoot, fileMapping.src);
+		whitelistedTopLevel.add(relativeSrc.split(path.sep)[0]);
+	}
+
+	// 意図的に除外しているルート直下エントリ（警告抑制用）
+	// create-app テンプレートで管理されるエントリも含む（このスクリプトのホワイトリスト外のため）
+	const knownIgnoreList = new Set([
+		// ビルド成果物・キャッシュ
+		"node_modules", ".next", "out", "dist", "build", ".turbo",
+		// 一時ファイル
+		"log", "tmp", "tsconfig.tsbuildinfo", "package-lock.json",
+		// 環境変数
+		".env", ".env.develop", ".env.example", ".env.keys", ".env.local",
+		".env.personal", ".env.personal.example", ".env.preview",
+		".env.production", ".env.staging",
+		// create-app テンプレートで管理
+		"apps", "packages", "prisma", "public", "test",
+		".changeset", ".github", ".husky", ".serena",
+		"package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml",
+		"tsconfig.json", "turbo.json", "biome.json",
+		"next.config.ts", "postcss.config.cjs", "vitest.config.ts",
+		"docker-compose.yml", "components.json",
+		".gitignore", ".npmrc",
+		".biomeignore", ".dockerignore", ".gitattributes",
+		".lintstagedrc.js", ".node-version",
+		"README.md", "CLAUDE.md", "worktree.config.json",
+		// プロジェクト固有
+		"modifications", "qa-tests", ".einja-sync.json", ".vibe-kanban.json",
+		// IDE・ツール固有
+		".cursor", ".git",
+		// ローカル実行環境
+		".playwright-mcp", ".serena-port",
+	]);
+
+	const unregistered = [];
+
+	for (const entry of entries) {
+		if (entry.name === "." || entry.name === "..") continue;
+		if (whitelistedTopLevel.has(entry.name)) continue;
+		if (knownIgnoreList.has(entry.name)) continue;
+		unregistered.push(entry.name);
+	}
+
+	if (unregistered.length > 0) {
+		console.log("\n⚠ ホワイトリスト未登録のエントリを検出:");
+		for (const name of unregistered) {
+			console.log(`  - ${name}（dev-cliプリセットに含めるべきか確認してください）`);
+		}
+	}
+}
+
 try {
 	// 1. マーカーバリデーション
 	validateMarkers();
@@ -350,6 +418,10 @@ try {
 	// 3. テンプレート package.json の scripts 同期
 	console.log("\nテンプレート同期:");
 	syncTemplatePackageJson();
+
+	// 4. ルート直下の未登録エントリ検出
+	console.log("\n未登録エントリチェック:");
+	detectUnregisteredEntries();
 } catch (error) {
 	console.error("❌ エラー:", error);
 	process.exit(1);

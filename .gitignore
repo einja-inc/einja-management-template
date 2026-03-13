@@ -97,3 +97,7 @@ modifications/
 # Playwright MCP一時ファイル
 /tmp/
 .playwright-mcp/
+
+# Claude-Mem: shared-memory.json のみコミット対象
+.claude-mem/*
+!.claude-mem/shared-memory.json

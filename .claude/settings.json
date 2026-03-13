@@ -1,7 +1,8 @@
 {
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_TEAMMATE_MODE": "tmux"
+    "CLAUDE_CODE_TEAMMATE_MODE": "tmux",
+    "CLAUDE_MEM_DATA_DIR": ".claude-mem"
   },
   "includeCoAuthoredBy": false,
   "permissions": {
@@ -208,8 +209,17 @@
   },
   "enabledPlugins": {
     "code-simplifier@claude-plugins-official": true,
+    "claude-mem@thedotmack": true,
     "einja-dev@einja-skills": true,
     "einja-marketing@einja-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "thedotmack": {
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem"
+      }
+    }
   },
   "plansDirectory": "docs/plans"
 }

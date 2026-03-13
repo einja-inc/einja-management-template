@@ -386,7 +386,7 @@ function detectUnregisteredEntries() {
 		// プロジェクト固有
 		"modifications", "qa-tests", ".einja-sync.json", ".vibe-kanban.json",
 		// IDE・ツール固有
-		".cursor", ".git",
+		".cursor", ".git", ".claude-mem",
 		// ローカル実行環境
 		".playwright-mcp", ".serena-port",
 	]);

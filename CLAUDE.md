@@ -47,7 +47,7 @@
 | `einja-issue-team-exec` | Agent TeamsによるIssue並列実行（tmux不要） |
 | `einja-task-exec` | タスクグループ実行（Skill tool） |
 | `einja-issue-spec-create` | Issue仕様書作成（Skill tool） |
-| `einja-review-code` | コード変更の完了レビュー（レビューサブエージェント + codex-agent並行） |
+| `einja-review-code` | コード変更の観点別並列レビュー（観点自動ピック + 並列サブエージェント + codex-agent） |
 | `einja-review-plan` | Planレビュー（ExitPlanMode前） |
 
 #### サブエージェント質問プロトコル（PENDING_QUESTIONS）
@@ -106,17 +106,10 @@
 
 | タスクID | 内容 | 実行方法 |
 |---------|------|---------|
-| 99-1 | コードレビュー [`einja-review-code` + `codex-agent`] | `einja-review-code` Skill（MAJOR → 修正→再レビュー）。Codex MCP有効時は `codex-agent` も並列実行。差分確認（`git diff --stat`）もここで実施 |
+| 99-1 | 観点別並列コードレビュー [`einja-review-code`] | `einja-review-code` Skill（観点自動ピック→並列サブエージェント→MAX判定。MAJOR → 修正→再レビュー）。差分確認（`git diff --stat`）もここで実施 |
 | 99-2 | 動作確認 [`Playwright MCP` / `Bash`] | API→curl、画面→Playwright MCP、スクリプト→実行確認 |
 | 99-G | **コミット承認ゲート** [`AskUserQuestion`] | 完了報告（①修正概要 ②レビュー結果とその修正内容サマリ ③動作確認結果サマリ）を出力した上で、AskUserQuestionで「コミット・プッシュしてよいか」を確認。承認されるまで99-3に進まない |
 | 99-3 | コミット・プッシュ [`einja-task-commit`] | `einja-task-commit` Skillで実行（内部で `pnpm prepush` を実行）。Skill内で `docs/einja/steering/commit-rules.md` を必ず参照すること |
-
-### 計画・進捗管理の規約
-
-| 種別 | 管理方法 | 管理者 |
-|------|---------|--------|
-| Plan | `docs/plans/YYYYMM/YYYYMMDD-機能名.plan.md`（承認後のタスク0でリネーム） | 親エージェント |
-| 進捗 | Task API（TaskCreate/TaskUpdate） | 親エージェント |
 
 ### TaskCreate タスク概要の記述ルール
 - タスク概要には使用するSkill名を `[Skill名]` 形式で含める
@@ -260,7 +253,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 
 実装フェーズの **99系タスク**（完了検証）をすべて実行・通過すること。
 
-- task-exec経由の場合: task-reviewerが品質チェック担当済みのため、99-1（コードレビュー）はスキップ可
+- task-exec経由の場合: task-reviewerが内部で`einja-review-code`を呼び出し済みのため、99-1（観点別並列コードレビュー）はスキップ可
 - 読み取り専用の作業: 99系タスク自体が不要
 
 <!-- @einja:project-private:start id="claude-md-project" -->

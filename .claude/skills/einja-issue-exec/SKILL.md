@@ -98,40 +98,47 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 
 1. `command -v tmux` で tmux の存在を確認
 2. **インストール済みの場合**: `tmux -V` でバージョン表示し、次のステップへ進む
-3. **未インストールの場合**: `uname -s` で OS を判定し、以下のフローで自動導入を提案
+3. **未インストールの場合**: OS を判定し自動インストールする
 
 **macOS（`uname -s` = `Darwin`）:**
-1. `command -v brew` で Homebrew を確認
-2. Homebrew あり:
-   - AskUserQuestion で「`brew install tmux` を実行してよいか？」確認 → 承認後に実行
-3. Homebrew なし:
-   - 以下を表示して**停止**:
-     > tmux のインストールには Homebrew が必要です。
-     > 以下のコマンドで Homebrew をインストール後、再度 issue-exec を実行してください:
-     > `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+- `brew install tmux` を実行（Homebrew がない場合は「Homebrew をインストールしてから再実行してください」と表示して**停止**）
 
 **Linux（`uname -s` = `Linux`）:**
-1. パッケージマネージャーを検出（上から優先）:
-   - `command -v apt-get` → `apt-get update && apt-get install -y tmux`
-   - `command -v dnf` → `dnf install -y tmux`
-   - `command -v yum` → `yum install -y tmux`
-   - いずれも検出できない場合 → 「対応パッケージマネージャーが見つかりません。手動で tmux をインストールしてください」と表示して**停止**
-2. 権限判定とインストール:
-   - `id -u` が 0（root）→ sudo 不要。AskUserQuestion で「`<pm> install tmux` を実行してよいか？」確認 → 承認後に実行
-   - root でない場合 → `sudo -n true 2>/dev/null` で sudo 権限を確認
-     - sudo 可能 → AskUserQuestion で「`sudo <pm> install tmux` を実行してよいか？」確認 → 承認後に実行
-     - sudo 不可 → AskUserQuestion で「tmux のインストールには sudo 権限が必要です。パスワード入力が求められる場合があります。`sudo <pm> install tmux` を実行しますか？それとも手動でインストールしますか？」と確認
-       - 手動を選択 → インストールコマンドを表示して**停止**
+- パッケージマネージャーを検出し自動インストール:
+  - `command -v apt-get` → `sudo apt-get update && sudo apt-get install -y tmux`
+  - `command -v dnf` → `sudo dnf install -y tmux`
+  - `command -v yum` → `sudo yum install -y tmux`
+  - いずれもない場合 → 「手動で tmux をインストールしてください」と表示して**停止**
 
-**その他（`MINGW*`, `MSYS*`, `CYGWIN*`, 不明な OS）:**
-- 以下を表示して**停止**:
-  > issue-exec は tmux を必須としており、この環境では利用できません。
-  > WSL2 環境での実行を推奨します。
-  > 代替: `einja-task-exec` Skill で個別タスクグループを逐次実行することは可能です。
+**その他（Windows等）:**
+- 「issue-exec は tmux を必須としており、この環境では利用できません。WSL2 環境での実行を推奨します。代替: `einja-task-exec` Skill で逐次実行可能」と表示して**停止**
 
 **インストール後の検証:**
-- `hash -r` で PATH をリフレッシュし、`command -v tmux && tmux -V` で成功確認
-- 失敗した場合 → 「tmux のインストールは完了しましたが、PATH に反映されていません。シェルを再起動して再度実行してください」と表示して**停止**
+- `hash -r && command -v tmux && tmux -V` で成功確認
+- 失敗した場合 → シェル再起動を案内して**停止**
+
+#### 1.5. tmux セッション確認
+
+1. `echo $TMUX` で現在 tmux セッション内かどうかを確認
+2. **セッション内の場合**: そのまま次のステップへ進む
+3. **セッション外の場合**: 以下を表示して**停止**:
+   > issue-exec は tmux セッション内で実行する必要があります。
+   > 現在の Claude Code を終了し、以下の手順で再起動してください:
+   >
+   > 1. この Claude Code セッションを終了（`/exit` または Ctrl+C）
+   > 2. tmux セッションを起動:
+   >    ```
+   >    tmux new-session -s einja
+   >    ```
+   > 3. tmux 内で Claude Code を再起動し、issue-exec を再実行:
+   >    ```
+   >    claude
+   >    ```
+   >
+   > 既存の tmux セッションがある場合:
+   > ```
+   > tmux attach-session -t einja
+   > ```
 
 #### 2. ディレクトリ準備
 - `~/.einja/sessions/` と `~/.einja/worktrees/` ディレクトリを確認・作成

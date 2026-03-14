@@ -19,62 +19,75 @@ description: "CI確認・自動修正の共通インナーSkill。プッシュ/P
 
 ## 処理フロー
 
-### Phase 1: PR検出
+### Phase 1: PR検出・CI実行モード決定
 
 ```bash
 # 現在ブランチのPR情報を取得
 gh pr view --json number,url,headRefName 2>/dev/null
 ```
 
-- `prNumber` パラメータ指定あり → そのPR番号を使用
+- `prNumber` パラメータ指定あり → そのPR番号を使用（**PRモード**）
 - `prNumber` 未指定 → 上記コマンドで自動検出
-- **PRなし or mainブランチ直プッシュ** → 以下を出力してスキップ終了:
-
-```markdown
-### CI確認: スキップ
-PRが存在しないため、CI確認をスキップしました。
-```
+  - PR検出成功 → **PRモード**
+  - PR不在 → **ブランチモード**（`gh run list` で直接監視）
 
 ---
 
 ### Phase 2: CI待機
+
+#### PRモードの場合
 
 ```bash
 # CI完了を待機（タイムアウト付き）
 timeout {timeout} gh pr checks {pr-number} --watch --fail-fast 2>/dev/null
 ```
 
-**`--watch` が動作しない場合のフォールバック:**
+`--watch` が失敗する場合はフォールバック（後述）へ。
 
-TTY環境問題で `--watch` が失敗する場合、以下のポーリング方式にフォールバック:
+#### ブランチモード（PR不在）の場合
+
+PRがないため `gh pr checks` は使えない。直接ワークフローランを監視する。
+
+#### フォールバック（共通）
+
+TTY環境問題で `--watch` が失敗する場合、またはブランチモードの場合、以下のポーリング方式を使用:
 
 ```bash
 # 最新プッシュのコミットSHAを取得
 COMMIT_SHA=$(git rev-parse HEAD)
+BRANCH=$(git branch --show-current)
 
 # 30秒間隔でポーリング（コミットSHAでフィルタ）
-gh run list --branch {branch} --commit ${COMMIT_SHA} --limit 1 --json databaseId,status,conclusion
+gh run list --branch ${BRANCH} --commit ${COMMIT_SHA} --limit 5 --json databaseId,status,conclusion,name
 ```
 
 - `status: in_progress` / `status: queued` / `status: pending` → 30秒待機して再確認
 - `status: completed` → Phase 3へ
 - `status: cancelled` → キャンセル報告して終了
+- **ランが0件**（CIが起動していない） → 60秒待機して再確認（最大2回）。それでも0件なら「CIが起動しませんでした」と報告して終了
 - タイムアウト到達 → タイムアウト報告して終了:
 
 ```markdown
 ### CI確認: タイムアウト
 
 CI完了待機が{timeout}秒でタイムアウトしました。
-手動で確認してください: {pr_url}
+手動で確認してください: {pr_url or branch_name}
 ```
 
 ---
 
 ### Phase 3: 結果判定
 
+#### PRモードの場合
 ```bash
-# CI結果を確認
 gh pr checks {pr-number} --json name,state,description
+```
+
+#### ブランチモードの場合
+```bash
+COMMIT_SHA=$(git rev-parse HEAD)
+BRANCH=$(git branch --show-current)
+gh run list --branch ${BRANCH} --commit ${COMMIT_SHA} --limit 5 --json databaseId,conclusion,name
 ```
 
 - **全チェック success** → 成功報告して終了:

@@ -404,8 +404,24 @@ async function main(): Promise<void> {
 		succeed("dotenvxは既にインストールされています");
 	}
 
-	// 7. .env.personal作成 & GITHUB_TOKEN設定（対話的）
-	step(7, "個人用トークン設定（.env.personal）...");
+	// 7. .env.keys 確認
+	step(7, ".env.keys（環境変数の秘密鍵）の確認...");
+
+	const envKeysPath = path.join(cwd, ".env.keys");
+	if (!fs.existsSync(envKeysPath)) {
+		warn(".env.keys が見つかりません");
+		console.log(colors.gray("  .env.keys は .env.local の復号に必要な秘密鍵ファイルです"));
+		console.log(colors.gray("  システム管理者から受け取ってプロジェクトルートに配置してください"));
+		console.log(colors.gray("  受け取り後、以下のコマンドで鍵をローテーションしてください:"));
+		console.log(colors.cyan("    pnpm env:rotate-secrets"));
+		console.log(colors.gray("  ※ .env.keys がなくても .env.example フォールバックで開発可能です"));
+		console.log(colors.gray("    （初回 pnpm dev 時に確認プロンプトが表示されます）\n"));
+	} else {
+		succeed(".env.keys が見つかりました");
+	}
+
+	// 8. .env.personal作成 & GITHUB_TOKEN設定（対話的）
+	step(8, "個人用トークン設定（.env.personal）...");
 
 	const envPersonalPath = path.join(cwd, ".env.personal");
 	const envPersonalExamplePath = path.join(cwd, ".env.personal.example");
@@ -510,8 +526,8 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// 8. direnv有効化
-	step(8, "direnvの有効化...");
+	// 9. direnv有効化
+	step(9, "direnvの有効化...");
 	try {
 		execSync("direnv allow", { cwd, stdio: "ignore" });
 		succeed("direnvを有効化しました");

@@ -53,7 +53,7 @@ const fileMappings: string[] = [
   "tsconfig.json", "turbo.json", "biome.json",
   "next.config.ts", "postcss.config.cjs", "vitest.config.ts",
   "docker-compose.yml", "components.json",
-  ".gitignore", ".envrc", ".npmrc",
+  ".gitignore", ".envrc", ".env.local", ".npmrc",
   ".biomeignore", ".dockerignore", ".gitattributes",
   ".lintstagedrc.js", ".node-version",
   ".mcp.json",
@@ -74,7 +74,7 @@ const knownIgnoreList: string[] = [
   // 一時ファイル
   "log", "tmp", "tsconfig.tsbuildinfo", "package-lock.json",
   // 環境変数
-  ".env", ".env.develop", ".env.example", ".env.keys", ".env.local",
+  ".env", ".env.develop", ".env.example", ".env.keys",
   ".env.personal", ".env.personal.example", ".env.preview",
   ".env.production", ".env.staging",
   // dev-cli sync で別途配布（.claude はホワイトリストに含まれるためここではルート直下のみ）

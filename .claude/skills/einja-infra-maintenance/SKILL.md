@@ -33,15 +33,56 @@ user-invocable: true
 
 ```mermaid
 graph TB
-    Start[Skill起動] --> Detect[Phase 1: 環境状態の自動検出]
+    Start[Skill起動] --> Intent{明示意図あり?}
+    Intent -->|あり| Detect
+    Intent -->|なし| Phase0{Phase 0: .env.keys存在?}
+    Phase0 -->|不在 worktree| TryCopy[main repoから自動コピー試行]
+    TryCopy -->|成功| Detect
+    TryCopy -->|失敗| Propose
+    Phase0 -->|不在 通常| Propose[環境セットアップモード提案]
+    Propose -->|承諾| Workflow[ワークフロー実行]
+    Propose -->|拒否| Detect
+    Phase0 -->|存在| Detect[Phase 1: 環境状態の自動検出]
     Detect --> Judge[Phase 2: 意図判定]
     Judge -->|意図が明確| Direct[該当カテゴリへ直接遷移]
-    Judge -->|意図が不明確| Menu[AskUserQuestion: メインメニュー]
-    Menu --> Cat[カテゴリ 1-8 選択]
-    Direct --> Exec[実行]
-    Cat --> Exec
-    Exec --> Result[結果報告]
+    Judge -->|意図が不明確| Menu[メインメニュー]
+    Menu -->|環境セットアップ| Workflow
+    Menu -->|カテゴリ1-8| Cat[カテゴリ実行]
+    Workflow --> Result[最終サマリー]
 ```
+
+---
+
+## Phase 0: 環境セットアップモード判定
+
+> Phase 1の前に実行する。ユーザーの発話に特定カテゴリへの明示意図がある場合はスキップする。
+
+### スキップ条件
+
+以下のいずれかに該当する場合、Phase 0をスキップしてPhase 1に直接進む:
+
+1. **明示意図あり**: ユーザーの発話に特定カテゴリへの意図がある（例: 「Vercelだけ設定したい」「GitHub Secretsを確認」「CIが失敗してる」）
+2. **`.env.keys`が存在**: 環境セットアップ済みと判断
+
+### 実行フロー
+
+1. `.env.keys` の存在を確認
+2. **worktree環境の場合**: メインリポジトリに `.env.keys` が存在するか確認し、存在すればコピーを試行
+   ```bash
+   # worktree検出（git worktree list --porcelain ベース）
+   MAIN_WORKTREE=$(git worktree list --porcelain 2>/dev/null | head -1 | sed 's/^worktree //')
+   CURRENT_DIR=$(pwd)
+   if [ -n "$MAIN_WORKTREE" ] && [ "$MAIN_WORKTREE" != "$CURRENT_DIR" ]; then
+     if [ -f "$MAIN_WORKTREE/.env.keys" ]; then
+       cp "$MAIN_WORKTREE/.env.keys" .env.keys
+       echo "✅ メインリポジトリから .env.keys をコピーしました"
+       # → Phase 1に進む
+     fi
+   fi
+   ```
+3. `.env.keys` が不在の場合: AskUserQuestionで環境セットアップモードを提案
+   - **承諾**: → `references/workflow-env-setup.md` を読み込んでワークフロー実行
+   - **拒否**: → Phase 1に進む（通常フロー）
 
 ---
 
@@ -148,7 +189,7 @@ Phase 1の検出結果から、推奨カテゴリにマーク（推奨）を付�
 
 | 検出結果 | 推奨カテゴリ |
 |---------|------------|
-| `.env.keys`不在 | ローカル環境セットアップ |
+| `.env.keys`不在 | 環境セットアップ（フルセットアップ） |
 | 開発サーバー停止中 + `.env.keys`存在 | ローカル環境セットアップ |
 | vercel CLI未インストール or 未リンク | Vercel管理 |
 | neonctl未インストール | Neon管理 |
@@ -161,6 +202,7 @@ Phase 1の検出結果から、推奨カテゴリにマーク（推奨）を付�
 
 | 選択肢 | description | Note: |
 |--------|------------|-------|
+| 環境セットアップ（フルセットアップ） | ゼロからの統合環境構築ワークフロー。ローカル→Docker→デプロイ設定→CI→外部サービス→デプロイ→動作確認を一連で実行 | .env.keys不在時に自動推奨。途中からの再開可能。各ステップでユーザー確認あり |
 | ローカル環境セットアップ | 初回セットアップ（pnpm dev:setup）、開発サーバー起動/停止/ログ確認 | .env.keys不在やDocker未起動の場合はここから。完了後にカテゴリ2へ誘導される |
 | 環境変数管理 | 個人トークン設定（.env.personal）、チーム共有設定変更、新規変数追加 | トークン未設定/無効の場合に推奨。pnpm env:updateでウィザード実行も可能 |
 | Vercel管理 | 新規プロジェクト作成、プロジェクトリンク、環境変数同期、デプロイ状態確認 | 初回はプロジェクト作成→リンク→env同期の順。Root Directory設定はAPI経由で自動実行 |
@@ -178,6 +220,7 @@ Phase 1の検出結果から、推奨カテゴリにマーク（推奨）を付�
 
 | カテゴリ | 概要 | 詳細 |
 |---------|------|------|
+| 環境セットアップ | ゼロからの統合環境構築ワークフロー（15ステップ） | → `references/workflow-env-setup.md` |
 | 1: ローカル環境セットアップ | 初回セットアップ、開発サーバー起動/停止 | → `references/category-1-local-setup.md` |
 | 2: 環境変数管理 | 個人トークン設定、チーム共有設定変更、新規変数追加 | → `references/category-2-env-variables.md` |
 | 3: Vercel管理 | プロジェクト作成・リンク、環境変数同期、デプロイ確認 | → `references/category-3-vercel.md` |

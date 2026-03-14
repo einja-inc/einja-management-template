@@ -142,7 +142,8 @@ AskUserQuestion:
 2. `git diff --stat` の変更ファイル一覧を各タスクにマッピングする
 3. **タスク単位で別々のコミットを作成**する（1タスク = 1コミットが基本）
 4. 複数タスクにまたがる共通変更は、最も関連の強いタスクのコミットに含める
-5. Planファイル自体やPlanに紐づかない変更（独立した修正等）は別コミットにまとめる
+5. **Planファイル自体は実装コミットに含める**（Planと実装を別コミットにしない）
+6. Planに紐づかない独立した変更がある場合は別コミットにまとめる
 
 ##### マッピングルール
 
@@ -150,6 +151,7 @@ AskUserQuestion:
 |------|------|
 | 1タスクの変更ファイルが明確 | そのタスク名をコミットメッセージに反映 |
 | 複数タスクが同一ファイルを変更 | 変更内容の主目的で判断し、1つのタスクに帰属させる |
+| Planファイル（`docs/plans/`） | **実装コミットに含める**（Planと実装を分けない） |
 | タスクに対応しない変更（設定変更等） | 別コミット（`chore:` or `docs:`）にまとめる |
 | タスクが細かすぎる（1-2行の変更） | 関連タスクとまとめて1コミットにしてよい |
 
@@ -233,7 +235,7 @@ QAフェーズで既に実行済みのため、重複実行は不要です。
 2. **typecheck**: TypeScript の型チェック
 3. **test**: 変更ファイルに関連するテストのみ実行（vitest related --run）
 
-`pnpm prepush` が失敗した場合は、エラー内容を報告して終了します。
+`pnpm prepush` が失敗した場合、`pnpm install` してリトライする（コマンド例参照）。リトライも失敗した場合はエラー内容を報告して終了。
 
 ---
 
@@ -267,7 +269,7 @@ EOF
 **直接呼び出しの場合**（prepush実行）:
 
 ```bash
-git add src/auth/login.ts src/auth/logout.ts && pnpm prepush && git commit -m "$(cat <<'EOF'
+git add src/auth/login.ts src/auth/logout.ts && (pnpm prepush || (pnpm install && pnpm prepush)) && git commit -m "$(cat <<'EOF'
 feat: ユーザー認証機能の追加
 
 - JWT認証の実装

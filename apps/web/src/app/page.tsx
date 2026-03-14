@@ -24,7 +24,7 @@ export default function Home() {
             管理画面テンプレート
           </h2>
           <p className="text-lg md:text-xl opacity-90 leading-relaxed">
-            Next.js 15 + TypeScript + Tailwind CSS + NextAuth を使用した
+            Next.js 16 + TypeScript + Tailwind CSS + NextAuth を使用した
             <br />
             モダンな管理画面テンプレートです
           </p>
@@ -34,7 +34,7 @@ export default function Home() {
           <div className="bg-white/10 p-4 md:p-6 rounded-lg backdrop-blur">
             <h3 className="text-lg md:text-xl font-semibold mb-3">🚀 技術スタック</h3>
             <ul className="text-sm leading-relaxed opacity-90">
-              <li>• Next.js 15 (App Router)</li>
+              <li>• Next.js 16 (App Router)</li>
               <li>• TypeScript (Strict Mode)</li>
               <li>• Tailwind CSS</li>
               <li>• NextAuth v5 (認証)</li>

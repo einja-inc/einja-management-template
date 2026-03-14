@@ -79,7 +79,8 @@
 5. リスク・不明点があればAskUserQuestionで確認する
    - 回答内容により再調査・再検討が必要なら 2〜4 に戻る
 6. planファイルに計画を記述
-6.5. planファイルのレビューを実施する [`einja-review-plan` + `codex-agent`]
+6.5. **【必須・自動実行】** planファイルのレビューを実施する [`einja-review-plan` + `codex-agent`]
+   - **ExitPlanMode前に必ず自動実行すること。ユーザーに指示されてから実行するのは禁止**
    - `einja-review-plan` Skillを呼び出す（レビューサブエージェント + codex-agent並行実行）
    - MAJOR判定時は親エージェントがplan修正→再レビュー（最大2回）。解消しない場合はレビュー結果付記でExitPlanMode
    - スキップ条件: 軽微な変更（1ファイル・10行以下）またはユーザー明示スキップ

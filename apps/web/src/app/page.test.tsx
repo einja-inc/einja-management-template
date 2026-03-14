@@ -20,7 +20,7 @@ describe("ホームページ", () => {
     render(<Home />);
 
     expect(screen.getByText("🚀 技術スタック")).toBeInTheDocument();
-    expect(screen.getByText("• Next.js 15 (App Router)")).toBeInTheDocument();
+    expect(screen.getByText("• Next.js 16 (App Router)")).toBeInTheDocument();
     expect(screen.getByText("• TypeScript (Strict Mode)")).toBeInTheDocument();
   });
 

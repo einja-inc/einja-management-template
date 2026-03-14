@@ -15,7 +15,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `apps/web/` hosts the main Next.js 15 admin app (App Router in `apps/web/src/app/`).
+- `apps/web/` hosts the main Next.js 16 admin app (App Router in `apps/web/src/app/`).
 - Shared packages live under `packages/`:
   - `packages/ui/` for shared UI components (shadcn/ui).
   - `packages/front-core/` for shared frontend auth/hooks/utils.

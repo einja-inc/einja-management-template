@@ -4,7 +4,7 @@ Einja Management Templateを使用したプロジェクトを素早く作成す�
 
 ## 概要
 
-`@einja-inc/create-app`は、Turborepo + Next.js 15 + Auth.js + Prisma構成のプロジェクトテンプレートを一発で展開できるCLIパッケージです。新規プロジェクトの作成だけでなく、既存プロジェクトへの環境ツール追加もサポートしています。
+`@einja-inc/create-app`は、Turborepo + Next.js 16 + Auth.js + Prisma構成のプロジェクトテンプレートを一発で展開できるCLIパッケージです。新規プロジェクトの作成だけでなく、既存プロジェクトへの環境ツール追加もサポートしています。
 
 ### 主な機能
 
@@ -175,7 +175,7 @@ npx @einja-inc/create-app add --dry-run
 my-project/
 ├── .vscode/                     # VS Code設定（Biome統合）
 ├── apps/
-│   └── web/                      # Next.js 15アプリケーション
+│   └── web/                      # Next.js 16アプリケーション
 │       ├── src/
 │       │   ├── app/              # App Router
 │       │   ├── components/       # Reactコンポーネント

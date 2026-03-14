@@ -1,6 +1,6 @@
 # Einja Management Template
 
-Turborepo + Next.js 15 + Auth.js + Prisma 構成のプロジェクトテンプレートと、Claude Code用のATDDワークフロー設定を提供します。
+Turborepo + Next.js 16 + Auth.js + Prisma 構成のプロジェクトテンプレートと、Claude Code用のATDDワークフロー設定を提供します。
 
 ---
 
@@ -31,7 +31,7 @@ export GITHUB_TOKEN=ghp_xxxxx
 
 対話形式でプロジェクト名・オプションを選択すると、以下が自動で行われます:
 
-1. Turborepo + Next.js 15 + Prisma のモノレポ構成を展開
+1. Turborepo + Next.js 16 + Prisma のモノレポ構成を展開
 2. `.claude/` ディレクトリ（agents, skills, hooks, settings）を自動セットアップ
 3. `docs/einja/`（steering, templates, instructions）を配置
 4. `CLAUDE.md` テンプレートを作成
@@ -141,7 +141,7 @@ einja-management-template/
 ### 技術スタック
 
 - **モノレポ**: Turborepo + pnpm workspaces
-- **フレームワーク**: Next.js 15 (App Router)
+- **フレームワーク**: Next.js 16 (App Router)
 - **言語**: TypeScript (strict mode)
 - **スタイリング**: Tailwind CSS v4
 - **UI**: shadcn/ui + Radix UI

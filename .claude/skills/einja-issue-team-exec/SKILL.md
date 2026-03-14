@@ -232,6 +232,48 @@ issue-exec-protocol.md に準拠:
 - コミット: einja-task-commit Skill 使用
 - PR作成: einja-create-pr Skill 使用
 
+## ピア間通信プロトコル
+
+### タスク開始宣言（claim時）
+タスクを claim したら、主要編集予定ファイルを含めて broadcast:
+- 形式: `[task-claim] Task {X.Y}: {タスク名}\nFiles: {編集予定ファイルリスト}\nDirector: {自分の名前}`
+- 受信側: 自分の編集予定ファイルと重複がないかチェック → 重複時は `[conflict-alert]` で当事者間調整
+- **宛先マップ管理**: 受信した `[task-claim]` から「誰がどのタスク・どのファイルを担当しているか」のマップを自身のコンテキスト内に保持する。ピアレビューやconflict-alertの宛先特定に使用
+
+### 変更通知（タスク完了時）
+タスク完了・PR作成後に、共有リソースの変化に絞って broadcast:
+- **共有リソースの定義**: 以下のいずれかに該当するもの
+  - `shared/`, `packages/*/src/` 配下の型定義・ユーティリティ関数
+  - APIエンドポイント（追加・変更）
+  - DBスキーマ（テーブル・カラム追加・変更）
+  - 複数タスクグループから参照されるコンポーネント
+- 形式:
+  ```
+  [change-summary] Task {X.Y}: {タスク名}
+  PR: #{PR番号}
+  Changed files: {全変更ファイルパス（カンマ区切り）}
+  Changed shared: {shared/配下の変更ファイル or "なし"}
+  New API: {エンドポイント or "なし"}
+  New types: {型名 or "なし"}
+  DB changes: {テーブル/カラム or "なし"}
+  Note: {申し送り事項 or "なし"}
+  ```
+
+### ピアレビュー（アイドル時）
+自タスク完了後、次タスクがclaimableでない場合またはCI待ち・マージ待ちのアイドル時間に実施:
+- **中断条件**: claimableタスクが出現したらレビューを即中断し、claim優先
+- レビュー観点: 重複実装、型/utilの共有化提案、API形式整合性、コンフリクト予防
+- 提案は対象Directorに直接 message（broadcastではない）
+- 宛先はtask-claimで保持したDirector-タスクマップから特定
+- 形式: `[peer-review] Task {X.Y} へのレビュー\n{観点}: {提案内容}`
+- 受信側: 採用/却下を判断し `[peer-review-ack]` で応答。迷う場合はLeadにエスカレーション
+
+### コンフリクト予防プロトコル
+- `[conflict-alert]` 受信時: 当事者間で編集範囲を調整（ファイル分割、作業順序の合意等）
+- **タイブレークルール**: 合意できない場合、タスク番号が小さい側（先行タスク）が該当ファイルの優先編集権を持つ
+- 調整完了後: `[conflict-resolved]` を Lead に報告
+- タイムアウト: 5分以内に合意できない場合は Lead にエスカレーション
+
 ## エラー時
 - einja-task-exec 失敗: Lead に SendMessage でエラー報告
 - PR作成失敗: 再試行（認証エラーの場合は Lead にエスカレーション）
@@ -248,10 +290,16 @@ Lead の監視ループ:
 
 | メッセージ種別 | 対応 |
 |--------------|------|
-| 進捗報告 | ログとして記録（ユーザーへの表示は任意） |
+| `[progress]` 進捗報告 | ログとして記録（ユーザーへの表示は任意） |
 | PR作成報告 | ゲートチェック実施（protocol.md 準拠の Fast Gate / Risk Gate） |
-| エラー報告 | リトライ判断 |
-| idle 通知 | 次の Phase/タスク状況確認 |
+| `[error]` エラー報告 | リトライ判断 |
+| `[idle]` idle 通知 | 次の Phase/タスク状況確認 |
+| `[task-claim]`（broadcast） | ログ記録 + Director-ファイルマップ更新 |
+| `[change-summary]`（broadcast） | ログ記録 + ファイル競合俯瞰チェック（→ Step 5-6） |
+| `[conflict-resolved]` | ログ記録 + 調整内容の妥当性簡易確認 |
+| `[conflict-alert]`（タイムアウト時） | Leadが調整方針を決定し両Directorに指示 |
+| `[ci-failure]`（Lead → Director） | CI失敗検知時、Lead が原因DirectorのPRを特定し修正指示を送信 |
+| `[peer-review]` エスカレーション | Director が判断に迷った場合、`[peer-review]` をLeadに転送。Leadが最終判断 |
 
 ### 5-2. ゲートチェック（protocol.md 参照）
 
@@ -290,6 +338,15 @@ Lead の監視ループ:
 | トリガー検知 | 通常ポーリング復帰 |
 
 - `processed_pr_numbers` セットで冪等処理を保証（同一PRの二重処理を防止）
+
+### 5-6. ファイル競合俯瞰チェック
+
+Director の `[task-claim]` と `[change-summary]` から、Director別の変更ファイルマップをメモリ保持する。
+
+- `[task-claim]` 受信時: 宣言されたファイルリストをマップに登録
+- `[change-summary]` 受信時: 実際の変更ファイルでマップを更新
+- 重複ファイル検出時: 関係Directorに `[conflict-alert]` を送信
+- Director自身の `[task-claim]` 時チェックのバックアップとして機能（Director間の非同期タイミングで漏れる場合のセーフティネット）
 
 ---
 
@@ -361,6 +418,64 @@ git push -u origin issue/${N}-phase{M+1}
 
 ---
 
+## メッセージプレフィックス規約
+
+Director間・Lead間の全メッセージは以下のプレフィックスで分類する:
+
+| プレフィックス | 方向 | 用途 | 送信方式 |
+|--------------|------|------|---------|
+| `[progress]` | Director → Lead | タスク進捗報告 | message |
+| `[task-claim]` | Director → All | タスク開始宣言 + 編集予定ファイル | broadcast |
+| `[change-summary]` | Director → All | タスク完了時の変更サマリ | broadcast |
+| `[conflict-alert]` | Director ↔ Director | ファイル競合警告 | message（当事者間） |
+| `[conflict-resolved]` | Director → Lead | コンフリクト調整完了報告 | message |
+| `[peer-review]` | Director → Director | ピアレビュー提案 | message（対象者のみ） |
+| `[peer-review-ack]` | Director → Director | ピアレビュー応答 | message（提案元のみ） |
+| `[ci-failure]` | Lead → Director | CI失敗通知・修正指示 | message |
+| `[error]` | Director → Lead | エラー報告 | message |
+| `[idle]` | Director → Lead | アイドル通知 | message |
+
+### broadcastコスト管理
+
+- **broadcast許可**: `[task-claim]`, `[change-summary]` の2種のみ
+- **それ以外は全て message**（当事者間のみ）でコンテキスト消費を最小化
+- broadcastコストはTeamサイズに比例するため、プールサイズ（最大5）を超えない設計で抑制
+
+### メッセージスキーマ
+
+#### [task-claim]
+    [task-claim] Task {X.Y}: {タスク名}
+    Files: {編集予定ファイルリスト（カンマ区切り）}
+    Director: {Director名}
+
+#### [change-summary]
+    [change-summary] Task {X.Y}: {タスク名}
+    PR: #{PR番号}
+    Changed files: {全変更ファイルパス（カンマ区切り）}
+    Changed shared: {shared/配下の変更ファイル or "なし"}
+    New API: {エンドポイント or "なし"}
+    New types: {型名 or "なし"}
+    DB changes: {テーブル/カラム or "なし"}
+    Note: {申し送り事項 or "なし"}
+
+#### [peer-review]
+    [peer-review] Task {X.Y} へのレビュー
+    {観点}: {提案内容}
+
+#### [peer-review-ack]
+    [peer-review-ack] Task {X.Y} レビュー応答
+    Status: {adopted|rejected|escalated}
+    Comment: {対応内容 or 却下理由 or "Leadにエスカレーション"}
+
+#### [conflict-alert]
+    [conflict-alert] ファイル競合検知
+    Conflicting files: {重複ファイルリスト}
+    My task: {自分のタスク番号}
+    Your task: {相手のタスク番号}
+    Proposal: {調整提案}
+
+---
+
 ## エラーハンドリング（Agent Teams固有）
 
 | 障害 | 検知 | 対応 |
@@ -401,7 +516,10 @@ git push -u origin issue/${N}-phase{M+1}
 | Director 数 | Phase数と同数（固定） | min(タスクグループ総数, 5) の固定プール |
 | Worker の実体 | 独立 tmux window（claude 対話モード） | Director 内のサブエージェント（Agent tool） |
 | タスク割り振り | Director が依存DAGに基づき Worker を順次起動 | Lead が TaskList に登録 + addBlockedBy、Director が self-claim |
-| 通信 | ステータスファイルポーリング | SendMessage + 自動idle通知 |
+| 通信 | ステータスファイルポーリング | SendMessage + broadcast + 自動idle通知 |
 | 状態管理 | `~/.einja/sessions/` JSON | 共有TaskList |
 | ゲートチェック実行者 | Director | Lead（Director 完了報告受信時） |
 | セッション復旧 | `--resume` でステータスファイルから復元 | issue ブランチの状態から途中再開 |
+| ピアレビュー | なし | Director間の非同期レビュー（アイドル時） |
+| 変更通知 | なし | broadcast による変更サマリ共有 |
+| コンフリクト予防 | なし（事後対応のみ） | 事前宣言 + 自動検知 + ピア調整 |

@@ -36,11 +36,11 @@ react-doctorは、oxlintとknipをベースにしたReactコードベースの�
 
 モノレポの場合、スキャン対象のアプリケーションディレクトリを特定します。
 
-```
-# モノレポの例
-apps/web/
-apps/admin/
-packages/ui/
+```bash
+# モノレポの場合、apps/ 配下のアプリを動的に検出
+ls -d apps/*/
+# packages/ 配下の共有パッケージも対象にできる
+ls -d packages/*/
 ```
 
 プロジェクトルートで実行すると全体をスキャンしますが、モノレポでは個別のアプリディレクトリを指定する方が結果が明確になります。
@@ -60,11 +60,13 @@ npx -y react-doctor@latest <対象ディレクトリ> --verbose
 npx -y react-doctor@latest . --verbose
 ```
 
-#### 例: モノレポの特定アプリをスキャン
+#### 例: モノレポの各アプリを動的にスキャン
 
 ```bash
-npx -y react-doctor@latest apps/web --verbose
-npx -y react-doctor@latest apps/admin --verbose
+# apps/ 配下の各アプリに対して実行
+for app in $(ls -d apps/*/); do
+  npx -y react-doctor@latest "$app" --verbose
+done
 ```
 
 ### 3. 出力結果を解析する
@@ -110,12 +112,15 @@ npx -y react-doctor@latest . --verbose --diff main
 モノレポ構成では、各アプリケーションディレクトリに対して個別に実行することを推奨します。
 
 ```bash
-# 各アプリを個別にスキャン
-npx -y react-doctor@latest apps/web --verbose
-npx -y react-doctor@latest apps/admin --verbose
+# apps/ 配下の各アプリを動的にスキャン
+for app in $(ls -d apps/*/); do
+  npx -y react-doctor@latest "$app" --verbose
+done
 
-# 共有UIパッケージもスキャン可能
-npx -y react-doctor@latest packages/ui --verbose
+# packages/ 配下の共有パッケージもスキャン可能
+for pkg in $(ls -d packages/*/); do
+  npx -y react-doctor@latest "$pkg" --verbose
+done
 ```
 
 プロジェクトルートで実行した場合は全ディレクトリが対象になりますが、結果が混在して読みづらくなる可能性があります。アプリごとに分けて実行し、それぞれのスコアと問題を個別に把握するのが効果的です。

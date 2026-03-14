@@ -11,7 +11,7 @@ const CATEGORY_PATTERNS: Record<SyncCategory, string[]> = {
   tools: ["biome.json", ".biomeignore", ".vibe-kanban.json", ".prettierrc*", ".editorconfig"],
   git: [".gitignore", ".gitattributes"],
   "git-hooks": [".husky/**", ".lintstagedrc.js"],
-  github: [".github/workflows/**", ".github/actions/**", ".github/dependabot.yml"],
+  github: [".github/workflows/**", ".github/actions/**", ".github/dependabot.yml", ".github/app-config.json"],
   docker: ["Dockerfile*", "docker-compose*.yml", ".dockerignore"],
   monorepo: ["turbo.json", "pnpm-workspace.yaml"],
   "root-config": ["package.json", "tsconfig.json", "vitest.config.ts", "postcss.config.cjs", "next.config.ts", "components.json", "worktree.config.json", ".mcp.json"],

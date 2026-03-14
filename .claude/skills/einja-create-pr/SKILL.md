@@ -62,9 +62,15 @@ git diff --name-only origin/${BASE}..HEAD
 - それ以外 → `patch`
 
 #### パッケージ判定:
-変更ファイルのパスからパッケージを推定:
-- `apps/web/**` → `@repo/web`
-- `apps/admin/**` → `@repo/admin`
+変更ファイルのパスから対象パッケージを動的に推定:
+```bash
+# 変更されたapps/配下のディレクトリからパッケージ名を取得
+for app_dir in $(git diff --name-only origin/${BASE}..HEAD | grep '^apps/' | cut -d'/' -f2 | sort -u); do
+  PKG_NAME=$(cat "apps/$app_dir/package.json" 2>/dev/null | jq -r '.name // empty')
+  [ -n "$PKG_NAME" ] && echo "$PKG_NAME"
+done
+```
+- `apps/<app>/**` → `apps/<app>/package.json` の `name` フィールドの値
 - `packages/**` は除外（内部パッケージ）
 
 ### Step 3: changeset生成
@@ -77,7 +83,7 @@ git diff --name-only origin/${BASE}..HEAD
 # ランダムファイル名で.changesetファイルを作成
 # フォーマット:
 # ---
-# "@repo/web": minor
+# "<package.jsonのnameフィールド値>": minor
 # ---
 #
 # サマリー（コミットメッセージの要約）

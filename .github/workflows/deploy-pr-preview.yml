@@ -166,15 +166,27 @@ jobs:
         env:
           DATABASE_URL: ${{ steps.resolve-db.outputs.db_url }}
 
-  # Web/Adminデプロイ（並列実行）
+  # アプリ検出
+  discover:
+    if: github.repository != 'einja-inc/einja-management-template'
+    runs-on: ubuntu-latest
+    outputs:
+      apps_json: ${{ steps.apps.outputs.apps_json }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Discover apps
+        id: apps
+        uses: ./.github/actions/discover-apps
+
+  # アプリデプロイ（並列実行）
   deploy:
     if: github.repository != 'einja-inc/einja-management-template'
-    needs: neon-and-schema
+    needs: [neon-and-schema, discover]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        app: [web, admin]
+        include: ${{ fromJSON(needs.discover.outputs.apps_json) }}
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -231,16 +243,8 @@ jobs:
             exit 1
           fi
 
-      - name: Resolve Vercel Project ID
-        id: resolve
-        run: |
-          case "${{ matrix.app }}" in
-            web)   echo "project_id=${{ secrets.VERCEL_PROJECT_ID_WEB }}" >> $GITHUB_OUTPUT ;;
-            admin) echo "project_id=${{ secrets.VERCEL_PROJECT_ID_ADMIN }}" >> $GITHUB_OUTPUT ;;
-          esac
-
       - name: Set VERCEL_PROJECT_ID
-        run: echo "VERCEL_PROJECT_ID=${{ steps.resolve.outputs.project_id }}" >> $GITHUB_ENV
+        run: echo "VERCEL_PROJECT_ID=${{ secrets[format('VERCEL_PROJECT_ID_{0}', matrix.secret_suffix)] }}" >> $GITHUB_ENV
 
       - name: Install Vercel CLI
         run: pnpm add -g vercel@latest
@@ -252,7 +256,7 @@ jobs:
         id: project-name
         run: |
           PROJECT_NAME=$(curl -s \
-            "https://api.vercel.com/v9/projects/${{ steps.resolve.outputs.project_id }}" \
+            "https://api.vercel.com/v9/projects/${{ env.VERCEL_PROJECT_ID }}" \
             -H "Authorization: Bearer $VERCEL_TOKEN" | jq -r '.name')
           if [ -z "$PROJECT_NAME" ] || [ "$PROJECT_NAME" = "null" ]; then
             echo "::warning::プロジェクト名の取得に失敗しました。aliasは設定されません。"
@@ -330,7 +334,7 @@ jobs:
 
   # PRコメント
   comment:
-    needs: [neon-and-schema, deploy]
+    needs: [neon-and-schema, deploy, discover]
     if: github.repository != 'einja-inc/einja-management-template' && always() && needs.neon-and-schema.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -344,33 +348,40 @@ jobs:
       - name: Read deploy URLs
         id: urls
         run: |
-          if [ -f deploy-url-web.txt ]; then
-            echo "web=$(cat deploy-url-web.txt)" >> $GITHUB_OUTPUT
-          else
-            echo "web=Deploy failed" >> $GITHUB_OUTPUT
+          ROWS=""
+          for f in deploy-url-*.txt; do
+            [ -f "$f" ] || continue
+            APP=$(echo "$f" | sed 's/deploy-url-\(.*\)\.txt/\1/')
+            URL=$(cat "$f")
+            ROWS="${ROWS}| **${APP}** | ${URL} |\n"
+          done
+          if [ -z "$ROWS" ]; then
+            ROWS="| **-** | No apps deployed |\n"
           fi
-          if [ -f deploy-url-admin.txt ]; then
-            echo "admin=$(cat deploy-url-admin.txt)" >> $GITHUB_OUTPUT
-          else
-            echo "admin=Deploy failed" >> $GITHUB_OUTPUT
-          fi
+          # Use heredoc for multiline output
+          {
+            echo "rows<<URLS_EOF"
+            echo -e "$ROWS"
+            echo "URLS_EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
           script: |
             const marker = '<!-- neon-preview-url -->';
-            const body = `${marker}
-            ## 🚀 Preview Deployment
-
-            | Item | Value |
-            |------|-------|
-            | **Web Preview URL** | ${{ steps.urls.outputs.web }} |
-            | **Admin Preview URL** | ${{ steps.urls.outputs.admin }} |
-            | **Neon Branch** | \`preview/pr-${{ github.event.number }}\` |
-            | **Neon Parent** | \`${{ needs.neon-and-schema.outputs.neon_parent }}\` |
-            | **Commit** | ${{ github.event.pull_request.head.sha }} |
-            `;
+            const rows = `${{ steps.urls.outputs.rows }}`;
+            const body = [
+              marker,
+              '## 🚀 Preview Deployment',
+              '',
+              '| Item | Value |',
+              '|------|-------|',
+              rows.trim(),
+              `| **Neon Branch** | \`preview/pr-${{ github.event.number }}\` |`,
+              `| **Neon Parent** | \`${{ needs.neon-and-schema.outputs.neon_parent }}\` |`,
+              `| **Commit** | ${{ github.event.pull_request.head.sha }} |`,
+            ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,

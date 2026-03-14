@@ -49,54 +49,111 @@ jobs:
     if: github.repository != 'einja-inc/einja-management-template'
     runs-on: ubuntu-latest
     outputs:
-      web: ${{ steps.filter.outputs.web }}
-      admin: ${{ steps.filter.outputs.admin }}
-      deploy_matrix: ${{ steps.matrix.outputs.matrix }}
+      deploy_matrix: ${{ steps.detect.outputs.deploy_matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            web:
-              - 'apps/web/**'
-              - 'packages/ui/**'
-              - 'packages/front-core/**'
-              - 'packages/server-core/**'
-              - 'packages/config/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'turbo.json'
-              - 'tsconfig.json'
-              - '.env.*'
-              - '.github/workflows/**'
-            admin:
-              - 'apps/admin/**'
-              - 'packages/admin-ui/**'
-              - 'packages/front-core/**'
-              - 'packages/server-core/**'
-              - 'packages/config/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'turbo.json'
-              - 'tsconfig.json'
-              - '.env.*'
-              - '.github/workflows/**'
+      - name: Discover apps
+        id: apps
+        uses: ./.github/actions/discover-apps
 
-      - name: Build deploy matrix
-        id: matrix
+      - name: Detect changed apps
+        id: detect
         run: |
-          MATRIX='[]'
-          if [ "${{ steps.filter.outputs.web }}" = "true" ]; then
-            MATRIX=$(echo "$MATRIX" | jq -c '. + [{"app": "web"}]')
+          set -euo pipefail
+
+          APPS_JSON='${{ steps.apps.outputs.apps_json }}'
+          BEFORE="${{ github.event.before }}"
+
+          # Force push or initial push fallback
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "::warning::No valid base commit (force push or initial push). Deploying all apps."
+            echo "deploy_matrix=$APPS_JSON" >> $GITHUB_OUTPUT
+            exit 0
           fi
-          if [ "${{ steps.filter.outputs.admin }}" = "true" ]; then
-            MATRIX=$(echo "$MATRIX" | jq -c '. + [{"app": "admin"}]')
+
+          # Validate base commit exists
+          if ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            echo "::warning::Base commit $BEFORE not found. Deploying all apps."
+            echo "deploy_matrix=$APPS_JSON" >> $GITHUB_OUTPUT
+            exit 0
           fi
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+          CHANGED_FILES=$(git diff --name-only "$BEFORE" "${{ github.sha }}" 2>/dev/null) || {
+            echo "::warning::git diff failed. Deploying all apps."
+            echo "deploy_matrix=$APPS_JSON" >> $GITHUB_OUTPUT
+            exit 0
+          }
+
+          # Load config
+          CONFIG_FILE=".github/app-config.json"
+          GLOBAL_TRIGGERS='[]'
+          PACKAGE_MAPPING='{}'
+          if [ -f "$CONFIG_FILE" ]; then
+            GLOBAL_TRIGGERS=$(jq -c '.globalTriggers // []' "$CONFIG_FILE")
+            PACKAGE_MAPPING=$(jq -c '."shared-package-mapping" // {}' "$CONFIG_FILE")
+          fi
+
+          TEMP_MATRIX=$(mktemp)
+          trap 'rm -f "$TEMP_MATRIX"' EXIT
+          echo '[]' > "$TEMP_MATRIX"
+
+          APP_COUNT=$(echo "$APPS_JSON" | jq 'length')
+          for i in $(seq 0 $((APP_COUNT - 1))); do
+            APP=$(echo "$APPS_JSON" | jq -r ".[$i].app")
+            SUFFIX=$(echo "$APPS_JSON" | jq -r ".[$i].secret_suffix")
+            SHOULD_DEPLOY=false
+
+            # Check direct app changes
+            if echo "$CHANGED_FILES" | grep -q "^apps/$APP/"; then
+              SHOULD_DEPLOY=true
+            fi
+
+            # Check global triggers (convert glob to regex: escape dots, ** → .*, * → [^/]*)
+            if [ "$SHOULD_DEPLOY" = "false" ]; then
+              TRIGGER_COUNT=$(echo "$GLOBAL_TRIGGERS" | jq 'length')
+              for j in $(seq 0 $((TRIGGER_COUNT - 1))); do
+                pattern=$(echo "$GLOBAL_TRIGGERS" | jq -r ".[$j]")
+                GREP_PATTERN=$(echo "$pattern" | sed 's/\./\\./g' | sed 's/\*\*/.*/g' | sed 's/\*/[^\/]*/g')
+                if echo "$CHANGED_FILES" | grep -qE "^${GREP_PATTERN}$"; then
+                  SHOULD_DEPLOY=true
+                  break
+                fi
+              done
+            fi
+
+            # Check shared package mapping
+            if [ "$SHOULD_DEPLOY" = "false" ]; then
+              for pkg_path in $(echo "$PACKAGE_MAPPING" | jq -r 'keys[]'); do
+                if echo "$CHANGED_FILES" | grep -q "^${pkg_path}/"; then
+                  if echo "$PACKAGE_MAPPING" | jq -e --arg pkg "$pkg_path" --arg app "$APP" '.[$pkg] | index($app) != null' > /dev/null 2>&1; then
+                    SHOULD_DEPLOY=true
+                    break
+                  fi
+                fi
+              done
+            fi
+
+            # Fallback: if no config, any packages/ change triggers all apps
+            if [ "$SHOULD_DEPLOY" = "false" ] && [ ! -f "$CONFIG_FILE" ]; then
+              if echo "$CHANGED_FILES" | grep -q "^packages/"; then
+                SHOULD_DEPLOY=true
+              fi
+            fi
+
+            if [ "$SHOULD_DEPLOY" = "true" ]; then
+              CURRENT=$(cat "$TEMP_MATRIX")
+              echo "$CURRENT" | jq -c --arg app "$APP" --arg suffix "$SUFFIX" \
+                '. + [{"app": $app, "secret_suffix": $suffix}]' > "$TEMP_MATRIX"
+            fi
+          done
+
+          DEPLOY_MATRIX=$(cat "$TEMP_MATRIX")
+
+          echo "deploy_matrix=$DEPLOY_MATRIX" >> $GITHUB_OUTPUT
+          echo "Deploy matrix: $DEPLOY_MATRIX"
 
   # ========================================
   # develop: 環境なし、承認なし
@@ -134,16 +191,8 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
 
-      - name: Resolve Vercel Project ID
-        id: resolve
-        run: |
-          case "${{ matrix.app }}" in
-            web)   echo "project_id=${{ secrets.VERCEL_PROJECT_ID_WEB }}" >> $GITHUB_OUTPUT ;;
-            admin) echo "project_id=${{ secrets.VERCEL_PROJECT_ID_ADMIN }}" >> $GITHUB_OUTPUT ;;
-          esac
-
       - name: Set VERCEL_PROJECT_ID
-        run: echo "VERCEL_PROJECT_ID=${{ steps.resolve.outputs.project_id }}" >> $GITHUB_ENV
+        run: echo "VERCEL_PROJECT_ID=${{ secrets[format('VERCEL_PROJECT_ID_{0}', matrix.secret_suffix)] }}" >> $GITHUB_ENV
 
       - name: Install Vercel CLI
         run: pnpm add -g vercel@latest
@@ -157,18 +206,9 @@ jobs:
 
       - name: Extract alias domain
         run: |
-          case "${{ matrix.app }}" in
-            web)
-              npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
-                echo "VERCEL_ALIAS_DOMAIN=$VERCEL_ALIAS_DOMAIN_WEB" >> "$GITHUB_ENV"
-              '
-              ;;
-            admin)
-              npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
-                echo "VERCEL_ALIAS_DOMAIN=$VERCEL_ALIAS_DOMAIN_ADMIN" >> "$GITHUB_ENV"
-              '
-              ;;
-          esac
+          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c "
+            echo \"VERCEL_ALIAS_DOMAIN=\$VERCEL_ALIAS_DOMAIN_${{ matrix.secret_suffix }}\" >> \"\$GITHUB_ENV\"
+          "
         env:
           DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
 
@@ -245,16 +285,8 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
 
-      - name: Resolve Vercel Project ID
-        id: resolve
-        run: |
-          case "${{ matrix.app }}" in
-            web)   echo "project_id=${{ secrets.VERCEL_PROJECT_ID_WEB }}" >> $GITHUB_OUTPUT ;;
-            admin) echo "project_id=${{ secrets.VERCEL_PROJECT_ID_ADMIN }}" >> $GITHUB_OUTPUT ;;
-          esac
-
       - name: Set VERCEL_PROJECT_ID
-        run: echo "VERCEL_PROJECT_ID=${{ steps.resolve.outputs.project_id }}" >> $GITHUB_ENV
+        run: echo "VERCEL_PROJECT_ID=${{ secrets[format('VERCEL_PROJECT_ID_{0}', matrix.secret_suffix)] }}" >> $GITHUB_ENV
 
       - name: Install Vercel CLI
         run: pnpm add -g vercel@latest
@@ -268,18 +300,9 @@ jobs:
 
       - name: Extract alias domain
         run: |
-          case "${{ matrix.app }}" in
-            web)
-              npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
-                echo "VERCEL_ALIAS_DOMAIN=$VERCEL_ALIAS_DOMAIN_WEB" >> "$GITHUB_ENV"
-              '
-              ;;
-            admin)
-              npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c '
-                echo "VERCEL_ALIAS_DOMAIN=$VERCEL_ALIAS_DOMAIN_ADMIN" >> "$GITHUB_ENV"
-              '
-              ;;
-          esac
+          npx dotenvx run -f ${{ env.DEPLOY_DOTENV_FILE }} -- bash -c "
+            echo \"VERCEL_ALIAS_DOMAIN=\$VERCEL_ALIAS_DOMAIN_${{ matrix.secret_suffix }}\" >> \"\$GITHUB_ENV\"
+          "
         env:
           DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
 
@@ -466,16 +489,8 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
 
-      - name: Resolve Vercel Project ID
-        id: resolve
-        run: |
-          case "${{ matrix.app }}" in
-            web)   echo "project_id=${{ secrets.VERCEL_PROJECT_ID_WEB }}" >> $GITHUB_OUTPUT ;;
-            admin) echo "project_id=${{ secrets.VERCEL_PROJECT_ID_ADMIN }}" >> $GITHUB_OUTPUT ;;
-          esac
-
       - name: Set VERCEL_PROJECT_ID
-        run: echo "VERCEL_PROJECT_ID=${{ steps.resolve.outputs.project_id }}" >> $GITHUB_ENV
+        run: echo "VERCEL_PROJECT_ID=${{ secrets[format('VERCEL_PROJECT_ID_{0}', matrix.secret_suffix)] }}" >> $GITHUB_ENV
 
       - name: Install Vercel CLI
         run: pnpm add -g vercel@latest

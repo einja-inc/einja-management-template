@@ -1,0 +1,21 @@
+{
+  "globalTriggers": [
+    "package.json",
+    "pnpm-lock.yaml",
+    "turbo.json",
+    "tsconfig.json",
+    ".env.*",
+    ".github/workflows/**"
+  ],
+  "shared-package-mapping": {
+    "packages/ui": ["web"],
+    "packages/admin-ui": ["admin"],
+    "packages/front-core": ["web", "admin"],
+    "packages/server-core": ["web", "admin"],
+    "packages/config": ["web", "admin"]
+  },
+  "deployTargets": {
+    "web": { "vercel": true },
+    "admin": { "vercel": true }
+  }
+}

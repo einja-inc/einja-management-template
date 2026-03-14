@@ -93,7 +93,7 @@ graph TD
 
 **実装例**:
 ```typescript
-// apps/web/src/app/api/rpc/posts/[[...route]]/route.ts
+// apps/<app>/src/app/api/rpc/posts/[[...route]]/route.ts
 import { Hono } from "hono"
 import { handle } from "hono/vercel"
 import { zValidator } from "@hono/zod-validator"
@@ -144,7 +144,7 @@ export const POST = handle(app)
 // - DeletePostUseCase.ts
 
 // ✅ 新パターン: リソース単位で統合（シンプル）
-// apps/web/src/application/use-cases/PostUseCases.ts
+// apps/<app>/src/application/use-cases/PostUseCases.ts
 
 export type PostSearchCriteria = {
   userId?: string
@@ -538,7 +538,7 @@ class DatabaseError extends ApplicationError {
 **設計パターン**:
 
 ```typescript
-// apps/web/src/application/use-cases/PostUseCases.ts
+// apps/<app>/src/application/use-cases/PostUseCases.ts
 
 export const postUseCases = {
   list: async (criteria: PostSearchCriteria) => {
@@ -628,7 +628,7 @@ export type PostsAppType = typeof app // 全ルート情報を含む
 **ドメインベースRPC分割では、各ドメインのroute.tsで直接ミドルウェアを適用します。**
 
 ```typescript
-// apps/web/src/app/api/admin/users/[[...route]]/route.ts
+// apps/<app>/src/app/api/admin/users/[[...route]]/route.ts
 import { Hono } from "hono"
 import { handle } from "hono/vercel"
 import { adminAuthMiddleware } from "@/middleware/admin-auth"

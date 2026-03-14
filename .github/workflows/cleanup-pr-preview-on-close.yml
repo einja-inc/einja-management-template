@@ -12,7 +12,48 @@ permissions:
   contents: read
 
 jobs:
+  discover:
+    if: github.repository != 'einja-inc/einja-management-template' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    outputs:
+      apps_json: ${{ steps.apps.outputs.apps_json }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Discover apps
+        id: apps
+        uses: ./.github/actions/discover-apps
+
   cleanup:
+    needs: [discover]
+    if: github.repository != 'einja-inc/einja-management-template' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.discover.outputs.apps_json) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove Vercel preview alias
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets[format('VERCEL_PROJECT_ID_{0}', matrix.secret_suffix)] }}
+        run: |
+          npm install -g vercel@latest
+          PROJECT_NAME=$(curl -s \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" | jq -r '.name')
+          if [ -n "$PROJECT_NAME" ] && [ "$PROJECT_NAME" != "null" ]; then
+            PROJECT_NAME=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')
+            ALIAS="${PROJECT_NAME}-pr-${{ github.event.number }}.vercel.app"
+            echo "Removing alias: $ALIAS"
+            vercel alias rm "$ALIAS" --token=$VERCEL_TOKEN --yes || true
+          else
+            echo "::warning::プロジェクト名を取得できませんでした (app: ${{ matrix.app }})"
+          fi
+
+  # Neon cleanup runs only once (not per-app)
+  cleanup-neon:
     if: github.repository != 'einja-inc/einja-management-template' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
@@ -22,25 +63,6 @@ jobs:
         uses: ./.github/actions/neon-export-env
         with:
           dotenv-private-key-preview: ${{ secrets.DOTENV_PRIVATE_KEY_PREVIEW }}
-      - name: Remove Vercel preview aliases
-        continue-on-error: true
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          pnpm add -g vercel@latest
-          for PROJECT_ID in "${{ secrets.VERCEL_PROJECT_ID_WEB }}" "${{ secrets.VERCEL_PROJECT_ID_ADMIN }}"; do
-            PROJECT_NAME=$(curl -s \
-              "https://api.vercel.com/v9/projects/$PROJECT_ID" \
-              -H "Authorization: Bearer $VERCEL_TOKEN" | jq -r '.name')
-            if [ -n "$PROJECT_NAME" ] && [ "$PROJECT_NAME" != "null" ]; then
-              PROJECT_NAME=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')
-              ALIAS="${PROJECT_NAME}-pr-${{ github.event.number }}.vercel.app"
-              echo "Removing alias: $ALIAS"
-              vercel alias rm "$ALIAS" --token=$VERCEL_TOKEN --yes || true
-            else
-              echo "::warning::プロジェクト名を取得できませんでした (project_id: $PROJECT_ID)"
-            fi
-          done
       - name: Delete Neon Branch
         continue-on-error: true
         uses: neondatabase/delete-branch-action@v3

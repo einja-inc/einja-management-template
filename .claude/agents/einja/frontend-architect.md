@@ -28,7 +28,7 @@ skills:
 
 ##### Feature-based構造（推奨）
 ```
-apps/web/src/
+apps/<app>/src/
 ├── app/                              # Next.js App Router
 │   ├── (authenticated)/              # 認証必須ルート
 │   │   ├── dashboard/
@@ -395,7 +395,7 @@ packages/types/                    # 共通型定義
 │       ├── pagination.ts
 │       └── error.ts
 
-apps/web/src/lib/types/           # アプリ固有型
+apps/<app>/src/lib/types/           # アプリ固有型
 ├── components/                   # コンポーネント型
 ├── hooks/                        # Hook型
 └── utils/                        # ユーティリティ型
@@ -420,7 +420,7 @@ export interface GetUsersResponse {
   pagination: PaginationMeta;
 }
 
-// apps/web/src/lib/api/users.ts
+// apps/<app>/src/lib/api/users.ts
 
 // 型安全なAPI関数
 export async function getUsers(

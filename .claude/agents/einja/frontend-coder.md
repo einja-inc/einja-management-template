@@ -54,7 +54,7 @@ skills:
 
 #### ディレクトリ構造（モノレポ対応）
 ```
-apps/web/src/
+apps/<app>/src/
 ├── app/                          # Next.js App Router
 │   ├── (authenticated)/          # 認証が必要なページグループ
 │   │   ├── dashboard/

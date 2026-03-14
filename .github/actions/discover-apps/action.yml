@@ -1,0 +1,63 @@
+name: Discover Apps
+description: Dynamically discover apps from apps/ directory
+
+outputs:
+  apps_json:
+    description: JSON array of {app, secret_suffix} for matrix strategy
+    value: ${{ steps.discover.outputs.apps_json }}
+  apps_list:
+    description: Space-separated list of app names
+    value: ${{ steps.discover.outputs.apps_list }}
+
+runs:
+  using: composite
+  steps:
+    - name: Discover apps
+      id: discover
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        APPS_JSON='[]'
+        APPS_LIST=""
+        SUFFIXES=()
+
+        # Scan apps/*/package.json
+        for pkg in apps/*/package.json; do
+          [ -f "$pkg" ] || continue
+          APP=$(basename "$(dirname "$pkg")")
+
+          # Normalize to secret suffix
+          SUFFIX=$(echo "$APP" | tr '[:lower:]' '[:upper:]' | tr '-' '_' | sed 's/[^A-Z0-9_]//g')
+
+          # Check for suffix collision
+          for existing in "${SUFFIXES[@]+"${SUFFIXES[@]}"}"; do
+            if [ "$existing" = "$SUFFIX" ]; then
+              echo "::error::Secret suffix collision detected: '$APP' normalizes to '$SUFFIX' which already exists"
+              exit 1
+            fi
+          done
+          SUFFIXES+=("$SUFFIX")
+
+          # Check deployTargets in app-config.json
+          INCLUDE=true
+          if [ -f ".github/app-config.json" ]; then
+            VERCEL_ENABLED=$(jq -r --arg app "$APP" '.deployTargets[$app].vercel // true' .github/app-config.json)
+            if [ "$VERCEL_ENABLED" = "false" ]; then
+              INCLUDE=false
+              echo "::notice::Skipping '$APP' (vercel: false in app-config.json)"
+            fi
+          fi
+
+          if [ "$INCLUDE" = "true" ]; then
+            APPS_JSON=$(echo "$APPS_JSON" | jq -c --arg app "$APP" --arg suffix "$SUFFIX" \
+              '. + [{"app": $app, "secret_suffix": $suffix}]')
+            APPS_LIST="${APPS_LIST:+$APPS_LIST }$APP"
+          fi
+        done
+
+        echo "Discovered apps: $APPS_LIST"
+        echo "Matrix JSON: $APPS_JSON"
+
+        echo "apps_json=$APPS_JSON" >> $GITHUB_OUTPUT
+        echo "apps_list=$APPS_LIST" >> $GITHUB_OUTPUT

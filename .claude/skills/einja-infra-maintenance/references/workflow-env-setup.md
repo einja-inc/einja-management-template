@@ -232,7 +232,31 @@ Step 1 ──→ Step 2 ──→ Step 3 ──→ Step 4
 - **完了条件:** 全環境の env ファイルが存在する & dotenvx で復号可能
 - **スキップ条件:** なし（必須ステップ）
 
-`category-2-env-variables.md` の確認手順に従い、各環境（development, staging, production）の `.env.*` ファイルの存在と復号可能性を検証する。
+### 実行手順
+
+1. 各環境ファイルの存在をチェック:
+   ```bash
+   for env in develop staging production preview; do
+     [ -f ".env.$env" ] && echo "✅ .env.$env" || echo "❌ .env.$env（未作成）"
+   done
+   ```
+
+2. **不在ファイルがある場合**: AskUserQuestionで確認
+   - 選択肢:
+     - **今すぐ作成する**: → `references/category-2-env-variables.md` の「環境別ファイル新規作成」フローを呼び出し
+     - **スキップ（後で作成する）**: → 不在のまま次のステップへ進む（`unexpected_events` に記録）
+     - **その他（自由入力）**
+
+3. **既存ファイルの復号確認**: 存在するファイルについてdotenvxで復号可能か検証
+   ```bash
+   for env in develop staging production preview; do
+     if [ -f ".env.$env" ]; then
+       dotenvx decrypt -f ".env.$env" --stdout > /dev/null 2>&1 \
+         && echo "✅ .env.$env 復号OK" \
+         || echo "❌ .env.$env 復号失敗（.env.keysの鍵を確認）"
+     fi
+   done
+   ```
 
 ```
 # 完了後: 想定外の事態があれば記録

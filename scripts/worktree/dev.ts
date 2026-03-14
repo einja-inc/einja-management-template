@@ -106,6 +106,22 @@ function getConfig(): WorktreeConfig {
 }
 
 /**
+ * ルートpackage.jsonからプロジェクト名を取得
+ */
+function getProjectName(): string | undefined {
+	try {
+		const packageJsonPath = path.join(process.cwd(), "package.json");
+		if (fs.existsSync(packageJsonPath)) {
+			const pkg: { name?: string } = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+			return pkg.name;
+		}
+	} catch {
+		// 読み取り失敗時はundefined
+	}
+	return undefined;
+}
+
+/**
  * ブランチ名からハッシュベースで一意なポート番号を計算
  *
  * 各アプリは設定されたポート範囲を使用し、競合を回避。
@@ -118,9 +134,11 @@ function getConfig(): WorktreeConfig {
 export function calculatePorts(
 	branchName: string,
 	apps: AppConfig[],
+	projectName?: string,
 ): Record<string, number> {
-	// ブランチ名をSHA-256でハッシュ化
-	const hash = crypto.createHash("sha256").update(branchName).digest("hex");
+	// ブランチ名をSHA-256でハッシュ化（プロジェクト名をソルトとして使用）
+	const input = projectName ? `${projectName}:${branchName}` : branchName;
+	const hash = crypto.createHash("sha256").update(input).digest("hex");
 
 	// ハッシュの最初の8文字を16進数として数値化
 	const hashNum = Number.parseInt(hash.slice(0, 8), 16);
@@ -834,7 +852,7 @@ export async function main(options: {
 	log(`データベース名: ${databaseName}`);
 
 	// ブランチ名からポート番号を計算（固定）
-	const calculatedPorts = calculatePorts(branch, cfg.apps);
+	const calculatedPorts = calculatePorts(branch, cfg.apps, getProjectName());
 	log(`ポート: ${JSON.stringify(calculatedPorts)}`);
 
 	// ポートを確保（自リポジトリのプロセスのみkill対象）
@@ -946,7 +964,7 @@ export function showDevStatus(): void {
 	}
 
 	// ポート使用状況とURL
-	const calculatedPorts = calculatePorts(branch, cfg.apps);
+	const calculatedPorts = calculatePorts(branch, cfg.apps, getProjectName());
 	console.log(`\nポート使用状況:`);
 	for (const [appId, port] of Object.entries(calculatedPorts)) {
 		const status = isPortInUse(port) ? "🟢 使用中" : "⚪ 空き";

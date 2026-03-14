@@ -317,5 +317,21 @@ export async function generateTemplate(
     chmodSync(file, 0o755);
   }
 
+  // worktreeConfig が指定されている場合、worktree.config.json を上書き
+  if (config.worktreeConfig) {
+    const worktreeConfigPath = join(targetPath, "worktree.config.json");
+    const worktreeConfigContent = {
+      schemaVersion: 1,
+      postgres: config.worktreeConfig.postgres,
+      apps: config.worktreeConfig.apps,
+    };
+    writeFileSync(
+      worktreeConfigPath,
+      JSON.stringify(worktreeConfigContent, null, "\t") + "\n",
+      "utf-8"
+    );
+    logger.info("worktree.config.json をカスタム設定で上書きしました");
+  }
+
   logger.success("テンプレート展開完了");
 }

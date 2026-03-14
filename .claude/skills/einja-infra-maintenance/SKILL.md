@@ -37,12 +37,17 @@ graph TB
     Intent -->|あり| Detect
     Intent -->|なし| Phase0{Phase 0: .env.keys存在?}
     Phase0 -->|不在 worktree| TryCopy[main repoから自動コピー試行]
-    TryCopy -->|成功| Detect
+    TryCopy -->|成功| EnvCheck
     TryCopy -->|失敗| Propose
     Phase0 -->|不在 通常| Propose[環境セットアップモード提案]
     Propose -->|承諾| Workflow[ワークフロー実行]
     Propose -->|拒否| Detect
-    Phase0 -->|存在| Detect[Phase 1: 環境状態の自動検出]
+    Phase0 -->|存在| EnvCheck{環境別ファイル存在?}
+    EnvCheck -->|全存在| Detect[Phase 1: 環境状態の自動検出]
+    EnvCheck -->|一部不在| ProposeEnv[環境別ファイル初回セットアップ提案]
+    ProposeEnv -->|承諾| EnvSetup[カテゴリ2: 環境別ファイル新規作成]
+    ProposeEnv -->|拒否| Detect
+    EnvSetup --> Detect
     Detect --> Judge[Phase 2: 意図判定]
     Judge -->|意図が明確| Direct[該当カテゴリへ直接遷移]
     Judge -->|意図が不明確| Menu[メインメニュー]
@@ -62,7 +67,6 @@ graph TB
 以下のいずれかに該当する場合、Phase 0をスキップしてPhase 1に直接進む:
 
 1. **明示意図あり**: ユーザーの発話に特定カテゴリへの意図がある（例: 「Vercelだけ設定したい」「GitHub Secretsを確認」「CIが失敗してる」）
-2. **`.env.keys`が存在**: 環境セットアップ済みと判断
 
 ### 実行フロー
 
@@ -83,6 +87,20 @@ graph TB
 3. `.env.keys` が不在の場合: AskUserQuestionで環境セットアップモードを提案
    - **承諾**: → `references/workflow-env-setup.md` を読み込んでワークフロー実行
    - **拒否**: → Phase 1に進む（通常フロー）
+4. `.env.keys` が存在する場合: 環境別ファイルの存在を確認
+   ```bash
+   # 環境別ファイルの不在チェック（.env.localは除外 — 常にテンプレートに含まれる）
+   MISSING_ENVS=()
+   for env in develop staging production preview; do
+     [ ! -f ".env.$env" ] && MISSING_ENVS+=("$env")
+   done
+   ```
+5. 不在の環境別ファイルがある場合: AskUserQuestionで環境別ファイル初回セットアップを提案
+   - 不在ファイル一覧を表示
+   - 選択肢:
+     - **今すぐ作成する**: → `references/category-2-env-variables.md` の「環境別ファイル新規作成」フローを呼び出し。完了後、Phase 1に進む
+     - **スキップして通常フローへ**: → Phase 1に進む
+     - **その他（自由入力）**
 
 ---
 

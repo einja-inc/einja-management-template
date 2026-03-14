@@ -29,6 +29,10 @@ function printCompletionMessage(config: ProjectConfig): void {
   console.log(chalk.cyan("  pnpm env:update          # 環境変数を設定"));
   console.log(chalk.cyan("  pnpm dev                 # PostgreSQL起動 + 開発サーバー起動"));
   console.log();
+  console.log(chalk.gray("  # デプロイ環境を設定する場合:"));
+  console.log(chalk.gray("  # .env.example を元に環境別ファイルを作成してください"));
+  console.log(chalk.gray("  # 詳細: docs/einja/instructions/environment-setup.md"));
+  console.log();
   console.log(
     chalk.green("✓ セキュリティ: 秘密鍵は自動ローテーション済みです")
   );

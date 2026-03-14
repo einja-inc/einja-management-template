@@ -177,33 +177,62 @@ GITHUB_TOKEN=
 
 ### デプロイ環境ファイル作成
 
+> **前提条件**: `.env.keys` が存在すること。未取得の場合は `pnpm dev:setup` を先に実行してください。
+
+#### Step 1: `.env.example` をベースにファイル作成
+
 ```bash
-# 開発サーバー用
-cat > .env.develop << 'EOF'
-# Development Environment
-DATABASE_URL="postgresql://user:pass@dev-db:5432/einja_dev"
-NEXTAUTH_SECRET="dev-secret-key"
-NEXTAUTH_URL="https://dev.example.com"
-NODE_ENV="development"
-EOF
+# 作成したい環境のファイルをコピー
+cp .env.example .env.develop      # 開発環境
+cp .env.example .env.staging      # ステージング環境
+cp .env.example .env.production   # 本番環境
+cp .env.example .env.preview      # プレビュー環境
+```
 
-# 本番環境用
-cat > .env.production << 'EOF'
-# Production Environment
-DATABASE_URL="postgresql://user:pass@prod-db:5432/einja"
-NEXTAUTH_SECRET="production-secret-key-generate-with-openssl"
-NEXTAUTH_URL="https://example.com"
-NODE_ENV="production"
-EOF
+#### Step 2: 環境固有の値を編集
 
-# CI/CD用
-cat > .env.ci << 'EOF'
-# CI Environment
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/einja_test"
-NEXTAUTH_SECRET="ci-test-secret"
-NEXTAUTH_URL="http://localhost:3000"
-NODE_ENV="test"
-EOF
+各ファイルを開き、環境に合わせて値を設定します:
+
+```bash
+# 例: .env.develop を編集
+vi .env.develop
+```
+
+主要な設定項目:
+
+| 変数 | 設定内容 |
+|------|---------|
+| `DATABASE_URL` | Neon等の接続文字列（例: `postgresql://user:pass@host/dbname?sslmode=require`） |
+| `AUTH_SECRET` | `openssl rand -base64 32` で生成した値 |
+| `NEXTAUTH_URL` | デプロイ先のURL（例: `https://dev.example.com`） |
+
+> **ヒント**: `PORT_WEB` / `PORT_ADMIN` はデプロイ環境では不要です（コメントアウトのまま）。
+
+#### Step 3: dotenvx で暗号化
+
+```bash
+# 各環境ファイルを暗号化（.env.keys に秘密鍵が自動追加される）
+dotenvx encrypt -f .env.develop
+dotenvx encrypt -f .env.staging
+dotenvx encrypt -f .env.production
+dotenvx encrypt -f .env.preview
+```
+
+#### Step 4: 秘密鍵を共有・登録
+
+```bash
+# .env.keys の内容を 1Password 等で安全に共有
+# GitHub Secrets に秘密鍵を登録
+gh secret set DOTENV_PRIVATE_KEY_DEVELOP --body "$(grep DOTENV_PRIVATE_KEY_DEVELOP .env.keys | cut -d= -f2- | tr -d '\"'\''")"
+gh secret set DOTENV_PRIVATE_KEY_PRODUCTION --body "$(grep DOTENV_PRIVATE_KEY_PRODUCTION .env.keys | cut -d= -f2- | tr -d '\"'\''")"
+# 必要に応じて他の環境も同様に登録
+```
+
+#### Step 5: コミット
+
+```bash
+git add .env.develop .env.staging .env.production .env.preview
+git commit -m "chore: 環境別設定ファイルを追加"
 ```
 
 ---

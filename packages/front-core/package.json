@@ -12,7 +12,7 @@
 	"dependencies": {
 		"@repo/server-core": "workspace:*",
 		"bcryptjs": "^3.0.2",
-		"next-auth": "^5.0.0-beta.28",
+		"next-auth": "^5.0.0-beta.30",
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {

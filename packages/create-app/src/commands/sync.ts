@@ -1,9 +1,10 @@
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import fsExtra from "fs-extra";
 import inquirer from "inquirer";
 import { collectSyncFiles } from "@/generators/sync.js";
-import { getAllSyncCategories, promptSyncCategories } from "@/prompts/sync.js";
+import { getAllSyncCategories, getSafeSyncCategories, promptSyncCategories } from "@/prompts/sync.js";
 import type { SyncCategory, SyncMetadata, SyncOptions, SyncResult } from "@/types/index.js";
 import { createBackup, getLatestBackup, restoreFromBackup } from "@/utils/backup.js";
 import { checkGitStatusForSync } from "@/utils/git.js";
@@ -170,14 +171,20 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       conflictStrategy = "merge";
 
       logger.info(`指定されたカテゴリ: ${categories.join(", ")}`);
-    } else if (options.all || options.yes) {
-      // --all または --yes: 全カテゴリ選択
+    } else if (options.all) {
+      // --all: 全カテゴリ選択（apps, packages含む）
       categories = getAllSyncCategories();
       appsDetail = undefined; // 全apps
       packagesDetail = undefined; // 全packages
       conflictStrategy = "merge";
 
       logger.info("全カテゴリを同期対象に設定しました");
+    } else if (options.yes) {
+      // --yes: 安全なデフォルト（apps, packages除外）
+      categories = getSafeSyncCategories();
+      conflictStrategy = "merge";
+
+      logger.info("安全なデフォルトカテゴリを同期対象に設定しました（apps, packagesを除外）");
     } else {
       // 対話式プロンプト
       const promptResult = await promptSyncCategories(templatePath);
@@ -306,6 +313,22 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
     isSyncing = true; // 同期処理開始をマーク
 
+    // テンプレートの.mcp.jsonからサーバー名を取得してmanaged登録
+    const templateMcpPath = join(templatePath, ".mcp.json");
+    const mcpManagedPaths: string[] = [];
+    if (existsSync(templateMcpPath)) {
+      try {
+        const mcpJson = JSON.parse(readFileSync(templateMcpPath, "utf-8"));
+        if (mcpJson.mcpServers) {
+          for (const serverName of Object.keys(mcpJson.mcpServers)) {
+            mcpManagedPaths.push(`mcpServers.${serverName}`);
+          }
+        }
+      } catch {
+        // .mcp.json の読み取りに失敗した場合はmanaged pathsなしで続行
+      }
+    }
+
     // SyncMetadata の準備（conflictStrategy に基づく）
     const syncMetadata: SyncMetadata = {
       version: "1.0.0",
@@ -313,7 +336,9 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       templateVersion: "0.2.9",
       files: {},
       jsonPaths: {
-        managed: {},
+        managed: {
+          ...(mcpManagedPaths.length > 0 ? { ".mcp.json": mcpManagedPaths } : {}),
+        },
         "project-private": {},
       },
     };

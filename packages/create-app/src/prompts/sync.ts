@@ -67,8 +67,8 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
   },
   "root-config": {
     name: "ルート設定",
-    description: "package.json, tsconfig.json, vitest.config.ts, postcss.config.cjs, next.config.ts, components.json, worktree.config.json",
-    patterns: ["package.json", "tsconfig.json", "vitest.config.ts", "postcss.config.cjs", "next.config.ts", "components.json", "worktree.config.json"],
+    description: "package.json, tsconfig.json, vitest.config.ts, postcss.config.cjs, next.config.ts, components.json, worktree.config.json, .mcp.json",
+    patterns: ["package.json", "tsconfig.json", "vitest.config.ts", "postcss.config.cjs", "next.config.ts", "components.json", "worktree.config.json", ".mcp.json"],
     defaultChecked: false,
     firstRunDefault: true,
   },
@@ -114,10 +114,20 @@ export function getDefaultSyncCategories(): SyncCategory[] {
 
 /**
  * 全同期カテゴリを取得
- * --all/--yes 時に使用
+ * --all 時に使用
  */
 export function getAllSyncCategories(): SyncCategory[] {
   return Object.keys(CATEGORY_CONFIGS) as SyncCategory[];
+}
+
+/**
+ * 安全な同期カテゴリを取得（requiresDetailSelection を除外）
+ * --yes 時に使用（apps, packages を除く）
+ */
+export function getSafeSyncCategories(): SyncCategory[] {
+  return Object.entries(CATEGORY_CONFIGS)
+    .filter(([_key, config]) => !config.requiresDetailSelection)
+    .map(([key, _config]) => key as SyncCategory);
 }
 
 /**

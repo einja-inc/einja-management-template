@@ -14,7 +14,7 @@ const CATEGORY_PATTERNS: Record<SyncCategory, string[]> = {
   github: [".github/workflows/**", ".github/actions/**", ".github/dependabot.yml"],
   docker: ["Dockerfile*", "docker-compose*.yml", ".dockerignore"],
   monorepo: ["turbo.json", "pnpm-workspace.yaml"],
-  "root-config": ["package.json", "tsconfig.json", "vitest.config.ts", "postcss.config.cjs", "next.config.ts", "components.json", "worktree.config.json"],
+  "root-config": ["package.json", "tsconfig.json", "vitest.config.ts", "postcss.config.cjs", "next.config.ts", "components.json", "worktree.config.json", ".mcp.json"],
   scripts: ["scripts/**"],
   apps: ["apps/**"],
   packages: ["packages/**"],

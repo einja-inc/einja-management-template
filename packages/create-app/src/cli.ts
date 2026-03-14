@@ -47,7 +47,7 @@ program
   .option("--backup", "Create backup before syncing (default: true)", true)
   .option("--rollback", "Rollback to previous backup")
   .option("--force", "Force sync even with uncommitted changes")
-  .option("-y, --yes", "Sync all categories without confirmation prompts")
+  .option("-y, --yes", "Sync safe categories without confirmation prompts (excludes apps, packages)")
   .action(
     async (options: {
       categories?: string;

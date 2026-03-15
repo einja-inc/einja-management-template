@@ -637,21 +637,3 @@ Director間・Lead間の全メッセージは以下のプレフィックスで�
            └── task/{N}-2.1      ← Teammate C が作成・作業・PR (base: phase2)
 ```
 
----
-
-## tmux版（einja-issue-exec）との違い
-
-| 項目 | tmux版 | Agent Teams版（本Skill） |
-|------|--------|------------------------|
-| 実行環境 | CLI + tmux 必須 | CLI / Desktop 両対応 |
-| Director 管理単位 | Phase（1 Director = Phase内の全タスクグループ） | タスクグループ（1 Director = 1タスクグループ、完了後に次を claim） |
-| Director 数 | Phase数と同数（固定） | min(タスクグループ総数, 5) の固定プール |
-| Worker の実体 | 独立 tmux window（claude 対話モード） | Director 内のサブエージェント（Agent tool） |
-| タスク割り振り | Director が依存DAGに基づき Worker を順次起動 | Lead が TaskList に登録 + addBlockedBy、Director が self-claim |
-| 通信 | ステータスファイルポーリング | SendMessage + broadcast + 自動idle通知 |
-| 状態管理 | `~/.einja/sessions/` JSON | 共有TaskList |
-| ゲートチェック実行者 | Director | Lead（Director 完了報告受信時） |
-| セッション復旧 | `--resume` でステータスファイルから復元 | issue ブランチの状態から途中再開 |
-| ピアレビュー | なし | Director間の非同期レビュー（アイドル時） |
-| 変更通知 | なし | broadcast による変更サマリ共有 |
-| コンフリクト予防 | なし（事後対応のみ） | 事前宣言 + 自動検知 + ピア調整 |

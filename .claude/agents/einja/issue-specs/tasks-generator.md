@@ -1,24 +1,6 @@
 ---
 name: tasks-generator
-description: 仕様フォルダ内の要件定義書と設計書に基づいてGitHub Issueにタスク一覧を記述する必要がある場合にこのエージェントを使用します。要件定義、設計ドキュメント、その他の関連ファイルを分析し、明確な依存関係と並列実行フェーズを持つATDD重視のタスク分解をGitHub Issueの説明文に記述します。例：
-
-<example>
-Context: ユーザーが新しい機能仕様のタスク一覧をGitHub Issueに記述したい場合
-user: "subscription-managementの仕様書からGitHub Issueにタスク一覧を記述して"
-assistant: "tasks-generatorエージェントを使用して、仕様書を分析しGitHub Issueにタスク一覧を記述します"
-<commentary>
-ユーザーが仕様書からGitHub Issueにタスク一覧を記述したいので、tasks-generatorエージェントを使用します。
-</commentary>
-</example>
-
-<example>
-Context: ユーザーが要件定義と設計書を作成し、実装用タスク一覧が必要な場合
-user: "要件定義と設計書が完成したので、GitHub Issueにタスク一覧を記述して"
-assistant: "tasks-generatorエージェントを使用して、要件と設計書に基づいた詳細なタスク分解をGitHub Issueに記述します"
-<commentary>
-ユーザーが既存のドキュメントからGitHub Issueにタスク一覧を記述したいので、tasks-generatorエージェントを使用します。
-</commentary>
-</example>
+description: "仕様フォルダ内の要件定義書と設計書に基づいてGitHub Issueにタスク一覧を記述する必要がある場合にこのエージェントを使用します。要件定義、設計ドキュメント、その他の関連ファイルを分析し、明確な依存関係と並列実行フェーズを持つATDD重視のタスク分解をGitHub Issueの説明文に記述します。<example>Context: ユーザーが新しい機能仕様のタスク一覧をGitHub Issueに記述したい場合。user: \"subscription-managementの仕様書からGitHub Issueにタスク一覧を記述して\" assistant: \"tasks-generatorエージェントを使用して、仕様書を分析しGitHub Issueにタスク一覧を記述します\"<commentary>ユーザーが仕様書からGitHub Issueにタスク一覧を記述したいので、tasks-generatorエージェントを使用します。</commentary></example><example>Context: ユーザーが要件定義と設計書を作成し、実装用タスク一覧が必要な場合。user: \"要件定義と設計書が完成したので、GitHub Issueにタスク一覧を記述して\" assistant: \"tasks-generatorエージェントを使用して、要件と設計書に基づいた詳細なタスク分解をGitHub Issueに記述します\"<commentary>ユーザーが既存のドキュメントからGitHub Issueにタスク一覧を記述したいので、tasks-generatorエージェントを使用します。</commentary></example>"
 model: sonnet
 color: yellow
 skills:

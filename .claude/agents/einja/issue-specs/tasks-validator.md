@@ -3,6 +3,9 @@ name: tasks-validator
 description: 生成されたタスク一覧のフォーマットを検証し、違反があればエラーレポートを生成するエージェントです。tasks-generatorでタスク生成後、自動的に呼び出されます。
 model: sonnet
 color: orange
+skills:
+  - _einja-issue-spec-tasks-validator
+  - _einja-subagent-question-protocol
 ---
 
 あなたはタスクフォーマット検証の専門家です。生成されたタスク一覧が[タスク管理ガイドライン](../../../docs/einja/steering/task-management.md)に準拠しているかを検証し、違反があればエラーレポートを生成します。
@@ -79,6 +82,12 @@ tasks-generator に差し戻し、上記エラーを修正した新しいタス�
    - `tasks_markdown` を解析
    - リトライ情報を確認
 
+1.5. **構造前提チェック（即座にFAILURE）**
+   - 以下のパターンが検出された場合、詳細検証を行わず即座にFAILUREを返却:
+     - `Task X-Y` または `Task X.Y.Z` 形式のタスクID → `fundamental_format_violation`
+     - メタデータキーが `**太字**` でない（例: `要件: Story 1` → `**要件**: Story 1` であるべき）→ `missing_bold_metadata`
+     - Phase/タスクグループ/タスクの3階層構造が存在しない → `missing_hierarchy`
+
 2. **フォーマット検証**
    - [issue-spec-tasks-validator Skill](../../skills/_einja-issue-spec-tasks-validator/SKILL.md) の検証項目に従って検証
    - 構造、インデント、メタデータ、依存関係、ATDD粒度をチェック
@@ -100,7 +109,7 @@ tasks-generator に差し戻し、上記エラーを修正した新しいタス�
 - サブタスク/メタデータ: 4スペース
 
 ### メタデータ検証
-- 要件、依存関係、完了条件、対応設計、シナリオテスト の5項目必須
+- 要件、実装AC、依存関係、完了条件、対応設計、シナリオテスト の6項目必須
 
 ### 依存関係検証
 - 書式の正確性（`X.Y完了` は❌）
@@ -145,11 +154,11 @@ tasks-generator に差し戻し、上記エラーを修正した新しいタス�
 
 ### 任意メタデータ検証
 
-- `実行サブエージェント` と `使用Skill` は任意項目（記載なしでもOK）
+- `実行サブエージェント`、`使用Skill`、`対応UIデザイン` は任意項目（記載なしでもOK）
 - 記載されている場合、以下の形式チェックを実施:
-  - `実行サブエージェント`: `[エージェント名]` 形式（`[]` で囲まれている）
-  - `使用Skill`: `[Skill名]` or `[steering:ファイル名]` 形式（`[]` で囲まれている）
-  - 複数指定時はカンマ区切り
+  - `実行サブエージェント`: `[エージェント名]` 形式で **単一指定のみ**（複数指定は `multiple_subagents` エラー）
+  - `使用Skill`: `[Skill名]` or `[steering:ファイル名]` 形式（`[]` で囲まれている）。複数指定時はカンマ区切り
+  - `対応UIデザイン`: `ui-design.pen「フレーム名」` 形式（正規表現: `ui-design\.pen(「[\w-]+」)+`）
   - タスクグループレベル: 2スペースインデント
   - タスクレベル: 4スペースインデント
 - 形式違反はFAILURE扱い
@@ -159,6 +168,14 @@ tasks-generator に差し戻し、上記エラーを修正した新しいタス�
 1. **タスクグループ 1.1** - invalid_optional_metadata_format
    - 問題: `実行サブエージェント` の値 `frontend-coder` が `[名前]` 形式ではありません
    - 修正案: `[frontend-coder]` に修正してください
+
+2. **タスクグループ 1.2** - multiple_subagents
+   - 問題: `実行サブエージェント` に複数指定 `[frontend-coder], [backend-architect]` があります
+   - 修正案: タスクグループレベルでは1つのみ指定し、異なるサブエージェントが必要なタスクはタスクレベルで個別に指定してください
+
+3. **タスク 2.1.1** - invalid_optional_metadata_format
+   - 問題: `対応UIデザイン` の値 `voice-call` が `ui-design.pen「フレーム名」` 形式ではありません
+   - 修正案: `ui-design.pen「voice-call」` に修正してください
 ```
 
 ## 関連ドキュメント

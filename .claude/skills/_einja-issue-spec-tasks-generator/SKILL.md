@@ -47,21 +47,20 @@ GitHub Issueの本文（Markdown形式）:
 
 各タスク（X.Y.Z）に以下を必ず付与：
 - **要件**: Story X
+- **実装AC**: ACX.X, ACX.Y（このタスクで実装するAC番号）
 - **依存関係**: なし / X.Y / Phase X完了
 - **完了条件**: [条件]（ACX.Xを満たす）
 - **対応設計**: design.md「[セクション名]」
-- **実装AC**: ACX.X, ACX.Y（このタスクで実装するAC番号）
 - **シナリオテスト**: なし / シナリオX Step Y-Z
 
 ### タスクの任意メタデータ
 
 以下は任意項目。該当する場合に付与する：
-- **実行サブエージェント**: `[エージェント名]`（例: `[frontend-coder]`, `[design-engineer]`, `[backend-architect]`）
-- **使用Skill**: `[Skill名]` or `[steering:ファイル名]`（例: `[einja-pencil-design-manager]`, `[steering:api-development]`）
+- **実行サブエージェント**: `[エージェント名]`（例: `[frontend-coder]`, `[design-engineer]`, `[backend-architect]`）。**1つのみ指定可能（複数指定禁止）**
+- **使用Skill**: `[Skill名]` or `[steering:ファイル名]`（例: `[einja-pencil-design-manager]`, `[steering:api-development]`）。複数指定はカンマ区切り
+- **対応UIデザイン**: `ui-design.pen「フレーム名」`（例: `ui-design.pen「voice-call」「voice-call--ai-speaking」`）。UI実装を含むタスクにのみ付与
 
-複数指定はカンマ区切り（例: `[frontend-coder], [design-engineer]`）。
-
-**継承ルール**: タスクグループレベルで指定した場合、配下の全タスクに継承される。タスクレベルで指定した場合はタスクグループの指定をオーバーライドする。
+**継承ルール**: タスクグループレベルで指定した場合、配下の全タスクに継承される。タスクレベルで指定した場合はタスクグループの指定をオーバーライドする。サブエージェントはグループ・タスクとも1つのみ指定可能。
 
 ## サブエージェント・Skill の割り当て
 
@@ -72,6 +71,11 @@ GitHub Issueの本文（Markdown形式）:
 3. **CLAUDE.md** の「委託ルール」対応表
 
 上記に該当がない場合は省略してよい（任意項目のため）。
+
+**サブエージェント指定の制約**:
+- タスクグループレベル・タスクレベルとも **1タスクにつき1サブエージェントのみ** 指定可能
+- 複数サブエージェントの指定は禁止（例: `[frontend-coder], [backend-architect]` は❌）
+- 異なるサブエージェントが必要なタスクはタスクレベルで個別に指定する
 
 ## TDDデフォルト適用
 
@@ -98,13 +102,14 @@ TDDは**1タスク内のサブタスク**として記載（3タスク分割で�
   - **リファクタリング**:
     - [改善内容]
   - **要件**: Story X
+  - **実装AC**: ACX.X, ACX.Y
   - **依存関係**: ...
   - **完了条件**: ...
   - **対応設計**: ...
-  - **実装AC**: ACX.X, ACX.Y
   - **シナリオテスト**: ...
   - **実行サブエージェント**: [frontend-coder]（任意）
   - **使用Skill**: [einja-pencil-design-manager]（任意）
+  - **対応UIデザイン**: ui-design.pen「フレーム名」（任意：UI実装タスクのみ）
 ```
 
 詳細は[タスク管理ガイドライン](../../../docs/einja/steering/task-management.md)の「TDDタスク構造」セクションを参照。

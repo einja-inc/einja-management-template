@@ -11,7 +11,7 @@
 
 | ロール | 責務（共通） | 管理単位 |
 |--------|-------------|----------|
-| **Manager** | Issue全体の管理。Phase管理、ブランチ作成、タスクグループのDirectorへの割り振り、Phase間マージ、質問エスカレーション（対人間）、エラー監視 | Issue全体 |
+| **Manager** | Issue全体の管理。Phase管理、ブランチ作成、タスクグループの実行管理（tmux版: 直接Worker起動、Agent Teams版: Teammateに委託）、Phase間マージ、質問エスカレーション（対人間）、エラー監視 | Issue全体 |
 | **Director** | タスクグループの進行管理。タスクグループ内の各タスクを複数 Worker で協力して進行するよう導く。einja-task-exec 実行、PR作成、完了報告 | 方式により異なる（1.2参照） |
 | **Worker** | 個別タスク（X.Y.Z）の実装。Director内のサブエージェントとして動作（task-executer, task-reviewer, task-qa） | タスク（X.Y.Z）1つ |
 
@@ -20,17 +20,17 @@
 | ロール | tmux版（issue-exec） | Agent Teams版（issue-team-exec） |
 |--------|---------------------|--------------------------------|
 | **Manager** | Claude Code カスタムコマンド（メインプロセス） | **Lead**（Agent Teams リーダー） |
-| **Director** | tmux window + claude 対話モード（Phase単位で1名、Phase内の全タスクグループを管理） | **Teammate**（タスクグループ単位で1名spawn） |
-| **Worker** | tmux window + einja-task-exec（タスクグループ単位で1名） | **Subagent**（Director teammate 内の Agent tool） |
+| **Director** | **廃止**: Manager が直接 Worker を管理（2階層化） | **Teammate**（タスクグループ単位で1名spawn） |
+| **Worker** | tmux window + einja-task-exec / Agent tool（タスクグループ単位で1名） | **Subagent**（Director teammate 内の Agent tool） |
 
 ### 1.3 方式別の責務差分
 
 | 責務 | tmux版の実行者 | Agent Teams版の実行者 |
 |------|--------------|---------------------|
-| 成果物ゲートチェック（Fast Gate / Risk Gate） | Director（Phase内の全タスクを一元チェック） | Lead = Manager（Director 完了報告受信時にチェック） |
-| spec事前一括チェック | Director | Lead = Manager |
-| 依存DAG解析・Layer分け | Director | Lead = Manager（TaskList + addBlockedBy で表現） |
-| Worker異常終了リトライ | Director（最大2回） | Lead = Manager（Teammate idle 検知時） |
+| 成果物ゲートチェック（Fast Gate / Risk Gate） | Manager（Worker完了報告受信時にチェック） | Lead = Manager（Director 完了報告受信時にチェック） |
+| spec事前一括チェック | Manager | Lead = Manager |
+| 依存DAG解析・Layer分け | Manager | Lead = Manager（TaskList + addBlockedBy で表現） |
+| Worker異常終了リトライ | Manager（最大2回） | Lead = Manager（Teammate idle 検知時） |
 
 > 各方式固有の起動・通信手順は各SKILL.mdを参照。
 
@@ -51,7 +51,7 @@ pending → in_progress → awaiting_review → completed
 |-----------|------|---------|
 | `pending` | 初期状態。未着手 | タスクグループ作成時に設定 |
 | `in_progress` | 実行中。Workerがタスクを実装中 | Workerが起動し作業を開始した時点 |
-| `awaiting_review` | Worker完了。Directorによるゲートチェック待ち | Workerが全タスク完了・PR作成後 |
+| `awaiting_review` | Worker完了。Manager/Leadによるゲートチェック待ち | Workerが全タスク完了・PR作成後 |
 | `completed` | ゲートチェック通過・PRマージ完了 | Fast Gate（+ 必要に応じてRisk Gate）通過後、PRがマージされた時点 |
 | `failed` | 回復不能な失敗。エスカレーション必要 | リトライ上限超過、または致命的エラー発生時 |
 
@@ -101,9 +101,9 @@ pending → in_progress → awaiting_review → completed
 - **最大2回**まで修正を試行する
 - 3回目のNG（fixCount >= 2 の状態で再度不通過）→ `directorVerdict = "rejected"` → Managerにエスカレーション
 
-### 4.2 retryCount（Worker/Director異常終了時のリトライ）
+### 4.2 retryCount（Worker/Teammate異常終了時のリトライ）
 
-- Worker または Director が異常終了（プロセス消失等）した場合、再起動を試行する
+- Worker または Teammate（Agent Teams版）が異常終了（プロセス消失等）した場合、再起動を試行する
 - **最大2回**まで再起動する
 - 3回目の失敗（retryCount >= 2 の状態で再度異常終了）→ `status = "failed"` → Managerにエスカレーション
 
@@ -140,7 +140,7 @@ pending → in_progress → awaiting_review → completed
 
 | PR種別 | base | head | 作成者 |
 |--------|------|------|--------|
-| タスクPR | `issue/{N}-phase{M}` | `task/{N}-{X.Y}` | Director/Teammate |
+| タスクPR | `issue/{N}-phase{M}` | `task/{N}-{X.Y}` | Worker(einja-task-exec) / Teammate（Agent Teams版） |
 | Phase PR | `issue/{N}` | `issue/{N}-phase{M}` | Manager/Lead |
 | 最終PR | IssueBranchBase | `issue/{N}` | Manager/Lead |
 
@@ -207,7 +207,8 @@ pending → in_progress → awaiting_review → completed
 ### 11.1 エスカレーションチェーン
 
 ```
-Worker → Director → Manager → Human
+tmux版（einja-issue-exec）: Worker → Manager → Human
+Agent Teams版（einja-issue-team-exec）: Worker → Director(Teammate) → Lead(Manager) → Human
 ```
 
 ### 11.2 判断基準
@@ -264,23 +265,24 @@ Managerの監視ループでIssueBranchBaseの進行を検知し、Issueブラ�
    git merge origin/{IssueBranchBase}
    git push origin issue/{N}
    ```
-3. **成功時**: 各Directorに `sync_required` を通知（Phaseブランチは直接更新しない）
-4. **Directorの同期**: Directorは安全ポイント（タスク開始前・マージ直後）で以下を実行:
+3. **成功時**: 各active Workerに `sync_required` を通知（tmux版）/ Teammate に通知（Agent Teams版）。Phaseブランチは直接更新しない
+4. **Workerの同期（tmux版）/ Directorの同期（Agent Teams版）**: 安全ポイント（タスク開始前・マージ直後）で以下を実行:
    ```bash
    cd <phase-worktree>
    git fetch origin
    git merge origin/issue/{N}
    git push origin issue/{N}-phase{M}
    ```
+   > tmux版の場合、Manager が Phase ブランチを最新化すれば Worker 側の個別同期は不要（Worker はタスク開始前に Manager が最新 Phase ブランチからブランチを切るため）
 5. **merge失敗時**: `einja-conflict-resolver` Skill で解消 → 解消不可ならユーザーにエスカレーション
 
 #### 同期のタイミング
 
 | トリガー | 実行者 | 動作 |
 |---------|--------|------|
-| `git fetch` で IssueBranchBase の進行を検知 | Manager | Issueブランチに merge → Directorに通知 |
-| `sync_required` 通知の受信 | Director | 安全ポイントで Phase ブランチに merge |
-| タスク開始前 | Director | Phase ブランチの最新を確認 |
+| `git fetch` で IssueBranchBase の進行を検知 | Manager | Issueブランチに merge → Worker（tmux版）/ Teammate（Agent Teams版）に通知 |
+| `sync_required` 通知の受信 | Worker（tmux版）/ Director（Agent Teams版） | 安全ポイントで Phase ブランチに merge |
+| タスク開始前 | Manager（tmux版）/ Director（Agent Teams版） | Phase ブランチの最新を確認 |
 
 ### 12.4 複数Issue並行時のマージ順序
 
@@ -308,7 +310,7 @@ Managerの監視ループでIssueBranchBaseの進行を検知し、Issueブラ�
 - **低頻度ハートビート**: 5分間隔で状態を確認（取りこぼし防止）
 - 以下のトリガーで**通常ポーリング（30秒間隔）に即時復帰**:
   1. 人間からの報告
-  2. Director/Teammate からの通知
+  2. Worker（tmux版）/ Teammate（Agent Teams版）からの通知
   3. ハートビートでマージ検知
 
 ### 14.3 冪等処理

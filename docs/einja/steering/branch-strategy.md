@@ -86,14 +86,13 @@ einja-issue-exec（tmux版）と einja-issue-team-exec（Agent Teams版）の両
 
 ### タスク実行シーケンス
 
-※ 以下は tmux版のシーケンス。Agent Teams版は SKILL.md を参照
+※ 以下は tmux版（2階層: Manager→Worker）のシーケンス。Agent Teams版は SKILL.md を参照
 
 ```mermaid
 sequenceDiagram
     participant User as 開発者
     participant Mgr as Manager
     participant Git as Git
-    participant Dir as Director
     participant Wkr as Worker
 
     User->>Mgr: /einja-issue-exec #123
@@ -104,33 +103,31 @@ sequenceDiagram
         Mgr->>Git: git branch issue/123 origin/{IssueBranchBase}
         Mgr->>Git: git push -u origin issue/123
         Mgr->>Git: git branch issue/123-phase1 issue/123
-        Mgr->>Git: git worktree add ~/.einja/worktrees/issue-123/phase1 issue/123-phase1
     end
 
     rect rgb(255,245,230)
         Note over Mgr,Wkr: タスク実行フェーズ（tmux + worktree）
-        Mgr->>Dir: tmux window で Director 起動（Phase worktree）
-        Dir->>Git: git branch task/123-1.1 issue/123-phase1
-        Dir->>Git: git worktree add ~/.einja/worktrees/issue-123/task-1.1 task/123-1.1
-        Dir->>Wkr: tmux window で Worker 起動（Task worktree）
+        Mgr->>Git: git branch task/123-1.1 issue/123-phase1
+        Mgr->>Git: git worktree add ~/.einja/worktrees/issue-123/task-1.1 task/123-1.1
+        Mgr->>Wkr: tmux window で Worker 起動（Task worktree）
         Wkr->>Git: 実装 & コミット & push
         Wkr->>Git: gh pr create --base issue/123-phase1 --head task/123-1.1
-        Wkr->>Dir: ステータスファイルで完了報告
+        Wkr->>Mgr: ステータスファイルで完了報告
     end
 
     rect rgb(230,255,230)
-        Note over Dir,Git: 完了検知フェーズ（ステータスファイル監視）
-        Dir->>Git: PR マージ処理（マージモードに応じて）
-        Dir->>Git: worktree 削除 & tmux window kill
-        Dir->>Dir: 依存タスク起動判定 → 新 Worker 起動
-        Dir->>Git: GitHub Issue チェックボックス更新
+        Note over Mgr,Git: 完了検知フェーズ（ステータスファイル監視）
+        Mgr->>Git: PR マージ処理（マージモードに応じて）
+        Mgr->>Git: worktree 削除 & tmux window kill
+        Mgr->>Mgr: 依存タスク起動判定 → 新 Worker 起動
+        Mgr->>Git: GitHub Issue チェックボックス更新
     end
 
     rect rgb(255,245,230)
-        Note over Dir,Wkr: 次タスク開始時
-        Dir->>Git: git branch task/123-1.2 issue/123-phase1
-        Dir->>Git: git worktree add ~/.einja/worktrees/issue-123/task-1.2 task/123-1.2
-        Dir->>Wkr: tmux window で Worker 起動
+        Note over Mgr,Wkr: 次タスク開始時
+        Mgr->>Git: git branch task/123-1.2 issue/123-phase1
+        Mgr->>Git: git worktree add ~/.einja/worktrees/issue-123/task-1.2 task/123-1.2
+        Mgr->>Wkr: tmux window で Worker 起動
         Note over Git: 前タスクの変更がマージ済みの Phase ブランチから派生
     end
 ```
@@ -141,10 +138,10 @@ sequenceDiagram
 |-----|----------|--------|------|
 | **Create** Issue ブランチ | コマンド起動時 | Manager | IssueBranchBase から作成 |
 | **Create** Phase ブランチ | コマンド起動時（全Phase分）or Phase開始時 | Manager | Issue ブランチから作成 |
-| **Create** Task ブランチ | タスク開始時 | Director | Phase ブランチから作成 |
+| **Create** Task ブランチ | タスク開始時 | Manager | Phase ブランチから作成 |
 | **Update** Phase ブランチ | タスク PR マージ時 | GitHub | タスク完了後のマージで更新 |
 | **Merge** Phase → Issue | Phase 全タスク完了時 | Manager | Phase PR 作成 → マージモードに応じた処理 |
-| **Delete** Task ブランチ/隔離環境 | タスク完了後 | Director | タスク完了後に即削除 |
+| **Delete** Task ブランチ/隔離環境 | タスク完了後 | Manager | タスク完了後に即削除 |
 | **Delete** Phase ブランチ/隔離環境 | Phase 完了後 | Manager | Phase マージ後に即削除 |
 
 ### 実行方式別のファイル隔離
@@ -154,21 +151,22 @@ sequenceDiagram
 ```
 ~/.einja/worktrees/issue-{N}/
 ├── manager/                      ← Manager cwd
-├── phase{M}/                     ← Director cwd
-├── task-{X.Y}/                   ← Worker cwd
+├── task-{X.Y}/                   ← Worker cwd（tmuxモード）
 ```
 
+> Agent toolモードでは `isolation: "worktree"` により自動作成。
+
 - Manager worktree: `git worktree add ~/.einja/worktrees/issue-{N}/manager issue/{N}`
-- Phase worktree: `git worktree add ~/.einja/worktrees/issue-{N}/phase{M} issue/{N}-phase{M}`
-- Task worktree: `git worktree add ~/.einja/worktrees/issue-{N}/task-{X.Y} task/{N}-{X.Y}`
+- Task worktree: `git worktree add ~/.einja/worktrees/issue-{N}/task-{X.Y} task/{N}-{X.Y}`（tmuxモード）
+- Agent toolモード: `isolation: "worktree"` で自動作成
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Created: Director が worktree 作成
+    [*] --> Created: Manager が worktree 作成（tmuxモード）/ Agent tool が自動作成
     Created --> Running: Worker（claude 対話モード）起動
     Running --> Completed: タスク完了 & PR 作成
     Completed --> Merged: PR マージ
-    Merged --> [*]: 即削除（Director が worktree remove）
+    Merged --> [*]: 即削除（Manager が worktree remove）
 ```
 
 #### Agent Teams版（einja-issue-team-exec）のファイル隔離
@@ -189,7 +187,7 @@ stateDiagram-v2
 
 ### ブランチ同期の動作
 
-タスク着手時、Director は Phase ブランチの最新状態から Task ブランチを作成します。
+タスク着手時、Manager は Phase ブランチの最新状態から Task ブランチを作成します。
 先行タスクの PR がマージされた Phase ブランチから派生するため、変更が自動的に引き継がれます。
 
 ```mermaid
@@ -210,7 +208,7 @@ sequenceDiagram
     end
 
     rect rgb(255, 248, 240)
-        Note over Issue,Phase: Step 2: Phase ブランチの同期（Director）
+        Note over Issue,Phase: Step 2: Phase ブランチの同期（Manager）
         Phase->>Phase: fetch origin/issue/123-phase1
         Phase->>Phase: merge origin/issue/123-phase1 (pull)
         Issue->>Phase: merge issue/123 (他Phaseの変更取り込み)
@@ -218,7 +216,7 @@ sequenceDiagram
     end
 
     rect rgb(240, 255, 240)
-        Note over Phase,Task: Step 3: Task ブランチ & worktree 作成（Director）
+        Note over Phase,Task: Step 3: Task ブランチ & worktree 作成（Manager）
         Phase-->>Task: Phase ブランチから Task ブランチを作成
         Note over Task: Worker（claude 対話モード）がタスク実行
     end
@@ -374,7 +372,7 @@ IssueBranchBase (main)
 | 対象ブランチ | 許可操作 | 理由 |
 |------------|---------|------|
 | `issue/{N}` | **merge-only** | 複数エージェントが参照する共有ブランチ。rebase/force-pushは他エージェントの参照を壊す |
-| `issue/{N}-phase{M}` | **merge-only** | DirectorとWorkerが参照する共有ブランチ |
+| `issue/{N}-phase{M}` | **merge-only** | Manager/Teammate（Agent Teams版）とWorkerが参照する共有ブランチ |
 | `task/{N}-{X.Y}` | rebase可 | 単独Worker所有のため安全 |
 
 ### マージ戦略: 楽観的並行マージ
@@ -389,8 +387,8 @@ Managerの監視ループでIssueBranchBaseの進行を検知し、以下を実�
 
 1. **進行検知**: `git fetch origin` で `origin/{IssueBranchBase}` の変更を確認
 2. **Issueブランチへの取り込み**: `issue/{N}` ブランチで `git merge origin/{IssueBranchBase}` を実行
-3. **成功時**: `sync_required` 通知のみ発行（Phaseブランチは直接更新しない）
-4. **Directorの同期**: 安全ポイント（タスク開始前・マージ直後）でPhaseブランチを同期
+3. **成功時**: 各Workerにsync通知（tmux版）/ Teammateに通知（Agent Teams版）。Phaseブランチは直接更新しない
+4. **Managerの同期**: 安全ポイント（タスク開始前・マージ直後）でPhaseブランチを同期し、タスクブランチ作成時に最新を反映
 5. **merge失敗時**: `einja-conflict-resolver` Skill で解消 → 解消不可ならユーザーにエスカレーション
 
 詳細手順は [Issue実行共通プロトコル](../instructions/issue-exec-protocol.md) の「IssueBranchBase自動同期プロトコル」を参照。
@@ -442,7 +440,7 @@ git push origin タスクブランチ名
 
 ## 関連ドキュメント
 
-- [einja-issue-exec ワークフロー](../instructions/issue-exec-workflow.md) - コマンドの使用方法と3階層プロセスの詳細
+- [einja-issue-exec ワークフロー](../instructions/issue-exec-workflow.md) - コマンドの使用方法と2階層プロセスの詳細
 - [Issue実行共通プロトコル](../instructions/issue-exec-protocol.md) - 共通ルール
 - [タスク管理](task-management.md) - タスク階層と粒度基準
 - [開発ワークフロー](development-workflow.md) - 仕様書作成からタスク実行までの全体フロー

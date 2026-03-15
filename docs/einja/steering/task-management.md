@@ -444,8 +444,8 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 /einja-issue-exec #<issue番号> --max-phase <番号>      # 指定Phaseまで実行
 /einja-issue-exec #<issue番号> --base <ブランチ>       # ベースブランチ指定
 ```
-- Manager → Director → Worker の3階層で並列実行
-- tmux セッションで全プロセスを監視可能
+- Manager → Worker の2階層で並列実行（tmux環境ではtmux windowで可視化、tmuxなし環境ではAgent toolで自動フォールバック）
+- tmux環境ではtmuxセッションで全Worker監視可能
 - マージモードで自動化レベルを制御
 
 **Issue全体の並列実行（Agent Teams版）**:

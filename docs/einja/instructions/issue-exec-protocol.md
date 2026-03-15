@@ -225,22 +225,85 @@ Worker → Director → Manager → Human
 
 > 各方式固有の質問ファイル形式・通知メカニズムは各SKILL.mdを参照。
 
+## 12. 複数Issue並行実行
+
+### 12.1 前提ルール
+
+複数のClaude Codeセッションが同一リポジトリで並行作業する場合、以下を遵守する:
+
+- **メインリポのHEADに依存しない**: ブランチ作成には `git branch` を使用し、`git checkout` は自身のworktree内でのみ使用する
+- **ブランチ操作の安全性**: `issue/{N}` と `issue/{N}-phase{M}` は **merge-only**（rebase/force-push禁止）。`task/{N}-{X.Y}` のみrebase可
+- **ブランチ作成の冪等性**: `git branch ... 2>/dev/null || true` でガードし、resume/再試行時の失敗を防止
+
+### 12.2 lock系エラーリトライポリシー
+
+`git fetch`/`git branch`/`git push` でlock系エラーが発生した場合のリトライポリシー:
+
+| 対象エラー | リトライ方法 |
+|-----------|-------------|
+| `packed-refs.lock` | jitter付き1〜2秒待機 → 再試行 |
+| `FETCH_HEAD.lock` | jitter付き1〜2秒待機 → 再試行 |
+| `cannot lock ref` | jitter付き1〜2秒待機 → 再試行 |
+| その他lock系エラー | jitter付き1〜2秒待機 → 再試行 |
+
+- **最大リトライ回数**: 3回
+- **全リトライ失敗時**: abort（エラーをManagerにエスカレーション）
+- **jitter**: `sleep $((RANDOM % 2 + 1))` 相当のランダム待機
+
+### 12.3 IssueBranchBase自動同期プロトコル
+
+Managerの監視ループでIssueBranchBaseの進行を検知し、Issueブランチに取り込むプロトコル。
+
+#### 同期手順
+
+1. **進行検知**: Manager監視ループ内で `git fetch origin` 実行時、`origin/{IssueBranchBase}` の HEAD が前回確認時から進行していることを検知
+2. **Issueブランチへの取り込み**: Manager worktree内で以下を実行:
+   ```bash
+   cd <manager-worktree>
+   git fetch origin
+   git merge origin/{IssueBranchBase}
+   git push origin issue/{N}
+   ```
+3. **成功時**: 各Directorに `sync_required` を通知（Phaseブランチは直接更新しない）
+4. **Directorの同期**: Directorは安全ポイント（タスク開始前・マージ直後）で以下を実行:
+   ```bash
+   cd <phase-worktree>
+   git fetch origin
+   git merge origin/issue/{N}
+   git push origin issue/{N}-phase{M}
+   ```
+5. **merge失敗時**: `einja-conflict-resolver` Skill で解消 → 解消不可ならユーザーにエスカレーション
+
+#### 同期のタイミング
+
+| トリガー | 実行者 | 動作 |
+|---------|--------|------|
+| `git fetch` で IssueBranchBase の進行を検知 | Manager | Issueブランチに merge → Directorに通知 |
+| `sync_required` 通知の受信 | Director | 安全ポイントで Phase ブランチに merge |
+| タスク開始前 | Director | Phase ブランチの最新を確認 |
+
+### 12.4 複数Issue並行時のマージ順序
+
+- 先にIssueBranchBase（main等）にマージしたIssueが勝ち（楽観的並行マージ）
+- 後続Issueはmainの最新を merge で取り込み、PR を更新してからマージ
+- Issue間依存がある場合は人間が実行順序を制御
+
 ---
 
-## 12. コンフリクト解消ルール
+## 13. コンフリクト解消ルール
 
 - コンフリクト発生時は `einja-conflict-resolver` Skill を使用して解消する
 - 自動解消できない場合はManagerにエスカレーションする
 
 ---
 
-## 13. ポーリング停止・再開ルール
+## 14. ポーリング停止・再開ルール
 
-### 13.1 停止条件
+### 14.1 停止条件
 
 - 1時間ポーリングしても状態変化なし → ポーリングを一旦停止し、待機モードへ遷移
 
-### 13.2 待機モード中の動作
+### 14.2 待機モード中の動作
 
 - **低頻度ハートビート**: 5分間隔で状態を確認（取りこぼし防止）
 - 以下のトリガーで**通常ポーリング（30秒間隔）に即時復帰**:
@@ -248,7 +311,7 @@ Worker → Director → Manager → Human
   2. Director/Teammate からの通知
   3. ハートビートでマージ検知
 
-### 13.3 冪等処理
+### 14.3 冪等処理
 
 - `processed_pr_numbers` セットで処理済みPRを管理する
 - 同一PRの二重処理を防止する

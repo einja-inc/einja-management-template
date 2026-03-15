@@ -128,18 +128,17 @@ Issue本文から以下を抽出:
 ## Step 2: ブランチ作成
 
 ```bash
-# ベースブランチの最新を取得
+# ベースブランチの最新を取得し、ブランチ作成（メインリポのHEADは変更しない）
 git fetch origin
-git checkout ${baseBranch}
-git pull origin ${baseBranch}
-
-# issue ブランチ作成
-git checkout -b issue/${N}
-git push -u origin issue/${N}
-
-# Phase 1 ブランチ作成
-git checkout -b issue/${N}-phase1
-git push -u origin issue/${N}-phase1
+git branch issue/${N} origin/${baseBranch} 2>/dev/null || true    # 冪等: 既存ならスキップ
+git push -u origin issue/${N} 2>/dev/null || true
+git branch issue/${N}-phase1 issue/${N} 2>/dev/null || true       # 冪等: 既存ならスキップ
+git push -u origin issue/${N}-phase1 2>/dev/null || true
+# ※ git checkout は使用しない。git branch でHEADを変えずにブランチを作成する
+# ※ `|| true` は「branch already exists」エラーの冪等ガード。
+#    認証失敗・ネットワーク障害・push拒否等の致命エラーは別途検出・abortすること
+# ※ lock系エラー（packed-refs.lock, FETCH_HEAD.lock, cannot lock ref等）発生時は
+#    jitter付き1〜2秒待機 → 再試行（最大3回、全失敗時はabort）
 ```
 
 - resume 時は既存ブランチを再利用（作成済みブランチはスキップ）
@@ -374,12 +373,14 @@ gh pr create --base issue/${N} --head issue/${N}-phase{M} \
 ### マージ後の次Phase準備
 
 ```bash
-# 次Phase ブランチ作成
+# 次Phase ブランチ作成（メインリポのHEADは変更しない）
 git fetch origin
-git checkout issue/${N}
-git pull origin issue/${N}
-git checkout -b issue/${N}-phase{M+1}
-git push -u origin issue/${N}-phase{M+1}
+git branch issue/${N}-phase{M+1} origin/issue/${N} 2>/dev/null || true  # 冪等: 既存ならスキップ
+git push -u origin issue/${N}-phase{M+1} 2>/dev/null || true
+# ※ git checkout は使用しない。git branch でHEADを変えずにブランチを作成する
+# ※ `|| true` は「branch already exists」エラーの冪等ガード。
+#    認証失敗・ネットワーク障害等の致命エラーは別途検出・abortすること
+# ※ lock系エラー発生時はjitter付き1〜2秒待機 → 再試行（最大3回、全失敗時はabort）
 ```
 
 - Phase {M+1} タスクを TaskList で unblock（blockedBy 解除）

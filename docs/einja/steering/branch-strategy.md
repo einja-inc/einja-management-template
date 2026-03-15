@@ -341,6 +341,60 @@ gh pr create --base main --head issue/123 \
 
 - IssueBranchBase にマージ後、PRクローズと同時に削除
 
+## 複数Issue並行実行
+
+複数のClaude Codeセッションが同一リポジトリで並行作業するケースに対応する。
+
+### 並行実行の前提ルール
+
+| ルール | 説明 |
+|--------|------|
+| **メインリポのHEADに依存しない** | 全Skillはブランチ作成に `git branch` を使い、`git checkout` は自身のworktree内でのみ使用する |
+| **各セッションの分離** | Issue実行Skillは自前worktreeで分離。手作業セッションは `EnterWorktree` または手動worktreeで分離を推奨 |
+| **lock系エラーのリトライ** | `git fetch`/`git branch`/`git push` でlock系エラー（`packed-refs.lock`, `FETCH_HEAD.lock`, `cannot lock ref`等）が出た場合、jitter付き1〜2秒待機 → 再試行（最大3回、失敗時はabort） |
+| **ブランチ作成の冪等性** | resume/再試行時に `branch already exists` で失敗しないよう `git branch ... 2>/dev/null \|\| true` でガード |
+
+### 複数Issue並行時のブランチ図
+
+```
+IssueBranchBase (main)
+ ├── issue/100                   Claude Code #1 (einja-issue-exec)
+ │    ├── issue/100-phase1
+ │    └── issue/100-phase2
+ ├── issue/200                   Claude Code #2 (einja-issue-team-exec)
+ │    └── issue/200-phase1
+ └── issue/300                   Claude Code #3 (einja-issue-exec)
+      └── issue/300-phase1
+```
+
+各セッションは独立したworktreeで作業するため、ブランチ（`refs/`）は共有されるがworking treeは干渉しない。
+
+### ブランチ操作安全ルール
+
+| 対象ブランチ | 許可操作 | 理由 |
+|------------|---------|------|
+| `issue/{N}` | **merge-only** | 複数エージェントが参照する共有ブランチ。rebase/force-pushは他エージェントの参照を壊す |
+| `issue/{N}-phase{M}` | **merge-only** | DirectorとWorkerが参照する共有ブランチ |
+| `task/{N}-{X.Y}` | rebase可 | 単独Worker所有のため安全 |
+
+### マージ戦略: 楽観的並行マージ
+
+- 先にIssueBranchBase（main等）にマージしたIssueが勝ち
+- 後続Issueはmainの最新を `merge` で取り込み、PR を更新してからマージ
+- Issue間依存がある場合: `--base-branch` でIssueブランチを指定するか、人間が実行順序を制御
+
+### IssueBranchBase自動同期
+
+Managerの監視ループでIssueBranchBaseの進行を検知し、以下を実行する:
+
+1. **進行検知**: `git fetch origin` で `origin/{IssueBranchBase}` の変更を確認
+2. **Issueブランチへの取り込み**: `issue/{N}` ブランチで `git merge origin/{IssueBranchBase}` を実行
+3. **成功時**: `sync_required` 通知のみ発行（Phaseブランチは直接更新しない）
+4. **Directorの同期**: 安全ポイント（タスク開始前・マージ直後）でPhaseブランチを同期
+5. **merge失敗時**: `einja-conflict-resolver` Skill で解消 → 解消不可ならユーザーにエスカレーション
+
+詳細手順は [Issue実行共通プロトコル](../instructions/issue-exec-protocol.md) の「IssueBranchBase自動同期プロトコル」を参照。
+
 ---
 
 ## 注意事項

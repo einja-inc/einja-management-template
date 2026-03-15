@@ -159,6 +159,8 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 
 ### Step 2: ブランチ & worktree 作成
 1. Issue ブランチ作成（メインリポジトリから）: `issue/{issue番号}`（base ブランチから）
+> **注意**: `git branch` はHEADを変更しない（`git checkout -b` とは異なる）。これにより同一リポジトリで並行動作する他のClaude Codeセッションに影響を与えない。
+> lock系エラー（`packed-refs.lock`, `FETCH_HEAD.lock`, `cannot lock ref`等）が発生した場合は、jitter付き1〜2秒待機 → 再試行（最大3回、全失敗時はabort）すること。
 2. Manager worktree 作成（メインリポジトリから）:
    ```bash
    mkdir -p ~/.einja/worktrees/issue-{N}/
@@ -440,10 +442,13 @@ result の値:
 ## Worker 起動コマンド（Director が実行）
 
 ```bash
-# 1. タスクブランチ作成 & worktree 追加
-git branch task/{N}-{X.Y} issue/{N}-phase{M}
-git push -u origin task/{N}-{X.Y}
+# 1. タスクブランチ作成 & worktree 追加（git branch はHEADを変更しない）
+git branch task/{N}-{X.Y} issue/{N}-phase{M} 2>/dev/null || true  # 冪等: 既存ならスキップ
+git push -u origin task/{N}-{X.Y} 2>/dev/null || true
 git worktree add ~/.einja/worktrees/issue-{N}/task-{X.Y} task/{N}-{X.Y}
+# ※ `|| true` は「branch already exists」エラーの冪等ガード。
+#    認証失敗・ネットワーク障害等の致命エラーは別途検出・abortすること
+# ※ lock系エラー発生時はjitter付き1〜2秒待機 → 再試行（最大3回）
 
 # 2. tmux window で claude 起動
 tmux new-window -t einja-{N} -n worker-{X.Y}

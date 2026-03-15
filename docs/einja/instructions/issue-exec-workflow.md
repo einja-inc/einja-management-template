@@ -285,6 +285,18 @@ Manager 検知
 | **`/einja-issue-exec`** | Issue全体の並列実行 | 複数Phase・複数タスクグループ | 大規模機能実装 |
 | **`einja-task-exec` Skill** | 単一タスクグループの実行 | 1つのタスクグループ | 品質重視、複雑な実装 |
 
+## 複数Issue並行実行
+
+複数のClaude Codeセッションが同一リポジトリで並行作業する場合（例: einja-issue-exec と einja-issue-team-exec の同時実行）、以下の原則に従う:
+
+- **メインリポのHEADに依存しない**: 全Skillはブランチ作成に `git branch` を使い、`git checkout` は自身のworktree内でのみ使用
+- **worktreeによるセッション分離**: 各Issue実行Skillは独立したworktreeで作業するため、working treeの干渉は発生しない
+- **lock系エラーのリトライ**: `packed-refs.lock` 等のlock競合はjitter付きリトライで対応
+
+詳細は以下を参照:
+- [ブランチ運用戦略 — 複数Issue並行実行](../steering/branch-strategy.md#複数issue並行実行) - ブランチ図、操作安全ルール、マージ戦略
+- [Issue実行共通プロトコル — 複数Issue並行実行](issue-exec-protocol.md#12-複数issue並行実行) - 同期プロトコル、lockリトライポリシー
+
 ---
 
 ## 関連ドキュメント

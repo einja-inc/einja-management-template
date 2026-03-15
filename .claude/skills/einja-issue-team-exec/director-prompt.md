@@ -40,7 +40,7 @@
         d. 完了条件
         e. フォールバック用 spec ファイルパス
         f. 「使用Skill」フィールドがある場合はその Skill 名
-     6. 2タスク以上の場合は run_in_background: true で並列起動
+     6. サブエージェントは **必ず `run_in_background: true`** で起動する（1タスクでも同様）。これによりDirector自身はメッセージ受信・ピア間通信を並行処理できる
      7. 各エージェントの完了を待機（TaskOutput で結果取得）
      8. 完了したタスクを TaskUpdate で completed に設定
      9. ループ先頭に戻る

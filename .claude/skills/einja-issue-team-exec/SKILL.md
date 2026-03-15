@@ -145,6 +145,23 @@ git push -u origin issue/${N}-phase1 2>/dev/null || true
 
 ---
 
+## Step 2.5: spec読込 + AC抽出
+
+**目的**: spec/Issue の読み込み・AC抽出を行い、TaskCreate の description に埋め込む。
+
+1. **specディレクトリを探索**: `docs/specs/issues/*/issue{N}-*/` パターンで検索
+2. **存在チェック**:
+   - 完全なspec（requirements.md + design.md + qa-tests/） → 次へ
+   - 部分的spec → エラー終了（`einja-issue-spec-create` Skill の実行を案内）
+   - specなし → `_einja-general-context-loader` Skill を呼び出してコンテキスト収集
+3. **requirements.md を読み込み**、各タスクグループのメタデータ（`**要件**: Story X`）に基づいてACを抽出
+   - ACはGiven/When/Then形式で小さい（~50-100トークン/AC）ので直接保持
+4. **design.md はパスのみ特定**（内容は読み込まない）
+   - 各タスクの`**対応設計**: design.md「セクション名」`からセクション名を記録
+5. 抽出結果を Step 3 の TaskCreate description に埋め込む
+
+---
+
 ## Step 3: 共有 TaskList 作成（依存関係付き）
 
 TaskCreate で各タスクグループを登録する。
@@ -164,10 +181,25 @@ TaskCreate:
     - PR base: issue/${N}-phase{M}
     - マージモード: {mergeMode}
 
-    ## タスク一覧
-    - {X.Y.1}: {タスク名}
-    - {X.Y.2}: {タスク名}
+    ## 受け入れ基準（AC）
+    Story {S}: {ストーリー名}
+      Given: ...
+      When: ...
+      Then: ...
+
+    ## 設計参照
+    {specパス}/design.md → 「{セクション名}」セクション
+
+    ## タスク一覧（X.Y.Z）
+    - {X.Y.1}: {タスク名} [{実行サブエージェント}] blockedBy:[] {完了条件}
+    - {X.Y.2}: {タスク名} [{実行サブエージェント}] blockedBy:[{X.Y.1}] Skill:{使用Skill} {完了条件}
     ...
+
+    ※ [実行サブエージェント] 未指定の場合、Directorは task-executer をデフォルト使用
+    ※ タスクグループレベルの指定はタスクレベルでオーバーライド可能
+
+    ## specパス（フォールバック用）
+    {specパス}/
 ```
 
 ### 依存関係の設定
@@ -197,8 +229,15 @@ poolSize = min(タスクグループ総数, 5)
 ```
 TeamCreate:
   teamName: "issue-{N}-directors"
+  mode: "bypassPermissions"
   teammates: [{poolSize}個の Teammate 定義]
 ```
+
+### Teammate spawn時の権限モード
+
+各 Teammate の `mode` に `"bypassPermissions"` を指定する。これにより Teammate 内のツール呼び出しで承認プロンプトが不要になる。
+
+**安全ガード**: CLAUDE.md のルール（git安全ルール、破壊的操作禁止等）は引き続き適用される。
 
 ### Director Teammate プロンプトテンプレート
 
@@ -207,22 +246,131 @@ TeamCreate:
 ```
 あなたは Director Teammate です。Issue #{N} の並列実行チームの一員として、TaskList からタスクグループを self-claim して実行します。
 
-## 動作ルール
+## サブエージェント出力の表示ルール
+
+サブエージェントの出力表示は、**CLAUDE.mdの「サブエージェント結果報告のルール」セクションに従うこと**。
+- Taskツールから返却されたメッセージを**そのまま全文出力**する
+- 省略・要約・言い換えは**禁止**
+
+## メインフロー（タスクグループ実行）
 
 1. **タスク claim**: TaskList から status=open かつ blocked でないタスクを1つ claim（TaskUpdate で status を in_progress に変更）
-2. **作業環境準備**:
+   - claim 後、主要編集予定ファイルを含めて broadcast:
+     `[task-claim] Task {X.Y}: {タスク名}\nFiles: {編集予定ファイルリスト}\nDirector: {自分の名前}`
+   - 受信した `[task-claim]` から「誰がどのタスク・どのファイルを担当しているか」の宛先マップを保持
+
+2. **作業環境準備**: [ブランチ運用戦略](../../../docs/einja/steering/branch-strategy.md)に従う
    - worktree 作成: `git worktree add ../${project-name}-worktrees/task-${N}-{X.Y}`
    - worktree ディレクトリに移動
-   - `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ:
-     - ブランチ名: `task/${N}-{X.Y}`、ベース: `origin/issue/${N}-phase{M}`
-3. **タスク実行**: einja-task-exec Skill を使用して `#{N} {X.Y}` を実行
+   - `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ
+   - ブランチ名: `task/${N}-{X.Y}`、ベース: `origin/issue/${N}-phase{M}`、PR base: `issue/${N}-phase{M}`
+
+3. **タスク登録**: Task の description から AC・設計参照・タスク一覧を読み取り、個別タスク（X.Y.Z）を TaskCreate で登録（依存関係設定含む）
+   - **重要**: X.Y.Z タスクは Director ローカル管理。チーム共有 TaskList（X.Y レベル）には混入させない
+   - タスク番号→TaskID のマッピングテーブルを保持し、依存関係解決に使用
+
+4. **実装フェーズ**: 依存関係ベース並列実行ループ
+   ```
+   while (未完了タスクが存在):
+     1. TaskList で未完了タスクを確認
+     2. blockedBy が空かつ pending のタスクを収集
+     3. 収集したタスクを TaskUpdate で in_progress に設定
+     4. 各タスクの「実行サブエージェント」フィールドに基づきサブエージェントを選択:
+        - 指定あり → 指定されたサブエージェント（例: frontend-coder, design-engineer, backend-architect 等）
+        - 指定なし → デフォルトの task-executer
+        - タスクグループレベルの指定はタスクレベルでオーバーライド可能
+     5. 各 task-executer の prompt に以下を含める:
+        a. タスクID + タスク名 + 実装指示
+        b. AC（受け入れ基準）→ 直接埋め込み
+        c. 設計 → design.md パス + セクション名（executer が自分で Read）
+        d. 完了条件
+        e. フォールバック用 spec ファイルパス
+        f. 「使用Skill」フィールドがある場合はその Skill 名
+     6. 2タスク以上の場合は run_in_background: true で並列起動
+     7. 各エージェントの完了を待機（TaskOutput で結果取得）
+     8. 完了したタスクを TaskUpdate で completed に設定
+     9. ループ先頭に戻る
+   ```
+   - 並列起動するタスク間でファイル変更対象が重複しないよう、設計セクションから推定して確認
+   - 重複懸念がある場合は直列化する
+   - task-executer にはコミットさせない（Step 7でまとめて実行）
    - **進捗報告**: 各個別タスク（X.Y.Z）の開始時・完了時に Lead へ SendMessage で報告
-   - 形式: `[progress] Task {X.Y.Z}: {started|completed} - {タスク名}`
-4. **PR作成**: `gh pr create --base issue/${N}-phase{M} --head task/${N}-{X.Y}`
-5. **完了報告**: Lead に SendMessage で報告（PR番号、タスク番号を含む）
-6. **クリーンアップ**: worktree 削除
-7. **次タスク claim**: TaskList から次の claimable タスクを探索 → claim → 2に戻る
-8. **全タスク完了 or claimable なし**: Lead に idle 通知
+     形式: `[progress] Task {X.Y.Z}: {started|completed} - {タスク名}`
+
+5. **レビューフェーズ**: task-reviewer サブエージェント起動（グループ全体で1回実行）
+   - PASS/MINOR 判定 → 品質保証フェーズへ
+   - MAJOR 判定 → `[review-failed] TaskID: X.Y.Z, Reason: ...` 形式で該当タスクを特定 → 4に戻り該当タスクのみ再実行（最大2回）
+   - 3回目の MAJOR → Lead にエスカレーション
+
+6. **QAフェーズ**: task-qa サブエージェント起動（グループ全体で1回実行）
+   - 全テスト合格 → コミット・PR フェーズへ
+   - FAILURE(A:実装ミス) → `[qa-failed] TaskID: X.Y.Z, Reason: ...` 形式で該当タスクを特定 → 4に戻り該当タスクのみ再実行
+   - FAILURE(B:要件齟齬/C:設計不備/D:環境問題) → Lead にエスカレーション
+
+7. **コミット・PR**: 変更がある場合のみ実行
+   - einja-task-commit Skill でコミット・プッシュ（確認なしで自動実行）
+   - einja-create-pr Skill で PR 作成
+   - Lead に `[pr-ready] Task {X.Y}: PR #{PR番号}` を送信
+   - タスク完了後に共有リソース変更がある場合は broadcast:
+     ```
+     [change-summary] Task {X.Y}: {タスク名}
+     PR: #{PR番号}
+     Changed files: {全変更ファイルパス（カンマ区切り）}
+     Changed shared: {shared/配下の変更ファイル or "なし"}
+     New API: {エンドポイント or "なし"}
+     New types: {型名 or "なし"}
+     DB changes: {テーブル/カラム or "なし"}
+     Note: {申し送り事項 or "なし"}
+     ```
+
+8. **verdict 待ち**: Lead からの `[verdict]` メッセージ受信を待機
+   - `approved` → worktree 削除 → 次タスク claim（1に戻る）
+   - `fix_required` → fixInstructions に従い修正 → 既存 PR にpush（新規PR作成禁止）→ 5に戻る
+   - `rejected` → エラー報告 → 次タスク claim
+
+9. **全タスク完了 or claimable なし**: Lead に `[idle]` 通知
+
+### タスク種別: Phase 99（ドキュメント反映）
+
+99番台タスクグループの場合、通常フロー（4-6）の代わりに:
+- docs-updater サブエージェント（einja-update-docs-by-issue-specs Skill）を直接呼び出し
+- task-executer / task-reviewer / task-qa はスキップ
+- コミット・PR（7）以降は通常フローと同じ
+
+## 非タスクグループ依頼の処理（Lead からのアドホック指示）
+
+Lead からタスクグループ実行以外の指示（例: 特定ファイルの修正、PR description 更新、CI失敗の調査等）を受信した場合:
+- メインフロー実行中 → 現タスクグループの完了を優先し、完了後に対応
+- アイドル中（全タスク完了 or claimable なし）→ 即座に対応
+- 対応完了後、結果を Lead に message で報告し、メインフローに復帰（claimable タスクがあれば1に戻る）
+- 判断に迷う指示（スコープ不明、影響範囲不明）→ Lead に確認を返信
+
+## ピア間通信ハンドラー（メインフローの実行中に割り込みで処理）
+
+- `[task-claim]` 受信 → 自分の編集予定ファイルと重複チェック → 重複時は `[conflict-alert]` で当事者間調整
+- `[change-summary]` 受信 → 宛先マップ更新
+- `[peer-review]` 受信 → コードレビューのみ実行 → `[peer-review-ack]` 返信（adopted/rejected/escalated）
+- `[conflict-alert]` 受信 → 当事者間で編集範囲調整（ファイル分割、作業順序の合意等）
+  - **タイブレークルール**: 合意できない場合、タスク番号が小さい側が優先編集権を持つ
+  - 調整完了後: `[conflict-resolved]` を Lead に報告
+  - タイムアウト: 5分以内に合意できない場合は Lead にエスカレーション
+- `[ci-failure]` 受信 → 該当 PR の修正
+
+### ピアレビュー（アイドル時）
+自タスク完了後、次タスクが claimable でない場合またはCI待ち・マージ待ちのアイドル時間に実施:
+- **中断条件**: claimable タスクが出現したらレビューを即中断し、claim 優先
+- レビュー観点: 重複実装、型/util の共有化提案、API形式整合性、コンフリクト予防
+- 提案は対象 Director に直接 message（broadcast ではない）
+- 宛先は task-claim で保持した Director-タスクマップから特定
+- 形式: `[peer-review] Task {X.Y} へのレビュー\n{観点}: {提案内容}`
+
+## エラー処理
+
+- task-executer 失敗 → リトライ（最大2回）→ Lead にエスカレーション
+- task-reviewer MAJOR 超過（3回目）→ Lead にエスカレーション
+- task-qa FAILURE(B/C/D) → Lead にエスカレーション
+- PR 作成失敗 → 再試行 → Lead にエスカレーション
+- コンフリクト → einja-conflict-resolver Skill → 解消不可なら Lead にエスカレーション
 
 ## 共通プロトコル
 issue-exec-protocol.md に準拠:
@@ -230,53 +378,6 @@ issue-exec-protocol.md に準拠:
 - コンフリクト発生時: einja-conflict-resolver Skill 使用
 - コミット: einja-task-commit Skill 使用
 - PR作成: einja-create-pr Skill 使用
-
-## ピア間通信プロトコル
-
-### タスク開始宣言（claim時）
-タスクを claim したら、主要編集予定ファイルを含めて broadcast:
-- 形式: `[task-claim] Task {X.Y}: {タスク名}\nFiles: {編集予定ファイルリスト}\nDirector: {自分の名前}`
-- 受信側: 自分の編集予定ファイルと重複がないかチェック → 重複時は `[conflict-alert]` で当事者間調整
-- **宛先マップ管理**: 受信した `[task-claim]` から「誰がどのタスク・どのファイルを担当しているか」のマップを自身のコンテキスト内に保持する。ピアレビューやconflict-alertの宛先特定に使用
-
-### 変更通知（タスク完了時）
-タスク完了・PR作成後に、共有リソースの変化に絞って broadcast:
-- **共有リソースの定義**: 以下のいずれかに該当するもの
-  - `shared/`, `packages/*/src/` 配下の型定義・ユーティリティ関数
-  - APIエンドポイント（追加・変更）
-  - DBスキーマ（テーブル・カラム追加・変更）
-  - 複数タスクグループから参照されるコンポーネント
-- 形式:
-  ```
-  [change-summary] Task {X.Y}: {タスク名}
-  PR: #{PR番号}
-  Changed files: {全変更ファイルパス（カンマ区切り）}
-  Changed shared: {shared/配下の変更ファイル or "なし"}
-  New API: {エンドポイント or "なし"}
-  New types: {型名 or "なし"}
-  DB changes: {テーブル/カラム or "なし"}
-  Note: {申し送り事項 or "なし"}
-  ```
-
-### ピアレビュー（アイドル時）
-自タスク完了後、次タスクがclaimableでない場合またはCI待ち・マージ待ちのアイドル時間に実施:
-- **中断条件**: claimableタスクが出現したらレビューを即中断し、claim優先
-- レビュー観点: 重複実装、型/utilの共有化提案、API形式整合性、コンフリクト予防
-- 提案は対象Directorに直接 message（broadcastではない）
-- 宛先はtask-claimで保持したDirector-タスクマップから特定
-- 形式: `[peer-review] Task {X.Y} へのレビュー\n{観点}: {提案内容}`
-- 受信側: 採用/却下を判断し `[peer-review-ack]` で応答。迷う場合はLeadにエスカレーション
-
-### コンフリクト予防プロトコル
-- `[conflict-alert]` 受信時: 当事者間で編集範囲を調整（ファイル分割、作業順序の合意等）
-- **タイブレークルール**: 合意できない場合、タスク番号が小さい側（先行タスク）が該当ファイルの優先編集権を持つ
-- 調整完了後: `[conflict-resolved]` を Lead に報告
-- タイムアウト: 5分以内に合意できない場合は Lead にエスカレーション
-
-## エラー時
-- einja-task-exec 失敗: Lead に SendMessage でエラー報告
-- PR作成失敗: 再試行（認証エラーの場合は Lead にエスカレーション）
-- コンフリクト: einja-conflict-resolver Skill で自力解消 → 解消不可なら Lead にエスカレーション
 ```
 
 ---
@@ -297,8 +398,19 @@ Lead の監視ループ:
 | `[change-summary]`（broadcast） | ログ記録 + ファイル競合俯瞰チェック（→ Step 5-6） |
 | `[conflict-resolved]` | ログ記録 + 調整内容の妥当性簡易確認 |
 | `[conflict-alert]`（タイムアウト時） | Leadが調整方針を決定し両Directorに指示 |
+| `[pr-ready] Task {X.Y}: PR #{PR番号}` | ゲートチェック実施（Fast Gate / Risk Gate）→ `[verdict]` をDirectorに返信 |
 | `[ci-failure]`（Lead → Director） | CI失敗検知時、Lead が原因DirectorのPRを特定し修正指示を送信 |
 | `[peer-review]` エスカレーション | Director が判断に迷った場合、`[peer-review]` をLeadに転送。Leadが最終判断 |
+
+### 5-1a. verdict フロー（[pr-ready] 受信時）
+
+1. Director から `[pr-ready] Task {X.Y}: PR #{PR番号}` を受信
+2. ゲートチェック実施（protocol.md 準拠の Fast Gate / Risk Gate）
+3. チェック結果に応じて Director に `[verdict]` を返信:
+   - `[verdict] Task {X.Y}: approved` — Fast Gate / Risk Gate 通過
+   - `[verdict] Task {X.Y}: fix_required fixInstructions: {修正内容}` — ゲートチェック失敗時の修正指示
+   - `[verdict] Task {X.Y}: rejected` — fixCount超過またはユーザーエスカレーション後の却下
+4. fix_required 時: fixCount をインクリメント。最大2回まで修正指示 → 3回目NG → AskUserQuestion でユーザーにエスカレーション（ゲートチェックの詳細は Step 5-2 参照）
 
 ### 5-2. ゲートチェック（protocol.md 参照）
 
@@ -435,6 +547,10 @@ Director間・Lead間の全メッセージは以下のプレフィックスで�
 | `[ci-failure]` | Lead → Director | CI失敗通知・修正指示 | message |
 | `[error]` | Director → Lead | エラー報告 | message |
 | `[idle]` | Director → Lead | アイドル通知 | message |
+| `[pr-ready]` | Director → Lead | PR作成完了・ゲートチェック要求 | message |
+| `[verdict]` | Lead → Director | ゲートチェック結果（approved/fix_required/rejected） | message |
+| `[review-failed]` | Director 内部 | reviewer 差し戻し対象タスク特定 | — |
+| `[qa-failed]` | Director 内部 | QA失敗対象タスク特定 | — |
 
 ### broadcastコスト管理
 
@@ -475,6 +591,19 @@ Director間・Lead間の全メッセージは以下のプレフィックスで�
     Your task: {相手のタスク番号}
     Proposal: {調整提案}
 
+#### [pr-ready]
+    [pr-ready] Task {X.Y}: PR #{PR番号}
+
+#### [verdict]
+    [verdict] Task {X.Y}: {approved|fix_required|rejected}
+    fixInstructions: {修正内容（fix_required時のみ）}
+
+#### [review-failed]
+    [review-failed] TaskID: {X.Y.Z}, Reason: {差し戻し理由}
+
+#### [qa-failed]
+    [qa-failed] TaskID: {X.Y.Z}, Reason: {失敗理由}, Category: {A|B|C|D}
+
 ---
 
 ## エラーハンドリング（Agent Teams固有）
@@ -484,7 +613,9 @@ Director間・Lead間の全メッセージは以下のプレフィックスで�
 | Director Teammate 停止（PR作成前） | idle 通知 + タスク状態が in_progress のまま | Lead が新 Teammate spawn してリトライ（最大2回）→ 3回目失敗はユーザーエスカレーション |
 | Director Teammate 停止（PR作成済み） | idle 通知 + PR あり | スキップ（PRマージ待ちのまま継続） |
 | Director Teammate 停止（修正中: fix_required 対応中） | idle 通知 + fixCount > 0 | Lead が新 Teammate spawn（fixCount 引き継ぎ）→ 超過時はユーザーエスカレーション |
-| タスク失敗（einja-task-exec 内部エラー） | Director からの SendMessage | Lead がリトライ判断（最大2回）→ 3回目はユーザーにエスカレーション |
+| タスク失敗（task-executer 実行エラー） | Director からの SendMessage | Director がリトライ（最大2回）→ 3回目は Lead にエスカレーション → ユーザーにエスカレーション |
+| レビュー不合格（task-reviewer MAJOR 超過） | Director からの SendMessage | Director が該当タスク再実行（最大2回）→ 3回目は Lead にエスカレーション |
+| QA失敗（task-qa FAILURE B/C/D） | Director からの SendMessage | Lead がユーザーにエスカレーション（実装ミス(A)は Director が自動再実行） |
 | PR作成失敗 | `gh pr create` エラー | Director が再試行（認証エラーの場合は Lead にエスカレーション） |
 | マージコンフリクト | git merge/rebase 失敗 | `einja-conflict-resolver` Skill 呼び出し |
 | CI 失敗 | `gh run` status チェック | Director が修正 → 再push → 再CI待機 |

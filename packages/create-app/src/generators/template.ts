@@ -327,7 +327,7 @@ export async function generateTemplate(
     };
     writeFileSync(
       worktreeConfigPath,
-      JSON.stringify(worktreeConfigContent, null, "\t") + "\n",
+      `${JSON.stringify(worktreeConfigContent, null, "\t")}\n`,
       "utf-8"
     );
     logger.info("worktree.config.json をカスタム設定で上書きしました");

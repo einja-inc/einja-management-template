@@ -52,10 +52,37 @@ pending → in_progress → awaiting_review → completed
 | `pending` | 初期状態。未着手 | タスクグループ作成時に設定 |
 | `in_progress` | 実行中。Workerがタスクを実装中 | Workerが起動し作業を開始した時点 |
 | `awaiting_review` | Worker完了。Manager/Leadによるゲートチェック待ち | Workerが全タスク完了・PR作成後 |
-| `completed` | ゲートチェック通過・PRマージ完了 | Fast Gate（+ 必要に応じてRisk Gate）通過後、PRがマージされた時点 |
+| `completed` | ゲートチェック通過・PRマージ完了。Issueチェックボックス更新（2.3参照） | Fast Gate（+ 必要に応じてRisk Gate）通過後、PRがマージされた時点 |
 | `failed` | 回復不能な失敗。エスカレーション必要 | リトライ上限超過、または致命的エラー発生時 |
 
 > 各方式固有のステータス永続化形式（JSONファイル、TaskList等）は各SKILL.mdを参照。
+
+### 2.3 completed 遷移時の必須アクション: Issue チェックボックス更新
+
+タスクグループが `completed` に遷移した際、GitHub Issue 説明文の該当タスクグループのチェックボックスを `- [ ]` → `- [x]` に更新する。
+
+#### 更新手順
+
+```bash
+# 1. Issue本文を取得（更新直前に必ず再取得すること — 複数Directorの同時更新による競合防止）
+body=$(gh issue view {N} --json body -q .body)
+
+# 2. 該当行のチェックボックスを更新
+#    正規表現: ^- \[ \] ${X}\.${Y} （末尾スペースで 1.1 と 1.10 の部分一致を防止）
+#    既に - [x] の場合はスキップ（冪等性確保）
+updated_body=$(echo "$body" | sed "s/^- \[ \] ${X}\.${Y} /- [x] ${X}.${Y} /")
+
+# 3. 変更がある場合のみ更新
+if [ "$body" != "$updated_body" ]; then
+  gh issue edit {N} --body "$updated_body"
+fi
+```
+
+#### 注意事項
+
+- **冪等性**: 既に `- [x]` の行は置換されない（sed パターンが `- [ ]` のみにマッチするため）
+- **フォーマット不一致時**: マッチしない場合はスキップ（エラーにしない）。Issue説明文が format-rules.md の形式に従っていない場合でも処理を中断しない
+- **競合リスク低減**: 更新直前に `gh issue view` で本文を再取得すること。完全な排他制御ではないため、複数Director/Workerが同時に完了する場合は後勝ちとなる可能性があるが、冪等性により再実行で回復可能
 
 ---
 

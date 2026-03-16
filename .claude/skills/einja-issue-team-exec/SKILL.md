@@ -302,8 +302,9 @@ Lead の監視ループ:
 ### 5-4. マージ後処理
 
 1. TaskUpdate でタスク status を `completed` に更新
-2. blockedBy 解除（依存タスクが claimable になる）
-3. idle Director が次タスクを自動 claim
+2. **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）
+3. blockedBy 解除（依存タスクが claimable になる）
+4. idle Director が次タスクを自動 claim
 
 ### 5-5. ポーリング停止・再開（protocol.md 参照）
 

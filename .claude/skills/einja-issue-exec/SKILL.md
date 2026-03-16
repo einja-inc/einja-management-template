@@ -250,7 +250,7 @@ Manager は以下を定期的に監視:
    - Worker 完了を検知したらゲートチェック実施（下記参照）
    - 質問ファイルの pending 状態を検知
 
-2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → 他active Workerにsync通知 → 完了したworktree削除
+2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知 → 完了したworktree削除
 
 3. **質問エスカレーション処理**:
    - `~/.einja/sessions/issue-{N}/questions/` の pending 質問を検知

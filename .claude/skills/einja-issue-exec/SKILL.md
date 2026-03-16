@@ -145,21 +145,65 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 3. `--max-phase` が指定されている場合、その番号以降のPhaseを除外
 
 ### Step 2: ブランチ & worktree 作成
-1. Issue ブランチ作成（メインリポジトリから）: `issue/{issue番号}`（base ブランチから）
 > **注意**: `git branch` はHEADを変更しない（`git checkout -b` とは異なる）。これにより同一リポジトリで並行動作する他のClaude Codeセッションに影響を与えない。
 > lock系エラー（`packed-refs.lock`, `FETCH_HEAD.lock`, `cannot lock ref`等）が発生した場合は、jitter付き1〜2秒待機 → 再試行（最大3回、全失敗時はabort）すること。
-2. Manager worktree 作成（メインリポジトリから）:
+
+1. Issue ブランチ作成（冪等）:
+   ```bash
+   git fetch origin
+
+   # Issue ブランチ作成（冪等）
+   BRANCH="issue/{N}"
+   BASE="origin/{baseBranch}"
+   if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+     : # 既存ローカルブランチを再利用
+   elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+     git branch "$BRANCH" "origin/$BRANCH"  # リモートからローカル作成
+   else
+     git branch "$BRANCH" "$BASE"  # 新規作成
+   fi
+   git push -u origin "$BRANCH" 2>/dev/null || true
+   ```
+
+2. Manager worktree 作成（冪等）:
    ```bash
    mkdir -p ~/.einja/worktrees/issue-{N}/
-   git worktree add ~/.einja/worktrees/issue-{N}/manager issue/{N}
-   git push -u origin issue/{N}
+
+   # worktree作成（冪等）
+   WORKTREE_PATH=~/.einja/worktrees/issue-{N}/manager
+   WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
+   if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+     : # 既存worktreeを再利用
+   else
+     git worktree prune --expire now 2>/dev/null
+     if [ -d "$WORKTREE_PATH" ]; then
+       rm -rf "$WORKTREE_PATH"
+     fi
+     BRANCH="issue/{N}"
+     if git worktree list --porcelain | grep -q "branch refs/heads/$BRANCH$"; then
+       echo "ERROR: $BRANCH は別のworktreeで使用中" >&2
+       exit 1
+     fi
+     git worktree add "$WORKTREE_PATH" "$BRANCH"
+   fi
    ```
    - `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ
+
 3. **以降の操作は全て Manager worktree 内から実行**（cwd: `~/.einja/worktrees/issue-{N}/manager`）
-4. 各 Phase のブランチ作成（Manager worktree から）: `issue/{issue番号}-phase{N}`（issue ブランチから）
+
+4. 各 Phase のブランチ作成（冪等）:
    ```bash
-   git branch issue/{N}-phase{M} issue/{N} 2>/dev/null || true
-   git push -u origin issue/{N}-phase{M}
+   # Phase ブランチ作成（冪等）
+   BRANCH="issue/{N}-phase{M}"
+   BASE="issue/{N}"
+   if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+     : # 既存ローカルブランチを再利用
+   elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+     git branch "$BRANCH" "origin/$BRANCH"
+   else
+     git branch "$BRANCH" "$BASE"
+   fi
+   git push -u origin "$BRANCH" 2>/dev/null || true
    ```
 
 ### Step 3: セッションファイル初期化
@@ -210,10 +254,34 @@ tmuxセッションを作成し、Worker を tmux window で起動する:
 # tmuxセッション作成（初回のみ）
 tmux new-session -d -s einja-{issue番号} -n manager -c ~/.einja/worktrees/issue-{N}/manager
 
-# タスクブランチ作成 & worktree 追加
-git branch task/{N}-{X.Y} issue/{N}-phase{M} 2>/dev/null || true
-git push -u origin task/{N}-{X.Y} 2>/dev/null || true
-git worktree add ~/.einja/worktrees/issue-{N}/task-{X.Y} task/{N}-{X.Y}
+# タスクブランチ作成（冪等）
+BRANCH="task/{N}-{X.Y}"
+BASE="issue/{N}-phase{M}"
+if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  : # 既存ローカルブランチを再利用
+elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+  git branch "$BRANCH" "origin/$BRANCH"
+else
+  git branch "$BRANCH" "$BASE"
+fi
+git push -u origin "$BRANCH" 2>/dev/null || true
+
+# worktree作成（冪等）
+WORKTREE_PATH=~/.einja/worktrees/issue-{N}/task-{X.Y}
+WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
+if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+  : # 既存worktreeを再利用
+else
+  git worktree prune --expire now 2>/dev/null
+  if [ -d "$WORKTREE_PATH" ]; then
+    rm -rf "$WORKTREE_PATH"
+  fi
+  if git worktree list --porcelain | grep -q "branch refs/heads/$BRANCH$"; then
+    echo "ERROR: $BRANCH は別のworktreeで使用中" >&2
+    exit 1
+  fi
+  git worktree add "$WORKTREE_PATH" "$BRANCH"
+fi
 
 # tmux window で claude 起動
 tmux new-window -t einja-{N} -n worker-{X.Y}
@@ -229,8 +297,17 @@ Agent tool（`isolation: "worktree"`）でWorkerを起動する:
 
 1. **ブランチ事前作成**: Managerが Agent tool 起動**前に**明示的にブランチを作成する
    ```bash
-   git branch task/{N}-{X.Y} issue/{N}-phase{M} 2>/dev/null || true
-   git push -u origin task/{N}-{X.Y} 2>/dev/null || true
+   # タスクブランチ作成（冪等）
+   BRANCH="task/{N}-{X.Y}"
+   BASE="issue/{N}-phase{M}"
+   if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+     : # 既存ローカルブランチを再利用
+   elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+     git branch "$BRANCH" "origin/$BRANCH"  # リモートからローカル作成
+   else
+     git branch "$BRANCH" "$BASE"  # 新規作成
+   fi
+   git push -u origin "$BRANCH" 2>/dev/null || true
    ```
 2. **Agent tool 起動**: 1メッセージ内で複数Agent toolを呼び出し、並列実行する
    - `isolation: "worktree"` でworktree自動作成
@@ -445,13 +522,34 @@ result の値:
 tmuxモードの場合の起動手順。詳細は Step 5 を参照。
 
 ```bash
-# 1. タスクブランチ作成 & worktree 追加（git branch はHEADを変更しない）
-git branch task/{N}-{X.Y} issue/{N}-phase{M} 2>/dev/null || true  # 冪等: 既存ならスキップ
-git push -u origin task/{N}-{X.Y} 2>/dev/null || true
-git worktree add ~/.einja/worktrees/issue-{N}/task-{X.Y} task/{N}-{X.Y}
-# ※ `|| true` は「branch already exists」エラーの冪等ガード。
-#    認証失敗・ネットワーク障害等の致命エラーは別途検出・abortすること
-# ※ lock系エラー発生時はjitter付き1〜2秒待機 → 再試行（最大3回）
+# 1. タスクブランチ作成 & worktree 追加（冪等パターン）
+# ※ git branch はHEADを変更しない。lock系エラー発生時はjitter付き1〜2秒待機 → 再試行（最大3回）
+BRANCH="task/{N}-{X.Y}"
+BASE="issue/{N}-phase{M}"
+if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  : # 既存ローカルブランチを再利用
+elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+  git branch "$BRANCH" "origin/$BRANCH"
+else
+  git branch "$BRANCH" "$BASE"
+fi
+git push -u origin "$BRANCH" 2>/dev/null || true
+
+WORKTREE_PATH=~/.einja/worktrees/issue-{N}/task-{X.Y}
+WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
+if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+  : # 既存worktreeを再利用
+else
+  git worktree prune --expire now 2>/dev/null
+  if [ -d "$WORKTREE_PATH" ]; then
+    rm -rf "$WORKTREE_PATH"
+  fi
+  if git worktree list --porcelain | grep -q "branch refs/heads/$BRANCH$"; then
+    echo "ERROR: $BRANCH は別のworktreeで使用中" >&2
+    exit 1
+  fi
+  git worktree add "$WORKTREE_PATH" "$BRANCH"
+fi
 
 # 2. tmux window で claude 起動
 tmux new-window -t einja-{N} -n worker-{X.Y}

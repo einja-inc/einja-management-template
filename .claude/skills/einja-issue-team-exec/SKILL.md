@@ -128,15 +128,34 @@ Issue本文から以下を抽出:
 ## Step 2: ブランチ作成
 
 ```bash
-# ベースブランチの最新を取得し、ブランチ作成（メインリポのHEADは変更しない）
+# ベースブランチの最新を取得（冪等ブランチ作成の前提）
 git fetch origin
-git branch issue/${N} origin/${baseBranch} 2>/dev/null || true    # 冪等: 既存ならスキップ
-git push -u origin issue/${N} 2>/dev/null || true
-git branch issue/${N}-phase1 issue/${N} 2>/dev/null || true       # 冪等: 既存ならスキップ
-git push -u origin issue/${N}-phase1 2>/dev/null || true
+
+# Issue ブランチ作成（冪等）
+BRANCH="issue/${N}"
+BASE="origin/${baseBranch}"
+if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  : # 既存ローカルブランチを再利用
+elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+  git branch "$BRANCH" "origin/$BRANCH"  # リモートからローカル作成
+else
+  git branch "$BRANCH" "$BASE"  # 新規作成
+fi
+git push -u origin "$BRANCH" 2>/dev/null || true
+
+# Phase ブランチ作成（冪等）
+BRANCH="issue/${N}-phase1"
+BASE="issue/${N}"
+if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  : # 既存ローカルブランチを再利用
+elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+  git branch "$BRANCH" "origin/$BRANCH"  # リモートからローカル作成
+else
+  git branch "$BRANCH" "$BASE"  # 新規作成
+fi
+git push -u origin "$BRANCH" 2>/dev/null || true
+
 # ※ git checkout は使用しない。git branch でHEADを変えずにブランチを作成する
-# ※ `|| true` は「branch already exists」エラーの冪等ガード。
-#    認証失敗・ネットワーク障害・push拒否等の致命エラーは別途検出・abortすること
 # ※ lock系エラー（packed-refs.lock, FETCH_HEAD.lock, cannot lock ref等）発生時は
 #    jitter付き1〜2秒待機 → 再試行（最大3回、全失敗時はabort）
 ```
@@ -351,13 +370,19 @@ gh pr create --base issue/${N} --head issue/${N}-phase{M} \
 ### マージ後の次Phase準備
 
 ```bash
-# 次Phase ブランチ作成（メインリポのHEADは変更しない）
+# 次Phase ブランチ作成（冪等）
 git fetch origin
-git branch issue/${N}-phase{M+1} origin/issue/${N} 2>/dev/null || true  # 冪等: 既存ならスキップ
-git push -u origin issue/${N}-phase{M+1} 2>/dev/null || true
+BRANCH="issue/${N}-phase{M+1}"
+BASE="origin/issue/${N}"
+if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  : # 既存ローカルブランチを再利用
+elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+  git branch "$BRANCH" "origin/$BRANCH"  # リモートからローカル作成
+else
+  git branch "$BRANCH" "$BASE"  # 新規作成
+fi
+git push -u origin "$BRANCH" 2>/dev/null || true
 # ※ git checkout は使用しない。git branch でHEADを変えずにブランチを作成する
-# ※ `|| true` は「branch already exists」エラーの冪等ガード。
-#    認証失敗・ネットワーク障害等の致命エラーは別途検出・abortすること
 # ※ lock系エラー発生時はjitter付き1〜2秒待機 → 再試行（最大3回、全失敗時はabort）
 ```
 

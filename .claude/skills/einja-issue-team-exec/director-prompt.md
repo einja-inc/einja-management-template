@@ -16,7 +16,35 @@
 2. **作業環境準備**: [ブランチ運用戦略](../../../docs/einja/steering/branch-strategy.md)に従う
    - **Director worktree**（マージ先・PR用）を作成:
      ```bash
-     git worktree add ../${project-name}-worktrees/task-${N}-{X.Y} -b task/${N}-{X.Y} origin/issue/${N}-phase{M}
+     git fetch origin
+
+     # ブランチ作成（冪等）
+     BRANCH="task/${N}-{X.Y}"
+     BASE="origin/issue/${N}-phase{M}"
+     if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+       : # 既存ローカルブランチを再利用
+     elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+       git branch "$BRANCH" "origin/$BRANCH"  # リモートからローカル作成
+     else
+       git branch "$BRANCH" "$BASE"  # 新規作成
+     fi
+
+     # worktree作成（冪等）
+     WORKTREE_PATH="../${project-name}-worktrees/task-${N}-{X.Y}"
+     WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
+     if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+       : # 既存worktreeを再利用
+     else
+       git worktree prune --expire now 2>/dev/null
+       if [ -d "$WORKTREE_PATH" ]; then
+         rm -rf "$WORKTREE_PATH"
+       fi
+       if git worktree list --porcelain | grep -q "branch refs/heads/$BRANCH$"; then
+         echo "ERROR: $BRANCH は別のworktreeで使用中" >&2
+         exit 1
+       fi
+       git worktree add "$WORKTREE_PATH" "$BRANCH"
+     fi
      ```
    - `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ
    - PR base: `issue/${N}-phase{M}`
@@ -38,7 +66,33 @@
         - タスクグループレベルの指定はタスクレベルでオーバーライド可能
      5. 各 Worker に独立した worktree を作成:
         ```bash
-        git worktree add ../${project-name}-worktrees/task-${N}-{X.Y.Z} -b task/${N}-{X.Y.Z} task/${N}-{X.Y}
+        # ブランチ作成（冪等）
+        BRANCH="task/${N}-{X.Y.Z}"
+        BASE="task/${N}-{X.Y}"
+        if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+          : # 既存ローカルブランチを再利用
+        elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+          git branch "$BRANCH" "origin/$BRANCH"  # リモートからローカル作成
+        else
+          git branch "$BRANCH" "$BASE"  # 新規作成
+        fi
+
+        # worktree作成（冪等）
+        WORKTREE_PATH="../${project-name}-worktrees/task-${N}-{X.Y.Z}"
+        WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
+        if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+          : # 既存worktreeを再利用
+        else
+          git worktree prune --expire now 2>/dev/null
+          if [ -d "$WORKTREE_PATH" ]; then
+            rm -rf "$WORKTREE_PATH"
+          fi
+          if git worktree list --porcelain | grep -q "branch refs/heads/$BRANCH$"; then
+            echo "ERROR: $BRANCH は別のworktreeで使用中" >&2
+            exit 1
+          fi
+          git worktree add "$WORKTREE_PATH" "$BRANCH"
+        fi
         ```
         - Worker の作業ディレクトリとして worktree パスを prompt に含める
      6. 各 task-executer の prompt に以下を含める:

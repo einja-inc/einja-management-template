@@ -100,7 +100,7 @@ fi
 | QA結果の最小内容確認 | status=SUCCESS、対象AC、実行記録（Playwright/curl/コマンド）があること |
 | CI結果確認 | PRのrequired checksが success であること |
 | 危険シグナル簡易検知 | TODO/FIXME、コンフリクト痕跡（`<<<<<<<`）、PARTIAL/FAILURE が差分内にないこと |
-| 外部API動作確認 | 外部API連携タスクで、動作確認がモックテストのみ（実API通信なし）の場合はFAIL |
+| 外部API動作確認 | 外部API連携タスクで、動作確認がモックテストのみ（実API通信なし）の場合はFAILURE（failureCategory=D） |
 
 - **通過時**: `directorVerdict = "approved"` → マージモードに応じたPR処理へ
 - **不通過時**: `directorVerdict = "fix_required"` + `fixInstructions` → Worker修正へ（セクション4参照）

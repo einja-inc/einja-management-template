@@ -1,6 +1,6 @@
 ---
 name: einja-review-code
-description: "コード変更の観点別並列レビューを実施する汎用Skill。修正内容に応じた観点（A-G）を自動ピックし、観点別に並列サブエージェントでレビューを実行。Codex MCP有効時はcodex-agentも並列で独立レビューを実施。CLAUDE.mdの99-1完了検証タスクまたはtask-reviewerから呼び出される。Do NOT use for: Planレビュー（→ einja-review-plan）、Skill実装の品質チェック単体（→ einja-skill-plan-guide ワークフローB）"
+description: "コード変更の観点別並列レビューを実施する汎用Skill。修正内容に応じた観点（A-H）を自動ピックし、観点別に並列サブエージェントでレビューを実行。Codex MCP有効時はcodex-agentも並列で独立レビューを実施。CLAUDE.mdの99-1完了検証タスクまたはtask-reviewerから呼び出される。Do NOT use for: Planレビュー（→ einja-review-plan）、Skill実装の品質チェック単体（→ einja-skill-plan-guide ワークフローB）"
 allowed-tools:
   - Read
   - Bash
@@ -25,6 +25,7 @@ allowed-tools:
 | E | 影響範囲・水平展開 | 他モジュールへの波及、同種パターンの水平適用漏れ、未使用コード残存 | リファクタリング、共通ロジック変更の場合 |
 | F | テスト観点 | テストカバレッジ、テストケース不足、境界値・異常系テスト | テストの追加・変更、またはテスト追加が必要な本体変更の場合 |
 | G | ドキュメント作成・更新漏れ | README、JSDoc、CLAUDE.md、Skill説明文、steering docs等の更新必要性 | 公開API変更、設定変更、新機能追加の場合 |
+| H | デザイン忠実性 | design.mdのUI仕様・デザイン要点サマリと実装コードのレイアウト・カラー・スペーシング・インタラクションの一致検証 | 変更ファイルに.tsx/.jsx/.css含む AND specにui-design.pen存在 |
 
 ## 実行フロー
 
@@ -95,6 +96,18 @@ Step 1で取得したdiffの**ファイルパス**と**変更内容**から、�
 ## 対象diff:
 {git diff HEAD出力}
 ```
+
+#### 観点H（デザイン忠実性）レビュアーの追加入力
+
+観点Hがピックされた場合、レビュアーのプロンプトに以下を追加で埋め込む:
+
+1. **design.mdのUI仕様セクション**: specディレクトリの`design.md`からUI関連セクション（レイアウト、コンポーネント仕様等）を抽出して埋め込む
+2. **デザイン要点サマリ**（design-engineerが出力した場合）: task-reviewer経由で渡される「デザイン要点サマリ」テキストを埋め込む。主要プロパティテーブル（レイアウト方向、カラー値、サイズ、opacity、gap等）を入力とする
+3. 両方を入力として、実装コード（diff）との照合を実施
+
+**Pencil MCP未起動時・デザイン要点サマリなし時**:
+- design.mdテキストのみで照合（精度は落ちるが、最低限の検出機能）
+- レビュー結果に以下の警告を付記: 「⚠️ デザイン要点サマリなし: design.mdテキストのみで照合。精度が限定的」
 
 #### Codexレビュアー【Step 1.5でCodex MCP有効と判定された場合のみ】
 

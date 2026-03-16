@@ -607,6 +607,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 | フロントエンド デザイン実装 | `[design-engineer]` |
 | フロントエンド コーディング | `[frontend-coder]` |
 | バックエンド アーキテクチャ設計 | `[backend-architect]` |
+| ui-design.pen参照あり（`対応UIデザイン`付与時） | `[design-engineer]`（自動割り当て対象） |
 
 ### 使用Skillの記載形式
 

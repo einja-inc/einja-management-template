@@ -45,8 +45,12 @@ log/*.pid
 .env.personal
 .env.keys
 .env.local.tmp
+.env.keys.tmp
+.env.keys.cleanup.tmp
 .env.*.bak
 .env.keys.bak
+.env.keys.cleanup.bak
+.einja-sync-backup-*/
 
 # dotenvx - 以下は追跡する（暗号化済み）
 # .env.example（テンプレート）

@@ -13,9 +13,9 @@ import * as p from "@clack/prompts";
 import {
 	type EnvironmentConfig,
 	ENVIRONMENTS,
-	parseEnvFile,
 	getPrivateKey,
 	ENV_KEYS_PATH,
+	computeCleanedKeys,
 } from "./lib/env-common.js";
 
 const cwd = process.cwd();
@@ -241,6 +241,32 @@ async function rotateWithRecovery(
 
 		if (type === "dotenv" || type === "both") {
 			await rotateDotenvKey(env);
+		}
+
+		// dotenvキーローテーション後、古い鍵をクリーンアップ
+		if (type === "dotenv" || type === "both") {
+			const cleanupResult = computeCleanedKeys();
+			if (cleanupResult.changed) {
+				const cleanupBackupPath = path.join(cwd, ".env.keys.cleanup.bak");
+				fs.copyFileSync(ENV_KEYS_PATH, cleanupBackupPath);
+				const cleanupTmpPath = path.join(cwd, ".env.keys.cleanup.tmp");
+				try {
+					fs.writeFileSync(cleanupTmpPath, cleanupResult.content);
+					fs.renameSync(cleanupTmpPath, ENV_KEYS_PATH);
+					fs.unlinkSync(cleanupBackupPath);
+					p.log.success(`✅ .env.keys から古い鍵をクリーンアップしました (${env.name})`);
+				} catch {
+					// クリーンアップ失敗時はバックアップから復元
+					if (fs.existsSync(cleanupTmpPath)) {
+						fs.unlinkSync(cleanupTmpPath);
+					}
+					if (fs.existsSync(cleanupBackupPath)) {
+						fs.copyFileSync(cleanupBackupPath, ENV_KEYS_PATH);
+						fs.unlinkSync(cleanupBackupPath);
+					}
+					p.log.warn(`⚠️ 古い鍵のクリーンアップに失敗しましたが、ローテーション自体は成功しています (${env.name})`);
+				}
+			}
 		}
 
 		// 成功したらバックアップを削除

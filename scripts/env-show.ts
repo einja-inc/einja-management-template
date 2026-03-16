@@ -11,59 +11,9 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { ENVIRONMENTS, getPrivateKey } from "./lib/env-common.js";
 
 const cwd = process.cwd();
-const ENV_KEYS_PATH = path.join(cwd, ".env.keys");
-
-interface EnvironmentConfig {
-  name: string;
-  file: string;
-  privateKeyEnv: string;
-}
-
-const ENVIRONMENTS: EnvironmentConfig[] = [
-  { name: "local", file: ".env.local", privateKeyEnv: "DOTENV_PRIVATE_KEY_LOCAL" },
-  { name: "develop", file: ".env.develop", privateKeyEnv: "DOTENV_PRIVATE_KEY_DEVELOP" },
-  { name: "staging", file: ".env.staging", privateKeyEnv: "DOTENV_PRIVATE_KEY_STAGING" },
-  { name: "preview", file: ".env.preview", privateKeyEnv: "DOTENV_PRIVATE_KEY_PREVIEW" },
-  { name: "production", file: ".env.production", privateKeyEnv: "DOTENV_PRIVATE_KEY_PRODUCTION" },
-  { name: "ci", file: ".env.ci", privateKeyEnv: "DOTENV_PRIVATE_KEY_CI" },
-];
-
-function parseEnvFile(filePath: string): Record<string, string> {
-  if (!fs.existsSync(filePath)) {
-    return {};
-  }
-  const content = fs.readFileSync(filePath, "utf-8");
-  const result: Record<string, string> = {};
-
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-
-    const match = trimmed.match(/^([^=]+)=(.*)$/);
-    if (match) {
-      const key = match[1].trim();
-      let value = match[2].trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
-function getPrivateKey(privateKeyEnv: string): string | null {
-  if (!fs.existsSync(ENV_KEYS_PATH)) {
-    return null;
-  }
-  const keys = parseEnvFile(ENV_KEYS_PATH);
-  return keys[privateKeyEnv] || null;
-}
 
 function showUsage(): void {
   console.log("使用方法: pnpm env:show [環境名]");

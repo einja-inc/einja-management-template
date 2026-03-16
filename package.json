@@ -45,6 +45,7 @@
 		"env:encrypt": "dotenvx encrypt",
 		"env:show": "tsx scripts/env-show.ts",
 		"env:rotate-secrets": "tsx scripts/env-rotate-secrets.ts",
+		"env:cleanup-keys": "tsx scripts/env-cleanup-keys.ts",
 		"init:github": "tsx scripts/init-github.ts",
 		"task:loop": "npx --yes @einja-inc/dev-cli@latest task:loop",
 		"changeset": "changeset"

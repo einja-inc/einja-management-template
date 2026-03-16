@@ -50,7 +50,9 @@ OpenAI Realtime API（Beta→GA移行）で、specの読みが甘いまま推測
 
 **Step 1.5末尾に追記**:
 ```markdown
-4. **外部API連携フラグ**: 外部サービス用環境変数が検出された場合、`外部API連携あり` フラグを記録する。このフラグはStep 4でtask-executerのプロンプトに含めて渡す
+4. **外部API連携フラグ**: 以下のいずれかに該当する場合、`外部API連携あり` フラグを記録する。このフラグはStep 4でtask-executerのプロンプトに含めて渡す：
+   - 環境変数スキャン（1〜2）で外部サービス用変数が検出された場合
+   - タスク指示またはdesign.mdに「外部API」「サードパーティ」「webhook」「SDK」等のキーワードが含まれる場合
 ```
 
 **Step 4のプロンプト項目（a〜g）に追加**:
@@ -60,14 +62,14 @@ OpenAI Realtime API（Beta→GA移行）で、specの読みが甘いまま推測
 
 ### 3. `einja-review-code/SKILL.md` — 観点Cにスキーマ整合性追加
 
-観点Cテーブルの説明欄に `外部APIスキーマ整合性` を追加。観点Cのレビュープロンプトに以下を追加:
+観点Cテーブルの説明欄に `外部APIスキーマ整合性` を追加。観点Cに配置する理由: 外部APIのスキーマ不整合はランタイムエラー（異常系パス）を引き起こすため、セキュリティ・エラーハンドリング観点と同じレビューサイクルで検出すべき。観点Cのレビュープロンプトに以下を追加:
 ```
 - 外部API連携コードがある場合: リクエスト/レスポンスのスキーマが公式ドキュメントと一致しているか確認。特にフィールド名、型（string vs object）、ネスト構造、必須/オプションの区別
 ```
 
 ### 4. `task-reviewer.md` — 外部API連携チェック観点追加
 
-セクション「2. 要件との照合」の後に追加:
+セクション「2. 要件との照合」の後に追加（※ einja-review-codeの観点Cではスキーマ整合性を見るが、こちらではdesign.md自体に打鍵手順が記載されているかの構造確認を行う。両者は補完関係）:
 
 ```markdown
 ### 外部API連携チェック（外部サービス連携が含まれる場合）
@@ -99,6 +101,8 @@ MAJOR判定条件リストにも追加:
 
 ### 6. `_einja-task-qa/SKILL.md` — 外部API打鍵確認フロー追加
 
+※ task-reviewer（§4）とtask-qa（§6）で同じ確認を行うのは意図的な多層防御。task-reviewerはdesign.md記載の構造確認（実装前ゲート）、task-qaは実行時の打鍵確認（実装後ゲート）。
+
 **ステップ3.5（API修正の確認ダイアログ後）に追加**:
 ```markdown
 #### 外部API連携を含む機能の場合
@@ -121,6 +125,15 @@ MAJOR判定条件リストにも追加:
 3. **エラー系の確認**: 不正なパラメータに対して適切なエラーレスポンスが返るか確認
 
 - 外部APIを含むACの打鍵確認が一度もない場合 → **FAILURE（failureCategory=D: 環境問題）**
+```
+
+### 8. `docs/einja/steering/development/api-development.md` — 外部API打鍵確認ルール追記
+
+task-executer 1.3で参照されるAPI開発steering文書。現状は外部API・打鍵確認に関する記述が一切ない。以下を1〜2行追記:
+```markdown
+## 外部API連携時の必須事項
+
+外部API（サードパーティサービス）を呼び出す実装を行う場合、コーディング前に必ずcurl等で実際にAPIを叩き、正しいリクエスト/レスポンス形式を確認すること。推測やドキュメントの斜め読みで実装しない。
 ```
 
 ### 7. `einja-issue-spec-create/SKILL.md` — design-generator/qa-generatorへの指示追加
@@ -156,13 +169,14 @@ MAJOR判定条件リストにも追加:
 | 1-5 | task-qa 絶対禁止事項追加 [`general-purpose`] | `.claude/agents/einja/task/task-qa.md` | なし |
 | 1-6 | _einja-task-qa 外部API打鍵確認フロー追加 [`general-purpose`] | `.claude/skills/_einja-task-qa/SKILL.md` | なし |
 | 1-7 | einja-issue-spec-create design/qa-generator指示追加 [`general-purpose`] | `.claude/skills/einja-issue-spec-create/SKILL.md` | なし |
+| 1-8 | api-development.md に外部API打鍵確認ルール追記 [`general-purpose`] | `docs/einja/steering/development/api-development.md` | なし |
 | 99-1 | 観点別並列コードレビュー [`einja-review-code`] | 全変更ファイル | 1-1〜1-7 |
 | 99-G | コミット承認ゲート [`AskUserQuestion`] | - | 99-1 |
 | 99-3 | コミット・プッシュ [`einja-task-commit`] | - | 99-G |
 
 ## 並列実行計画
 
-- タスク1-1〜1-7は互いに独立。全7タスク並列実行可能（ファイル重複なし）
+- タスク1-1〜1-8は互いに独立。全8タスク並列実行可能（ファイル重複なし）
 
 ## リスク・不明点
 
@@ -171,5 +185,5 @@ MAJOR判定条件リストにも追加:
 ## 検証・動作確認方法
 
 - 各ファイルの変更箇所をgrep/readで確認
-- 7ファイル全てに外部API打鍵確認関連の記述が追加されていること
+- 8ファイル全てに外部API打鍵確認関連の記述が追加されていること
 - 既存セクション構造が壊れていないこと（前後のセクション番号の整合性）

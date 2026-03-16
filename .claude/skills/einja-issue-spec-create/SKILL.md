@@ -137,6 +137,14 @@ AskUserQuestion:
 - 判定基準: requirements.md内に「画面」「UI」「フォーム」「ダッシュボード」「表示」「ボタン」「入力」等のキーワードが含まれるか確認
 - 判断が曖昧な場合はAskUserQuestionでユーザーに確認
 
+**⚠️ 外部API連携がある場合の必須記載事項（パターンA/B共通）**:
+design-generatorエージェントへの追加指示に以下を含めること:
+- design.mdの「テスト設計」または「環境設定」セクションに以下を含める：
+  1. 使用する外部APIのサンドボックス/テスト環境の概要
+  2. QA打鍵確認に必要な環境変数の一覧（変数名・取得方法・設定先）
+  3. curlコマンド例（正常系1例・異常系1例）
+- 未記載の場合、task-reviewerがMAJOR判定する
+
 ##### パターンA: UI要件あり（Phase 2+3 並列実行）
 
 以下の2つのエージェントを**並列（同時にTask呼び出し）**で起動する:
@@ -165,6 +173,7 @@ AskUserQuestion:
     - `docs/einja/steering/development/testing-strategy.md`
     - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
   - requirements.mdの「実装参考情報」セクションを参照し、design.mdに「関連ドキュメント」「関連Skill・サブエージェント」セクションを出力すること。
+  - **外部API連携がある場合**: 上記「外部API連携がある場合の必須記載事項」に従うこと
 
 **両方完了後、順番に承認:**
 
@@ -194,6 +203,7 @@ AskUserQuestion:
        - `docs/einja/steering/development/testing-strategy.md`
        - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
      - requirements.mdの「実装参考情報」セクションを参照し、design.mdに「関連ドキュメント」「関連Skill・サブエージェント」セクションを出力すること。
+     - **外部API連携がある場合**: 上記「外部API連携がある場合の必須記載事項」に従うこと
 2. **ユーザーに内容確認を依頼**
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（アーキテクチャの妥当性、実装方針など）
@@ -212,6 +222,10 @@ AskUserQuestion:
      - 以下のsteering文書を事前に読み込んでから作業すること:
        - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
        - `docs/einja/steering/development/testing-strategy.md`
+     - **外部API連携がある場合の必須記載事項**:
+       - 外部APIを呼び出すACのQAテストシナリオに「実API打鍵確認ステップ」を含めること
+       - 「モックでのPASS」と「実APIでの打鍵確認」は別ステップとして分けて記載
+       - 打鍵確認に必要な前提条件（環境変数、サンドボックスアカウント等）を「前提条件」欄に明記
 2. **ユーザーに内容確認を依頼**
    - 作成したqa-tests/ディレクトリの構成と概要を提示
    - 確認ポイントを明示（シナリオテストの網羅性、実施タイミングの妥当性など）

@@ -14,10 +14,13 @@
    - 受信した `[task-claim]` から「誰がどのタスク・どのファイルを担当しているか」の宛先マップを保持
 
 2. **作業環境準備**: [ブランチ運用戦略](../../../docs/einja/steering/branch-strategy.md)に従う
-   - worktree 作成: `git worktree add ../${project-name}-worktrees/task-${N}-{X.Y}`
-   - worktree ディレクトリに移動
+   - **Director worktree**（マージ先・PR用）を作成:
+     ```bash
+     git worktree add ../${project-name}-worktrees/task-${N}-{X.Y} -b task/${N}-{X.Y} origin/issue/${N}-phase{M}
+     ```
    - `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ
-   - ブランチ名: `task/${N}-{X.Y}`、ベース: `origin/issue/${N}-phase{M}`、PR base: `issue/${N}-phase{M}`
+   - PR base: `issue/${N}-phase{M}`
+   - **注意**: このworktreeはDirector自身の管理用。Workerは個別worktreeで作業する（Step 4参照）
 
 3. **タスク登録**: Task の description から AC・設計参照・タスク一覧を読み取り、個別タスク（X.Y.Z）を TaskCreate で登録（依存関係設定含む）
    - **重要**: X.Y.Z タスクは Director ローカル管理。チーム共有 TaskList（X.Y レベル）には混入させない
@@ -33,20 +36,37 @@
         - 指定あり → 指定されたサブエージェント（例: frontend-coder, design-engineer, backend-architect 等）
         - 指定なし → デフォルトの task-executer
         - タスクグループレベルの指定はタスクレベルでオーバーライド可能
-     5. 各 task-executer の prompt に以下を含める:
+     5. 各 Worker に独立した worktree を作成:
+        ```bash
+        git worktree add ../${project-name}-worktrees/task-${N}-{X.Y.Z} -b task/${N}-{X.Y.Z} task/${N}-{X.Y}
+        ```
+        - Worker の作業ディレクトリとして worktree パスを prompt に含める
+     6. 各 task-executer の prompt に以下を含める:
         a. タスクID + タスク名 + 実装指示
         b. AC（受け入れ基準）→ 直接埋め込み
         c. 設計 → design.md パス + セクション名（executer が自分で Read）
         d. 完了条件
         e. フォールバック用 spec ファイルパス
         f. 「使用Skill」フィールドがある場合はその Skill 名
-     6. サブエージェントは **必ず `run_in_background: true`** で起動する（1タスクでも同様）。これによりDirector自身はメッセージ受信・ピア間通信を並行処理できる
-     7. 各エージェントの完了を待機（TaskOutput で結果取得）
-     8. 完了したタスクを TaskUpdate で completed に設定
-     9. ループ先頭に戻る
+        g. 「作業ディレクトリ: ../${project-name}-worktrees/task-${N}-{X.Y.Z} で作業すること」
+     7. サブエージェントは **必ず `run_in_background: true`** で起動する（1タスクでも同様）。これによりDirector自身はメッセージ受信・ピア間通信を並行処理できる
+     8. 各エージェントの完了を待機（TaskOutput で結果取得）
+     9. Worker worktree の変更を Director worktree にマージ:
+        ```bash
+        cd ../${project-name}-worktrees/task-${N}-{X.Y}
+        git merge --no-ff task/${N}-{X.Y.Z} -m "merge: Task {X.Y.Z} の変更を統合"
+        ```
+        - コンフリクト発生時: einja-conflict-resolver Skill で解消
+     10. Worker worktree を削除:
+        ```bash
+        git worktree remove ../${project-name}-worktrees/task-${N}-{X.Y.Z} --force
+        git branch -d task/${N}-{X.Y.Z}
+        ```
+     11. 完了したタスクを TaskUpdate で completed に設定
+     12. ループ先頭に戻る
    ```
    - 並列起動するタスク間でファイル変更対象が重複しないよう、設計セクションから推定して確認
-   - 重複懸念がある場合は直列化する
+   - 重複懸念がある場合は直列化する（同じworktreeではなく、順次実行で前のWorkerの変更を引き継ぐ）
    - task-executer にはコミットさせない（Step 7でまとめて実行）
    - **進捗報告**: 各個別タスク（X.Y.Z）の開始時・完了時に Lead へ SendMessage で報告
      形式: `[progress] Task {X.Y.Z}: {started|completed} - {タスク名}`

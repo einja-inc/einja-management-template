@@ -298,17 +298,24 @@ jobs:
 
             echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
             set +e
-            DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN" 2>deploy-error.txt)
+            vercel deploy --prebuilt --archive=tgz "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN" > deployment-url.txt 2>deploy-error.txt
             DEPLOY_EXIT=$?
             set -e
 
             if [ $DEPLOY_EXIT -ne 0 ]; then
               echo "::error::Vercel deploy failed with exit code $DEPLOY_EXIT"
               echo "--- Deploy stdout ---"
-              echo "$DEPLOY_URL"
+              cat deployment-url.txt
               echo "--- Deploy stderr ---"
               cat deploy-error.txt
               exit $DEPLOY_EXIT
+            fi
+
+            DEPLOY_URL=$(tail -n 1 deployment-url.txt)
+            if [ -z "$DEPLOY_URL" ]; then
+              echo "::error::Deploy succeeded but no URL was captured"
+              cat deployment-url.txt
+              exit 1
             fi
 
             echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"

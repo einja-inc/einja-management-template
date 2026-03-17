@@ -294,6 +294,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `Pencil` `pencil` `.pen` `design-master` `デザインマスター` `デザイン管理` | `.claude/skills/einja-pencil-design-manager/SKILL.md` |
 | `Skill計画` `Skill仕様策定` `skill-plan-guide` `Skill品質チェック` | `.claude/skills/einja-skill-plan-guide/SKILL.md` |
 | `Planレビュー` `plan review` `計画レビュー` | `.claude/skills/einja-review-plan/SKILL.md` |
+| `マイグレーション修復` `migration fix` `マイグレーション壊れた` `migrate失敗` `migration broken` `prisma migrate エラー` `P3006` `P3009` | `.claude/skills/einja-migration-fix/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 

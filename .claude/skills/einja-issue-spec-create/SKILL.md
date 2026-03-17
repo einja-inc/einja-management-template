@@ -196,13 +196,18 @@ AskUserQuestion:
 #### Phase 1: requirements.md（要件定義書）
 1. requirements-generatorエージェントで作成
    - エージェント内で既存コードの分析を実施
-   - ATDD形式のユーザーストーリーと受け入れ基準
+   - 標準の項目構造で要件を作成
    - **追加指示（呼び出し時にプロンプトに含める）**:
      - 以下のsteering文書を事前に読み込んでから作業すること:
        - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
        - `docs/einja/steering/development/testing-strategy.md`
      - また、過去Planを `docs/plans/` ディレクトリから検索し、類似Issueがあれば「実装参考情報」セクションに参考情報として記載すること。
      - **0.3で作成した「要件ヒアリングサマリ」と「事前調査結果」を必ずプロンプトに含める**こと。requirements-generatorはこのサマリを基に要件定義書を作成する。事前調査済みの内容はStep 0で重複調査せず、より深い分析に集中する。
+     - requirements.md は最低限、`Sources`、`目的・役割`、`対象外`、`前提条件・制約`、`画面構成・状態`、`AC一覧`、`AC詳細（正常系/異常系）`、`表示・計算ルール`、`入力ルール`、`権限マトリクス`、`画面遷移`、`処理フロー` を持つこと。
+     - AC は Story番号ベースの単純連番ではなく、`カテゴリ / 区分 / 強度 / 検証レベル` を持つ `AC一覧` を先に出力すること。
+     - ACカテゴリは原則 `UI / NAV / VAL / ERR / PERM / UX` から選ぶこと。
+     - AC本文は振る舞いの骨格だけを記述し、詳細条件は `→§N` の形で後続セクションに委譲すること。
+     - AC詳細は `正常系` と `異常系` を分けること。
 2. **ユーザーに内容確認を依頼**
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（要件の過不足、受け入れ基準の明確性など）
@@ -233,7 +238,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
 
 **[並列-1] design-generatorエージェント → design.md**
 1. エージェント内で既存アーキテクチャの調査を実施
-2. 技術アーキテクチャとデータモデル
+2. 差分設計を中心に設計書を作成
 3. requirements.mdの内容を参照
 4. **⚠️ ui-design.pen は並列生成中のため参照不可。UI関連セクション（9-11）では、UIの詳細仕様は `ui-design.pen` を参照先として記載すること（例: 「UIレイアウトの詳細は ui-design.pen を参照」）**
 - **追加指示（呼び出し時にプロンプトに含める）**:
@@ -245,6 +250,9 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
     - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
   - requirements.mdの「実装参考情報」セクションを参照し、design.mdに「関連ドキュメント」「関連Skill・サブエージェント」セクションを出力すること。
   - **外部API連携がある場合**: 上記「外部API連携がある場合の必須記載事項」に従うこと
+  - design.md は最低限、`Overview`、`Existing Architecture Analysis`、`Architecture Pattern & Boundary Map`、`Technology Stack`、`System Flows`、`Requirements Traceability`、`Component Summary`、`Components and Interfaces`、`Rules Mapping`、`Testing Strategy for This Feature` を持つこと。
+  - requirements.md の `AC一覧` と `§5〜§9 のルール系セクション` を参照し、設計へトレースすること。
+  - 一般論ではなく、既存実装に対して何を再利用し何を追加するかを優先して書くこと。
 
 **[並列-2] ui-design-generatorエージェント → ui-design.pen**
 1. 既存画面確認（改修の場合）
@@ -266,6 +274,12 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
   - 以下のsteering文書を事前に読み込んでから作業すること:
     - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
     - `docs/einja/steering/development/testing-strategy.md`
+  - `AC一覧 → シナリオ一覧 → シナリオ詳細` の構造で QA 仕様を作成すること。
+  - QA仕様は最低限、`概要`、`テスト環境`、`AC一覧`、`シナリオ一覧`、各シナリオの `目的`、`関連AC`、`前提条件`、`テスト手順`、`結果` を持つこと。
+  - 各シナリオの `前提条件` には `テストデータ`、`ログインロール`、`依存` を必ず含めること。
+  - `テスト手順` の表は `No / 手順 / 確認項目 / 期待値 / 結果 / 備考` を使用すること。
+  - シナリオは Story単位ではなく、画面操作や契約確認のまとまりで切ること。
+  - 少なくとも `初期表示`、`保存フロー`、`バリデーション`、`権限制御`、`エラーハンドリング` の観点をカバーすること。
   - **外部API連携がある場合の必須記載事項**:
     - 外部APIを呼び出すACのQAテストシナリオに「実API打鍵確認ステップ」を含めること
     - 「モックでのPASS」と「実APIでの打鍵確認」は別ステップとして分けて記載

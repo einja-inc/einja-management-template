@@ -1,1 +1,2 @@
-npx lint-staged 
+pnpm sync:shared:check
+npx lint-staged

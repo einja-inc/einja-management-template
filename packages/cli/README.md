@@ -297,7 +297,7 @@ docs/
 ```
 
 **含まれるMCPサーバー設定:**
-- codex, context7, playwright, serena, github, vibe_kanban
+- codex, context7, playwright, serena, github
 
 ## カスタマイズ
 

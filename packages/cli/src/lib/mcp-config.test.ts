@@ -14,9 +14,9 @@ describe("mcp-config", () => {
       // Given: テンプレート設定のみ存在
       const template: McpConfig = {
         mcpServers: {
-          vibe_kanban: {
-            command: "npx",
-            args: ["-y", "vibe-kanban@latest", "--mcp"],
+          serena: {
+            command: "bash",
+            args: ["-lc", "./scripts/serena-mcp-bridge.sh"],
           },
           codex: {
             type: "stdio",
@@ -31,7 +31,7 @@ describe("mcp-config", () => {
 
       // Then: テンプレートがそのまま返り、すべて追加扱い
       expect(result.config.mcpServers).toEqual(template.mcpServers);
-      expect(result.added).toEqual(["vibe_kanban", "codex"]);
+      expect(result.added).toEqual(["serena", "codex"]);
       expect(result.overwritten).toEqual([]);
       expect(result.preserved).toEqual([]);
     });
@@ -40,18 +40,18 @@ describe("mcp-config", () => {
       // Given: 既存設定にない新しいサーバーがテンプレートに存在
       const existing: McpConfig = {
         mcpServers: {
-          vibe_kanban: {
-            command: "npx",
-            args: ["-y", "vibe-kanban@latest", "--mcp"],
+          serena: {
+            command: "bash",
+            args: ["-lc", "./scripts/serena-mcp-bridge.sh"],
           },
         },
       };
 
       const template: McpConfig = {
         mcpServers: {
-          vibe_kanban: {
-            command: "npx",
-            args: ["-y", "vibe-kanban@latest", "--mcp"],
+          serena: {
+            command: "bash",
+            args: ["-lc", "./scripts/serena-mcp-bridge.sh"],
           },
           codex: {
             type: "stdio",
@@ -67,7 +67,7 @@ describe("mcp-config", () => {
       // Then: 新しいサーバーが追加される
       expect(result.config.mcpServers).toHaveProperty("codex");
       expect(result.added).toEqual(["codex"]);
-      expect(result.overwritten).toEqual(["vibe_kanban"]);
+      expect(result.overwritten).toEqual(["serena"]);
       expect(result.preserved).toEqual([]);
     });
 
@@ -75,7 +75,7 @@ describe("mcp-config", () => {
       // Given: 既存とテンプレートに同名サーバーが存在（設定が異なる）
       const existing: McpConfig = {
         mcpServers: {
-          vibe_kanban: {
+          serena: {
             command: "old-command",
             args: ["old-arg"],
           },
@@ -84,9 +84,9 @@ describe("mcp-config", () => {
 
       const template: McpConfig = {
         mcpServers: {
-          vibe_kanban: {
-            command: "npx",
-            args: ["-y", "vibe-kanban@latest", "--mcp"],
+          serena: {
+            command: "bash",
+            args: ["-lc", "./scripts/serena-mcp-bridge.sh"],
           },
         },
       };
@@ -95,12 +95,12 @@ describe("mcp-config", () => {
       const result = mergeMcpConfigs(existing, template);
 
       // Then: テンプレートの設定で上書きされる
-      expect(result.config.mcpServers?.vibe_kanban).toEqual({
-        command: "npx",
-        args: ["-y", "vibe-kanban@latest", "--mcp"],
+      expect(result.config.mcpServers?.serena).toEqual({
+        command: "bash",
+        args: ["-lc", "./scripts/serena-mcp-bridge.sh"],
       });
       expect(result.added).toEqual([]);
-      expect(result.overwritten).toEqual(["vibe_kanban"]);
+      expect(result.overwritten).toEqual(["serena"]);
       expect(result.preserved).toEqual([]);
     });
 
@@ -117,9 +117,9 @@ describe("mcp-config", () => {
 
       const template: McpConfig = {
         mcpServers: {
-          vibe_kanban: {
-            command: "npx",
-            args: ["-y", "vibe-kanban@latest", "--mcp"],
+          serena: {
+            command: "bash",
+            args: ["-lc", "./scripts/serena-mcp-bridge.sh"],
           },
         },
       };
@@ -133,8 +133,8 @@ describe("mcp-config", () => {
         command: "custom-command",
         args: ["custom-arg"],
       });
-      expect(result.config.mcpServers).toHaveProperty("vibe_kanban");
-      expect(result.added).toEqual(["vibe_kanban"]);
+      expect(result.config.mcpServers).toHaveProperty("serena");
+      expect(result.added).toEqual(["serena"]);
       expect(result.overwritten).toEqual([]);
       expect(result.preserved).toEqual(["custom_server"]);
     });
@@ -143,7 +143,7 @@ describe("mcp-config", () => {
       // Given: 複数のサーバー設定が混在
       const existing: McpConfig = {
         mcpServers: {
-          vibe_kanban: {
+          serena: {
             command: "old-vibe",
             args: ["old"],
           },
@@ -156,9 +156,9 @@ describe("mcp-config", () => {
 
       const template: McpConfig = {
         mcpServers: {
-          vibe_kanban: {
-            command: "npx",
-            args: ["-y", "vibe-kanban@latest", "--mcp"],
+          serena: {
+            command: "bash",
+            args: ["-lc", "./scripts/serena-mcp-bridge.sh"],
           },
           codex: {
             type: "stdio",
@@ -173,14 +173,14 @@ describe("mcp-config", () => {
 
       // Then: 各カテゴリに正しく分類される
       expect(result.added).toEqual(["codex"]);
-      expect(result.overwritten).toEqual(["vibe_kanban"]);
+      expect(result.overwritten).toEqual(["serena"]);
       expect(result.preserved).toEqual(["custom_server"]);
 
       // Then: マージ後の設定が正しい
       expect(result.config.mcpServers).toBeDefined();
       if (result.config.mcpServers) {
         expect(Object.keys(result.config.mcpServers)).toHaveLength(3);
-        expect(result.config.mcpServers.vibe_kanban?.command).toBe("npx");
+        expect(result.config.mcpServers.serena?.command).toBe("bash");
         expect(result.config.mcpServers.custom_server?.command).toBe("custom");
         expect(result.config.mcpServers.codex?.command).toBe("codex");
       }

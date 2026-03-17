@@ -106,7 +106,7 @@ flowchart TD
         D4 --> D5[Step 5: シェルに direnv hook 追加]
         D5 --> D6[Step 6: dotenvx インストール]
         D6 --> D7["Step 7: .env.personal 作成<br/>+ GITHUB_TOKEN 設定（対話的）"]
-        D7 --> D8["Step 8: direnv allow<br/>→ .envrc 評価（Serena MCP 自動起動）"]
+        D7 --> D8["Step 8: direnv allow<br/>→ .envrc 評価（環境変数を反映）"]
     end
 
     D8 --> E["pnpm dev で開発開始<br/>（.env自動復号・DB起動・マイグレーション含む）"]
@@ -126,7 +126,7 @@ flowchart TD
 | Step 5: direnv hook | `setup-dev.ts` | `~/.zshrc` 等に `eval "$(direnv hook zsh)"` を追記 |
 | Step 6: dotenvx | `setup-dev.ts` | `curl -sfS https://dotenvx.sh/install.sh` で導入。失敗時は `npm install -g @dotenvx/dotenvx` にフォールバック |
 | Step 7: .env.personal | `setup-dev.ts` | `.env.personal.example` からコピー → GITHUB_TOKEN を対話的に入力（スキップ可） |
-| Step 8: direnv 有効化 | `setup-dev.ts` | `direnv allow` 実行 → `.envrc` が評価される → Serena MCP サーバー自動起動 |
+| Step 8: direnv 有効化 | `setup-dev.ts` | `direnv allow` 実行 → `.envrc` が評価される → 環境変数を反映 |
 
 #### .envrc の役割
 
@@ -282,9 +282,9 @@ sequenceDiagram
 |---------|------|-----------|
 | `scripts/init.sh` | Volta/Node.js/pnpm/direnv 初期導入（初回のみ） | `@einja-inc/create-app`（`post-setup.ts` から `bash scripts/init.sh`） / 手動実行 |
 | `scripts/setup-dev.ts` | ツールインストール（Volta確認・direnv・dotenvx・.env.personal設定） | `pnpm dev:setup` |
-| `scripts/ensure-serena.sh` | Serena MCP サーバーの冪等起動（PIDベース） | `.envrc` から `source`（direnv 評価時に自動実行） |
+| `scripts/ensure-serena.sh` | Serena MCP サーバーの冪等起動（PIDベース） | `scripts/serena-mcp-bridge.sh` からオンデマンド実行 |
 | `scripts/env-rotate-secrets.ts` | AUTH_SECRET / DOTENV_PRIVATE_KEY のローテーション | `@einja-inc/create-app`（`post-setup.ts` から `--all --non-interactive`） / `pnpm env:rotate-secrets` |
-| `.envrc` | dotenv 読み込み + worktree 間 .env.personal 共有 + Serena MCP 起動 | direnv（シェルでディレクトリ進入時に自動評価） |
+| `.envrc` | dotenv 読み込み + worktree 間 `.env.personal` 共有 | direnv（シェルでディレクトリ進入時に自動評価） |
 | `packages/create-app/src/generators/post-setup.ts` | プロジェクト作成後のセットアップ（init.sh → install → rotate → git → dev-cli） | `@einja-inc/create-app` create コマンド |
 | `packages/create-app/src/generators/template.ts` | テンプレート展開・変数置換・リネーム処理 | `@einja-inc/create-app` create コマンド |
 | `packages/create-app/src/generators/sync.ts` | @einja-inc/create-app 用同期ファイル収集（カテゴリ → glob パターン → フィルタリング） | `@einja-inc/create-app` sync コマンド |

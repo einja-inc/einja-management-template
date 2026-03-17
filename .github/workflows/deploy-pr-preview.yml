@@ -297,7 +297,7 @@ jobs:
             ENV_FLAGS+=("--env" "DATABASE_URL=${DATABASE_URL}")
 
             echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
-            DEPLOY_URL=$(vercel deploy --prebuilt "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
             echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           '
         env:

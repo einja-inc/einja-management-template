@@ -239,7 +239,7 @@ jobs:
             done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$DEPLOY_DOTENV_FILE" | cut -d= -f1)
 
             echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
-            DEPLOY_URL=$(vercel deploy --prebuilt $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
             echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           '
         env:
@@ -333,7 +333,7 @@ jobs:
             done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$DEPLOY_DOTENV_FILE" | cut -d= -f1)
 
             echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
-            DEPLOY_URL=$(vercel deploy --prebuilt $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
             echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           '
         env:
@@ -591,7 +591,7 @@ jobs:
             done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$DEPLOY_DOTENV_FILE" | cut -d= -f1)
 
             echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
-            DEPLOY_URL=$(vercel deploy --prebuilt $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
             echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           '
         env:

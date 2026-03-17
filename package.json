@@ -9,6 +9,7 @@
 	],
 	"scripts": {
 		"prepare": "husky",
+		"sync:shared:sync-core": "node --experimental-strip-types scripts/sync-shared-sync-core.mts",
 		"dev": "if [ -d node_modules ]; then tsx scripts/worktree/dev.ts; else pnpm install && tsx scripts/worktree/dev.ts; fi",
 		"dev:bg": "if [ -d node_modules ]; then tsx scripts/worktree/dev.ts --background; else pnpm install && tsx scripts/worktree/dev.ts --background; fi",
 		"dev:stop": "tsx scripts/worktree/dev.ts --stop",

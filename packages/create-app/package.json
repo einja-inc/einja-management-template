@@ -11,12 +11,14 @@
     "templates"
   ],
   "scripts": {
-    "prebuild": "pnpm template:update",
+    "sync:shared": "node --experimental-strip-types ../../scripts/sync-shared-sync-core.mts create-app",
+    "prebuild": "pnpm sync:shared && pnpm template:update",
     "build": "tsup",
-    "dev": "tsup --watch",
+    "dev": "pnpm sync:shared && tsup --watch",
+    "pretypecheck": "pnpm sync:shared",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
-    "pretest": "test -d ./templates/default || pnpm template:update",
+    "pretest": "pnpm sync:shared && (test -d ./templates/default || pnpm template:update)",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "template:update": "tsx scripts/template-update.ts",
@@ -29,6 +31,7 @@
     "fs-extra": "^11.2.0",
     "glob": "^11.0.0",
     "inquirer": "^12.0.0",
+    "node-diff3": "^3.2.0",
     "ora": "^8.1.1"
   },
   "devDependencies": {

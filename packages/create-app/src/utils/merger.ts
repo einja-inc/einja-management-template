@@ -1,10 +1,39 @@
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, basename } from "node:path";
 import type { SyncMetadata, JsonPathsConfig, ConflictStrategy } from "@/types/index.js";
+import { mergeJsonWithConflicts as mergeJsonWithConflictsCore } from "@/internal/sync-core/json-merge.js";
+import { mergeText3Way as mergeText3WayCore } from "@/internal/sync-core/text-merge.js";
 import { ensureDir } from "@/utils/fs.js";
 import { mergePackageJsonDependencies } from "@/utils/package-json-merger.js";
 import * as logger from "@/utils/logger.js";
 import { replacePlaceholders, type TemplateVariables } from "@/generators/template.js";
+
+export interface FileConflict {
+  line: number;
+  localContent: string;
+  templateContent: string;
+  keyPath?: string;
+}
+
+export interface MergeAndWriteFileResult {
+  action: "created" | "merged" | "skipped" | "overwritten" | "conflicted";
+  path: string;
+  conflicts: FileConflict[];
+  templateContent: string;
+}
+
+function calculateContentHash(content: string, filePath: string): string {
+  return createHash("sha256")
+    .update(filePath, "utf-8")
+    .update("\0")
+    .update(content, "utf-8")
+    .digest("hex");
+}
+
+function stringifyConflictValue(value: unknown): string {
+  return value === undefined ? "undefined" : JSON.stringify(value);
+}
 
 /**
  * マーカーベースのテキストマージを行う
@@ -129,116 +158,40 @@ export function mergeJson(
   jsonPaths: JsonPathsConfig,
   filePath = "package.json"
 ): Record<string, unknown> {
-  // Given: 既存JSONが存在しない場合
-  if (existingJson === null) {
-    // When: テンプレートをディープコピーして使用
-    return JSON.parse(JSON.stringify(templateJson));
-  }
+  return mergeJsonWithConflicts(templateJson, existingJson, jsonPaths, filePath).result;
+}
 
-  // When: ディープマージを実行
-  return deepMergeWithPaths(
+function mergeJsonWithConflicts(
+  templateJson: Record<string, unknown>,
+  existingJson: Record<string, unknown> | null,
+  jsonPaths: JsonPathsConfig,
+  filePath = "package.json",
+  baseJson?: Record<string, unknown>
+): {
+  result: Record<string, unknown>;
+  conflicts: FileConflict[];
+} {
+  const mergeResult = mergeJsonWithConflictsCore(
     templateJson,
     existingJson,
     jsonPaths,
     filePath,
-    ""
+    baseJson,
+    {
+      missingLocalStrategy: "template",
+      projectPrivateStrategy: "merge-missing",
+    }
   );
-}
 
-/**
- * パスを考慮したディープマージを行う
- *
- * @param template - テンプレートオブジェクト
- * @param existing - 既存オブジェクト
- * @param jsonPaths - managed/project-privateパスの設定
- * @param filePath - ファイルパス
- * @param currentPath - 現在のキーパス（例: "scripts.dev"）
- * @returns マージ後のオブジェクト
- */
-function deepMergeWithPaths(
-  template: Record<string, unknown>,
-  existing: Record<string, unknown>,
-  jsonPaths: JsonPathsConfig,
-  filePath: string,
-  currentPath: string
-): Record<string, unknown> {
-  // 既存オブジェクトをディープコピー（参照を共有しないように）
-  const result = JSON.parse(JSON.stringify(existing)) as Record<string, unknown>;
-
-  for (const [key, templateValue] of Object.entries(template)) {
-    const keyPath = currentPath ? `${currentPath}.${key}` : key;
-    const existingValue = existing[key];
-
-    // Given: このパスがmanagedに含まれるか確認
-    if (isPathManaged(filePath, keyPath, jsonPaths)) {
-      // Then: managedパスはテンプレート値でディープコピーして上書き
-      result[key] = deepClone(templateValue);
-    }
-    // Given: このパスがproject-privateに含まれるか確認
-    else if (isPathProjectPrivate(filePath, keyPath, jsonPaths)) {
-      // Given: project-privateパスでオブジェクトの場合、子キーもディープマージ
-      if (
-        typeof templateValue === "object" &&
-        templateValue !== null &&
-        !Array.isArray(templateValue) &&
-        typeof existingValue === "object" &&
-        existingValue !== null &&
-        !Array.isArray(existingValue)
-      ) {
-        // Then: project-privateパス内でもディープマージ（既存にないキーのみ追加）
-        result[key] = deepMergeWithPaths(
-          templateValue as Record<string, unknown>,
-          existingValue as Record<string, unknown>,
-          jsonPaths,
-          filePath,
-          keyPath
-        );
-      } else if (!(key in existing)) {
-        // Then: project-privateパスはローカル優先（キーが存在しない場合のみディープコピーして追加）
-        result[key] = deepClone(templateValue);
-      }
-      // 既存値がある場合は何もしない（既存値を保持）
-    }
-    // Given: 両方がオブジェクトの場合
-    else if (
-      typeof templateValue === "object" &&
-      templateValue !== null &&
-      !Array.isArray(templateValue) &&
-      typeof existingValue === "object" &&
-      existingValue !== null &&
-      !Array.isArray(existingValue)
-    ) {
-      // Then: 再帰的にディープマージ
-      result[key] = deepMergeWithPaths(
-        templateValue as Record<string, unknown>,
-        existingValue as Record<string, unknown>,
-        jsonPaths,
-        filePath,
-        keyPath
-      );
-    }
-    // Given: それ以外のパス（テンプレートにのみ存在する場合）
-    else if (!(key in existing)) {
-      // Then: テンプレートの値をディープコピーして追加
-      result[key] = deepClone(templateValue);
-    }
-    // 既存値がある場合は何もしない（既存値を保持）
-  }
-
-  return result;
-}
-
-/**
- * 値をディープコピーする（undefinedも正しく扱う）
- *
- * @param value - コピーする値
- * @returns ディープコピーされた値
- */
-function deepClone(value: unknown): unknown {
-  if (value === undefined) {
-    return undefined;
-  }
-  return JSON.parse(JSON.stringify(value));
+  return {
+    result: mergeResult.result,
+    conflicts: mergeResult.conflicts.map((conflict) => ({
+      line: 0,
+      keyPath: conflict.keyPath,
+      localContent: stringifyConflictValue(conflict.localValue),
+      templateContent: stringifyConflictValue(conflict.templateValue),
+    })),
+  };
 }
 
 /**
@@ -247,9 +200,7 @@ function deepClone(value: unknown): unknown {
  * @param targetDir - ターゲットディレクトリ
  * @returns メタデータ（存在しない場合はnull）
  */
-export async function loadSyncMetadata(
-  targetDir: string
-): Promise<SyncMetadata | null> {
+export async function loadSyncMetadata(targetDir: string): Promise<SyncMetadata | null> {
   const metadataPath = `${targetDir}/.einja-sync.json`;
 
   if (!existsSync(metadataPath)) {
@@ -258,7 +209,16 @@ export async function loadSyncMetadata(
 
   try {
     const content = readFileSync(metadataPath, "utf-8");
-    return JSON.parse(content) as SyncMetadata;
+    const parsed = JSON.parse(content) as SyncMetadata & {
+      jsonPaths?: JsonPathsConfig & { seed?: Record<string, string[]> };
+    };
+
+    if (parsed.jsonPaths?.seed && !parsed.jsonPaths["project-private"]) {
+      parsed.jsonPaths["project-private"] = parsed.jsonPaths.seed;
+      delete parsed.jsonPaths.seed;
+    }
+
+    return parsed;
   } catch {
     return null;
   }
@@ -270,13 +230,18 @@ export async function loadSyncMetadata(
  * @param targetDir - ターゲットディレクトリ
  * @param metadata - メタデータ
  */
-export async function saveSyncMetadata(
-  targetDir: string,
-  metadata: SyncMetadata
-): Promise<void> {
+export async function saveSyncMetadata(targetDir: string, metadata: SyncMetadata): Promise<void> {
   const metadataPath = `${targetDir}/.einja-sync.json`;
   ensureDir(dirname(metadataPath));
   writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");
+}
+
+export function buildSyncFileMetadata(content: string, filePath: string) {
+  return {
+    hash: calculateContentHash(content, filePath),
+    syncedAt: new Date().toISOString(),
+    baseContent: content,
+  };
 }
 
 /**
@@ -290,7 +255,9 @@ export async function saveSyncMetadata(
 async function mergePackageJson(
   existingContent: string,
   templateContent: string,
-  packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">
+  packageJsonSections?: Array<
+    "scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines"
+  >
 ): Promise<string> {
   // Given: JSON をパース
   const existingPkg = JSON.parse(existingContent) as Record<string, unknown>;
@@ -300,7 +267,11 @@ async function mergePackageJson(
   const result = { ...existingPkg };
 
   // When: scripts をマージ（セクション指定がない、またはscriptsが含まれる場合のみ）
-  if ((!packageJsonSections || packageJsonSections.includes("scripts")) && templatePkg.scripts && typeof templatePkg.scripts === "object") {
+  if (
+    (!packageJsonSections || packageJsonSections.includes("scripts")) &&
+    templatePkg.scripts &&
+    typeof templatePkg.scripts === "object"
+  ) {
     result.scripts = {
       ...(existingPkg.scripts && typeof existingPkg.scripts === "object"
         ? existingPkg.scripts
@@ -310,7 +281,11 @@ async function mergePackageJson(
   }
 
   // When: dependencies をバージョン競合処理付きでマージ（セクション指定がない、またはdependenciesが含まれる場合のみ）
-  if ((!packageJsonSections || packageJsonSections.includes("dependencies")) && templatePkg.dependencies && typeof templatePkg.dependencies === "object") {
+  if (
+    (!packageJsonSections || packageJsonSections.includes("dependencies")) &&
+    templatePkg.dependencies &&
+    typeof templatePkg.dependencies === "object"
+  ) {
     result.dependencies = await mergePackageJsonDependencies(
       (existingPkg.dependencies && typeof existingPkg.dependencies === "object"
         ? existingPkg.dependencies
@@ -321,7 +296,11 @@ async function mergePackageJson(
   }
 
   // When: devDependencies をバージョン競合処理付きでマージ（セクション指定がない、またはdevDependenciesが含まれる場合のみ）
-  if ((!packageJsonSections || packageJsonSections.includes("devDependencies")) && templatePkg.devDependencies && typeof templatePkg.devDependencies === "object") {
+  if (
+    (!packageJsonSections || packageJsonSections.includes("devDependencies")) &&
+    templatePkg.devDependencies &&
+    typeof templatePkg.devDependencies === "object"
+  ) {
     result.devDependencies = await mergePackageJsonDependencies(
       (existingPkg.devDependencies && typeof existingPkg.devDependencies === "object"
         ? existingPkg.devDependencies
@@ -332,7 +311,11 @@ async function mergePackageJson(
   }
 
   // When: engines を完全置換（セクション指定がない、またはenginesが含まれる場合のみ）
-  if ((!packageJsonSections || packageJsonSections.includes("engines")) && templatePkg.engines && typeof templatePkg.engines === "object") {
+  if (
+    (!packageJsonSections || packageJsonSections.includes("engines")) &&
+    templatePkg.engines &&
+    typeof templatePkg.engines === "object"
+  ) {
     if (
       existingPkg.engines &&
       JSON.stringify(existingPkg.engines) !== JSON.stringify(templatePkg.engines)
@@ -363,13 +346,13 @@ export async function mergeAndWriteFile(
   templatePath: string,
   targetPath: string,
   syncMetadata: SyncMetadata,
-  packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">,
+  syncFilePath: string,
+  packageJsonSections?: Array<
+    "scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines"
+  >,
   conflictStrategy: ConflictStrategy = "merge",
   templateVariables?: TemplateVariables
-): Promise<{
-  action: "created" | "merged" | "skipped" | "overwritten";
-  path: string;
-}> {
+): Promise<MergeAndWriteFileResult> {
   let templateContent = readFileSync(templatePath, "utf-8");
 
   // テンプレート変数が指定されている場合は置換を実行
@@ -379,15 +362,18 @@ export async function mergeAndWriteFile(
 
   const targetExists = existsSync(targetPath);
   const existingContent = targetExists ? readFileSync(targetPath, "utf-8") : null;
+  const fileMetadata = syncMetadata.files[syncFilePath];
+  const storedBaseContent = fileMetadata?.baseContent;
+  const conflicts: FileConflict[] = [];
 
   // conflictStrategy による早期リターン（ファイルが既に存在する場合のみ）
   if (targetExists && conflictStrategy === "skip") {
-    return { action: "skipped", path: targetPath };
+    return { action: "skipped", path: targetPath, conflicts, templateContent };
   }
   if (targetExists && conflictStrategy === "overwrite") {
     ensureDir(dirname(targetPath));
     writeFileSync(targetPath, templateContent, "utf-8");
-    return { action: "overwritten", path: targetPath };
+    return { action: "overwritten", path: targetPath, conflicts, templateContent };
   }
 
   // Given: ファイルがJSONかどうか判定
@@ -395,46 +381,69 @@ export async function mergeAndWriteFile(
   const isPackageJson = basename(targetPath) === "package.json";
 
   let mergedContent: string;
-  let action: "created" | "merged" | "skipped" | "overwritten";
+  let action: MergeAndWriteFileResult["action"];
 
   if (!targetExists) {
-    // When: ファイルが存在しない場合は新規作成
     mergedContent = templateContent;
     action = "created";
   } else if (isPackageJson && existingContent) {
-    // When: package.json の特殊処理
     try {
       mergedContent = await mergePackageJson(existingContent, templateContent, packageJsonSections);
       action = "merged";
     } catch {
-      // Then: パースエラーの場合はテンプレートで上書き
       mergedContent = templateContent;
       action = "overwritten";
     }
   } else if (isJsonFile) {
-    // When: JSONファイルの場合はディープマージ
     try {
       const templateJson = JSON.parse(templateContent) as Record<string, unknown>;
       const existingJson = existingContent
         ? (JSON.parse(existingContent) as Record<string, unknown>)
         : null;
+      const baseJson = storedBaseContent
+        ? (JSON.parse(storedBaseContent) as Record<string, unknown>)
+        : undefined;
       const jsonPaths = syncMetadata.jsonPaths || { managed: {}, "project-private": {} };
-      // ファイルパスからファイル名を抽出（例: "/path/to/package.json" → "package.json"）
-      const fileName = targetPath.split("/").pop() || "package.json";
-      const mergedJson = mergeJson(templateJson, existingJson, jsonPaths, fileName);
-      mergedContent = JSON.stringify(mergedJson, null, 2);
-      action = "merged";
+      const mergeResult = mergeJsonWithConflicts(
+        templateJson,
+        existingJson,
+        jsonPaths,
+        syncFilePath,
+        baseJson
+      );
+      mergedContent = `${JSON.stringify(mergeResult.result, null, 2)}\n`;
+      conflicts.push(...mergeResult.conflicts);
+      action = mergeResult.conflicts.length > 0 ? "conflicted" : "merged";
     } catch {
-      // Then: パースエラーの場合はテンプレートで上書き
       mergedContent = templateContent;
       action = "overwritten";
     }
   } else {
-    // When: テキストファイルの場合はマーカーベースマージ
-    mergedContent = mergeTextWithMarkers(templateContent, existingContent);
+    const currentContent = existingContent ?? "";
+    const hasMarkers =
+      templateContent.includes("@einja:managed:start") ||
+      templateContent.includes("@einja:project-private:start") ||
+      currentContent.includes("@einja:managed:start") ||
+      currentContent.includes("@einja:project-private:start");
 
-    // Then: 内容が変更されたかチェック
-    if (mergedContent === existingContent) {
+    if (hasMarkers) {
+      mergedContent = mergeTextWithMarkers(templateContent, currentContent);
+    } else if (storedBaseContent) {
+      const mergeResult = mergeText3WayCore(
+        storedBaseContent,
+        currentContent,
+        templateContent,
+        "@einja-inc/create-app"
+      );
+      mergedContent = mergeResult.content;
+      conflicts.push(...mergeResult.conflicts);
+    } else {
+      mergedContent = currentContent;
+    }
+
+    if (conflicts.length > 0) {
+      action = "conflicted";
+    } else if (mergedContent === currentContent) {
       action = "skipped";
     } else {
       action = "merged";
@@ -447,7 +456,7 @@ export async function mergeAndWriteFile(
     writeFileSync(targetPath, mergedContent, "utf-8");
   }
 
-  return { action, path: targetPath };
+  return { action, path: targetPath, conflicts, templateContent };
 }
 
 /**
@@ -560,8 +569,7 @@ function parseStartMarker(
   line: string
 ): { type: "managed" | "project-private"; id?: string } | null {
   // Markdown managed
-  const markdownManagedPattern =
-    /^<!--\s*@einja:managed:start(?:\s+id="([^"]+)")?\s*-->$/;
+  const markdownManagedPattern = /^<!--\s*@einja:managed:start(?:\s+id="([^"]+)")?\s*-->$/;
   let match = line.match(markdownManagedPattern);
   if (match) {
     return { type: "managed", id: match[1] || undefined };
@@ -576,8 +584,7 @@ function parseStartMarker(
   }
 
   // Markdown seed (legacy)
-  const markdownSeedPattern =
-    /^<!--\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*-->$/;
+  const markdownSeedPattern = /^<!--\s*@einja:seed:start(?:\s+id="([^"]+)")?\s*-->$/;
   match = line.match(markdownSeedPattern);
   if (match) {
     return { type: "project-private", id: match[1] || undefined };
@@ -645,44 +652,4 @@ function parseEndMarker(line: string): "managed" | "project-private" | null {
   }
 
   return null;
-}
-
-/**
- * パスがmanagedに含まれるかチェック
- *
- * @param filePath - ファイルパス（例: "package.json"）
- * @param keyPath - チェックするキーパス（例: "scripts.dev"）
- * @param jsonPaths - JSONパス設定
- * @returns managedに含まれる場合true
- */
-function isPathManaged(
-  filePath: string,
-  keyPath: string,
-  jsonPaths: JsonPathsConfig
-): boolean {
-  const managedPaths = jsonPaths.managed[filePath] || [];
-  // keyPath が managedPaths のいずれかで始まるかチェック
-  // 例: keyPath="scripts.dev" が managedPaths=["scripts.dev"] にマッチ
-  // または keyPath="scripts.dev" が managedPaths=["scripts"] にマッチ
-  return managedPaths.some(
-    (p) => keyPath === p || keyPath.startsWith(`${p}.`)
-  );
-}
-
-/**
- * パスがproject-privateに含まれるかチェック
- *
- * @param filePath - ファイルパス（例: "package.json"）
- * @param keyPath - チェックするキーパス（例: "scripts.custom"）
- * @param jsonPaths - JSONパス設定
- * @returns project-privateに含まれる場合true
- */
-function isPathProjectPrivate(
-  filePath: string,
-  keyPath: string,
-  jsonPaths: JsonPathsConfig
-): boolean {
-  const projectPrivatePaths = jsonPaths["project-private"][filePath] || [];
-  // keyPath が projectPrivatePaths のいずれかで始まるかチェック
-  return projectPrivatePaths.some((p) => keyPath === p || keyPath.startsWith(`${p}.`));
 }

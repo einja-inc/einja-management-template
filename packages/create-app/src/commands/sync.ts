@@ -4,12 +4,21 @@ import { fileURLToPath } from "node:url";
 import fsExtra from "fs-extra";
 import inquirer from "inquirer";
 import { collectSyncFiles } from "@/generators/sync.js";
-import { getAllSyncCategories, getSafeSyncCategories, promptSyncCategories } from "@/prompts/sync.js";
+import {
+  getAllSyncCategories,
+  getSafeSyncCategories,
+  promptSyncCategories,
+} from "@/prompts/sync.js";
 import type { SyncCategory, SyncMetadata, SyncOptions, SyncResult } from "@/types/index.js";
 import { createBackup, getLatestBackup, restoreFromBackup } from "@/utils/backup.js";
 import { checkGitStatusForSync } from "@/utils/git.js";
 import * as logger from "@/utils/logger.js";
-import { mergeAndWriteFile } from "@/utils/merger.js";
+import {
+  buildSyncFileMetadata,
+  loadSyncMetadata,
+  mergeAndWriteFile,
+  saveSyncMetadata,
+} from "@/utils/merger.js";
 import { validatePlaceholders } from "@/utils/placeholder-validator.js";
 import { detectProjectConfig } from "@/utils/project-detector.js";
 import type { TemplateVariables } from "@/generators/template.js";
@@ -161,7 +170,9 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     let appsDetail: string[] | undefined;
     let packagesDetail: string[] | undefined;
     let conflictStrategy: "merge" | "overwrite" | "skip";
-    let packageJsonSections: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines"> | undefined;
+    let packageJsonSections:
+      | Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">
+      | undefined;
 
     if (options.categories) {
       // コマンドラインで指定されたカテゴリのみ（--yesや--allより優先）
@@ -200,7 +211,12 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     // ========================================
     logger.info("📁 同期対象ファイルを収集中...");
 
-    const filesToSync = await collectSyncFiles(templatePath, categories, appsDetail, packagesDetail);
+    const filesToSync = await collectSyncFiles(
+      templatePath,
+      categories,
+      appsDetail,
+      packagesDetail
+    );
 
     if (filesToSync.length === 0) {
       logger.warn("⚠️ 同期対象のファイルが見つかりません");
@@ -329,17 +345,20 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       }
     }
 
-    // SyncMetadata の準備（conflictStrategy に基づく）
+    const existingMetadata = await loadSyncMetadata(targetDir);
+
+    // SyncMetadata の準備（前回sync情報を引き継ぎつつ managed paths を更新）
     const syncMetadata: SyncMetadata = {
-      version: "1.0.0",
+      version: existingMetadata?.version ?? "1.1.0",
       lastSync: new Date().toISOString(),
-      templateVersion: "0.2.9",
-      files: {},
+      templateVersion: existingMetadata?.templateVersion ?? "0.3.20",
+      files: existingMetadata?.files ?? {},
       jsonPaths: {
         managed: {
+          ...(existingMetadata?.jsonPaths?.managed ?? {}),
           ...(mcpManagedPaths.length > 0 ? { ".mcp.json": mcpManagedPaths } : {}),
         },
-        "project-private": {},
+        "project-private": existingMetadata?.jsonPaths?.["project-private"] ?? {},
       },
     };
 
@@ -372,24 +391,42 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
           sourcePath,
           targetPath,
           syncMetadata,
+          file,
           packageJsonSections,
           conflictStrategy,
           templateVariables
         );
 
         // アクションをマッピング（mergeAndWriteFile の戻り値を SyncResult の型に変換）
-        const mappedAction: "copied" | "merged" | "skipped" =
+        const mappedAction: "copied" | "merged" | "skipped" | "conflicted" =
           mergeResult.action === "created" || mergeResult.action === "overwritten"
             ? "copied"
             : mergeResult.action;
 
-        result.success++;
+        if (mappedAction === "conflicted") {
+          result.conflicts++;
+        } else if (mappedAction === "skipped") {
+          result.skipped++;
+        } else {
+          result.success++;
+        }
         result.files.push({
           path: file,
           action: mappedAction,
+          ...(mergeResult.conflicts.length > 0
+            ? { reason: `${mergeResult.conflicts.length}件のコンフリクトを検出` }
+            : {}),
         });
 
-        logger.info(`  ✓ ${file}`);
+        syncMetadata.files[file] = buildSyncFileMetadata(mergeResult.templateContent, file);
+
+        if (mappedAction === "conflicted") {
+          logger.warn(`  ⚠ ${file} (${mergeResult.conflicts.length}件のコンフリクト)`);
+        } else if (mappedAction === "skipped") {
+          logger.info(`  → ${file} (スキップ)`);
+        } else {
+          logger.info(`  ✓ ${file}`);
+        }
       } catch (error) {
         result.errors++;
         result.files.push({
@@ -400,6 +437,8 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         logger.error(`  ✗ ${file}: ${error}`);
       }
     }
+
+    await saveSyncMetadata(targetDir, syncMetadata);
 
     // ========================================
     // h) 置換漏れ検証
@@ -425,6 +464,9 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     logger.info(`  成功: ${result.success}ファイル`);
     if (result.skipped > 0) {
       logger.info(`  スキップ: ${result.skipped}ファイル`);
+    }
+    if (result.conflicts > 0) {
+      logger.warn(`  コンフリクト: ${result.conflicts}ファイル`);
     }
     if (result.errors > 0) {
       logger.error(`  エラー: ${result.errors}ファイル`);

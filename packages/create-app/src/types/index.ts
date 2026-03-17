@@ -56,6 +56,12 @@ export type JsonPathsConfig = {
   "project-private": Record<string, string[]>;
 };
 
+export type SyncFileMetadata = {
+  hash: string;
+  syncedAt: string;
+  baseContent?: string;
+};
+
 /**
  * 同期メタデータの型定義（.einja-sync.json）
  */
@@ -63,7 +69,7 @@ export type SyncMetadata = {
   version: string;
   lastSync: string;
   templateVersion: string;
-  files: Record<string, { hash: string; syncedAt: string }>;
+  files: Record<string, SyncFileMetadata>;
   jsonPaths?: JsonPathsConfig;
 };
 
@@ -108,7 +114,9 @@ export type SyncOptions = {
   force?: boolean; // --force（Git未コミット時に強制実行）
   yes?: boolean; // --yes 確認プロンプトスキップ
   conflictStrategy?: "merge" | "overwrite" | "skip";
-  packageJsonSections?: Array<"scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines">;
+  packageJsonSections?: Array<
+    "scripts" | "dependencies" | "devDependencies" | "peerDependencies" | "engines"
+  >;
 };
 
 /**
@@ -121,7 +129,7 @@ export type SyncResult = {
   conflicts: number;
   files: Array<{
     path: string;
-    action: "copied" | "merged" | "skipped" | "error";
+    action: "copied" | "merged" | "skipped" | "conflicted" | "error";
     reason?: string;
   }>;
 };

@@ -48,6 +48,16 @@
 				"-y",
 				"@drawio/mcp@latest"
 			]
+		},
+		"nano-banana": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"nano-banana-mcp"
+			],
+			"env": {
+				"GEMINI_API_KEY": "${NANOBANANA_MCP_GEMINI_API_KEY}"
+			}
 		}
 	}
 }

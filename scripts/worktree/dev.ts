@@ -753,7 +753,8 @@ function startDevServer(
 		}
 
 		// バックグラウンドプロセスとして起動
-		const child = spawn("pnpm", ["turbo", "run", "dev"], {
+		// macOS デフォルトの ulimit -n 256 では Next.js の file watcher が EMFILE で失敗するため引き上げる
+		const child = spawn("ulimit -n 65536; pnpm turbo run dev", {
 			stdio: ["ignore", logStream, logStream],
 			shell: true,
 			detached: true,
@@ -790,7 +791,8 @@ function startDevServer(
 	log("🚀 開発サーバーを起動します...");
 
 	// spawn を使用してプロセスを実行（環境変数を渡す）
-	const child = spawn("pnpm", ["turbo", "run", "dev"], {
+	// macOS デフォルトの ulimit -n 256 では Next.js の file watcher が EMFILE で失敗するため引き上げる
+	const child = spawn("ulimit -n 65536; pnpm turbo run dev", {
 		stdio: "inherit",
 		shell: true,
 		env: childEnv,

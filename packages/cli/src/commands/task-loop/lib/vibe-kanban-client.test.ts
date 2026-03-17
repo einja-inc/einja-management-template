@@ -1,5 +1,5 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VibeKanbanClient } from "./vibe-kanban-client.js";
 
 // MCP SDK クライアントをモック
@@ -13,9 +13,13 @@ describe("VibeKanbanClient", () => {
     close: ReturnType<typeof vi.fn>;
     callTool: ReturnType<typeof vi.fn>;
   };
+  let initialSigintListeners: NodeJS.SignalsListener[];
+  let initialSigtermListeners: NodeJS.SignalsListener[];
 
   beforeEach(() => {
     vi.resetAllMocks();
+    initialSigintListeners = process.listeners("SIGINT") as NodeJS.SignalsListener[];
+    initialSigtermListeners = process.listeners("SIGTERM") as NodeJS.SignalsListener[];
 
     // MCP クライアントのモックを作成
     mockMCPClient = {
@@ -28,6 +32,20 @@ describe("VibeKanbanClient", () => {
     vi.mocked(Client).mockImplementation(() => mockMCPClient as unknown as Client);
 
     client = new VibeKanbanClient();
+  });
+
+  afterEach(async () => {
+    await client.disconnect();
+
+    process.removeAllListeners("SIGINT");
+    for (const listener of initialSigintListeners) {
+      process.on("SIGINT", listener);
+    }
+
+    process.removeAllListeners("SIGTERM");
+    for (const listener of initialSigtermListeners) {
+      process.on("SIGTERM", listener);
+    }
   });
 
   describe("API名変更", () => {

@@ -19,11 +19,37 @@ runs:
     - name: Setup Environment
       uses: ./.github/actions/setup
 
-    # DB マイグレーション
+    # DB マイグレーション（pooler検出 + retry）
     - name: Run Prisma migrate deploy
       run: |
-        npx dotenvx run -f ${{ inputs.dotenv-file }} -- \
-          pnpm db:migrate:deploy
+        npx dotenvx run -f ${{ inputs.dotenv-file }} -- bash -c '
+          # Pooler URL検出 → DIRECT_URL導出（既存のDIRECT_URLがなければ自動導出）
+          if [[ -z "$DIRECT_URL" && "$DATABASE_URL" == *"-pooler."* ]]; then
+            direct_url="${DATABASE_URL//-pooler./.}"
+            direct_url="${direct_url//pgbouncer=true&/}"
+            direct_url="${direct_url//&pgbouncer=true/}"
+            direct_url="${direct_url//?pgbouncer=true/}"
+            export DIRECT_URL="$direct_url"
+            echo "::add-mask::$DIRECT_URL"
+            echo "::notice::Pooler URL detected. Using direct connection for migrations."
+          fi
+
+          # Retry loop（advisory lock timeout対策）
+          MAX_ATTEMPTS=3
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            echo "--- migrate deploy attempt $attempt/$MAX_ATTEMPTS ---"
+            if pnpm db:migrate:deploy; then
+              echo "Migration succeeded on attempt $attempt"
+              exit 0
+            fi
+            if [ $attempt -lt $MAX_ATTEMPTS ]; then
+              echo "::warning::Migration failed on attempt $attempt. Retrying in 5s..."
+              sleep 5
+            fi
+          done
+          echo "::error::Migration failed after $MAX_ATTEMPTS attempts"
+          exit 1
+        '
       shell: bash
       env:
         DOTENV_PRIVATE_KEY: ${{ inputs.dotenv-private-key }}

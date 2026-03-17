@@ -52,16 +52,16 @@
 		},
 		"db:push": {
 			"cache": false,
-			"passThroughEnv": ["DATABASE_URL"]
+			"passThroughEnv": ["DATABASE_URL", "DIRECT_URL"]
 		},
 		"db:migrate": {
 			"cache": false,
-			"passThroughEnv": ["DATABASE_URL"]
+			"passThroughEnv": ["DATABASE_URL", "DIRECT_URL"]
 		},
 		"db:migrate:deploy": {
 			"dependsOn": ["generate", "^generate"],
 			"cache": false,
-			"passThroughEnv": ["DATABASE_URL"]
+			"passThroughEnv": ["DATABASE_URL", "DIRECT_URL"]
 		},
 		"db:studio": {
 			"cache": false,

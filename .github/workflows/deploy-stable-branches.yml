@@ -239,13 +239,34 @@ jobs:
             done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$DEPLOY_DOTENV_FILE" | cut -d= -f1)
 
             echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
-            DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            set +e
+            vercel deploy --prebuilt --archive=tgz $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN" > deployment-url.txt 2>deploy-error.txt
+            DEPLOY_EXIT=$?
+            set -e
+
+            if [ $DEPLOY_EXIT -ne 0 ]; then
+              echo "::error::Vercel deploy failed with exit code $DEPLOY_EXIT"
+              echo "--- Deploy stdout ---"
+              cat deployment-url.txt
+              echo "--- Deploy stderr ---"
+              cat deploy-error.txt
+              exit $DEPLOY_EXIT
+            fi
+
+            DEPLOY_URL=$(tail -n 1 deployment-url.txt)
+            if [ -z "$DEPLOY_URL" ]; then
+              echo "::error::Deploy succeeded but no URL was captured"
+              cat deployment-url.txt
+              exit 1
+            fi
+
             echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           '
         env:
           DOTENV_PRIVATE_KEY_DEVELOP: ${{ secrets.DOTENV_PRIVATE_KEY_DEVELOP }}
 
       - name: Set Vercel alias
+        if: steps.deploy.outputs.url != ''
         run: vercel alias ${{ steps.deploy.outputs.url }} "${{ env.VERCEL_ALIAS_DOMAIN }}" --token=$VERCEL_TOKEN
 
   # ========================================
@@ -333,13 +354,34 @@ jobs:
             done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$DEPLOY_DOTENV_FILE" | cut -d= -f1)
 
             echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
-            DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            set +e
+            vercel deploy --prebuilt --archive=tgz $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN" > deployment-url.txt 2>deploy-error.txt
+            DEPLOY_EXIT=$?
+            set -e
+
+            if [ $DEPLOY_EXIT -ne 0 ]; then
+              echo "::error::Vercel deploy failed with exit code $DEPLOY_EXIT"
+              echo "--- Deploy stdout ---"
+              cat deployment-url.txt
+              echo "--- Deploy stderr ---"
+              cat deploy-error.txt
+              exit $DEPLOY_EXIT
+            fi
+
+            DEPLOY_URL=$(tail -n 1 deployment-url.txt)
+            if [ -z "$DEPLOY_URL" ]; then
+              echo "::error::Deploy succeeded but no URL was captured"
+              cat deployment-url.txt
+              exit 1
+            fi
+
             echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           '
         env:
           DOTENV_PRIVATE_KEY_STAGING: ${{ secrets.DOTENV_PRIVATE_KEY_STAGING }}
 
       - name: Set Vercel alias
+        if: steps.deploy.outputs.url != ''
         run: vercel alias ${{ steps.deploy.outputs.url }} "${{ env.VERCEL_ALIAS_DOMAIN }}" --token=$VERCEL_TOKEN
 
   # staging: PreRelease作成（changeset未消費）
@@ -591,7 +633,27 @@ jobs:
             done < <(grep -E "^[A-Z_][A-Z0-9_]*=\"?encrypted:" "$DEPLOY_DOTENV_FILE" | cut -d= -f1)
 
             echo "Deploying with ${#ENV_FLAGS[@]} runtime env vars..."
-            DEPLOY_URL=$(vercel deploy --prebuilt --archive=tgz $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN")
+            set +e
+            vercel deploy --prebuilt --archive=tgz $DEPLOY_PROD_FLAG "${ENV_FLAGS[@]}" --token="$VERCEL_TOKEN" > deployment-url.txt 2>deploy-error.txt
+            DEPLOY_EXIT=$?
+            set -e
+
+            if [ $DEPLOY_EXIT -ne 0 ]; then
+              echo "::error::Vercel deploy failed with exit code $DEPLOY_EXIT"
+              echo "--- Deploy stdout ---"
+              cat deployment-url.txt
+              echo "--- Deploy stderr ---"
+              cat deploy-error.txt
+              exit $DEPLOY_EXIT
+            fi
+
+            DEPLOY_URL=$(tail -n 1 deployment-url.txt)
+            if [ -z "$DEPLOY_URL" ]; then
+              echo "::error::Deploy succeeded but no URL was captured"
+              cat deployment-url.txt
+              exit 1
+            fi
+
             echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           '
         env:

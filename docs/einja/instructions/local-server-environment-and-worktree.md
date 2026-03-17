@@ -634,14 +634,14 @@ Serena MCPサーバーは **1プロジェクト1インスタンス** で共有�
 #### 自動起動の仕組み
 
 ```
-cd プロジェクト → direnv → ensure-serena.sh → Serena起動 → .mcp.json(http)で接続
+Codex / Claude Code → .mcp.json(stdio) → serena-mcp-bridge.sh → ensure-serena.sh → Serena起動/再利用 → HTTP MCPへ接続
 ```
 
-1. `direnv` が `.envrc` を読み込む
-2. `.envrc` が `scripts/ensure-serena.sh` を `source` する
-3. スクリプトが `.serena-port` を確認し、必要に応じて起動
-4. `SERENA_PORT` 環境変数がエクスポートされる
-5. `.mcp.json` の `http://127.0.0.1:${SERENA_PORT:-9850}/mcp` で接続
+1. 開発者が Codex / Claude Code を起動する
+2. `.mcp.json` の `serena` エントリが `scripts/serena-mcp-bridge.sh` を stdio サーバーとして実行する
+3. ブリッジがメインワークツリーを解決し、`scripts/ensure-serena.sh` を呼び出す
+4. スクリプトが `.serena-port` を確認し、必要に応じて Serena を起動する
+5. 使用ポートが確定したら、ブリッジが `http://127.0.0.1:${SERENA_PORT}/mcp` へ接続する
 
 #### `.serena-port` ファイル仕様
 
@@ -658,7 +658,8 @@ cd プロジェクト → direnv → ensure-serena.sh → Serena起動 → .mcp.
 
 - デフォルト: `9850`
 - ポート衝突時: `+1` で10回まで試行（9850〜9859）
-- 全ポート使用中: 警告メッセージを出力（direnvはブロックしない）
+- 別プロジェクトとの同時起動時はグローバルロックで直列化し、競合ポートの二重確保を防止
+- 全ポート使用中: エラー終了
 
 #### 手動操作
 
@@ -670,19 +671,17 @@ cat .serena-port  # PORT PID を表示
 ./scripts/stop-serena.sh
 
 # 再起動
-./scripts/stop-serena.sh && direnv reload
-
-# 再起動（direnv経由）
-direnv reload
+./scripts/stop-serena.sh
+# 以後、Codex / Claude Code が Serena を使う時に自動再起動
 ```
 
 #### トラブルシューティング
 
 | 症状 | 原因 | 対処 |
 |------|------|------|
-| Serena接続エラー | プロセスが停止している | `direnv reload` で再起動 |
+| Serena接続エラー | プロセスが停止している | `./scripts/stop-serena.sh` 実行後に Codex / Claude Code を再起動、または次回接続時の自動再起動を待つ |
 | ポートが意図と違う | 別プロセスが使用中 | `lsof -i :9850` で確認、不要なら停止 |
-| ゾンビ `.serena-port` | プロセスが異常終了 | `rm .serena-port && direnv reload` |
+| ゾンビ `.serena-port` | プロセスが異常終了 | `rm .serena-port` 後、次回接続時に自動再起動 |
 | uvx not found | uv未インストール | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 
 #### `.env.personal` でのオーバーライド

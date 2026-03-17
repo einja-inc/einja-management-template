@@ -1,5 +1,26 @@
 #!/bin/bash
-PORT_FILE=".serena-port"
+get_main_worktree() {
+  local current_worktree=""
+  while IFS= read -r line; do
+    if [[ "$line" == "worktree "* ]]; then
+      current_worktree="${line#worktree }"
+    elif [[ "$line" == "bare" ]]; then
+      current_worktree=""
+    elif [[ -z "$line" && -n "$current_worktree" ]]; then
+      echo "$current_worktree"
+      return
+    fi
+  done < <(git worktree list --porcelain 2>/dev/null)
+  if [[ -n "$current_worktree" ]]; then
+    echo "$current_worktree"
+  fi
+}
+
+BASE_DIR="${1:-$(get_main_worktree)}"
+if [ -z "$BASE_DIR" ]; then
+  BASE_DIR="$(pwd)"
+fi
+PORT_FILE="$BASE_DIR/.serena-port"
 if [ -f "$PORT_FILE" ]; then
   read -r PORT PID < "$PORT_FILE"
   if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then

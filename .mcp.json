@@ -24,8 +24,12 @@
 			]
 		},
 		"serena": {
-			"type": "http",
-			"url": "http://127.0.0.1:${SERENA_PORT:-9850}/mcp"
+			"type": "stdio",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"$(git rev-parse --show-toplevel)/scripts/serena-mcp-bridge.sh"
+			]
 		},
 		"github": {
 			"type": "http",

@@ -136,14 +136,19 @@ flowchart TD
 |------|------|------|
 | dotenv 読み込み | 常時 | `dotenv_if_exists .env` で環境変数をロード |
 | worktree 間 .env.personal 共有 | `$MAIN_WORKTREE` が設定済みの場合 | メインワークツリーの `.env.personal` を `dotenv_if_exists` で読み込み（worktree 環境でも個人トークンを共有） |
-| Serena MCP 自動起動 | `$MAIN_WORKTREE` が設定済み かつ `ensure-serena.sh` が存在する場合 | メインワークツリーの `scripts/ensure-serena.sh` を `source` で実行 |
+| Serena 設定の共有 | `$MAIN_WORKTREE` が設定済みの場合 | メインワークツリーの `.env.personal` 由来設定を Codex / Claude Code 起動時にも利用 |
+
+`pnpm dev` 自体も、現在の worktree に `.env.personal` がない場合はメインworktreeの `.env.personal` を参照して起動します。これにより direnv が未反映でも、開発サーバー起動時の共有トークンは引き継がれます。
 
 #### ensure-serena.sh の動作
 
 | 処理 | 詳細 |
 |------|------|
-| 既存インスタンスチェック | `.serena-port` ファイルから PID を読み取り、生存確認。生存中ならポート番号を再利用して即座に `return` |
-| uvx 確認 | `uvx` コマンドの存在チェック。未インストール時は警告のみでブロックしない |
+| 起動トリガー | `direnv` ではなく `.mcp.json` の `scripts/serena-mcp-bridge.sh` からオンデマンドで呼び出される |
+| 既存インスタンスチェック | `.serena-port` ファイルから PID を読み取り、生存確認。生存中ならポート番号を再利用して即座に終了 |
+| プロジェクト内ロック | `.serena-start.lock` で同一プロジェクト内の多重起動を防止 |
+| グローバルロック | `${TMPDIR:-/tmp}/serena-mcp-start.lock` で別プロジェクト同士のポート競合を防止 |
+| uvx 確認 | `uvx` コマンドの存在チェック。未インストール時はエラー終了 |
 | 空きポート検出 | デフォルトポート 9850 から最大10ポートを `nc -z` で試行 |
 | バックグラウンド起動 | `uvx --from git+https://github.com/oraios/serena serena start-mcp-server` を `--transport streamable-http` で起動、`disown` で切り離し |
 | 起動待機 | PID 生存 + ポート LISTEN を最大30秒（0.5秒間隔）で確認。成功時に `.serena-port` にポート番号と PID を記録 |

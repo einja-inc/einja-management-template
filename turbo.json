@@ -63,6 +63,11 @@
 			"cache": false,
 			"passThroughEnv": ["DATABASE_URL", "DIRECT_URL"]
 		},
+		"db:seed": {
+			"dependsOn": ["generate", "^generate"],
+			"cache": false,
+			"passThroughEnv": ["DATABASE_URL"]
+		},
 		"db:studio": {
 			"cache": false,
 			"persistent": true

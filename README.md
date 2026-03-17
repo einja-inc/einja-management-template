@@ -187,6 +187,7 @@ pnpm dev:bg
 |---------|-----------|------|
 | `./scripts/init.sh` | 初回のみ | Volta/Node/pnpmのインストール |
 | `pnpm dev:setup` | 初回のみ | ツールインストール（Volta/direnv/dotenvx） |
+| `pnpm env:prepare` | 必要時 | 開発サーバーを起動せずに `.env` / PostgreSQL / DB / `db:push` まで整備 |
 | `pnpm dev:bg` | 毎回 | 開発サーバー起動（バックグラウンド・推奨） |
 | `pnpm dev:status` | 随時 | 開発サーバーの状態確認 |
 | `pnpm dev:stop` | 随時 | 開発サーバーを停止 |
@@ -199,6 +200,7 @@ pnpm dev:bg
 #### 開発
 
 ```bash
+pnpm env:prepare      # 開発サーバーを起動せずにローカル環境だけ整備
 pnpm dev:bg           # 開発サーバーをバックグラウンドで起動（推奨）
 pnpm dev:status       # 開発サーバーの状態確認
 pnpm dev:logs         # ログをリアルタイム表示
@@ -259,7 +261,7 @@ pnpm test:coverage    # カバレッジ付きテスト
 pnpm db:generate      # Prismaクライアント生成
 pnpm db:push          # データベースマイグレーション
 pnpm db:migrate       # マイグレーションファイル作成＆実行
-pnpm db:studio        # Prisma Studio起動
+pnpm db:studio        # Prisma Studio起動（pnpm env:prepare または pnpm dev 実行後）
 ```
 
 #### ワークスペース固有のコマンド
@@ -296,6 +298,7 @@ docker-compose up -d postgres
 pnpm db:push
 
 # Prisma Studio を起動
+# ※ 先に pnpm env:prepare または pnpm dev で .env を生成してください
 pnpm db:studio
 ```
 

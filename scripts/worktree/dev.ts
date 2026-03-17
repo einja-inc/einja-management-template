@@ -11,6 +11,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
+import { fileURLToPath } from "node:url";
 import type { AppConfig, WorktreeConfig } from "../lib/worktree-config.js";
 import { loadWorktreeConfig } from "../lib/worktree-config.js";
 import { getPrivateKey, parseEnvFile } from "../lib/env-common.js";
@@ -19,6 +20,7 @@ import {
 	ensureFileFromMainWorktree,
 	getEnvPersonalCandidatePaths,
 } from "../lib/worktree-utils.js";
+import { commandExists } from "../lib/system-utils.js";
 
 /** 設定を保持するグローバル変数 */
 let config: WorktreeConfig;
@@ -42,7 +44,15 @@ type RuntimeMetadataRecord = {
 	metadataPath: string;
 };
 
+type SeedMetadata = {
+	version: 1;
+	databaseName: string;
+	fingerprint: string;
+	updatedAt: string;
+};
+
 const RUNTIME_METADATA_VERSION = 1;
+const SEED_METADATA_VERSION = 1;
 
 function getCurrentWorktreePath(): string {
 	try {
@@ -84,29 +94,57 @@ function getRuntimeMetadataDir(): string {
 	return metadataDir;
 }
 
-function getRuntimeMetadataPath(worktreePath: string): string {
+function getRuntimeMetadataWorktreeId(worktreePath: string): string {
 	const normalizedWorktreePath = normalizePathForComparison(worktreePath);
-	const worktreeId = crypto
+	return crypto
 		.createHash("sha256")
 		.update(normalizedWorktreePath)
 		.digest("hex")
 		.slice(0, 24);
-	return path.join(getRuntimeMetadataDir(), `${worktreeId}.json`);
 }
 
-function writeRuntimeMetadata(metadata: RuntimeMetadata): void {
-	const metadataPath = getRuntimeMetadataPath(metadata.worktreePath);
-	fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n", "utf-8");
+export function getRuntimeMetadataFileName(
+	worktreePath: string,
+	startedAt: string,
+	rootPid: number,
+): string {
+	const worktreeId = getRuntimeMetadataWorktreeId(worktreePath);
+	const sessionId = crypto
+		.createHash("sha256")
+		.update(`${startedAt}:${rootPid}`)
+		.digest("hex")
+		.slice(0, 12);
+	return `${worktreeId}-${sessionId}.json`;
 }
 
-function readRuntimeMetadata(worktreePath: string): RuntimeMetadata | null {
-	const metadataPath = getRuntimeMetadataPath(worktreePath);
-	if (!fs.existsSync(metadataPath)) {
-		return null;
-	}
+function getRuntimeMetadataPath(metadata: RuntimeMetadata): string {
+	return path.join(
+		getRuntimeMetadataDir(),
+		getRuntimeMetadataFileName(metadata.worktreePath, metadata.startedAt, metadata.rootPid),
+	);
+}
 
+function getLegacyRuntimeMetadataPath(worktreePath: string): string {
+	return path.join(getRuntimeMetadataDir(), `${getRuntimeMetadataWorktreeId(worktreePath)}.json`);
+}
+
+function getRuntimeMetadataPaths(worktreePath: string): string[] {
+	const metadataDir = getRuntimeMetadataDir();
+	const worktreeId = getRuntimeMetadataWorktreeId(worktreePath);
+	const prefix = `${worktreeId}-`;
+
+	return fs
+		.readdirSync(metadataDir)
+		.filter(
+			(entry) =>
+				entry.endsWith(".json") && (entry === `${worktreeId}.json` || entry.startsWith(prefix)),
+		)
+		.map((entry) => path.join(metadataDir, entry));
+}
+
+function parseRuntimeMetadata(raw: string): RuntimeMetadata | null {
 	try {
-		const parsed = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as Partial<RuntimeMetadata>;
+		const parsed = JSON.parse(raw) as Partial<RuntimeMetadata>;
 		if (
 			parsed.version !== RUNTIME_METADATA_VERSION ||
 			typeof parsed.branch !== "string" ||
@@ -136,10 +174,158 @@ function readRuntimeMetadata(worktreePath: string): RuntimeMetadata | null {
 	}
 }
 
-function removeRuntimeMetadata(worktreePath: string): void {
-	const metadataPath = getRuntimeMetadataPath(worktreePath);
-	if (fs.existsSync(metadataPath)) {
-		fs.unlinkSync(metadataPath);
+function getSeedMetadataDir(): string {
+	const metadataDir = path.join(getGitCommonDir(), "einja-worktree-dev-seed");
+	if (!fs.existsSync(metadataDir)) {
+		fs.mkdirSync(metadataDir, { recursive: true });
+	}
+	return metadataDir;
+}
+
+function getSeedMetadataPath(databaseName: string): string {
+	const databaseId = crypto.createHash("sha256").update(databaseName).digest("hex").slice(0, 24);
+	return path.join(getSeedMetadataDir(), `${databaseId}.json`);
+}
+
+function readSeedMetadata(databaseName: string): SeedMetadata | null {
+	const metadataPath = getSeedMetadataPath(databaseName);
+	if (!fs.existsSync(metadataPath)) {
+		return null;
+	}
+
+	try {
+		const parsed = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as Partial<SeedMetadata>;
+		if (
+			parsed.version !== SEED_METADATA_VERSION ||
+			parsed.databaseName !== databaseName ||
+			typeof parsed.fingerprint !== "string" ||
+			typeof parsed.updatedAt !== "string"
+		) {
+			return null;
+		}
+
+		return {
+			version: SEED_METADATA_VERSION,
+			databaseName,
+			fingerprint: parsed.fingerprint,
+			updatedAt: parsed.updatedAt,
+		};
+	} catch {
+		return null;
+	}
+}
+
+function writeSeedMetadata(databaseName: string, fingerprint: string): void {
+	const metadataPath = getSeedMetadataPath(databaseName);
+	const metadata: SeedMetadata = {
+		version: SEED_METADATA_VERSION,
+		databaseName,
+		fingerprint,
+		updatedAt: new Date().toISOString(),
+	};
+	fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n", "utf-8");
+}
+
+function collectFilesRecursively(directoryPath: string): string[] {
+	if (!fs.existsSync(directoryPath)) {
+		return [];
+	}
+
+	return fs.readdirSync(directoryPath, { withFileTypes: true }).flatMap((entry) => {
+		const entryPath = path.join(directoryPath, entry.name);
+		if (entry.isDirectory()) {
+			return collectFilesRecursively(entryPath);
+		}
+		if (entry.isFile()) {
+			return [entryPath];
+		}
+		return [];
+	});
+}
+
+export function getSeedSourcePaths(projectRoot: string = process.cwd()): string[] {
+	const seedFile = path.join(projectRoot, "packages/server-core/prisma/seed.ts");
+	const testingDir = path.join(projectRoot, "packages/server-core/src/testing");
+
+	return [seedFile, ...collectFilesRecursively(testingDir)]
+		.filter((filePath) => fs.existsSync(filePath))
+		.sort();
+}
+
+export function calculateSeedFingerprint(projectRoot: string = process.cwd()): string {
+	const seedSources = getSeedSourcePaths(projectRoot);
+	const hash = crypto.createHash("sha256");
+
+	for (const filePath of seedSources) {
+		hash.update(path.relative(projectRoot, filePath));
+		hash.update("\n");
+		hash.update(fs.readFileSync(filePath));
+		hash.update("\n");
+	}
+
+	return hash.digest("hex");
+}
+
+export function shouldRunSeed(
+	databaseCreated: boolean,
+	currentFingerprint: string,
+	previousFingerprint: string | null,
+): "database_created" | "seed_changed" | null {
+	if (databaseCreated) {
+		return "database_created";
+	}
+	if (previousFingerprint !== currentFingerprint) {
+		return "seed_changed";
+	}
+	return null;
+}
+
+export function writeRuntimeMetadata(metadata: RuntimeMetadata): void {
+	const metadataPath = getRuntimeMetadataPath(metadata);
+	fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n", "utf-8");
+}
+
+export function sortRuntimeMetadataRecords(
+	records: RuntimeMetadataRecord[],
+): RuntimeMetadataRecord[] {
+	return [...records].sort((left, right) => {
+		const startedAtComparison = right.metadata.startedAt.localeCompare(left.metadata.startedAt);
+		if (startedAtComparison !== 0) {
+			return startedAtComparison;
+		}
+
+		if (left.metadata.rootPid !== right.metadata.rootPid) {
+			return right.metadata.rootPid - left.metadata.rootPid;
+		}
+
+		return right.metadataPath.localeCompare(left.metadataPath);
+	});
+}
+
+export function readRuntimeMetadataRecords(worktreePath: string): RuntimeMetadataRecord[] {
+	const normalizedWorktreePath = normalizePathForComparison(worktreePath);
+
+	return sortRuntimeMetadataRecords(
+		readAllRuntimeMetadata().filter(
+			(record) =>
+				normalizePathForComparison(record.metadata.worktreePath) === normalizedWorktreePath,
+		),
+	);
+}
+
+export function readRuntimeMetadata(worktreePath: string): RuntimeMetadata | null {
+	return readRuntimeMetadataRecords(worktreePath)[0]?.metadata ?? null;
+}
+
+export function removeRuntimeMetadata(worktreePath: string, metadataPath?: string): void {
+	const targetPaths = metadataPath
+		? [metadataPath]
+		: [...getRuntimeMetadataPaths(worktreePath), getLegacyRuntimeMetadataPath(worktreePath)];
+
+	for (const runtimeMetadataPath of new Set(targetPaths)) {
+		if (fs.existsSync(runtimeMetadataPath)) {
+			fs.unlinkSync(runtimeMetadataPath);
+		}
 	}
 }
 
@@ -150,37 +336,14 @@ function readAllRuntimeMetadata(): RuntimeMetadataRecord[] {
 	return metadataFiles
 		.map((entry) => {
 			const metadataPath = path.join(metadataDir, entry);
-			try {
-				const parsed = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as Partial<RuntimeMetadata>;
-				if (
-					parsed.version !== RUNTIME_METADATA_VERSION ||
-					typeof parsed.branch !== "string" ||
-					typeof parsed.databaseName !== "string" ||
-					typeof parsed.logFile !== "string" ||
-					typeof parsed.rootPid !== "number" ||
-					typeof parsed.startedAt !== "string" ||
-					typeof parsed.worktreePath !== "string" ||
-					typeof parsed.ports !== "object" ||
-					parsed.ports === null
-				) {
-					return null;
-				}
-				return {
-					metadata: {
-						version: RUNTIME_METADATA_VERSION,
-						branch: parsed.branch,
-						databaseName: parsed.databaseName,
-						logFile: parsed.logFile,
-						ports: parsed.ports,
-						rootPid: parsed.rootPid,
-						startedAt: parsed.startedAt,
-						worktreePath: parsed.worktreePath,
-					},
-					metadataPath,
-				} satisfies RuntimeMetadataRecord;
-			} catch {
+			const metadata = parseRuntimeMetadata(fs.readFileSync(metadataPath, "utf-8"));
+			if (!metadata) {
 				return null;
 			}
+			return {
+				metadata,
+				metadataPath,
+			} satisfies RuntimeMetadataRecord;
 		})
 		.filter((record): record is RuntimeMetadataRecord => record !== null);
 }
@@ -789,7 +952,7 @@ export function ensurePorts(ports: Record<string, number>): Record<string, numbe
 	return ports;
 }
 
-function createRuntimeMetadata(
+export function createRuntimeMetadata(
 	branch: string,
 	ports: Record<string, number>,
 	databaseName: string,
@@ -807,6 +970,16 @@ function createRuntimeMetadata(
 		startedAt: new Date().toISOString(),
 		worktreePath,
 	};
+}
+
+function getTrackedPortsForWorktree(worktreePath: string): number[] {
+	const branch = getCurrentBranch();
+	const trackedPorts = [
+		...Object.values(calculatePorts(branch, getConfig().apps, getProjectName())),
+		...readRuntimeMetadataRecords(worktreePath).flatMap((record) => Object.values(record.metadata.ports)),
+	];
+
+	return [...new Set(trackedPorts)];
 }
 
 function getCurrentRuntimeMetadata(): RuntimeMetadata | null {
@@ -870,11 +1043,7 @@ function cleanupRuntimeMetadata(metadata: RuntimeMetadata, reason: string, metad
 	if (fs.existsSync(metadata.logFile.replace(".log", ".pid"))) {
 		fs.unlinkSync(metadata.logFile.replace(".log", ".pid"));
 	}
-	if (metadataPath && fs.existsSync(metadataPath)) {
-		fs.unlinkSync(metadataPath);
-	} else {
-		removeRuntimeMetadata(metadata.worktreePath);
-	}
+	removeRuntimeMetadata(metadata.worktreePath, metadataPath);
 	log(`✅ ${targetLabel} の cleanup が完了しました`);
 	return true;
 }
@@ -905,9 +1074,7 @@ function cleanupStaleWorktreeServers(): number {
 
 function hasCurrentWorktreeOrphanListeners(): boolean {
 	const currentWorktreePath = getCurrentWorktreePath();
-	const branch = getCurrentBranch();
-	const ports = calculatePorts(branch, getConfig().apps, getProjectName());
-	return Object.values(ports).some(
+	return getTrackedPortsForWorktree(currentWorktreePath).some(
 		(port) => getWorktreeProcessesOnPort(port, currentWorktreePath).length > 0,
 	);
 }
@@ -1182,7 +1349,7 @@ export function startPostgres(): string {
 export function ensureDatabaseExists(
 	containerName: string,
 	databaseName: string,
-): void {
+): boolean {
 	log(`🗄️  データベース「${databaseName}」を確認中...`);
 
 	try {
@@ -1194,7 +1361,7 @@ export function ensureDatabaseExists(
 
 		if (result === "1") {
 			log(`✅ データベース「${databaseName}」は既に存在します`);
-			return;
+			return false;
 		}
 	} catch {
 		// コマンド失敗時は作成を試みる
@@ -1206,6 +1373,7 @@ export function ensureDatabaseExists(
 		`docker exec ${containerName} psql -U postgres -c "CREATE DATABASE ${databaseName}"`,
 	);
 	log(`✅ データベース「${databaseName}」を作成しました`);
+	return true;
 }
 
 /**
@@ -1230,6 +1398,49 @@ export function runMigration(databaseName: string): void {
 		logError("❌ マイグレーションに失敗しました");
 		throw error;
 	}
+}
+
+export function runSeed(databaseName: string): void {
+	const cfg = getConfig();
+	log("🌱 シードを実行します...");
+	const databaseUrl = `postgresql://postgres:postgres@localhost:${cfg.postgres.port}/${databaseName}?schema=public`;
+
+	try {
+		execWithLog("pnpm db:seed", {
+			env: {
+				...process.env,
+				DATABASE_URL: databaseUrl,
+			},
+		});
+		log("✅ シード完了");
+	} catch (error) {
+		logError("❌ シードに失敗しました");
+		throw error;
+	}
+}
+
+export function runSeedIfNeeded(
+	databaseName: string,
+	options: { databaseCreated: boolean; projectRoot?: string },
+): void {
+	const { databaseCreated, projectRoot = process.cwd() } = options;
+	const currentFingerprint = calculateSeedFingerprint(projectRoot);
+	const previousFingerprint = readSeedMetadata(databaseName)?.fingerprint ?? null;
+	const reason = shouldRunSeed(databaseCreated, currentFingerprint, previousFingerprint);
+
+	if (reason === null) {
+		log("⏭️  シードは最新のためスキップします");
+		return;
+	}
+
+	if (reason === "database_created") {
+		log("🌱 新規データベースのためシードを実行します");
+	} else {
+		log("🌱 seed定義の変更を検知したためシードを実行します");
+	}
+
+	runSeed(databaseName);
+	writeSeedMetadata(databaseName, currentFingerprint);
 }
 
 /**
@@ -1409,6 +1620,33 @@ export async function main(options: {
 		return;
 	}
 
+	// 必須ツールの存在確認（未セットアップ検知）
+	const missingTools: string[] = [];
+	if (!commandExists("docker")) {
+		missingTools.push("docker");
+	} else {
+		try {
+			execSync("docker info", { stdio: "ignore" });
+		} catch {
+			logError("❌ docker コマンドはありますが Docker daemon に接続できません");
+			logError("   Docker Desktop / Docker Engine を起動してください");
+			process.exit(1);
+		}
+	}
+
+	if (missingTools.length > 0) {
+		logError(`❌ 必須ツールが見つかりません: ${missingTools.join(", ")}`);
+		logError("   初回セットアップを実行してください:");
+		logError("");
+		logError("     pnpm dev:setup");
+		logError("");
+		process.exit(1);
+	}
+
+	if (!commandExists("direnv")) {
+		log("⚠️  direnv が見つかりません。.envrc / .env.personal の自動読み込みは無効です");
+	}
+
 	const branch = getCurrentBranch();
 	log(`現在のブランチ: ${branch}`);
 
@@ -1432,10 +1670,13 @@ export async function main(options: {
 	const containerName = startPostgres();
 
 	// データベースの存在確認・作成
-	ensureDatabaseExists(containerName, databaseName);
+	const databaseCreated = ensureDatabaseExists(containerName, databaseName);
 
 	// マイグレーション実行
 	runMigration(databaseName);
+
+	// 必要時のみ seed 実行
+	runSeedIfNeeded(databaseName, { databaseCreated });
 
 	// webアプリのポートを取得（表示用）
 	const webPort = availablePorts.web ?? Object.values(availablePorts)[0];
@@ -1538,21 +1779,26 @@ export function showDevStatus(): void {
 }
 
 // スクリプトとして直接実行された場合
-const args = process.argv.slice(2);
-const setupOnly = args.includes("--setup-only");
-const skipSetup = args.includes("--skip-setup");
-const background = args.includes("--background") || args.includes("-b");
-const noKill = args.includes("--no-kill");
-const stop = args.includes("--stop");
-const status = args.includes("--status");
+const currentFilePath = fileURLToPath(import.meta.url);
+const entryFilePath = process.argv[1] ? path.resolve(process.argv[1]) : null;
 
-if (stop) {
-	stopDevServer();
-} else if (status) {
-	showDevStatus();
-} else {
-	main({ setupOnly, skipSetup, background, killExisting: !noKill }).catch((error) => {
-		console.error("致命的なエラーが発生しました:", error);
-		process.exit(1);
-	});
+if (entryFilePath === currentFilePath) {
+	const args = process.argv.slice(2);
+	const setupOnly = args.includes("--setup-only");
+	const skipSetup = args.includes("--skip-setup");
+	const background = args.includes("--background") || args.includes("-b");
+	const noKill = args.includes("--no-kill");
+	const stop = args.includes("--stop");
+	const status = args.includes("--status");
+
+	if (stop) {
+		stopDevServer();
+	} else if (status) {
+		showDevStatus();
+	} else {
+		main({ setupOnly, skipSetup, background, killExisting: !noKill }).catch((error) => {
+			console.error("致命的なエラーが発生しました:", error);
+			process.exit(1);
+		});
+	}
 }

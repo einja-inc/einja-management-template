@@ -42,6 +42,7 @@
 | `einja-conflict-resolver` | gitコンフリクト解消 |
 | `einja-skill-creator` | Skill作成・更新 |
 | `einja-skill-first` | 作業前のSkill作成必要性評価（Plan/einja-issue-spec-create時に自動起動） |
+| `einja-practice-extractor` | 特定projectから実践を抽出しmanagement-templateへの移植計画を作成 |
 | `einja-infra-maintenance` | インフラ環境セットアップ・メンテナンス |
 | `einja-issue-exec` | Issue全体の階層的並列実行（Skill） |
 | `einja-issue-team-exec` | Agent TeamsによるIssue並列実行（tmux不要） |

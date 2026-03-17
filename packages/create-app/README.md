@@ -196,6 +196,17 @@ my-project/
 
 ---
 
+## 開発メモ
+
+`create-app` と `dev-cli` の sync core は、リポジトリ直下の `shared/sync-core/` を正本として共有しています。各パッケージが実際に import するのは `src/internal/sync-core/` 配下の生成コードです。
+
+- 生成更新: `pnpm sync:shared:sync-core`
+- 同期チェック: `pnpm sync:shared:check`
+
+`pre-commit` と `prepush` でも同期チェックが走るため、`shared/sync-core/` だけ更新して生成コードを取り込み忘れた状態ではコミット/プッシュできません。
+
+---
+
 ## 次のステップ
 
 プロジェクト作成後、以下の手順で開発を開始できます：

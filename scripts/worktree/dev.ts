@@ -13,7 +13,7 @@ import path from "node:path";
 import readline from "node:readline";
 import type { AppConfig, WorktreeConfig } from "../lib/worktree-config.js";
 import { loadWorktreeConfig } from "../lib/worktree-config.js";
-import { getPrivateKey } from "../lib/env-common.js";
+import { getPrivateKey, parseEnvFile } from "../lib/env-common.js";
 import { copyEnvKeysFromMainWorktree } from "../lib/worktree-utils.js";
 
 /** 設定を保持するグローバル変数 */
@@ -718,6 +718,19 @@ function startDevServer(
 ): void {
 	const { background = false, logFile } = options;
 
+	// root の .env / .env.personal を読み込んで子プロセスに渡す
+	// direnv なし・worktree 環境でもシークレットが伝播するようにする
+	const projectRoot = process.cwd();
+	const fileEnv = {
+		...parseEnvFile(path.join(projectRoot, ".env")),
+		...parseEnvFile(path.join(projectRoot, ".env.personal")),
+	};
+	const childEnv = {
+		...process.env,
+		...fileEnv,
+		...envVars,
+	};
+
 	// ポートの確保は ensurePorts() で実施済み
 
 	if (background && logFile) {
@@ -744,10 +757,7 @@ function startDevServer(
 			stdio: ["ignore", logStream, logStream],
 			shell: true,
 			detached: true,
-			env: {
-				...process.env,
-				...envVars,
-			},
+			env: childEnv,
 		});
 
 		// 親プロセスから切り離す
@@ -783,10 +793,7 @@ function startDevServer(
 	const child = spawn("pnpm", ["turbo", "run", "dev"], {
 		stdio: "inherit",
 		shell: true,
-		env: {
-			...process.env,
-			...envVars,
-		},
+		env: childEnv,
 	});
 
 	child.on("error", (error) => {

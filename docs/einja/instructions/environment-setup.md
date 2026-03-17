@@ -26,6 +26,8 @@
 
 > 📖 **詳しい仕組み・FAQは「[環境変数設計方針](../steering/infrastructure/environment-variables.md#2-ローカル開発のファイル構成)」を参照**
 
+> **Worktree利用時**: `pnpm dev` は worktree ごとに `.env`・ポート・DB名・ログ/PID を生成します。`.env.keys` と `.env.personal` はメインworktreeから共有できるため、通常はメインworktreeで一度 `pnpm dev:setup` を済ませていれば、そのまま起動できます。
+
 ---
 
 ## 目次

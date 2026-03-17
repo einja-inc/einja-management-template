@@ -14,13 +14,324 @@ import readline from "node:readline";
 import type { AppConfig, WorktreeConfig } from "../lib/worktree-config.js";
 import { loadWorktreeConfig } from "../lib/worktree-config.js";
 import { getPrivateKey, parseEnvFile } from "../lib/env-common.js";
-import { copyEnvKeysFromMainWorktree } from "../lib/worktree-utils.js";
+import {
+	copyEnvKeysFromMainWorktree,
+	getEnvPersonalCandidatePaths,
+} from "../lib/worktree-utils.js";
 
 /** 設定を保持するグローバル変数 */
 let config: WorktreeConfig;
 
 /** ログファイルのファイルディスクリプタ（バックグラウンドモード時のみ使用） */
 let logFd: number | null = null;
+
+type RuntimeMetadata = {
+	version: 1;
+	branch: string;
+	databaseName: string;
+	logFile: string;
+	ports: Record<string, number>;
+	rootPid: number;
+	startedAt: string;
+	worktreePath: string;
+};
+
+type RuntimeMetadataRecord = {
+	metadata: RuntimeMetadata;
+	metadataPath: string;
+};
+
+const RUNTIME_METADATA_VERSION = 1;
+
+function getCurrentWorktreePath(): string {
+	try {
+		return fs.realpathSync.native(process.cwd());
+	} catch {
+		return path.resolve(process.cwd());
+	}
+}
+
+function normalizePathForComparison(targetPath: string): string {
+	try {
+		return fs.realpathSync.native(targetPath);
+	} catch {
+		return path.resolve(targetPath);
+	}
+}
+
+function isSameOrChildPath(candidatePath: string, basePath: string): boolean {
+	const relative = path.relative(basePath, candidatePath);
+	return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function getGitCommonDir(): string {
+	const gitCommonDir = execSync("git rev-parse --git-common-dir", {
+		encoding: "utf-8",
+		stdio: ["pipe", "pipe", "pipe"],
+	}).trim();
+
+	return path.isAbsolute(gitCommonDir)
+		? gitCommonDir
+		: path.resolve(getCurrentWorktreePath(), gitCommonDir);
+}
+
+function getRuntimeMetadataDir(): string {
+	const metadataDir = path.join(getGitCommonDir(), "einja-worktree-dev-runtime");
+	if (!fs.existsSync(metadataDir)) {
+		fs.mkdirSync(metadataDir, { recursive: true });
+	}
+	return metadataDir;
+}
+
+function getRuntimeMetadataPath(worktreePath: string): string {
+	const normalizedWorktreePath = normalizePathForComparison(worktreePath);
+	const worktreeId = crypto
+		.createHash("sha256")
+		.update(normalizedWorktreePath)
+		.digest("hex")
+		.slice(0, 24);
+	return path.join(getRuntimeMetadataDir(), `${worktreeId}.json`);
+}
+
+function writeRuntimeMetadata(metadata: RuntimeMetadata): void {
+	const metadataPath = getRuntimeMetadataPath(metadata.worktreePath);
+	fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n", "utf-8");
+}
+
+function readRuntimeMetadata(worktreePath: string): RuntimeMetadata | null {
+	const metadataPath = getRuntimeMetadataPath(worktreePath);
+	if (!fs.existsSync(metadataPath)) {
+		return null;
+	}
+
+	try {
+		const parsed = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as Partial<RuntimeMetadata>;
+		if (
+			parsed.version !== RUNTIME_METADATA_VERSION ||
+			typeof parsed.branch !== "string" ||
+			typeof parsed.databaseName !== "string" ||
+			typeof parsed.logFile !== "string" ||
+			typeof parsed.rootPid !== "number" ||
+			typeof parsed.startedAt !== "string" ||
+			typeof parsed.worktreePath !== "string" ||
+			typeof parsed.ports !== "object" ||
+			parsed.ports === null
+		) {
+			return null;
+		}
+
+		return {
+			version: RUNTIME_METADATA_VERSION,
+			branch: parsed.branch,
+			databaseName: parsed.databaseName,
+			logFile: parsed.logFile,
+			ports: parsed.ports,
+			rootPid: parsed.rootPid,
+			startedAt: parsed.startedAt,
+			worktreePath: parsed.worktreePath,
+		};
+	} catch {
+		return null;
+	}
+}
+
+function removeRuntimeMetadata(worktreePath: string): void {
+	const metadataPath = getRuntimeMetadataPath(worktreePath);
+	if (fs.existsSync(metadataPath)) {
+		fs.unlinkSync(metadataPath);
+	}
+}
+
+function readAllRuntimeMetadata(): RuntimeMetadataRecord[] {
+	const metadataDir = getRuntimeMetadataDir();
+	const metadataFiles = fs.readdirSync(metadataDir).filter((entry) => entry.endsWith(".json"));
+
+	return metadataFiles
+		.map((entry) => {
+			const metadataPath = path.join(metadataDir, entry);
+			try {
+				const parsed = JSON.parse(fs.readFileSync(metadataPath, "utf-8")) as Partial<RuntimeMetadata>;
+				if (
+					parsed.version !== RUNTIME_METADATA_VERSION ||
+					typeof parsed.branch !== "string" ||
+					typeof parsed.databaseName !== "string" ||
+					typeof parsed.logFile !== "string" ||
+					typeof parsed.rootPid !== "number" ||
+					typeof parsed.startedAt !== "string" ||
+					typeof parsed.worktreePath !== "string" ||
+					typeof parsed.ports !== "object" ||
+					parsed.ports === null
+				) {
+					return null;
+				}
+				return {
+					metadata: {
+						version: RUNTIME_METADATA_VERSION,
+						branch: parsed.branch,
+						databaseName: parsed.databaseName,
+						logFile: parsed.logFile,
+						ports: parsed.ports,
+						rootPid: parsed.rootPid,
+						startedAt: parsed.startedAt,
+						worktreePath: parsed.worktreePath,
+					},
+					metadataPath,
+				} satisfies RuntimeMetadataRecord;
+			} catch {
+				return null;
+			}
+		})
+		.filter((record): record is RuntimeMetadataRecord => record !== null);
+}
+
+function findConflictingRuntimeMetadata(
+	port: number,
+	currentWorktreePath: string,
+): RuntimeMetadata | null {
+	return readAllRuntimeMetadata().find((record) => {
+		if (record.metadata.worktreePath === currentWorktreePath) {
+			return false;
+		}
+
+		if (!Object.values(record.metadata.ports).includes(port)) {
+			return false;
+		}
+
+		return isPidRunning(record.metadata.rootPid);
+	})?.metadata ?? null;
+}
+
+function logEnvPersonalResolution(projectRoot: string): void {
+	const localEnvPersonalPath = path.join(projectRoot, ".env.personal");
+	if (fs.existsSync(localEnvPersonalPath)) {
+		log("個人用設定: このworktreeの .env.personal を使用します");
+		return;
+	}
+
+	const sharedEnvPersonalPath = getEnvPersonalCandidatePaths(projectRoot)[0];
+	if (sharedEnvPersonalPath) {
+		log(`個人用設定: メインworktreeの ${sharedEnvPersonalPath} を共有利用します`);
+		return;
+	}
+
+	log(
+		"個人用設定: .env.personal が見つかりません。必要なら pnpm dev:setup または pnpm env:update を実行してください",
+	);
+}
+
+function getProcessWorkingDirectory(pid: number): string | null {
+	try {
+		const result = execSync(`lsof -a -d cwd -p ${pid} -Fn`, {
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		}).trim();
+		const pathLine = result.split("\n").find((line) => line.startsWith("n"));
+		return pathLine ? pathLine.slice(1) : null;
+	} catch {
+		return null;
+	}
+}
+
+function getProcessCommandLine(pid: number): string | null {
+	try {
+		const result = execSync(`ps -p ${pid} -o command=`, {
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		}).trim();
+		return result || null;
+	} catch {
+		return null;
+	}
+}
+
+function isPidRunning(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function getChildPids(pid: number): number[] {
+	try {
+		const result = execSync(`pgrep -P ${pid}`, {
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		}).trim();
+		if (!result) return [];
+		return result
+			.split("\n")
+			.map((value) => Number.parseInt(value, 10))
+			.filter((value) => !Number.isNaN(value));
+	} catch {
+		return [];
+	}
+}
+
+function getDescendantPids(rootPid: number): number[] {
+	const descendants = new Set<number>();
+	const queue = [rootPid];
+
+	while (queue.length > 0) {
+		const pid = queue.shift();
+		if (!pid) continue;
+		for (const childPid of getChildPids(pid)) {
+			if (descendants.has(childPid)) continue;
+			descendants.add(childPid);
+			queue.push(childPid);
+		}
+	}
+
+	return [...descendants];
+}
+
+function waitForPidsToExit(pids: number[], timeoutMs: number): number[] {
+	const uniquePids = [...new Set(pids)];
+	const startedAt = Date.now();
+	while (Date.now() - startedAt < timeoutMs) {
+		const remaining = uniquePids.filter((pid) => isPidRunning(pid));
+		if (remaining.length === 0) {
+			return [];
+		}
+		spawnSync("sleep", ["0.2"]);
+	}
+	return uniquePids.filter((pid) => isPidRunning(pid));
+}
+
+function sendSignalToPids(pids: number[], signal: NodeJS.Signals): number[] {
+	const signaledPids: number[] = [];
+	for (const pid of [...new Set(pids)]) {
+		if (!isPidRunning(pid)) {
+			continue;
+		}
+		try {
+			process.kill(pid, signal);
+			signaledPids.push(pid);
+		} catch {
+			// 既に終了しているか、権限不足
+		}
+	}
+	return signaledPids;
+}
+
+function getExistingWorktreePaths(): Set<string> {
+	try {
+		const result = execSync("git worktree list --porcelain", {
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		});
+		const paths = result
+			.split("\n")
+			.filter((line) => line.startsWith("worktree "))
+			.map((line) => line.slice("worktree ".length))
+			.filter((worktreePath) => fs.existsSync(worktreePath))
+			.map((worktreePath) => normalizePathForComparison(worktreePath));
+		return new Set(paths);
+	} catch {
+		return new Set();
+	}
+}
 
 /**
  * ログファイルを初期化（バックグラウンドモード時）
@@ -307,6 +618,32 @@ export function getProcessCommandsOnPort(port: number): { pid: number; command: 
 	}
 }
 
+function getWorktreeProcessesOnPort(port: number, worktreePath: string): number[] {
+	return getProcessesOnPort(port).filter((pid) => isProcessFromWorktree(pid, worktreePath));
+}
+
+function killWorktreeProcessesOnPort(port: number, worktreePath: string): number {
+	const normalizedWorktreePath = normalizePathForComparison(worktreePath);
+	const pids = getWorktreeProcessesOnPort(port, normalizedWorktreePath);
+	if (pids.length === 0) {
+		return 0;
+	}
+
+	console.log(
+		`🔪 ポート ${port} を使用している ${normalizedWorktreePath} のプロセス (PID: ${pids.join(", ")}) を終了します...`,
+	);
+
+	sendSignalToPids(pids, "SIGTERM");
+	const remaining = waitForPidsToExit(pids, 3000);
+	if (remaining.length > 0) {
+		console.log(`⚠ ポート ${port} の一部プロセスが残存したため SIGKILL を送信します...`);
+		sendSignalToPids(remaining, "SIGKILL");
+		waitForPidsToExit(remaining, 1000);
+	}
+
+	return pids.length;
+}
+
 /**
  * プロセスがこのリポジトリに属するか判定
  *
@@ -315,20 +652,32 @@ export function getProcessCommandsOnPort(port: number): { pid: number; command: 
  */
 export function isProcessFromThisRepo(pid: number): boolean {
 	try {
-		const cwd = execSync(`lsof -p ${pid} -Fn | grep "^n" | grep "cwd" || true`, {
-			encoding: "utf-8",
-		}).trim();
+		const cwd = getProcessWorkingDirectory(pid);
 
 		// cwdが取得できない場合はコマンドラインで判定
 		if (!cwd) {
-			const cmdline = execSync(`ps -p ${pid} -o command=`, { encoding: "utf-8" }).trim();
+			const cmdline = getProcessCommandLine(pid) ?? "";
 			return cmdline.includes(process.cwd()) || cmdline.includes("turbo") || cmdline.includes("next");
 		}
 
-		return cwd.includes(process.cwd());
+		return cwd.includes(getCurrentWorktreePath());
 	} catch {
 		return false;
 	}
+}
+
+function isProcessFromWorktree(pid: number, worktreePath: string): boolean {
+	const normalizedWorktreePath = normalizePathForComparison(worktreePath);
+	const cwd = getProcessWorkingDirectory(pid);
+	if (cwd) {
+		const normalizedCwd = normalizePathForComparison(cwd);
+		if (isSameOrChildPath(normalizedCwd, normalizedWorktreePath)) {
+			return true;
+		}
+	}
+
+	const cmdline = getProcessCommandLine(pid);
+	return cmdline?.includes(normalizedWorktreePath) ?? false;
 }
 
 /**
@@ -341,13 +690,14 @@ export function isProcessFromThisRepo(pid: number): boolean {
  * @returns 確保したポート番号セット
  */
 export function ensurePorts(ports: Record<string, number>): Record<string, number> {
+	const currentWorktreePath = getCurrentWorktreePath();
 	for (const [appId, port] of Object.entries(ports)) {
 		if (!isPortInUse(port)) {
 			continue;
 		}
 
 		const processes = getProcessCommandsOnPort(port);
-		const ownProcesses = processes.filter((p) => isProcessFromThisRepo(p.pid));
+		const ownProcesses = processes.filter((p) => isProcessFromWorktree(p.pid, currentWorktreePath));
 
 		if (ownProcesses.length > 0) {
 			// 自リポジトリのプロセスならkill
@@ -366,6 +716,16 @@ export function ensurePorts(ports: Record<string, number>): Record<string, numbe
 
 		// まだ使用中なら外部プロセス
 		if (isPortInUse(port)) {
+			const conflictingMetadata = findConflictingRuntimeMetadata(port, currentWorktreePath);
+			if (conflictingMetadata) {
+				console.error(
+					`❌ ポート ${port} は別worktreeが使用中です: ${conflictingMetadata.branch} (${conflictingMetadata.worktreePath})`,
+				);
+				console.error(`   ログ: ${conflictingMetadata.logFile}`);
+				console.error("   先にそのworktreeを停止するか、別のブランチ名を使用してください");
+				throw new Error(`ポート ${port} を確保できません（別worktreeが使用中）`);
+			}
+
 			const remaining = getProcessCommandsOnPort(port);
 			console.error(`❌ ポート ${port} は外部プロセスが使用中です:`);
 			for (const p of remaining) {
@@ -377,6 +737,129 @@ export function ensurePorts(ports: Record<string, number>): Record<string, numbe
 	}
 
 	return ports;
+}
+
+function createRuntimeMetadata(
+	branch: string,
+	ports: Record<string, number>,
+	databaseName: string,
+	logFile: string,
+	rootPid: number,
+	worktreePath = getCurrentWorktreePath(),
+): RuntimeMetadata {
+	return {
+		version: RUNTIME_METADATA_VERSION,
+		branch,
+		databaseName,
+		logFile,
+		ports,
+		rootPid,
+		startedAt: new Date().toISOString(),
+		worktreePath,
+	};
+}
+
+function getCurrentRuntimeMetadata(): RuntimeMetadata | null {
+	const currentWorktreePath = getCurrentWorktreePath();
+	const metadata = readRuntimeMetadata(currentWorktreePath);
+	if (metadata) {
+		return metadata;
+	}
+
+	const logFile = getLogFilePath();
+	const pidFile = logFile.replace(".log", ".pid");
+	if (!fs.existsSync(pidFile)) {
+		return null;
+	}
+
+	const rootPid = Number.parseInt(fs.readFileSync(pidFile, "utf-8").trim(), 10);
+	if (Number.isNaN(rootPid)) {
+		return null;
+	}
+
+	const branch = getCurrentBranch();
+	const ports = calculatePorts(branch, getConfig().apps, getProjectName());
+	const databaseName = generateDatabaseName(branch);
+
+	return createRuntimeMetadata(branch, ports, databaseName, logFile, rootPid, currentWorktreePath);
+}
+
+function cleanupRuntimeMetadata(metadata: RuntimeMetadata, reason: string, metadataPath?: string): boolean {
+	const targetLabel = `${metadata.branch} (${metadata.worktreePath})`;
+	log(`🧹 ${reason}: ${targetLabel}`);
+
+	const descendantPids = metadata.rootPid ? getDescendantPids(metadata.rootPid) : [];
+	const pidsToStop = [metadata.rootPid, ...descendantPids].filter(
+		(pid) => Number.isInteger(pid) && pid > 0,
+	);
+	const signaled = sendSignalToPids(pidsToStop, "SIGTERM");
+	const remainingAfterTerm = waitForPidsToExit(signaled, 3000);
+	if (remainingAfterTerm.length > 0) {
+		log(`⚠ ${targetLabel} の PID が残存したため SIGKILL を送信します: ${remainingAfterTerm.join(", ")}`);
+		sendSignalToPids(remainingAfterTerm, "SIGKILL");
+		waitForPidsToExit(remainingAfterTerm, 1000);
+	}
+
+	for (const port of Object.values(metadata.ports)) {
+		killWorktreeProcessesOnPort(port, metadata.worktreePath);
+	}
+
+	const remainingListeners = Object.values(metadata.ports).flatMap((port) =>
+		getWorktreeProcessesOnPort(port, metadata.worktreePath),
+	);
+	const remainingPids = [metadata.rootPid, ...getDescendantPids(metadata.rootPid)].filter((pid) =>
+		isPidRunning(pid),
+	);
+	if (remainingListeners.length > 0 || remainingPids.length > 0) {
+		logError(
+			`⚠ ${targetLabel} の cleanup が未完了です (PID: ${remainingPids.join(", ") || "なし"}, リスナー: ${remainingListeners.join(", ") || "なし"})`,
+		);
+		return false;
+	}
+
+	if (fs.existsSync(metadata.logFile.replace(".log", ".pid"))) {
+		fs.unlinkSync(metadata.logFile.replace(".log", ".pid"));
+	}
+	if (metadataPath && fs.existsSync(metadataPath)) {
+		fs.unlinkSync(metadataPath);
+	} else {
+		removeRuntimeMetadata(metadata.worktreePath);
+	}
+	log(`✅ ${targetLabel} の cleanup が完了しました`);
+	return true;
+}
+
+function cleanupStaleWorktreeServers(): number {
+	const existingWorktreePaths = getExistingWorktreePaths();
+	let cleanedCount = 0;
+
+	for (const record of readAllRuntimeMetadata()) {
+		const normalizedMetadataPath = normalizePathForComparison(record.metadata.worktreePath);
+		if (existingWorktreePaths.has(normalizedMetadataPath) || fs.existsSync(normalizedMetadataPath)) {
+			continue;
+		}
+
+		if (
+			cleanupRuntimeMetadata(
+				record.metadata,
+				"削除済みworktreeの孤児プロセスを検出",
+				record.metadataPath,
+			)
+		) {
+			cleanedCount++;
+		}
+	}
+
+	return cleanedCount;
+}
+
+function hasCurrentWorktreeOrphanListeners(): boolean {
+	const currentWorktreePath = getCurrentWorktreePath();
+	const branch = getCurrentBranch();
+	const ports = calculatePorts(branch, getConfig().apps, getProjectName());
+	return Object.values(ports).some(
+		(port) => getWorktreeProcessesOnPort(port, currentWorktreePath).length > 0,
+	);
 }
 
 /**
@@ -721,9 +1204,13 @@ function startDevServer(
 	// root の .env / .env.personal を読み込んで子プロセスに渡す
 	// direnv なし・worktree 環境でもシークレットが伝播するようにする
 	const projectRoot = process.cwd();
+	const envPersonalPaths = getEnvPersonalCandidatePaths(projectRoot);
 	const fileEnv = {
 		...parseEnvFile(path.join(projectRoot, ".env")),
-		...parseEnvFile(path.join(projectRoot, ".env.personal")),
+		...envPersonalPaths.reduce<Record<string, string>>((acc, envPersonalPath) => {
+			Object.assign(acc, parseEnvFile(envPersonalPath));
+			return acc;
+		}, {}),
 	};
 	const childEnv = {
 		...process.env,
@@ -767,6 +1254,24 @@ function startDevServer(
 		// PIDをファイルに保存（後でstop/statusで使用）
 		const pidFile = logFile.replace(".log", ".pid");
 		fs.writeFileSync(pidFile, child.pid?.toString() ?? "");
+		if (child.pid) {
+			const branch = getCurrentBranch();
+			const databaseName = generateDatabaseName(branch);
+			const ports = Object.fromEntries(
+				Object.entries(envVars)
+					.filter(([key]) => key.startsWith("PORT_"))
+					.map(([key, value]) => [key.replace("PORT_", "").toLowerCase(), Number.parseInt(value, 10)]),
+			);
+			writeRuntimeMetadata(
+				createRuntimeMetadata(
+					branch,
+					ports,
+					databaseName,
+					logFile,
+					child.pid,
+				),
+			);
+		}
 
 		log(`✅ 開発サーバーが起動しました (PID: ${child.pid})`);
 
@@ -827,6 +1332,11 @@ export async function main(options: {
 		initLogFile(logFile);
 	}
 
+	const cleanedStaleWorktrees = cleanupStaleWorktreeServers();
+	if (cleanedStaleWorktrees > 0) {
+		log(`🧽 削除済みworktreeの孤児サーバーを ${cleanedStaleWorktrees} 件 cleanup しました`);
+	}
+
 	// バックグラウンドモードの場合、既存のサーバーを停止
 	if (background) {
 		const pidFile = logFile.replace(".log", ".pid");
@@ -870,6 +1380,7 @@ export async function main(options: {
 	// .envに書き込み
 	const { authSecret } = await writeEnvFile(availablePorts, databaseName);
 	log(".envに書き込みました");
+	logEnvPersonalResolution(process.cwd());
 
 	// PostgreSQLの起動確認・起動（コンテナ名を取得）
 	const containerName = startPostgres();
@@ -920,54 +1431,44 @@ ${Object.entries(availablePorts)
  * 開発サーバーを停止
  */
 export function stopDevServer(): void {
-	const branch = getCurrentBranch();
-	const logFile = getLogFilePath();
-	const pidFile = logFile.replace(".log", ".pid");
-
-	if (!fs.existsSync(pidFile)) {
+	const metadata = getCurrentRuntimeMetadata();
+	if (!metadata) {
 		console.log("⚠ 実行中の開発サーバーが見つかりません");
 		return;
 	}
 
-	const pid = Number.parseInt(fs.readFileSync(pidFile, "utf-8").trim(), 10);
-	if (Number.isNaN(pid)) {
-		console.log("⚠ PIDファイルが無効です");
-		fs.unlinkSync(pidFile);
-		return;
+	const cleaned = cleanupRuntimeMetadata(metadata, "現在worktreeのdevサーバーを停止");
+	if (!cleaned) {
+		throw new Error("devサーバーの停止が完了しませんでした");
 	}
-
-	try {
-		process.kill(pid, "SIGTERM");
-		console.log(`✅ 開発サーバー (PID: ${pid}) を停止しました`);
-	} catch (error) {
-		console.log(`⚠ プロセス ${pid} は既に終了しています`);
-	}
-
-	// PIDファイルを削除
-	fs.unlinkSync(pidFile);
 }
 
 /**
  * 開発サーバーのステータスを表示
  */
 export function showDevStatus(): void {
+	const cleanedStaleWorktrees = cleanupStaleWorktreeServers();
+	if (cleanedStaleWorktrees > 0) {
+		console.log(`🧽 削除済みworktreeの孤児サーバーを ${cleanedStaleWorktrees} 件 cleanup しました`);
+	}
+
 	const branch = getCurrentBranch();
 	const logFile = getLogFilePath();
 	const pidFile = logFile.replace(".log", ".pid");
 	const cfg = getConfig();
+	const currentMetadata = getCurrentRuntimeMetadata();
+	const hasOrphanListeners = hasCurrentWorktreeOrphanListeners();
 
 	console.log(`\n📊 開発サーバーステータス`);
 	console.log(`${"=".repeat(50)}`);
 	console.log(`ブランチ: ${branch}`);
 
-	if (fs.existsSync(pidFile)) {
-		const pid = Number.parseInt(fs.readFileSync(pidFile, "utf-8").trim(), 10);
-		try {
-			process.kill(pid, 0); // シグナル0でプロセス存在確認
-			console.log(`状態: 🟢 実行中 (PID: ${pid})`);
-		} catch {
-			console.log(`状態: 🔴 停止 (古いPIDファイルあり)`);
-		}
+	if (currentMetadata && isPidRunning(currentMetadata.rootPid)) {
+		console.log(`状態: 🟢 実行中 (PID: ${currentMetadata.rootPid})`);
+	} else if (hasOrphanListeners) {
+		console.log("状態: 🟡 孤児リスナーが残留");
+	} else if (fs.existsSync(pidFile)) {
+		console.log("状態: 🔴 停止 (古いPIDファイルあり)");
 	} else {
 		console.log(`状態: ⚪ 未起動`);
 	}

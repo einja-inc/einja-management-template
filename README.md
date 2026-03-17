@@ -192,6 +192,8 @@ pnpm dev:bg
 | `pnpm dev:stop` | 随時 | 開発サーバーを停止 |
 | `pnpm env:update` | 随時 | 環境変数の設定・変更（対話式ウィザード） |
 
+`git worktree add ...` で作成した worktree でも、`pnpm dev` は現在の worktree 用に `.env`・ポート・DB 名・ログ/PID を生成します。`.env.keys` と `.env.personal` はメイン worktree の設定を共有できるため、通常はメイン worktree で一度 `pnpm dev:setup` を済ませていれば、そのまま起動できます。
+
 ### 主要コマンド
 
 #### 開発

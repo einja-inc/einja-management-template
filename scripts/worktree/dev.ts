@@ -28,7 +28,7 @@ let config: WorktreeConfig;
 /** ログファイルのファイルディスクリプタ（バックグラウンドモード時のみ使用） */
 let logFd: number | null = null;
 
-type RuntimeMetadata = {
+export type RuntimeMetadata = {
 	version: 1;
 	branch: string;
 	databaseName: string;
@@ -39,7 +39,7 @@ type RuntimeMetadata = {
 	worktreePath: string;
 };
 
-type RuntimeMetadataRecord = {
+export type RuntimeMetadataRecord = {
 	metadata: RuntimeMetadata;
 	metadataPath: string;
 };
@@ -1718,16 +1718,41 @@ ${Object.entries(availablePorts)
  * 開発サーバーを停止
  */
 export function stopDevServer(): void {
-	const metadata = getCurrentRuntimeMetadata();
-	if (!metadata) {
-		console.log("⚠ 実行中の開発サーバーが見つかりません");
+	const currentWorktreePath = getCurrentWorktreePath();
+	const metadataRecords = readRuntimeMetadataRecords(currentWorktreePath);
+	if (metadataRecords.length === 0) {
+		const metadata = getCurrentRuntimeMetadata();
+		if (!metadata) {
+			console.log("⚠ 実行中の開発サーバーが見つかりません");
+			return;
+		}
+
+		const cleaned = cleanupRuntimeMetadata(metadata, "現在worktreeのdevサーバーを停止");
+		if (!cleaned) {
+			throw new Error("devサーバーの停止が完了しませんでした");
+		}
 		return;
 	}
 
-	const cleaned = cleanupRuntimeMetadata(metadata, "現在worktreeのdevサーバーを停止");
-	if (!cleaned) {
+	const failedRecords = metadataRecords.filter(
+		(record) =>
+			!cleanupRuntimeMetadata(
+				record.metadata,
+				"現在worktreeのdevサーバーを停止",
+				record.metadataPath,
+			),
+	);
+	if (failedRecords.length > 0) {
 		throw new Error("devサーバーの停止が完了しませんでした");
 	}
+}
+
+function formatTrackedSession(record: RuntimeMetadataRecord): string {
+	const ports = Object.entries(record.metadata.ports)
+		.map(([appId, port]) => `${appId}:${port}`)
+		.join(", ");
+	const pidStatus = isPidRunning(record.metadata.rootPid) ? "🟢" : "⚪";
+	return `  ${pidStatus} PID ${record.metadata.rootPid} (${record.metadata.startedAt}) -> ${ports}`;
 }
 
 /**
@@ -1743,7 +1768,9 @@ export function showDevStatus(): void {
 	const logFile = getLogFilePath();
 	const pidFile = logFile.replace(".log", ".pid");
 	const cfg = getConfig();
+	const currentWorktreePath = getCurrentWorktreePath();
 	const currentMetadata = getCurrentRuntimeMetadata();
+	const currentMetadataRecords = readRuntimeMetadataRecords(currentWorktreePath);
 	const hasOrphanListeners = hasCurrentWorktreeOrphanListeners();
 
 	console.log(`\n📊 開発サーバーステータス`);
@@ -1766,6 +1793,13 @@ export function showDevStatus(): void {
 	for (const [appId, port] of Object.entries(calculatedPorts)) {
 		const status = isPortInUse(port) ? "🟢 使用中" : "⚪ 空き";
 		console.log(`  ${appId}: ${port} ${status}  → http://localhost:${port}`);
+	}
+
+	if (currentMetadataRecords.length > 0) {
+		console.log(`\n追跡中セッション:`);
+		for (const record of currentMetadataRecords) {
+			console.log(formatTrackedSession(record));
+		}
 	}
 
 	// データベース情報（ローカル開発環境のデフォルト値）

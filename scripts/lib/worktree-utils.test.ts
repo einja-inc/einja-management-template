@@ -13,6 +13,7 @@ vi.mock("node:child_process", () => ({
 
 import {
 	copyEnvKeysFromMainWorktree,
+	ensureFileFromMainWorktree,
 	getEnvPersonalCandidatePaths,
 } from "./worktree-utils";
 
@@ -77,5 +78,53 @@ describe("worktree-utils", () => {
 		expect(fs.readFileSync(targetPath, "utf-8")).toContain(
 			"DOTENV_PRIVATE_KEY_LOCAL=test-key",
 		);
+	});
+
+	it("メインworktreeから .env.local をコピーする", () => {
+		const targetPath = path.join(taskWorktreePath, ".env.local");
+		fs.writeFileSync(
+			path.join(mainWorktreePath, ".env.local"),
+			"AUTH_SECRET=shared-secret\n",
+			"utf-8",
+		);
+
+		expect(ensureFileFromMainWorktree(".env.local", targetPath, taskWorktreePath)).toEqual({
+			sourcePath: path.join(mainWorktreePath, ".env.local"),
+			status: "copied",
+			targetPath,
+		});
+		expect(fs.readFileSync(targetPath, "utf-8")).toContain("AUTH_SECRET=shared-secret");
+	});
+
+	it("現在worktreeに既存ファイルがある場合は上書きしない", () => {
+		const targetPath = path.join(taskWorktreePath, ".env.local");
+		fs.writeFileSync(targetPath, "AUTH_SECRET=current-secret\n", "utf-8");
+		fs.writeFileSync(
+			path.join(mainWorktreePath, ".env.local"),
+			"AUTH_SECRET=shared-secret\n",
+			"utf-8",
+		);
+
+		expect(ensureFileFromMainWorktree(".env.local", targetPath, taskWorktreePath)).toEqual({
+			sourcePath: null,
+			status: "already_exists",
+			targetPath,
+		});
+		expect(fs.readFileSync(targetPath, "utf-8")).toContain("AUTH_SECRET=current-secret");
+	});
+
+	it("非worktreeではコピーを試みない", () => {
+		execSyncMock.mockReturnValue(
+			[`worktree ${taskWorktreePath}`, "HEAD abcdef1234", "branch refs/heads/main", ""].join(
+				"\n",
+			),
+		);
+		const targetPath = path.join(taskWorktreePath, ".env.local");
+
+		expect(ensureFileFromMainWorktree(".env.local", targetPath, taskWorktreePath)).toEqual({
+			sourcePath: null,
+			status: "not_worktree",
+			targetPath,
+		});
 	});
 });

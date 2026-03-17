@@ -16,6 +16,7 @@ import { loadWorktreeConfig } from "../lib/worktree-config.js";
 import { getPrivateKey, parseEnvFile } from "../lib/env-common.js";
 import {
 	copyEnvKeysFromMainWorktree,
+	ensureFileFromMainWorktree,
 	getEnvPersonalCandidatePaths,
 } from "../lib/worktree-utils.js";
 
@@ -217,6 +218,55 @@ function logEnvPersonalResolution(projectRoot: string): void {
 	log(
 		"個人用設定: .env.personal が見つかりません。必要なら pnpm dev:setup または pnpm env:update を実行してください",
 	);
+}
+
+function ensureWorktreeEnvInputs(projectRoot: string): void {
+	const envLocalResult = ensureFileFromMainWorktree(
+		".env.local",
+		path.join(projectRoot, ".env.local"),
+		projectRoot,
+	);
+	switch (envLocalResult.status) {
+		case "copied":
+			log("worktreeのメインリポジトリから .env.local をコピーしました");
+			break;
+		case "already_exists":
+			log("このworktreeの .env.local を使用します");
+			break;
+		case "missing_source":
+			log("main worktree に .env.local が見つかりません。.env.example フォールバック候補として継続します");
+			break;
+		case "not_worktree":
+			log("メインworktree共有は無効です。このリポジトリ直下の .env.local を使用します");
+			break;
+		case "copy_failed":
+			logError("main worktree から .env.local をコピーできませんでした");
+			break;
+	}
+
+	const envKeysPath = path.join(projectRoot, ".env.keys");
+	if (copyEnvKeysFromMainWorktree(envKeysPath, projectRoot)) {
+		log("worktreeのメインリポジトリから .env.keys をコピーしました");
+		return;
+	}
+
+	const envKeysResult = ensureFileFromMainWorktree(".env.keys", envKeysPath, projectRoot);
+	switch (envKeysResult.status) {
+		case "already_exists":
+			log("このworktreeの .env.keys を使用します");
+			break;
+		case "missing_source":
+			log("main worktree に .env.keys が見つかりません");
+			break;
+		case "not_worktree":
+			log("メインworktree共有は無効です。このリポジトリ直下の .env.keys を使用します");
+			break;
+		case "copy_failed":
+			logError("main worktree から .env.keys をコピーできませんでした");
+			break;
+		case "copied":
+			break;
+	}
 }
 
 function getProcessWorkingDirectory(pid: number): string | null {
@@ -908,18 +958,13 @@ export async function writeEnvFile(
 	const envKeysPath = path.join(projectRoot, ".env.keys");
 	const envPath = path.join(projectRoot, ".env");
 
+	ensureWorktreeEnvInputs(projectRoot);
+
 	// 1. dotenvx復号を試行
 	let baseEnvContent = "";
 	let decryptedSuccessfully = false;
 
 	if (fs.existsSync(envLocalPath)) {
-		// .env.keys がなければ worktree親からコピー試行
-		if (!fs.existsSync(envKeysPath)) {
-			if (copyEnvKeysFromMainWorktree(envKeysPath)) {
-				log("worktreeのメインリポジトリから .env.keys をコピーしました");
-			}
-		}
-
 		// 復号を試行
 		if (fs.existsSync(envKeysPath)) {
 			const privateKey = getPrivateKey("DOTENV_PRIVATE_KEY_LOCAL");
@@ -952,6 +997,7 @@ export async function writeEnvFile(
 	if (!decryptedSuccessfully) {
 		if (fs.existsSync(envExamplePath)) {
 			baseEnvContent = fs.readFileSync(envExamplePath, "utf-8");
+			log(".env.example をフォールバック元として使用します");
 		}
 		// .env.local が存在するのに復号できなかった場合はfail-close
 		if (fs.existsSync(envLocalPath)) {

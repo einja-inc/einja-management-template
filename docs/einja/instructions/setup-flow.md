@@ -138,7 +138,7 @@ flowchart TD
 | worktree 間 .env.personal 共有 | `$MAIN_WORKTREE` が設定済みの場合 | メインワークツリーの `.env.personal` を `dotenv_if_exists` で読み込み（worktree 環境でも個人トークンを共有） |
 | Serena 設定の共有 | `$MAIN_WORKTREE` が設定済みの場合 | メインワークツリーの `.env.personal` 由来設定を Codex / Claude Code 起動時にも利用 |
 
-`pnpm dev` 自体も、現在の worktree に `.env.personal` がない場合はメインworktreeの `.env.personal` を参照して起動します。これにより direnv が未反映でも、開発サーバー起動時の共有トークンは引き継がれます。
+`pnpm dev` 自体も、現在の worktree に `.env.local` / `.env.keys` がない場合はメインworktreeから不足分のみ補完してから復号を試みます。`.env.personal` はコピーせず、現在の worktree に存在しない場合だけメインworktreeの `.env.personal` を参照して起動します。これにより direnv が未反映でも、開発サーバー起動時の共有トークンは引き継がれます。
 
 #### ensure-serena.sh の動作
 

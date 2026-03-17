@@ -2,6 +2,19 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+export type WorktreeFileSyncStatus =
+	| "copied"
+	| "already_exists"
+	| "missing_source"
+	| "not_worktree"
+	| "copy_failed";
+
+export type WorktreeFileSyncResult = {
+	sourcePath: string | null;
+	status: WorktreeFileSyncStatus;
+	targetPath: string;
+};
+
 /**
  * git worktreeのメインリポジトリのパスを取得
  * worktreeでない場合はnullを返す
@@ -36,22 +49,7 @@ export function copyEnvKeysFromMainWorktree(
 	targetPath: string,
 	currentPath = process.cwd(),
 ): boolean {
-	const mainPath = getMainWorktreePath(currentPath);
-	if (!mainPath) {
-		return false;
-	}
-
-	const sourceEnvKeysPath = path.join(mainPath, ".env.keys");
-	if (!fs.existsSync(sourceEnvKeysPath)) {
-		return false;
-	}
-
-	try {
-		fs.copyFileSync(sourceEnvKeysPath, targetPath);
-		return true;
-	} catch {
-		return false;
-	}
+	return ensureFileFromMainWorktree(".env.keys", targetPath, currentPath).status === "copied";
 }
 
 /**
@@ -74,4 +72,54 @@ export function getEnvPersonalCandidatePaths(projectRoot = process.cwd()): strin
 	}
 
 	return [...new Set(candidates)];
+}
+
+/**
+ * current worktree に対象ファイルが無い場合のみ、メインworktreeから補完する
+ */
+export function ensureFileFromMainWorktree(
+	fileName: string,
+	targetPath: string,
+	currentPath = process.cwd(),
+): WorktreeFileSyncResult {
+	if (fs.existsSync(targetPath)) {
+		return {
+			status: "already_exists",
+			sourcePath: null,
+			targetPath,
+		};
+	}
+
+	const mainPath = getMainWorktreePath(currentPath);
+	if (!mainPath) {
+		return {
+			status: "not_worktree",
+			sourcePath: null,
+			targetPath,
+		};
+	}
+
+	const sourcePath = path.join(mainPath, fileName);
+	if (!fs.existsSync(sourcePath)) {
+		return {
+			status: "missing_source",
+			sourcePath,
+			targetPath,
+		};
+	}
+
+	try {
+		fs.copyFileSync(sourcePath, targetPath);
+		return {
+			status: "copied",
+			sourcePath,
+			targetPath,
+		};
+	} catch {
+		return {
+			status: "copy_failed",
+			sourcePath,
+			targetPath,
+		};
+	}
 }

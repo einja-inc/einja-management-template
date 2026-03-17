@@ -26,7 +26,7 @@
 
 > 📖 **詳しい仕組み・FAQは「[環境変数設計方針](../steering/infrastructure/environment-variables.md#2-ローカル開発のファイル構成)」を参照**
 
-> **Worktree利用時**: `pnpm dev` は worktree ごとに `.env`・ポート・DB名・ログ/PID を生成します。`.env.keys` と `.env.personal` はメインworktreeから共有できるため、通常はメインworktreeで一度 `pnpm dev:setup` を済ませていれば、そのまま起動できます。
+> **Worktree利用時**: `pnpm dev` は worktree ごとに `.env`・ポート・DB名・ログ/PID を生成します。`.env.local` と `.env.keys` が current worktree に無い場合は、メインworktreeから不足分だけ補完してから復号を試みます。`.env.personal` はコピーせず共有利用するため、通常はメインworktreeで一度 `pnpm dev:setup` を済ませていれば、そのまま起動できます。
 
 ---
 
@@ -162,7 +162,7 @@ dotenvx decrypt -f .env.production
 └── .env.personal           # 個人用トークン（Git除外）
 ```
 
-**★ポイント**: `.env.local` は暗号化されてGitで共有。`pnpm dev` で自動復号して `.env` が生成される。
+**★ポイント**: `.env.local` は暗号化されてGitで共有。`pnpm dev` で自動復号して `.env` が生成される。worktree で `.env.local` / `.env.keys` が不足している場合は、メインworktreeから不足分のみ補完される。
 
 ### .env.personal.example（個人用トークンテンプレート）
 

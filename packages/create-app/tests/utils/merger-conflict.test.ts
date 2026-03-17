@@ -119,4 +119,29 @@ describe("mergeAndWriteFile - file level conflicts", () => {
     expect(result.conflicts[0]?.keyPath).toBe("port");
     expect(JSON.parse(readFileSync(targetPath, "utf-8"))).toEqual({ port: 4000 });
   });
+
+  it("JSON配列内オブジェクトのキー順差だけではコンフリクトせず、テンプレートの実変更を適用する", async () => {
+    const dir = createTempDir();
+    const templatePath = join(dir, "template.json");
+    const targetPath = join(dir, "config.json");
+    const baseContent = JSON.stringify({ arr: [{ a: 1, b: 2 }] }, null, 2);
+    const localContent = JSON.stringify({ arr: [{ b: 2, a: 1 }] }, null, 2);
+    const templateContent = JSON.stringify({ arr: [{ a: 1, b: 3 }] }, null, 2);
+
+    writeFileSync(templatePath, `${templateContent}\n`, "utf-8");
+    writeFileSync(targetPath, `${localContent}\n`, "utf-8");
+
+    const result = await mergeAndWriteFile(
+      templatePath,
+      targetPath,
+      createMetadata({ "config.json": baseContent }),
+      "config.json"
+    );
+
+    expect(result.action).toBe("merged");
+    expect(result.conflicts).toHaveLength(0);
+    expect(JSON.parse(readFileSync(targetPath, "utf-8"))).toEqual({
+      arr: [{ a: 1, b: 3 }],
+    });
+  });
 });

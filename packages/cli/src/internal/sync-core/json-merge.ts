@@ -240,13 +240,56 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function deepClone(value: unknown): unknown {
-  if (value === undefined) {
-    return undefined;
+function deepClone<T>(value: T): T {
+  if (value === null || typeof value !== "object") {
+    return value;
   }
-  return JSON.parse(JSON.stringify(value));
+
+  if (Array.isArray(value)) {
+    return value.map((item) => deepClone(item)) as T;
+  }
+
+  const cloned: Record<string, unknown> = {};
+  for (const key in value) {
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      cloned[key] = deepClone((value as Record<string, unknown>)[key]);
+    }
+  }
+
+  return cloned as T;
 }
 
 function deepEqual(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  if (a === b) {
+    return true;
+  }
+
+  if (a === null || b === null || typeof a !== typeof b) {
+    return false;
+  }
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) {
+      return false;
+    }
+
+    return a.every((item, index) => deepEqual(item, b[index]));
+  }
+
+  if (typeof a === "object" && typeof b === "object") {
+    const keysA = Object.keys(a as Record<string, unknown>).sort();
+    const keysB = Object.keys(b as Record<string, unknown>).sort();
+
+    if (keysA.length !== keysB.length) {
+      return false;
+    }
+
+    return keysA.every(
+      (key, index) =>
+        key === keysB[index] &&
+        deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
+    );
+  }
+
+  return false;
 }

@@ -201,6 +201,17 @@ describe("JsonProcessor", () => {
       expect(result.conflicts[0].keyPath).toBe("deps");
     });
 
+    it("配列内オブジェクトのキー順差だけではコンフリクトせず、実際のテンプレート変更を適用する", () => {
+      const base = { arr: [{ a: 1, b: 2 }] };
+      const local = { arr: [{ b: 2, a: 1 }] };
+      const template = { arr: [{ a: 1, b: 3 }] };
+
+      const result = processor.mergeJson(template, local, emptyPaths, "test.json", base);
+
+      expect(result.result).toEqual({ arr: [{ a: 1, b: 3 }] });
+      expect(result.conflicts).toEqual([]);
+    });
+
     it("base が空オブジェクトの場合、テンプレートとローカルの新キーがすべて保持されること", () => {
       const base = {};
       const local = { localKey: "local" };
@@ -303,7 +314,11 @@ describe("JsonProcessor", () => {
       };
       const base = { name: "old-name", version: "0.1.0", scripts: { build: "tsc" } };
       const local = { name: "my-project", version: "1.0.0", scripts: { build: "tsc" } };
-      const template = { name: "template-name", version: "2.0.0", scripts: { build: "tsc --noEmit" } };
+      const template = {
+        name: "template-name",
+        version: "2.0.0",
+        scripts: { build: "tsc --noEmit" },
+      };
       const result = processor.mergeJson(template, local, jsonPaths, "package.json", base);
       // project-private キーはローカル値がそのまま保持される
       expect(result.result.name).toBe("my-project");

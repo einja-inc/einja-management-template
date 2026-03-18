@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { JsonOutput, SyncMetadata } from "@/types/sync.js";
-import { syncCommand } from "./sync.js";
+import { resolveTextMergeBaseContent, syncCommand } from "./sync.js";
 
 // モジュールモック
 vi.mock("inquirer", () => ({
@@ -138,6 +138,59 @@ describe("syncCommand", () => {
   });
 
   describe("AC1.3: 3方向マージによるローカル変更保持", () => {
+    it("保存済みbaseContentを使ってテンプレート更新とローカル変更を両立する", async () => {
+      // Given: 現在のテンプレートと過去テンプレート相当のbaseContent
+      const packageRoot = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../.."
+      );
+      const templateFile = path.join(packageRoot, "presets", "default", "AGENTS.md");
+      const templateContent = await fs.readFile(templateFile, "utf-8");
+      const baseContent = templateContent.replace("Next.js 16", "Next.js 15");
+      const localContent = baseContent.replace(
+        "- 日本語で話すこと",
+        "- 日本語で話すこと\n- ローカル独自ルール"
+      );
+
+      const projectFile = path.join(tempProjectDir, "AGENTS.md");
+      await fs.writeFile(projectFile, localContent, "utf-8");
+
+      const { createHash } = await import("node:crypto");
+      const baseHash = createHash("sha256").update(baseContent, "utf8").digest("hex");
+
+      const metadata: SyncMetadata = {
+        version: "1.0.0",
+        lastSync: new Date().toISOString(),
+        templateVersion: "0.1.0",
+        files: {
+          "AGENTS.md": {
+            hash: baseHash,
+            syncedAt: new Date().toISOString(),
+            baseContent,
+          },
+        },
+      };
+      await fs.writeFile(
+        path.join(tempProjectDir, ".einja-sync.json"),
+        JSON.stringify(metadata),
+        "utf-8"
+      );
+
+      // When: 通常syncを実行
+      await syncCommand({ only: "claude-md", yes: true, skipDeps: true });
+
+      // Then: テンプレート更新とローカル変更の両方が残る
+      const mergedContent = await fs.readFile(projectFile, "utf-8");
+      expect(mergedContent).toContain("Next.js 16");
+      expect(mergedContent).toContain("- ローカル独自ルール");
+
+      // Then: 次回sync用のbaseContentとしてテンプレート内容が保存される
+      const savedMetadata = JSON.parse(
+        await fs.readFile(path.join(tempProjectDir, ".einja-sync.json"), "utf-8")
+      ) as SyncMetadata;
+      expect(savedMetadata.files["AGENTS.md"]?.baseContent).toBe(templateContent);
+    });
+
     it("ローカルでカスタマイズしたファイルが保持される", async () => {
       // Given: ローカルでカスタマイズしたファイルが存在
       const projectFile = path.join(tempProjectDir, ".claude", "agents", "einja", "test.md");
@@ -190,6 +243,27 @@ Section 3 - New section`;
       // When/Then: 3方向マージが実行され、両方の変更が保持されることを確認
       // 実装では、DiffEngineのmerge3Wayメソッドが呼ばれることを確認
       // コンフリクトがない場合、両方の変更がマージされた結果が得られる
+    });
+  });
+
+  describe("resolveTextMergeBaseContent", () => {
+    it("metadataにbaseContentがある場合はそれを返す", () => {
+      // Given: 前回sync時のテンプレート内容が保存されている
+      const fileMetadata = { baseContent: "old template" };
+
+      // When: ベース内容を解決する
+      const result = resolveTextMergeBaseContent(fileMetadata, "current template");
+
+      // Then: 保存済みbaseContentが優先される
+      expect(result).toBe("old template");
+    });
+
+    it("metadataにbaseContentがない場合は現在テンプレートを返す", () => {
+      // When: ベース内容を解決する
+      const result = resolveTextMergeBaseContent(undefined, "current template");
+
+      // Then: 現在テンプレートがフォールバックになる
+      expect(result).toBe("current template");
     });
   });
 

@@ -22,7 +22,7 @@ import { MarkerProcessor } from "@/lib/sync/marker-processor.js";
 import { MetadataManager } from "@/lib/sync/metadata-manager.js";
 import { ProjectPrivateSynchronizer } from "@/lib/sync/project-private-synchronizer.js";
 import type { SyncOptions } from "@/types/index.js";
-import type { JsonFileInfo, JsonOutput, SyncTarget } from "@/types/sync.js";
+import type { FileMetadata, JsonFileInfo, JsonOutput, SyncTarget } from "@/types/sync.js";
 
 /**
  * package.jsonを上方探索してパッケージルートを特定する
@@ -94,6 +94,16 @@ function mergeWithMarkers(
   const finalContent = projectPrivateSynchronizer.syncProjectPrivateSections(afterManaged, templateContent);
 
   return finalContent;
+}
+
+/**
+ * テキストファイルの3方向マージに使用するベース内容を解決する
+ */
+export function resolveTextMergeBaseContent(
+  fileMetadata: Pick<FileMetadata, "baseContent"> | undefined,
+  templateContent: string
+): string {
+  return fileMetadata?.baseContent ?? templateContent;
 }
 
 /**
@@ -402,9 +412,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
           } catch (error) {
             // JSONのパースエラーの場合は3方向マージにフォールバック
             const fileMetadata = metadata.files[target.path];
-            const baseContent = fileMetadata
-              ? (await metadataManager.getBaseContent(target.templatePath)).content
-              : "";
+            const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
 
             const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
 
@@ -420,9 +428,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         } else {
           // 非JSONファイルの場合
           const fileMetadata = metadata.files[target.path];
-          const baseContent = fileMetadata
-            ? (await metadataManager.getBaseContent(target.templatePath)).content
-            : "";
+          const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
 
           const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
 
@@ -585,9 +591,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       } catch (error) {
         // JSONのパースエラーの場合は3方向マージにフォールバック
         const fileMetadata = metadata.files[target.path];
-        const baseContent = fileMetadata
-          ? (await metadataManager.getBaseContent(target.templatePath)).content
-          : "";
+        const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
         const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
 
         return {
@@ -617,9 +621,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       if (!hasManaged && hasProjectPrivate) {
         // managedなしファイル: 3方向マージ + project-private保持
         const fileMetadata = metadata.files[target.path];
-        const baseContent = fileMetadata
-          ? (await metadataManager.getBaseContent(target.templatePath)).content
-          : "";
+        const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
 
         const result = projectPrivateSynchronizer.syncProjectPrivateOnlyFile(
           localContent, templateContent, baseContent, diffEngine
@@ -643,9 +645,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       if (!templateValidation.valid || !localValidation.valid) {
         // バリデーションエラーがある場合は3方向マージにフォールバック
         const fileMetadata = metadata.files[target.path];
-        const baseContent = fileMetadata
-          ? (await metadataManager.getBaseContent(target.templatePath)).content
-          : "";
+        const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
         const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
 
         return {
@@ -678,9 +678,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
     // マーカーなしファイル：従来の3方向マージ
     const fileMetadata = metadata.files[target.path];
-    const baseContent = fileMetadata
-      ? (await metadataManager.getBaseContent(target.templatePath)).content
-      : "";
+    const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
 
     const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
 
@@ -727,8 +725,8 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     }
 
     // メタデータ更新
-    // JSONファイルの場合は baseContent（テンプレート内容）も保存
-    const baseContent = result.target.path.endsWith(".json") ? result.templateContent : undefined;
+    // 次回の3方向マージ用に、前回sync時点のテンプレート内容を常に保存する
+    const baseContent = result.templateContent;
     const updatedMetadata = await metadataManager.updateFileHash(
       metadata,
       result.target.path,

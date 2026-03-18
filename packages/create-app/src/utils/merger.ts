@@ -214,8 +214,11 @@ export async function loadSyncMetadata(targetDir: string): Promise<SyncMetadata 
     };
 
     if (parsed.jsonPaths?.seed && !parsed.jsonPaths["project-private"]) {
-      parsed.jsonPaths["project-private"] = parsed.jsonPaths.seed;
-      delete parsed.jsonPaths.seed;
+      const { seed, ...restJsonPaths } = parsed.jsonPaths;
+      parsed.jsonPaths = {
+        ...restJsonPaths,
+        "project-private": seed,
+      };
     }
 
     return parsed;

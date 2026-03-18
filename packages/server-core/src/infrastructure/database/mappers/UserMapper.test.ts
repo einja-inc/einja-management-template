@@ -1,7 +1,7 @@
 import type { User as PrismaUser, UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from "@prisma/client";
 import { beforeAll, describe, expect, it } from "vitest";
 import { User } from "../../../domain/entities/User";
-import { UserFactory, initialize } from "../../../testing";
+import { buildUserProps, UserFactory, initialize } from "../../../testing";
 import { UserMapper } from "./UserMapper";
 
 describe("UserMapper", () => {
@@ -135,7 +135,7 @@ describe("UserMapper", () => {
 	describe("toPrismaUpdate", () => {
 		it("Domain UserをPrisma更新データに変換できる", async () => {
 			// Given
-			const props = await UserFactory.build({
+			const props = await buildUserProps({
 				name: "Updated Name",
 				status: "active" as PrismaUserStatus,
 				role: "admin" as PrismaUserRole,
@@ -155,7 +155,7 @@ describe("UserMapper", () => {
 
 		it("nameがnullでも変換できる", async () => {
 			// Given
-			const props = await UserFactory.build({
+			const props = await buildUserProps({
 				name: null,
 				status: "active" as PrismaUserStatus,
 				role: "user" as PrismaUserRole,
@@ -172,7 +172,7 @@ describe("UserMapper", () => {
 
 		it("lastLoginがnullでも変換できる", async () => {
 			// Given
-			const props = await UserFactory.build({
+			const props = await buildUserProps({
 				name: "Test",
 				status: "pending" as PrismaUserStatus,
 				role: "user" as PrismaUserRole,
@@ -190,7 +190,7 @@ describe("UserMapper", () => {
 		describe("status逆変換", () => {
 			it("activeをPrisma形式に変換できる", async () => {
 				// Given
-				const props = await UserFactory.build({
+				const props = await buildUserProps({
 					status: "active" as PrismaUserStatus,
 				});
 				const domainUser = new User(props);
@@ -204,7 +204,7 @@ describe("UserMapper", () => {
 
 			it("inactiveをPrisma形式に変換できる", async () => {
 				// Given
-				const props = await UserFactory.build({
+				const props = await buildUserProps({
 					status: "inactive" as PrismaUserStatus,
 				});
 				const domainUser = new User(props);
@@ -218,7 +218,7 @@ describe("UserMapper", () => {
 
 			it("pendingをPrisma形式に変換できる", async () => {
 				// Given
-				const props = await UserFactory.build({
+				const props = await buildUserProps({
 					status: "pending" as PrismaUserStatus,
 				});
 				const domainUser = new User(props);
@@ -234,7 +234,7 @@ describe("UserMapper", () => {
 		describe("role逆変換", () => {
 			it("adminをPrisma形式に変換できる", async () => {
 				// Given
-				const props = await UserFactory.build({
+				const props = await buildUserProps({
 					role: "admin" as PrismaUserRole,
 				});
 				const domainUser = new User(props);
@@ -248,7 +248,7 @@ describe("UserMapper", () => {
 
 			it("userをPrisma形式に変換できる", async () => {
 				// Given
-				const props = await UserFactory.build({
+				const props = await buildUserProps({
 					role: "user" as PrismaUserRole,
 				});
 				const domainUser = new User(props);
@@ -262,7 +262,7 @@ describe("UserMapper", () => {
 
 			it("moderatorをPrisma形式に変換できる", async () => {
 				// Given
-				const props = await UserFactory.build({
+				const props = await buildUserProps({
 					role: "moderator" as PrismaUserRole,
 				});
 				const domainUser = new User(props);

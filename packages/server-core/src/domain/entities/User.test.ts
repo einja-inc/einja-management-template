@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { UserFactory, initialize } from "../../testing";
+import { buildUserProps, initialize } from "../../testing";
 import { User, type UserProps } from "./User";
 
 describe("User Entity", () => {
@@ -12,7 +12,7 @@ describe("User Entity", () => {
 	describe("constructor", () => {
 		it("有効なプロパティでエンティティが生成される", async () => {
 			// Given
-			const props = await UserFactory.build();
+			const props = await buildUserProps();
 
 			// When
 			const user = new User(props);
@@ -29,7 +29,7 @@ describe("User Entity", () => {
 
 		it("nameがnullでもエンティティが生成される", async () => {
 			// Given
-			const props = await UserFactory.build({ name: null });
+			const props = await buildUserProps({ name: null });
 
 			// When
 			const user = new User(props);
@@ -40,7 +40,7 @@ describe("User Entity", () => {
 
 		it("lastLoginがnullでもエンティティが生成される", async () => {
 			// Given
-			const props = await UserFactory.build({ lastLogin: null });
+			const props = await buildUserProps({ lastLogin: null });
 
 			// When
 			const user = new User(props);
@@ -53,7 +53,7 @@ describe("User Entity", () => {
 			// Given & When & Then
 			const statuses = ["active", "inactive", "pending"] as const;
 			for (const status of statuses) {
-				const props = await UserFactory.build({ status });
+				const props = await buildUserProps({ status });
 				const user = new User(props);
 				expect(user.status).toBe(status);
 			}
@@ -63,7 +63,7 @@ describe("User Entity", () => {
 			// Given & When & Then
 			const roles = ["admin", "user", "moderator"] as const;
 			for (const role of roles) {
-				const props = await UserFactory.build({ role });
+				const props = await buildUserProps({ role });
 				const user = new User(props);
 				expect(user.role).toBe(role);
 			}
@@ -73,7 +73,7 @@ describe("User Entity", () => {
 	describe("withLastLogin", () => {
 		it("最終ログイン日時を更新した新しいインスタンスを返す", async () => {
 			// Given
-			const props = await UserFactory.build({ lastLogin: null });
+			const props = await buildUserProps({ lastLogin: null });
 			const originalUser = new User(props);
 			const newLoginTime = new Date("2025-01-03T12:00:00Z");
 
@@ -88,7 +88,7 @@ describe("User Entity", () => {
 		it("元のインスタンスは変更されない（イミュータビリティ）", async () => {
 			// Given
 			const originalLastLogin = new Date("2025-01-02T00:00:00Z");
-			const props = await UserFactory.build({ lastLogin: originalLastLogin });
+			const props = await buildUserProps({ lastLogin: originalLastLogin });
 			const originalUser = new User(props);
 			const newLoginTime = new Date("2025-01-03T12:00:00Z");
 
@@ -101,7 +101,7 @@ describe("User Entity", () => {
 
 		it("他のプロパティは維持される", async () => {
 			// Given
-			const props = await UserFactory.build();
+			const props = await buildUserProps();
 			const originalUser = new User(props);
 			const newLoginTime = new Date("2025-01-03T12:00:00Z");
 
@@ -121,7 +121,7 @@ describe("User Entity", () => {
 	describe("withStatus", () => {
 		it("ステータスを更新した新しいインスタンスを返す", async () => {
 			// Given
-			const props = await UserFactory.build({ status: "pending" });
+			const props = await buildUserProps({ status: "pending" });
 			const originalUser = new User(props);
 
 			// When
@@ -134,7 +134,7 @@ describe("User Entity", () => {
 
 		it("元のインスタンスは変更されない（イミュータビリティ）", async () => {
 			// Given
-			const props = await UserFactory.build({ status: "pending" });
+			const props = await buildUserProps({ status: "pending" });
 			const originalUser = new User(props);
 
 			// When
@@ -148,7 +148,7 @@ describe("User Entity", () => {
 	describe("withRole", () => {
 		it("ロールを更新した新しいインスタンスを返す", async () => {
 			// Given
-			const props = await UserFactory.build({ role: "user" });
+			const props = await buildUserProps({ role: "user" });
 			const originalUser = new User(props);
 
 			// When
@@ -161,7 +161,7 @@ describe("User Entity", () => {
 
 		it("元のインスタンスは変更されない（イミュータビリティ）", async () => {
 			// Given
-			const props = await UserFactory.build({ role: "user" });
+			const props = await buildUserProps({ role: "user" });
 			const originalUser = new User(props);
 
 			// When
@@ -175,7 +175,7 @@ describe("User Entity", () => {
 	describe("isActive", () => {
 		it("statusがactiveの場合、trueを返す", async () => {
 			// Given
-			const props = await UserFactory.build({ status: "active" });
+			const props = await buildUserProps({ status: "active" });
 			const user = new User(props);
 
 			// When & Then
@@ -184,7 +184,7 @@ describe("User Entity", () => {
 
 		it("statusがinactiveの場合、falseを返す", async () => {
 			// Given
-			const props = await UserFactory.build({ status: "inactive" });
+			const props = await buildUserProps({ status: "inactive" });
 			const user = new User(props);
 
 			// When & Then
@@ -193,7 +193,7 @@ describe("User Entity", () => {
 
 		it("statusがpendingの場合、falseを返す", async () => {
 			// Given
-			const props = await UserFactory.build({ status: "pending" });
+			const props = await buildUserProps({ status: "pending" });
 			const user = new User(props);
 
 			// When & Then
@@ -204,7 +204,7 @@ describe("User Entity", () => {
 	describe("isAdmin", () => {
 		it("roleがadminの場合、trueを返す", async () => {
 			// Given
-			const props = await UserFactory.build({ role: "admin" });
+			const props = await buildUserProps({ role: "admin" });
 			const user = new User(props);
 
 			// When & Then
@@ -213,7 +213,7 @@ describe("User Entity", () => {
 
 		it("roleがuserの場合、falseを返す", async () => {
 			// Given
-			const props = await UserFactory.build({ role: "user" });
+			const props = await buildUserProps({ role: "user" });
 			const user = new User(props);
 
 			// When & Then
@@ -222,7 +222,7 @@ describe("User Entity", () => {
 
 		it("roleがmoderatorの場合、falseを返す", async () => {
 			// Given
-			const props = await UserFactory.build({ role: "moderator" });
+			const props = await buildUserProps({ role: "moderator" });
 			const user = new User(props);
 
 			// When & Then

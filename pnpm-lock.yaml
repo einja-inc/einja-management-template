@@ -562,6 +562,9 @@ importers:
       bcryptjs:
         specifier: ^3.0.2
         version: 3.0.2
+      zod:
+        specifier: ^3.25.67
+        version: 3.25.76
     devDependencies:
       '@faker-js/faker':
         specifier: ^9.6.0

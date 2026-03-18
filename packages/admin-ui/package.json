@@ -3,7 +3,8 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"catalog": "vite --config vite.config.ts"
+		"catalog": "vite --config vite.config.ts",
+		"typecheck": "tsc --noEmit"
 	},
 	"exports": {
 		"./styles/tokens.css": "./src/styles/tokens.css",

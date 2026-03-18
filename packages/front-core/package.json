@@ -20,5 +20,8 @@
 		"@types/bcryptjs": "^2.4.6",
 		"@types/node": "^22.18.13",
 		"typescript": "^5"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
 	}
 }

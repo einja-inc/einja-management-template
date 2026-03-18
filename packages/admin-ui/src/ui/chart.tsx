@@ -17,8 +17,7 @@ function useChart() {
 
 // Chart Container
 interface ChartContainerProps
-  extends React.ComponentProps<"div">,
-    React.ComponentProps<typeof RechartsPrimitive.ResponsiveContainer> {
+  extends React.ComponentProps<"div"> {
   config: ChartConfig;
   children: React.ComponentProps<
     typeof RechartsPrimitive.ResponsiveContainer
@@ -60,7 +59,7 @@ interface ChartStyleProps {
 
 const ChartStyle = ({ id, config }: ChartStyleProps) => {
   const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color
+    ([, itemConfig]) => itemConfig?.theme || itemConfig?.color
   );
 
   if (!colorConfig.length) {
@@ -71,7 +70,7 @@ const ChartStyle = ({ id, config }: ChartStyleProps) => {
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(config)
-          .filter(([, config]) => config.theme || config.color)
+          .filter(([, itemConfig]) => itemConfig?.theme || itemConfig?.color)
           .map(([key, itemConfig]) => {
             const color =
               typeof itemConfig === "object" && "color" in itemConfig
@@ -144,14 +143,18 @@ const ChartTooltipContent = React.forwardRef<
     },
     ref
   ) => {
-    const { config } = useChart();
+    const config = useChart();
 
     const tooltipLabel = React.useMemo(() => {
       if (hideLabel || !payload?.length) {
         return null;
       }
 
-      const [item] = payload;
+      const item = payload[0];
+      if (!item) {
+        return null;
+      }
+
       const key = `${labelKey || item.dataKey || item.name || "value"}`;
       const itemConfig = config[key];
       const value =
@@ -243,7 +246,13 @@ const ChartTooltipContent = React.forwardRef<
                   {item.value && (
                     <span className="font-mono font-medium tabular-nums text-foreground">
                       {formatter
-                        ? formatter(item.value, item.name, item, index, payload)
+                        ? formatter(
+                            item.value,
+                            item.name ?? item.dataKey ?? "value",
+                            item,
+                            index,
+                            payload
+                          )
                         : item.value.toLocaleString()}
                     </span>
                   )}
@@ -272,7 +281,7 @@ const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   ChartLegendContentProps
 >(({ className, hideIcon = false, payload, verticalAlign = "bottom", nameKey }, ref) => {
-  const { config } = useChart();
+  const config = useChart();
 
   if (!payload?.length) {
     return null;

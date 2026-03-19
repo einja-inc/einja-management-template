@@ -22,7 +22,14 @@ import { MarkerProcessor } from "@/lib/sync/marker-processor.js";
 import { MetadataManager } from "@/lib/sync/metadata-manager.js";
 import { ProjectPrivateSynchronizer } from "@/lib/sync/project-private-synchronizer.js";
 import type { SyncOptions } from "@/types/index.js";
-import type { FileMetadata, JsonFileInfo, JsonOutput, SyncTarget } from "@/types/sync.js";
+import type {
+  Conflict,
+  FileMetadata,
+  JsonFileInfo,
+  JsonOutput,
+  MergeResult,
+  SyncTarget,
+} from "@/types/sync.js";
 
 /**
  * package.jsonを上方探索してパッケージルートを特定する
@@ -99,11 +106,57 @@ function mergeWithMarkers(
 /**
  * テキストファイルの3方向マージに使用するベース内容を解決する
  */
+export type TextMergeBaseResolution =
+  | { kind: "stored_base"; baseContent: string }
+  | { kind: "local_matches_last_sync"; baseContent: string }
+  | { kind: "missing_base_with_local_changes" };
+
 export function resolveTextMergeBaseContent(
-  fileMetadata: Pick<FileMetadata, "baseContent"> | undefined,
-  templateContent: string
-): string {
-  return fileMetadata?.baseContent ?? templateContent;
+  fileMetadata: Pick<FileMetadata, "baseContent" | "hash"> | undefined,
+  localContent: string,
+  templateContent: string,
+  calculateHash: (content: string) => string
+): TextMergeBaseResolution {
+  if (fileMetadata?.baseContent !== undefined) {
+    return {
+      kind: "stored_base",
+      baseContent: fileMetadata.baseContent,
+    };
+  }
+
+  if (!fileMetadata) {
+    return {
+      kind: "stored_base",
+      baseContent: templateContent,
+    };
+  }
+
+  const localHash = calculateHash(localContent);
+  if (localHash === fileMetadata.hash) {
+    return {
+      kind: "local_matches_last_sync",
+      baseContent: localContent,
+    };
+  }
+
+  return {
+    kind: "missing_base_with_local_changes",
+  };
+}
+
+function createMissingBaseConflict(localContent: string): MergeResult {
+  return {
+    success: false,
+    content: localContent,
+    conflicts: [
+      {
+        line: 1,
+        localContent: "baseContent が保存されておらず、ローカル変更もあるため自動マージできません",
+        templateContent:
+          "このファイルは旧 sync メタデータです。内容を確認してから再 sync するか、必要なら --force で上書きしてください",
+      },
+    ],
+  };
 }
 
 /**
@@ -412,9 +465,21 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
           } catch (error) {
             // JSONのパースエラーの場合は3方向マージにフォールバック
             const fileMetadata = metadata.files[target.path];
-            const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
+            const baseResolution = resolveTextMergeBaseContent(
+              fileMetadata,
+              localContent,
+              templateContent,
+              (content) => metadataManager.calculateHash(content, target.path)
+            );
 
-            const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+            const mergeResult =
+              baseResolution.kind === "missing_base_with_local_changes"
+                ? createMissingBaseConflict(localContent)
+                : diffEngine.merge3Way(
+                    baseResolution.baseContent,
+                    localContent,
+                    templateContent
+                  );
 
             if (mergeResult.success) {
               dryRunStats.updated++;
@@ -428,9 +493,21 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         } else {
           // 非JSONファイルの場合
           const fileMetadata = metadata.files[target.path];
-          const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
+          const baseResolution = resolveTextMergeBaseContent(
+            fileMetadata,
+            localContent,
+            templateContent,
+            (content) => metadataManager.calculateHash(content, target.path)
+          );
 
-          const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+          const mergeResult =
+            baseResolution.kind === "missing_base_with_local_changes"
+              ? createMissingBaseConflict(localContent)
+              : diffEngine.merge3Way(
+                  baseResolution.baseContent,
+                  localContent,
+                  templateContent
+                );
 
           if (mergeResult.success) {
             dryRunStats.updated++;
@@ -591,8 +668,16 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       } catch (error) {
         // JSONのパースエラーの場合は3方向マージにフォールバック
         const fileMetadata = metadata.files[target.path];
-        const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
-        const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+        const baseResolution = resolveTextMergeBaseContent(
+          fileMetadata,
+          localContent,
+          templateContent,
+          (content) => metadataManager.calculateHash(content, target.path)
+        );
+        const mergeResult =
+          baseResolution.kind === "missing_base_with_local_changes"
+            ? createMissingBaseConflict(localContent)
+            : diffEngine.merge3Way(baseResolution.baseContent, localContent, templateContent);
 
         return {
           target,
@@ -621,11 +706,22 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       if (!hasManaged && hasProjectPrivate) {
         // managedなしファイル: 3方向マージ + project-private保持
         const fileMetadata = metadata.files[target.path];
-        const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
-
-        const result = projectPrivateSynchronizer.syncProjectPrivateOnlyFile(
-          localContent, templateContent, baseContent, diffEngine
+        const baseResolution = resolveTextMergeBaseContent(
+          fileMetadata,
+          localContent,
+          templateContent,
+          (content) => metadataManager.calculateHash(content, target.path)
         );
+
+        const result =
+          baseResolution.kind === "missing_base_with_local_changes"
+            ? createMissingBaseConflict(localContent)
+            : projectPrivateSynchronizer.syncProjectPrivateOnlyFile(
+                localContent,
+                templateContent,
+                baseResolution.baseContent,
+                diffEngine
+              );
 
         return {
           target,
@@ -645,8 +741,16 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       if (!templateValidation.valid || !localValidation.valid) {
         // バリデーションエラーがある場合は3方向マージにフォールバック
         const fileMetadata = metadata.files[target.path];
-        const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
-        const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+        const baseResolution = resolveTextMergeBaseContent(
+          fileMetadata,
+          localContent,
+          templateContent,
+          (content) => metadataManager.calculateHash(content, target.path)
+        );
+        const mergeResult =
+          baseResolution.kind === "missing_base_with_local_changes"
+            ? createMissingBaseConflict(localContent)
+            : diffEngine.merge3Way(baseResolution.baseContent, localContent, templateContent);
 
         return {
           target,
@@ -678,9 +782,17 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
 
     // マーカーなしファイル：従来の3方向マージ
     const fileMetadata = metadata.files[target.path];
-    const baseContent = resolveTextMergeBaseContent(fileMetadata, templateContent);
+    const baseResolution = resolveTextMergeBaseContent(
+      fileMetadata,
+      localContent,
+      templateContent,
+      (content) => metadataManager.calculateHash(content, target.path)
+    );
 
-    const mergeResult = diffEngine.merge3Way(baseContent, localContent, templateContent);
+    const mergeResult =
+      baseResolution.kind === "missing_base_with_local_changes"
+        ? createMissingBaseConflict(localContent)
+        : diffEngine.merge3Way(baseResolution.baseContent, localContent, templateContent);
 
     return {
       target,
@@ -716,7 +828,7 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
         path: result.target.path,
         status: "conflict",
         action: "marked",
-        conflicts: result.conflicts.map((c) => ({
+        conflicts: result.conflicts.map((c: Conflict) => ({
           line: c.line,
           local: c.localContent,
           template: c.templateContent,
@@ -724,16 +836,18 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       });
     }
 
-    // メタデータ更新
-    // 次回の3方向マージ用に、前回sync時点のテンプレート内容を常に保存する
-    const baseContent = result.templateContent;
-    const updatedMetadata = await metadataManager.updateFileHash(
-      metadata,
-      result.target.path,
-      result.templateContent,
-      baseContent
-    );
-    Object.assign(metadata, updatedMetadata);
+    if (result.success) {
+      // メタデータ更新
+      // 次回の3方向マージ用に、前回sync時点のテンプレート内容を常に保存する
+      const baseContent = result.templateContent;
+      const updatedMetadata = await metadataManager.updateFileHash(
+        metadata,
+        result.target.path,
+        result.templateContent,
+        baseContent
+      );
+      Object.assign(metadata, updatedMetadata);
+    }
   }
 
   skipCount = targets.length - filesToProcess.length;

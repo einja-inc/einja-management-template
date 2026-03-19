@@ -244,26 +244,148 @@ Section 3 - New section`;
       // 実装では、DiffEngineのmerge3Wayメソッドが呼ばれることを確認
       // コンフリクトがない場合、両方の変更がマージされた結果が得られる
     });
+
+    it("baseContentがない旧メタデータでもローカルが前回テンプレート一致なら更新できる", async () => {
+      const packageRoot = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../.."
+      );
+      const templateFile = path.join(packageRoot, "presets", "default", "AGENTS.md");
+      const templateContent = await fs.readFile(templateFile, "utf-8");
+      const previousTemplateContent = templateContent.replace("Next.js 16", "Next.js 15");
+
+      const projectFile = path.join(tempProjectDir, "AGENTS.md");
+      await fs.writeFile(projectFile, previousTemplateContent, "utf-8");
+
+      const { createHash } = await import("node:crypto");
+      const previousTemplateHash = createHash("sha256")
+        .update(previousTemplateContent, "utf8")
+        .digest("hex");
+
+      const metadata: SyncMetadata = {
+        version: "1.0.0",
+        lastSync: new Date().toISOString(),
+        templateVersion: "0.1.0",
+        files: {
+          "AGENTS.md": {
+            hash: previousTemplateHash,
+            syncedAt: new Date().toISOString(),
+          },
+        },
+      };
+      await fs.writeFile(
+        path.join(tempProjectDir, ".einja-sync.json"),
+        JSON.stringify(metadata),
+        "utf-8"
+      );
+
+      await syncCommand({ only: "claude-md", yes: true, skipDeps: true });
+
+      const mergedContent = await fs.readFile(projectFile, "utf-8");
+      expect(mergedContent).toContain("Next.js 16");
+
+      const savedMetadata = JSON.parse(
+        await fs.readFile(path.join(tempProjectDir, ".einja-sync.json"), "utf-8")
+      ) as SyncMetadata;
+      expect(savedMetadata.files["AGENTS.md"]?.baseContent).toBe(templateContent);
+    });
+
+    it("baseContentがなくローカル変更もある旧メタデータではメタデータを進めない", async () => {
+      const packageRoot = path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../.."
+      );
+      const templateFile = path.join(packageRoot, "presets", "default", "AGENTS.md");
+      const templateContent = await fs.readFile(templateFile, "utf-8");
+      const previousTemplateContent = templateContent.replace("Next.js 16", "Next.js 15");
+      const localCustomizedContent = previousTemplateContent.replace(
+        "- 日本語で話すこと",
+        "- 日本語で話すこと\n- 独自カスタム"
+      );
+
+      const projectFile = path.join(tempProjectDir, "AGENTS.md");
+      await fs.writeFile(projectFile, localCustomizedContent, "utf-8");
+
+      const { createHash } = await import("node:crypto");
+      const previousTemplateHash = createHash("sha256")
+        .update(previousTemplateContent, "utf8")
+        .digest("hex");
+
+      const metadata: SyncMetadata = {
+        version: "1.0.0",
+        lastSync: new Date().toISOString(),
+        templateVersion: "0.1.0",
+        files: {
+          "AGENTS.md": {
+            hash: previousTemplateHash,
+            syncedAt: new Date().toISOString(),
+          },
+        },
+      };
+      await fs.writeFile(
+        path.join(tempProjectDir, ".einja-sync.json"),
+        JSON.stringify(metadata),
+        "utf-8"
+      );
+
+      await syncCommand({ only: "claude-md", yes: true, skipDeps: true });
+
+      const afterContent = await fs.readFile(projectFile, "utf-8");
+      expect(afterContent).toBe(localCustomizedContent);
+
+      const savedMetadata = JSON.parse(
+        await fs.readFile(path.join(tempProjectDir, ".einja-sync.json"), "utf-8")
+      ) as SyncMetadata;
+      expect(savedMetadata.files["AGENTS.md"]?.hash).toBe(previousTemplateHash);
+      expect(savedMetadata.files["AGENTS.md"]?.baseContent).toBeUndefined();
+    });
   });
 
   describe("resolveTextMergeBaseContent", () => {
     it("metadataにbaseContentがある場合はそれを返す", () => {
       // Given: 前回sync時のテンプレート内容が保存されている
-      const fileMetadata = { baseContent: "old template" };
+      const fileMetadata = { hash: "ignored", baseContent: "old template" };
 
       // When: ベース内容を解決する
-      const result = resolveTextMergeBaseContent(fileMetadata, "current template");
+      const result = resolveTextMergeBaseContent(
+        fileMetadata,
+        "local content",
+        "current template",
+        () => "local hash"
+      );
 
       // Then: 保存済みbaseContentが優先される
-      expect(result).toBe("old template");
+      expect(result).toEqual({
+        kind: "stored_base",
+        baseContent: "old template",
+      });
     });
 
-    it("metadataにbaseContentがない場合は現在テンプレートを返す", () => {
-      // When: ベース内容を解決する
-      const result = resolveTextMergeBaseContent(undefined, "current template");
+    it("metadataにbaseContentがなくローカルが前回同期ハッシュと一致する場合はローカルを返す", () => {
+      const result = resolveTextMergeBaseContent(
+        { hash: "local hash" },
+        "local content",
+        "current template",
+        () => "local hash"
+      );
 
-      // Then: 現在テンプレートがフォールバックになる
-      expect(result).toBe("current template");
+      expect(result).toEqual({
+        kind: "local_matches_last_sync",
+        baseContent: "local content",
+      });
+    });
+
+    it("metadataにbaseContentがなくローカル変更もある場合は自動マージ不可を返す", () => {
+      const result = resolveTextMergeBaseContent(
+        { hash: "previous template hash" },
+        "local content",
+        "current template",
+        () => "different local hash"
+      );
+
+      expect(result).toEqual({
+        kind: "missing_base_with_local_changes",
+      });
     });
   });
 

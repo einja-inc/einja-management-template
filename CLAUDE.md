@@ -258,7 +258,10 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 - 読み取り専用の作業: 99系タスク自体が不要
 
 <!-- @einja:project-private:start id="claude-md-project" -->
-<!-- プロジェクト固有の情報を記入 -->
+### 図の記述ルール
+
+- 図を書く場合は、原則として `mermaid` を使用する
+- `mermaid` では表現が難しい複雑な図（詳細なレイアウト調整、大規模な構成図、複雑な相互関係図など）の場合のみ `draw.io` を使用する
 <!-- @einja:project-private:end -->
 
 <!-- @einja:excluded:start -->

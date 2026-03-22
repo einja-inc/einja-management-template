@@ -1,7 +1,8 @@
 #!/usr/bin/env tsx
 
-import path from "node:path";
 import { existsSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import fse from "fs-extra";
 import chalk from "chalk";
 
@@ -38,7 +39,15 @@ const dirMappings: DirMapping[] = [
   { src: "packages", exclude: ["cli", "create-app"] },
   { src: "prisma" },
   { src: "public" },
-  { src: "scripts", exclude: ["task-vibe-kanban-loop"], excludeFilePrefix: "_" },
+  {
+    src: "scripts",
+    exclude: [
+      "task-vibe-kanban-loop",
+      "sync-shared-sync-core.mts",
+      "sync-shared-sync-core.test.mts",
+    ],
+    excludeFilePrefix: "_",
+  },
   { src: "test" },
   { src: ".claude/rules" },
   { src: ".changeset" },
@@ -167,7 +176,43 @@ function removeExcludeMarkers(content: string): string {
  * - import文: @repo/ を {{packageName}}/ に変換
  * - README.md（ルートのみ）: @einja:excluded マーカー除去
  */
-function transformContent(filePath: string, content: string): string {
+function sanitizeRootPackageJson(pkg: Record<string, unknown>): Record<string, unknown> {
+  const scripts =
+    pkg.scripts && typeof pkg.scripts === "object" && !Array.isArray(pkg.scripts)
+      ? { ...pkg.scripts as Record<string, string> }
+      : null;
+
+  if (!scripts) {
+    return pkg;
+  }
+
+  delete scripts["sync:shared:sync-core"];
+  delete scripts["sync:shared:check"];
+  delete scripts["test:sync:shared"];
+
+  if (typeof scripts.test === "string") {
+    scripts.test = scripts.test.replace(/^pnpm test:sync:shared &&\s*/, "");
+  }
+
+  if (typeof scripts.prepush === "string") {
+    scripts.prepush = scripts.prepush.replace(/^pnpm sync:shared:check &&\s*/, "");
+  }
+
+  return {
+    ...pkg,
+    scripts,
+  };
+}
+
+function sanitizeHuskyHook(content: string): string {
+  const lines = content
+    .split("\n")
+    .filter((line) => line.trim() !== "pnpm sync:shared:check");
+
+  return `${lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
+}
+
+export function transformContent(filePath: string, content: string): string {
   const fileName = path.basename(filePath);
 
   // ルートREADME.mdの変換（@einja:excluded マーカー除去）
@@ -178,7 +223,7 @@ function transformContent(filePath: string, content: string): string {
   // package.json の変換
   if (fileName === "package.json") {
     try {
-      const pkg = JSON.parse(content);
+      let pkg = JSON.parse(content);
 
       // name フィールドを {{projectName}} に置換
       // ただし、@repo/* パターン（共有パッケージ）は除外
@@ -191,11 +236,19 @@ function transformContent(filePath: string, content: string): string {
         pkg.description = "{{description}}";
       }
 
+      if (filePath === "package.json") {
+        pkg = sanitizeRootPackageJson(pkg);
+      }
+
       return JSON.stringify(pkg, null, 2);
     } catch (error) {
       console.warn(chalk.yellow(`警告: package.jsonのパースに失敗しました: ${filePath}`));
       return content;
     }
+  }
+
+  if (filePath.startsWith(".husky/")) {
+    return sanitizeHuskyHook(content);
   }
 
   // tsconfig.json の変換
@@ -368,9 +421,14 @@ async function updateTemplate(options: TemplateUpdateOptions): Promise<void> {
 }
 
 // メイン実行
-const isDryRun = process.argv.includes("--dry-run");
+const entryPath = process.argv[1] ? path.resolve(process.argv[1]) : null;
+const currentFilePath = fileURLToPath(import.meta.url);
 
-updateTemplate({ dryRun: isDryRun }).catch((error) => {
-  console.error(chalk.red("エラーが発生しました:"), error);
-  process.exit(1);
-});
+if (entryPath === currentFilePath) {
+  const isDryRun = process.argv.includes("--dry-run");
+
+  updateTemplate({ dryRun: isDryRun }).catch((error) => {
+    console.error(chalk.red("エラーが発生しました:"), error);
+    process.exit(1);
+  });
+}

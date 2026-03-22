@@ -216,6 +216,7 @@
   "enabledPlugins": {
     "code-simplifier@claude-plugins-official": true,
     "claude-mem@thedotmack": true,
+    "einja-common@einja-skills": true,
     "einja-dev@einja-skills": true,
     "einja-marketing@einja-skills": true
   },
@@ -224,6 +225,12 @@
       "source": {
         "source": "github",
         "repo": "thedotmack/claude-mem"
+      }
+    },
+    "einja-skills": {
+      "source": {
+        "source": "github",
+        "repo": "einja-inc/einja-skills"
       }
     }
   }

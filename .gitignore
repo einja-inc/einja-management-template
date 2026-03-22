@@ -84,6 +84,7 @@ storybook-static
 # claude
 .claude/settings.local.json
 .claude/worktrees/
+.husky/_/
 
 # mcp
 .vibe-kanban.json

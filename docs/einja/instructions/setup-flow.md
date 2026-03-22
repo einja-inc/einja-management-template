@@ -239,7 +239,7 @@ sequenceDiagram
 | ファイル | managed | project-private | 残り |
 |---------|---------|----------------|------|
 | `package.json` | — | name, version, private, workspaces, packageManager, volta | 3方向マージ |
-| `.claude/settings.json` | plansDirectory, includeCoAuthoredBy | — | 3方向マージ |
+| `.claude/settings.json` | includeCoAuthoredBy | — | 3方向マージ |
 | `.vscode/settings.json` | editor.*, eslint.*, prettier.*, [json], [jsonc] | — | 3方向マージ |
 | `.mcp.json` | — | — | 3方向マージ |
 

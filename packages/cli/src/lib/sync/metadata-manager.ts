@@ -176,7 +176,7 @@ export class MetadataManager {
       files: {},
       jsonPaths: {
         managed: {
-          ".claude/settings.json": ["plansDirectory", "includeCoAuthoredBy"],
+          ".claude/settings.json": ["includeCoAuthoredBy"],
           ".vscode/settings.json": [
             "editor.codeActionsOnSave",
             "editor.defaultFormatter",

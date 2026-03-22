@@ -298,10 +298,10 @@ function detectUnregisteredEntries(): void {
   const whitelistedTopLevel = new Set<string>();
   for (const mapping of dirMappings) {
     // src の最初のパスセグメント（例: ".claude/rules" → ".claude"）
-    whitelistedTopLevel.add(mapping.src.split("/")[0]);
+    whitelistedTopLevel.add(mapping.src.split("/")[0]!);
   }
   for (const file of fileMappings) {
-    whitelistedTopLevel.add(file.split("/")[0]);
+    whitelistedTopLevel.add(file.split("/")[0]!);
   }
 
   const knownIgnoreSet = new Set(knownIgnoreList);

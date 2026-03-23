@@ -186,9 +186,9 @@ function sanitizeRootPackageJson(pkg: Record<string, unknown>): Record<string, u
     return pkg;
   }
 
-  delete scripts["sync:shared:sync-core"];
-  delete scripts["sync:shared:check"];
-  delete scripts["test:sync:shared"];
+  scripts["sync:shared:sync-core"] = undefined;
+  scripts["sync:shared:check"] = undefined;
+  scripts["test:sync:shared"] = undefined;
 
   if (typeof scripts.test === "string") {
     scripts.test = scripts.test.replace(/^pnpm test:sync:shared &&\s*/, "");
@@ -298,10 +298,12 @@ function detectUnregisteredEntries(): void {
   const whitelistedTopLevel = new Set<string>();
   for (const mapping of dirMappings) {
     // src の最初のパスセグメント（例: ".claude/rules" → ".claude"）
-    whitelistedTopLevel.add(mapping.src.split("/")[0]!);
+    const topLevel = mapping.src.split("/")[0];
+    if (topLevel) whitelistedTopLevel.add(topLevel);
   }
   for (const file of fileMappings) {
-    whitelistedTopLevel.add(file.split("/")[0]!);
+    const topLevel = file.split("/")[0];
+    if (topLevel) whitelistedTopLevel.add(topLevel);
   }
 
   const knownIgnoreSet = new Set(knownIgnoreList);

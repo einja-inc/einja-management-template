@@ -186,9 +186,12 @@ function sanitizeRootPackageJson(pkg: Record<string, unknown>): Record<string, u
     return pkg;
   }
 
-  scripts["sync:shared:sync-core"] = undefined;
-  scripts["sync:shared:check"] = undefined;
-  scripts["test:sync:shared"] = undefined;
+  // biome-ignore lint/performance/noDelete: JSON出力からキーを完全に除去する必要がある
+  delete scripts["sync:shared:sync-core"];
+  // biome-ignore lint/performance/noDelete: 同上
+  delete scripts["sync:shared:check"];
+  // biome-ignore lint/performance/noDelete: 同上
+  delete scripts["test:sync:shared"];
 
   if (typeof scripts.test === "string") {
     scripts.test = scripts.test.replace(/^pnpm test:sync:shared &&\s*/, "");

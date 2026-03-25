@@ -84,14 +84,32 @@ for SECRET in VERCEL_TOKEN VERCEL_ORG_ID TURBO_TOKEN TURBO_TEAM; do
 done
 
 # DOTENV_PRIVATE_KEY_*
+MISSING_DOTENV_KEYS=()
 for ENV in DEVELOP STAGING PRODUCTION PREVIEW; do
   SECRET="DOTENV_PRIVATE_KEY_${ENV}"
   if gh secret list | grep -q "^$SECRET"; then
     echo "✅ $SECRET: 設定済み"
   else
     echo "❌ $SECRET: 未設定"
+    MISSING_DOTENV_KEYS+=("$ENV")
   fi
 done
+
+# 未設定のDOTENV_PRIVATE_KEY_*を自動修正（.env.keys存在時）
+if [ ${#MISSING_DOTENV_KEYS[@]} -gt 0 ] && [ -f ".env.keys" ]; then
+  echo "🔧 .env.keys から未設定の DOTENV_PRIVATE_KEY_* を自動設定します..."
+  for ENV in "${MISSING_DOTENV_KEYS[@]}"; do
+    value=$(grep "DOTENV_PRIVATE_KEY_${ENV}" .env.keys | cut -d'=' -f2- | tr -d "\"'")
+    if [ -n "$value" ]; then
+      gh secret set "DOTENV_PRIVATE_KEY_${ENV}" --body "$value"
+      echo "✅ DOTENV_PRIVATE_KEY_${ENV} を自動設定しました"
+    else
+      echo "⚠️ DOTENV_PRIVATE_KEY_${ENV} が .env.keys に見つかりません"
+    fi
+  done
+elif [ ${#MISSING_DOTENV_KEYS[@]} -gt 0 ]; then
+  echo "⚠️ .env.keys が存在しません。.env.keys を取得してからカテゴリ5で設定してください"
+fi
 
 # Step 4: ブランチ確認
 for BRANCH in develop staging; do
@@ -180,5 +198,5 @@ fi
 
 ## 注意事項
 - API制限: Vercel/Neon/GitHub APIへの問い合わせが多いため、トークン有効性を事前検証し無効なら早期終了
-- 既存カテゴリの呼び出し: 不足が検出された場合、該当カテゴリの手順を案内（自動実行ではなく提案ベース）
+- 既存カテゴリの呼び出し: 不足が検出された場合、該当カテゴリの手順を案内（提案ベース）。ただし `DOTENV_PRIVATE_KEY_*` は `.env.keys` 存在時に限り自動修正を実行する（デプロイ失敗の最も一般的な原因のため）
 - Secret suffix命名規則: `upper(name).replace('-', '_').replace(/[^A-Z0-9_]/g, '')` — 衝突が起きないよう、同一suffixに正規化されるアプリ名は禁止

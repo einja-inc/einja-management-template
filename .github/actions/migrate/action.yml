@@ -19,6 +19,15 @@ runs:
     - name: Setup Environment
       uses: ./.github/actions/setup
 
+    - name: Validate dotenv private key
+      run: |
+        if [ -z "${{ inputs.dotenv-private-key }}" ]; then
+          echo "::error::dotenv-private-key が渡されていません。GitHub Secrets に該当環境の DOTENV_PRIVATE_KEY_* が設定されているか確認してください。"
+          echo "::error::設定方法: gh secret set DOTENV_PRIVATE_KEY_<ENV> --body \"<.env.keysから取得した値>\""
+          exit 1
+        fi
+      shell: bash
+
     # DB マイグレーション（pooler検出 + retry）
     - name: Run Prisma migrate deploy
       run: |

@@ -50,7 +50,7 @@ unexpected_events = []
 | 4 | ローカル環境起動確認（pnpm dev、各アプリへcurl、失敗時修正） | workflow-env-setup-steps | 必須 | 全アプリが200レスポンス |
 | 5 | Vercelプロジェクト設定 | category-3 | スキップ可 | `vercel ls`で全アプリのプロジェクト表示 |
 | 6 | Neonプロジェクト設定 | category-4 | スキップ可 | `neonctl branches list`で定常ブランチ表示 |
-| 7 | GitHub Secrets一括設定 | category-5 | スキップ可 | `gh secret list`で必須Secrets全件表示 |
+| 7 | GitHub Secrets一括設定 | category-5 | 条件付き必須 | `gh secret list`で必須Secrets全件表示 |
 | 8 | GitHub Actions初期設定（ブランチ作成、保護ルール） | category-7 | スキップ可 | ブランチ保護設定完了 |
 | 9 | 各環境のデプロイ設定ファイル確認（.env.*の存在・復号確認） | category-2 | 必須 | 全環境envファイル存在 & dotenvx復号可能 |
 | 10 | .env.keys秘密鍵ローテーション | env-rotate-secrets.ts案内 | オプション | 新鍵でdotenvx復号成功 |
@@ -197,10 +197,11 @@ Step 1 ──→ Step 2 ──→ Step 3 ──→ Step 4
 
 ## Step 7: GitHub Secrets一括設定
 
-- **スキップ可** ⬜
+- **条件付き必須** ⬜
 - **参照先:** → `references/category-5-github-secrets.md` を参照して実行
 - **完了条件:** `gh secret list` で必須 Secrets が全件表示される
-- **スキップ条件:** AskUserQuestion で「GitHub Secrets設定をスキップしますか？」と確認。スキップ時は次のステップへ進む
+- **必須条件:** `.env.keys` が存在する場合は必須（AskUserQuestionでのスキップ確認を行わず、そのまま実行する）
+- **スキップ条件:** `.env.keys` が存在しない場合のみスキップ可。スキップ時は `unexpected_events` に「Step 7: .env.keys が存在しないため GitHub Secrets 設定をスキップ。デプロイ時に DOTENV_PRIVATE_KEY_* 未設定エラーが発生する可能性あり」と記録する
 
 ```
 # 完了後: 想定外の事態があれば記録

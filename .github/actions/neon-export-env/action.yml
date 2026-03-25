@@ -7,6 +7,15 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Validate dotenv private key
+      run: |
+        if [ -z "${{ inputs.dotenv-private-key-preview }}" ]; then
+          echo "::error::DOTENV_PRIVATE_KEY_PREVIEW が GitHub Secrets に設定されていません。"
+          echo "::error::設定方法: gh secret set DOTENV_PRIVATE_KEY_PREVIEW --body \"<.env.keysから取得した値>\""
+          exit 1
+        fi
+      shell: bash
+
     - name: Export Neon environment variables
       run: |
         npx dotenvx run -f .env.preview -- bash -c '

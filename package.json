@@ -68,10 +68,5 @@
 	"volta": {
 		"node": "22.16.0",
 		"pnpm": "10.14.0"
-	},
-	"dependencies": {
-		"@hono/zod-validator": "^0.7.6",
-		"hono": "^4.11.3",
-		"zod": "^4.3.5"
 	}
 }

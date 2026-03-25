@@ -7,16 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@hono/zod-validator':
-        specifier: ^0.7.6
-        version: 0.7.6(hono@4.11.3)(zod@4.3.5)
-      hono:
-        specifier: ^4.11.3
-        version: 4.11.3
-      zod:
-        specifier: ^4.3.5
-        version: 4.3.5
     devDependencies:
       '@changesets/changelog-github':
         specifier: ^0.5.1
@@ -148,6 +138,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@hono/zod-validator':
+        specifier: ^0.7.6
+        version: 0.7.6(hono@4.11.3)(zod@3.25.76)
       '@hookform/resolvers':
         specifier: ^5.1.1
         version: 5.2.2(react-hook-form@7.65.0(react@19.2.0))
@@ -178,6 +171,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      hono:
+        specifier: ^4.11.3
+        version: 4.11.3
       lucide-react:
         specifier: ^0.523.0
         version: 0.523.0(react@19.2.0)
@@ -6129,10 +6125,10 @@ snapshots:
     dependencies:
       hono: 4.11.3
 
-  '@hono/zod-validator@0.7.6(hono@4.11.3)(zod@4.3.5)':
+  '@hono/zod-validator@0.7.6(hono@4.11.3)(zod@3.25.76)':
     dependencies:
       hono: 4.11.3
-      zod: 4.3.5
+      zod: 3.25.76
 
   '@hookform/resolvers@5.2.2(react-hook-form@7.65.0(react@19.2.0))':
     dependencies:

@@ -19,6 +19,7 @@ const CATEGORY_PATTERNS: Record<SyncCategory, string[]> = {
   apps: ["apps/**"],
   packages: ["packages/**"],
   docs: ["README.md", "docs/**"],
+  claude: ["CLAUDE.md", ".claude/**"],
 };
 
 /**

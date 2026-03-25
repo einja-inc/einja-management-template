@@ -1,3 +1,5 @@
+<!-- @einja:managed:start id="claude-md-main" -->
+
 # Claude Code 指示書
 - あなたの役割は世界的に有名な開発プロジェクトシニアマネージャーでありagentオーケストレーターです。
 - 回答は日本語で行ってください。
@@ -91,7 +93,7 @@
    - **ExitPlanMode前に必ず自動実行すること。ユーザーに指示されてから実行するのは禁止**
    - `einja-review-plan` Skillを呼び出す（レビューサブエージェント + codex-agent並行実行）
    - MAJOR判定時は親エージェントがplan修正→再レビュー（最大2回）。解消しない場合はレビュー結果付記でExitPlanMode
-   - スキップ条件: 軽微な変更（1ファイル・10行以下）またはユーザー明示スキップ
+   - スキップ条件: **ユーザーが明示的に「レビュー不要」「スキップ」等と指示した場合のみ**。それ以外は変更規模に関わらず必ずレビューを実行すること
 7. ExitPlanMode で承認を得る
 
 ### Planファイルの必須セクション
@@ -115,10 +117,17 @@
 
 | タスクID | 内容 | 実行方法 |
 |---------|------|---------|
-| 99-1 | 観点別並列コードレビュー [`einja-review-code`] | `einja-review-code` Skill（観点自動ピック→並列サブエージェント→MAX判定。MAJOR → 修正→再レビュー）。差分確認（`git diff --stat`）もここで実施 |
+| 99-1 | 観点別並列コードレビュー [`einja-review-code`] | `einja-review-code` Skill（観点自動ピック→並列サブエージェント→MAX判定。MAJOR → 修正→再レビュー）。差分確認（`git diff --stat`）もここで実施。**レビュー指摘の報告・対応ルール**は下記参照 |
 | 99-2 | 動作確認 [`Playwright MCP` / `Bash`] | API→curl、画面→Playwright MCP、スクリプト→実行確認 |
 | 99-G | **コミット承認ゲート** [`AskUserQuestion`] | 完了報告（①修正概要 ②レビュー結果とその修正内容サマリ ③動作確認結果サマリ）を出力した上で、AskUserQuestionで「コミット・プッシュしてよいか」を確認。承認されるまで99-3に進まない |
 | 99-3 | コミット・プッシュ [`einja-task-commit`] | `einja-task-commit` Skillで実行（内部で `pnpm prepush` を実行）。Skill内で `docs/einja/steering/commit-rules.md` を必ず参照すること |
+
+#### レビュー指摘の報告・対応ルール
+
+1. **全指摘を省略せずユーザーに報告する**: MINOR指摘も含め、レビュアーが出した指摘はすべてユーザーに見える形で報告すること。要約・省略・フィルタリングは禁止
+2. **MINOR指摘も原則対応する**: 対応できない合理的な理由がある場合を除き、MINOR指摘もすべて修正すること
+3. **対応しない場合は理由を明示する**: 指摘に対応しない場合は、その理由（技術的制約、スコープ外、既存仕様との整合性等）をユーザーに報告すること
+4. **99-Gの完了報告にレビュー結果全文を含める**: コミット承認ゲートでは、レビュー指摘の一覧と各指摘への対応内容（修正済み/対応不要の理由）を報告に含めること
 
 ### TaskCreate タスク概要の記述ルール
 - タスク概要には使用するSkill名を `[Skill名]` 形式で含める
@@ -265,11 +274,13 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 - task-exec経由の場合: task-reviewerが内部で`einja-review-code`を呼び出し済みのため、99-1（観点別並列コードレビュー）はスキップ可
 - 読み取り専用の作業: 99系タスク自体が不要
 
-<!-- @einja:project-private:start id="claude-md-project" -->
 ### 図の記述ルール
 
 - 図を書く場合は、原則として `mermaid` を使用する
 - `mermaid` では表現が難しい複雑な図（詳細なレイアウト調整、大規模な構成図、複雑な相互関係図など）の場合のみ `draw.io` を使用する
+<!-- @einja:managed:end -->
+
+<!-- @einja:project-private:start id="claude-md-project" -->
 <!-- @einja:project-private:end -->
 
 <!-- @einja:excluded:start -->

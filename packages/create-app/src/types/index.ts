@@ -88,7 +88,8 @@ export type SyncCategory =
   | "scripts" // scripts/**
   | "apps" // apps/** （詳細選択あり）
   | "packages" // packages/** （詳細選択あり）
-  | "docs"; // README.md, docs/**
+  | "docs" // README.md, docs/**
+  | "claude"; // CLAUDE.md, .claude/
 
 /**
  * 同期カテゴリ設定の型定義

@@ -100,6 +100,13 @@ const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
     patterns: ["README.md", "docs/**"],
     defaultChecked: false,
   },
+  claude: {
+    name: "Claude Code",
+    description: "CLAUDE.md, .claude/settings.json, .claude/rules/",
+    patterns: ["CLAUDE.md", ".claude/**"],
+    defaultChecked: true,
+    firstRunDefault: true,
+  },
 };
 
 /**

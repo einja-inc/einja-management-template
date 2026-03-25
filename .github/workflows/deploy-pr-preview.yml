@@ -15,7 +15,12 @@ concurrency:
 jobs:
   # CI チェック（PostgreSQLサービスコンテナ付き）
   ci:
-    if: github.repository != 'einja-inc/einja-management-template' && github.event.pull_request.head.repo.full_name == github.repository
+    # stable-branch間PR（develop→staging, staging→main等）はdeploy-stable-branchesが担当するためスキップ
+    if: >
+      github.repository != 'einja-inc/einja-management-template' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !(contains(fromJSON('["main","develop","staging"]'), github.event.pull_request.head.ref) &&
+        contains(fromJSON('["main","develop","staging"]'), github.event.pull_request.base.ref))
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -168,7 +173,10 @@ jobs:
 
   # アプリ検出
   discover:
-    if: github.repository != 'einja-inc/einja-management-template'
+    if: >
+      github.repository != 'einja-inc/einja-management-template' &&
+      !(contains(fromJSON('["main","develop","staging"]'), github.event.pull_request.head.ref) &&
+        contains(fromJSON('["main","develop","staging"]'), github.event.pull_request.base.ref))
     runs-on: ubuntu-latest
     outputs:
       apps_json: ${{ steps.apps.outputs.apps_json }}

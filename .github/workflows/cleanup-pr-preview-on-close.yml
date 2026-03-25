@@ -13,7 +13,12 @@ permissions:
 
 jobs:
   discover:
-    if: github.repository != 'einja-inc/einja-management-template' && github.event.pull_request.head.repo.full_name == github.repository
+    # stable-branch間PR（develop→staging, staging→main等）はPR Preview不要のためスキップ
+    if: >
+      github.repository != 'einja-inc/einja-management-template' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !(contains(fromJSON('["main","develop","staging"]'), github.event.pull_request.head.ref) &&
+        contains(fromJSON('["main","develop","staging"]'), github.event.pull_request.base.ref))
     runs-on: ubuntu-latest
     outputs:
       apps_json: ${{ steps.apps.outputs.apps_json }}
@@ -54,7 +59,11 @@ jobs:
 
   # Neon cleanup runs only once (not per-app)
   cleanup-neon:
-    if: github.repository != 'einja-inc/einja-management-template' && github.event.pull_request.head.repo.full_name == github.repository
+    if: >
+      github.repository != 'einja-inc/einja-management-template' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !(contains(fromJSON('["main","develop","staging"]'), github.event.pull_request.head.ref) &&
+        contains(fromJSON('["main","develop","staging"]'), github.event.pull_request.base.ref))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -72,6 +72,20 @@
    done
    ```
 
+4.5. **Git自動デプロイの無効化確認**:
+   テンプレートの `apps/*/vercel.json` に `{"git": {"deploymentEnabled": false}}` が含まれているため、通常は自動適用される。既存プロジェクトや手動セットアップの場合は以下で確認:
+   ```bash
+   # 各アプリのvercel.jsonを確認
+   for APP_NAME in $(ls -d apps/*/ 2>/dev/null | xargs -I{} basename {}); do
+     if [ -f "apps/$APP_NAME/vercel.json" ]; then
+       echo "$APP_NAME: $(cat apps/$APP_NAME/vercel.json)"
+     else
+       echo "⚠️ $APP_NAME: vercel.json が存在しません。Git自動デプロイが有効な可能性があります"
+     fi
+   done
+   ```
+   > **重要**: デプロイはGitHub Actions（`vercel build --prebuilt` + `vercel deploy`）で一元管理しているため、VercelのGit Integration自動デプロイは無効にする。有効のままだと二重デプロイが発生する。
+
 5. **プロジェクトID/ORG IDを自動取得・表示**:
    ```bash
    # apps/ 配下のディレクトリを動的取得

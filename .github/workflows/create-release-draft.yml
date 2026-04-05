@@ -48,15 +48,98 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const { execSync } = require('child_process');
             const fs = require('fs');
             const path = require('path');
 
-            const changesetCount = parseInt('${{ steps.changesets.outputs.count }}', 10);
-            const cliChanged = parseInt('${{ steps.packages.outputs.cli_changed }}', 10);
-            const createAppChanged = parseInt('${{ steps.packages.outputs.create_app_changed }}', 10);
+            const baseSha = '${{ github.event.pull_request.base.sha }}';
+            const headSha = '${{ github.event.pull_request.head.sha }}';
+            const changesetCount = parseInt('${{ steps.changesets.outputs.count }}', 10) || 0;
+            const cliChanged = parseInt('${{ steps.packages.outputs.cli_changed }}', 10) || 0;
+            const createAppChanged = parseInt('${{ steps.packages.outputs.create_app_changed }}', 10) || 0;
 
+            // SHA validation
+            const shaRegex = /^[0-9a-f]{40}$/;
+            if (!shaRegex.test(baseSha) || !shaRegex.test(headSha)) {
+              core.warning('Invalid SHA format, skipping commit classification');
+            }
+
+            // 1. コミット一覧を取得（マージコミット除外、最大200件）
+            // NOTE: Draft段階ではgit logベースの分類プレビュー。昇格時にgenerateReleaseNotes APIで正式版に差し替え
+            let log = '';
+            try {
+              if (shaRegex.test(baseSha) && shaRegex.test(headSha)) {
+                log = execSync(
+                  `git log ${baseSha}...${headSha} --oneline --no-merges --max-count=200`,
+                { encoding: 'utf8', cwd: process.env.GITHUB_WORKSPACE }
+              ).trim();
+              } catch (e) {
+                core.warning(`Failed to get git log: ${e.message}`);
+              }
+            }
+
+            // 2. Conventional Commits分類
+            const categories = {
+              'New Features': [],
+              'Bug Fixes': [],
+              'Improvements': [],
+              'Documentation': [],
+              'Infrastructure': [],
+              'Tests': [],
+              'Other Changes': [],
+            };
+
+            const prefixMap = {
+              feat: 'New Features',
+              fix: 'Bug Fixes',
+              refactor: 'Improvements',
+              perf: 'Improvements',
+              style: 'Improvements',
+              docs: 'Documentation',
+              ci: 'Infrastructure',
+              build: 'Infrastructure',
+              chore: 'Infrastructure',
+              test: 'Tests',
+              revert: 'Other Changes',
+            };
+
+            if (log) {
+              for (const line of log.split('\n')) {
+                const spaceIdx = line.indexOf(' ');
+                if (spaceIdx === -1) continue;
+                const hash = line.substring(0, spaceIdx);
+                const msg = line.substring(spaceIdx + 1);
+                // スコープ付きConventional Commits対応: feat(auth): xxx
+                const match = msg.match(/^(\w+)(?:\([^)]+\))?:\s*(.+)/);
+                if (match) {
+                  const category = prefixMap[match[1]] || 'Other Changes';
+                  categories[category].push(`- ${match[2].trim()} (\`${hash}\`)`);
+                } else {
+                  categories['Other Changes'].push(`- ${msg} (\`${hash}\`)`);
+                }
+              }
+            }
+
+            // 3. Markdown生成
             let body = '';
 
+            // コミット分類セクション
+            const hasCommits = Object.values(categories).some(items => items.length > 0);
+            if (hasCommits) {
+              body += '## What\'s Changed\n\n';
+              for (const [title, items] of Object.entries(categories)) {
+                if (items.length > 0) {
+                  body += `### ${title}\n${items.join('\n')}\n\n`;
+                }
+              }
+            }
+
+            // セパレータ
+            if (hasCommits && (changesetCount > 0 || cliChanged > 0 || createAppChanged > 0)) {
+              body += '---\n\n';
+            }
+
+            // 既存: Changesetセクション
             if (changesetCount > 0) {
               body += '## Changesets\n\n';
               const changesetDir = '.changeset';
@@ -68,6 +151,7 @@ jobs:
               }
             }
 
+            // 既存: Package Changesセクション
             if (cliChanged > 0 || createAppChanged > 0) {
               body += '## Package Changes\n\n';
               if (cliChanged > 0) {
@@ -79,7 +163,7 @@ jobs:
               body += '\n';
             }
 
-            if (changesetCount === 0 && cliChanged === 0 && createAppChanged === 0) {
+            if (!body.trim()) {
               body = 'No release-worthy changes detected.\n';
             }
 

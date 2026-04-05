@@ -2,9 +2,19 @@ changelog:
   exclude:
     labels: ["dependencies", "skip-changelog"]
   categories:
+    - title: "Breaking Changes"
+      labels: ["breaking-change"]
     - title: "New Features"
-      labels: ["enhancement", "feature"]
+      labels: ["enhancement", "feature", "feat"]
     - title: "Bug Fixes"
       labels: ["bug", "fix"]
+    - title: "Improvements"
+      labels: ["refactor", "perf", "style"]
+    - title: "Documentation"
+      labels: ["docs", "documentation"]
+    - title: "Infrastructure"
+      labels: ["ci", "build", "chore", "infrastructure"]
+    - title: "Tests"
+      labels: ["test", "testing"]
     - title: "Other Changes"
       labels: ["*"]

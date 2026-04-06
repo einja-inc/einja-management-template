@@ -410,7 +410,7 @@ async function updateTemplate(options: TemplateUpdateOptions): Promise<void> {
       // 元ファイルの実行権限を保持
       const srcStat = await fse.stat(srcPath);
       if (srcStat.mode & 0o111) {
-        await fse.chmod(destPath, srcStat.mode);
+        await fse.chmod(destPath, srcStat.mode & 0o777);
       }
 
       copiedCount++;

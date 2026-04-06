@@ -1,6 +1,6 @@
 ---
 name: einja-issue-exec
-description: "GitHub Issueの全タスクを並列実行するコマンド。Manager→Workerの2階層でIssueの全タスクを並列実行。tmux環境ではtmux windowで可視化、tmuxなし環境ではAgent toolで自動フォールバック。ARGUMENTS: 自然言語でIssue番号や実行オプションを指定（例: '#123 autoで全部やって', '45番 phase2まで'）"
+description: "GitHub Issueの全タスクを並列実行するコマンド。Manager→Workerの2階層でIssueの全タスクを並列実行。tmux環境ではペイン分割で可視化、tmuxなし環境ではAskUserQuestionで実行モードを選択。ARGUMENTS: 自然言語でIssue番号や実行オプションを指定（例: '#123 autoで全部やって', '45番 phase2まで'）"
 user-invocable: true
 allowed-tools:
   - Task
@@ -298,7 +298,7 @@ fi
 # tmux pane で claude 起動（$EINJA_TMUX_SESSION, $EINJA_TMUX_WINDOW は Step 5 冒頭で設定済み）
 # 現在のウィンドウを水平分割してWorkerペインを作成
 WORKER_PANE=$(tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y} -P -F '#{pane_id}')
-tmux send-keys -t "$WORKER_PANE" 'claude' Enter
+tmux send-keys -t "$WORKER_PANE" 'claude --dangerously-skip-permissions' Enter
 
 # einja-task-exec Skill を実行
 tmux send-keys -t "$WORKER_PANE" '/einja-task-exec #{N} {X.Y}' Enter
@@ -354,7 +354,7 @@ Manager は以下を定期的に監視:
    - 他 active Phase への変更伝播通知
 
 5. **Worker 消失検知**（30秒間隔）:
-   - Worker の tmux window が消失した場合のリカバリ処理
+   - Worker の tmux pane が消失した場合のリカバリ処理（`tmux display-message -t "$WORKER_PANE" -p '#P' 2>/dev/null` で存在確認）
    - Worker のステータスを確認 → 未完了 Worker のみ再実行
    - リトライポリシー（fixCount / retryCount の上限、エスカレーション条件）は issue-exec-protocol.md を参照
 
@@ -504,10 +504,10 @@ result の値:
 
 | 障害 | 検知方法 | リカバリ |
 |---|---|---|
-| Worker異常終了（PR作成前・tmux） | tmux window消失 + ステータス未更新 | Managerが自力リトライ → 上限超過時はユーザーにエスカレーション |
+| Worker異常終了（PR作成前・tmux） | tmux pane消失 + ステータス未更新 | Managerが自力リトライ → 上限超過時はユーザーにエスカレーション |
 | Worker異常終了（PR作成前・Agent tool） | Agent tool エラー応答 | Managerがリトライ判定 → 上限超過時はユーザーにエスカレーション |
-| Worker異常終了（PR作成済み） | tmux window消失 or Agent tool エラー + PRあり | スキップ（PRマージ待ち継続） |
-| Worker異常終了（修正中・tmux） | tmux window消失 + status=awaiting_review + directorVerdict=fix_required | Managerが自力リトライ（fixCount引き継ぎ）→ 上限超過時はユーザーにエスカレーション |
+| Worker異常終了（PR作成済み） | tmux pane消失 or Agent tool エラー + PRあり | スキップ（PRマージ待ち継続） |
+| Worker異常終了（修正中・tmux） | tmux pane消失 + status=awaiting_review + directorVerdict=fix_required | Managerが自力リトライ（fixCount引き継ぎ）→ 上限超過時はユーザーにエスカレーション |
 | Worker異常終了（修正中・Agent tool） | Agent tool エラー応答 + directorVerdict=fix_required | Managerが再起動（fixCount引き継ぎ）→ 上限超過時はユーザーにエスカレーション |
 | Manager異常終了 | ユーザー手動 | `--resume` でセッション復元 |
 | rebaseコンフリクト | git rebase失敗 | einja-conflict-resolver Skillで自力解消 |
@@ -566,7 +566,7 @@ fi
 
 # 2. tmux pane で claude 起動（$EINJA_TMUX_SESSION, $EINJA_TMUX_WINDOW は Step 5 冒頭で設定済み）
 WORKER_PANE=$(tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y} -P -F '#{pane_id}')
-tmux send-keys -t "$WORKER_PANE" 'claude' Enter
+tmux send-keys -t "$WORKER_PANE" 'claude --dangerously-skip-permissions' Enter
 
 # 3. einja-task-exec Skill を実行
 # claude 起動後に以下を送信:
@@ -584,7 +584,7 @@ Issue完了時に以下を自動削除:
 
 ## 注意事項
 
-- 全プロセスは**対話モード**（`claude`、非 `-p`）で起動。質問エスカレーションのため
+- 全プロセスは**対話モード**（`claude --dangerously-skip-permissions`、非 `-p`）で起動。質問エスカレーションのため。`--dangerously-skip-permissions` を使用するため、Workerプロセスは確認プロンプトなしで全ツールを実行する。CLAUDE.mdのgit安全ルールへの準拠はプロンプト指示に依存する
 - Worker 内部のタスク並列実行は既存の einja-task-exec Skill フロー（Task ツール + run_in_background）をそのまま活用
 - ステータスファイルの `status.json` 更新には `flock` による排他制御を使用
 - 質問ファイルは1ファイル1質問のためロック不要（UUID でアトミック書き込み）

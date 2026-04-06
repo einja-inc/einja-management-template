@@ -146,6 +146,7 @@ APIエンドポイントやアプリケーション機能の実装レビュー�
 | TSXコンポーネントファイル | PascalCase | `UserProfile.tsx`, `MagicLinkForm.tsx` |
 | 関数名 | camelCase | `getUserById`, `sendMagicLink` |
 | 変数名 | camelCase | `userData`, `magicLinkToken` |
+| type/interfaceフィールド名 | camelCase | `sessionId`, `repoPath`（snake_case禁止） |
 | クラス名 | PascalCase | `UserService`, `MagicLinkValidator` |
 | `as const`をつける定数名 | UPPER_SNAKE_CASE | `API_ENDPOINTS`, `DEFAULT_TIMEOUT` |
 
@@ -153,6 +154,8 @@ APIエンドポイントやアプリケーション機能の実装レビュー�
 
 - [ ] **明確で具体的**: 変数、メソッド、クラス名が役割を正確に伝えているか
 - [ ] **一貫性**: 上記の命名規則や用語が一貫しているか
+- [ ] **フィールド名のsnake_case禁止**: type/interfaceのフィールド名がsnake_caseになっていないか（camelCaseを使用）
+- [ ] **typeの使用**: 型定義にinterfaceではなくtypeを使用しているか
 - [ ] **副作用の明示**: 副作用のあるメソッドには動詞を使用しているか
 - [ ] **驚き最小の原則**: 名前から期待される動作と実際の動作が一致しているか
 

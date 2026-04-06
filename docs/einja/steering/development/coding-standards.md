@@ -408,20 +408,22 @@ function isValidUser(user: User): boolean { }
 function hasPermission(user: User, action: string): boolean { }
 ```
 
-#### インターフェース・型名
+#### 型定義（type vs interface）
+
+**`type` を使用すること。`interface` は使用しない。**
 
 ```typescript
-// ✅ PascalCase
-interface User {
+// ✅ type を使用
+type User = {
   id: string;
   name: string;
-}
+};
 
 // ✅ Props は "Props" サフィックス
-interface UserCardProps {
+type UserCardProps = {
   user: User;
   onEdit?: () => void;
-}
+};
 
 // ✅ 型は Type サフィックス（必要に応じて）
 type ApiResponseType<T> = {
@@ -432,6 +434,26 @@ type ApiResponseType<T> = {
 // ✅ Union型は具体的な名前
 type ButtonVariant = 'primary' | 'secondary' | 'danger';
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+// ❌ interface は使用しない
+// interface User { id: string; name: string; }
+```
+
+#### フィールド名
+
+```typescript
+// ✅ フィールド名は camelCase
+type SessionData = {
+  sessionId: string;
+  repoPath: string;
+  createdAt: Date;
+};
+
+// ❌ snake_case は禁止
+// type SessionData = {
+//   session_id: string;
+//   repo_path: string;
+// };
 ```
 
 ### コメント規約

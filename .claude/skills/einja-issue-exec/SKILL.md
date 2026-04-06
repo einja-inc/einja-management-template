@@ -262,10 +262,12 @@ tmuxセッションを作成し、Worker を tmux pane で起動する:
 if [ -n "$TMUX" ]; then
   EINJA_TMUX_SESSION=$(tmux display-message -p '#S')
   EINJA_TMUX_WINDOW=$(tmux display-message -p '#I')
+  MANAGER_PANE=$(tmux display-message -p '#{pane_id}')
 else
   EINJA_TMUX_SESSION="einja-{issue番号}"
   tmux new-session -d -s "$EINJA_TMUX_SESSION" -n manager -c ~/.einja/worktrees/issue-{N}/manager
   EINJA_TMUX_WINDOW="0"
+  MANAGER_PANE="%0"
 fi
 
 # タスクブランチ作成（冪等）
@@ -300,11 +302,15 @@ fi
 # tmux pane で claude 起動（$EINJA_TMUX_SESSION, $EINJA_TMUX_WINDOW は Step 5 冒頭で設定済み）
 # 現在のウィンドウを水平分割してWorkerペインを作成
 WORKER_PANE=$(tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y} -P -F '#{pane_id}')
+# ManagerペインIDを環境変数としてWorkerに渡す（完了通知用）
+tmux send-keys -t "$WORKER_PANE" "export EINJA_MANAGER_PANE=$MANAGER_PANE" Enter
 tmux send-keys -t "$WORKER_PANE" 'claude --dangerously-skip-permissions' Enter
 
 # einja-task-exec Skill を実行
 tmux send-keys -t "$WORKER_PANE" '/einja-task-exec #{N} {X.Y}' Enter
 ```
+
+> **Worker完了通知**: einja-task-exec Skillはステータスファイル更新後に `tmux send-keys -t "$EINJA_MANAGER_PANE" "" Enter` でManagerをトリガーする。`$EINJA_MANAGER_PANE` が未設定の場合（Agent toolモード等）はスキップする。
 
 #### Agent toolモード（executionMode = "agent-tool"）
 
@@ -335,14 +341,15 @@ Agent tool（`isolation: "worktree"`）でWorkerを起動する:
 
 #### tmuxモード
 
-Manager は以下を定期的に監視:
+Manager は以下を監視:
 
-1. **ステータスファイル監視**（30秒間隔）:
-   - 各 Worker の task-{X.Y}.json をチェック
+1. **ステータスファイル監視**（イベント駆動 + 60秒フォールバック）:
+   - **通常**: Workerがステータスファイル更新後に `tmux send-keys -t "$MANAGER_PANE" "" Enter` でManagerをトリガー
+   - **フォールバック**: 60秒間隔のポーリングで未検知の変更を拾う
    - Worker 完了を検知したらゲートチェック実施（下記参照）
    - 質問ファイルの pending 状態を検知
 
-2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知 → 完了したworktree削除
+2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
 
 3. **質問エスカレーション処理**:
    - `~/.einja/sessions/issue-{N}/questions/` の pending 質問を検知

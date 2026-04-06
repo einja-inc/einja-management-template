@@ -407,6 +407,12 @@ async function updateTemplate(options: TemplateUpdateOptions): Promise<void> {
       // ファイルを書き込み
       await fse.writeFile(destPath, transformed, "utf-8");
 
+      // 元ファイルの実行権限を保持
+      const srcStat = await fse.stat(srcPath);
+      if (srcStat.mode & 0o111) {
+        await fse.chmod(destPath, srcStat.mode);
+      }
+
       copiedCount++;
       if (wasTransformed) {
         transformedCount++;

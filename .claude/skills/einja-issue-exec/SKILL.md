@@ -297,8 +297,7 @@ fi
 
 # tmux pane で claude 起動（$EINJA_TMUX_SESSION, $EINJA_TMUX_WINDOW は Step 5 冒頭で設定済み）
 # 現在のウィンドウを水平分割してWorkerペインを作成
-tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y}
-WORKER_PANE=$(tmux display-message -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -p '#{pane_id}')
+WORKER_PANE=$(tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y} -P -F '#{pane_id}')
 tmux send-keys -t "$WORKER_PANE" 'claude' Enter
 
 # einja-task-exec Skill を実行
@@ -566,8 +565,7 @@ else
 fi
 
 # 2. tmux pane で claude 起動（$EINJA_TMUX_SESSION, $EINJA_TMUX_WINDOW は Step 5 冒頭で設定済み）
-tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y}
-WORKER_PANE=$(tmux display-message -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -p '#{pane_id}')
+WORKER_PANE=$(tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y} -P -F '#{pane_id}')
 tmux send-keys -t "$WORKER_PANE" 'claude' Enter
 
 # 3. einja-task-exec Skill を実行

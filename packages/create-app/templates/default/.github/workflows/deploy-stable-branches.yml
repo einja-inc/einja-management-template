@@ -394,6 +394,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup
+        uses: ./.github/actions/setup
+
       - name: Resolve merged PR number
         id: pr
         uses: actions/github-script@v7
@@ -405,7 +408,34 @@ jobs:
               commit_sha: context.sha
             });
             const merged = prs.data.find(p => p.merged_at && p.base.ref === 'staging');
-            core.setOutput('pr_number', merged ? merged.number : '');
+
+            if (merged) {
+              core.setOutput('pr_number', merged.number.toString());
+            } else {
+              // Fallback: search for draft releases tagged draft-pr-*
+              core.warning('No merged PR found via commit SHA, searching draft releases...');
+              const releases = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 20,
+              });
+              const drafts = releases.data
+                .filter(r => r.draft && r.tag_name.startsWith('draft-pr-'))
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+              if (drafts.length > 0) {
+                const prNum = drafts[0].tag_name.replace('draft-pr-', '');
+                if (!/^\d+$/.test(prNum)) {
+                  core.warning(`Invalid PR number extracted: ${prNum}`);
+                  core.setOutput('pr_number', '');
+                } else {
+                  core.warning(`Resolved PR #${prNum} from draft release fallback (${drafts.length} draft(s) found)`);
+                  core.setOutput('pr_number', prNum);
+                }
+              } else {
+                core.setOutput('pr_number', '');
+              }
+            }
 
       - name: Check for changesets
         id: check
@@ -447,6 +477,31 @@ jobs:
               }
 
               if (draft) {
+                // Generate release notes (after tag push)
+                let releaseBody = '';
+                try {
+                  const releases = await github.rest.repos.listReleases({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    per_page: 10,
+                  });
+                  // staging: find previous release (any non-draft)
+                  const previousRelease = releases.data.find(r => !r.draft && r.tag_name !== tag);
+                  const previousTag = previousRelease ? previousRelease.tag_name : undefined;
+
+                  const notesResp = await github.rest.repos.generateReleaseNotes({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    tag_name: tag,
+                    target_commitish: context.sha,
+                    ...(previousTag ? { previous_tag_name: previousTag } : {}),
+                  });
+                  releaseBody = notesResp.data.body;
+                } catch (e) {
+                  core.warning(`Failed to generate release notes: ${e.message}`);
+                  releaseBody = draft.body || '';
+                }
+
                 // Tag already exists from git push above, just update the release
                 await github.rest.repos.updateRelease({
                   owner: context.repo.owner,
@@ -454,6 +509,7 @@ jobs:
                   release_id: draft.id,
                   tag_name: tag,
                   name: `Pre-release ${tag}`,
+                  body: releaseBody,
                   draft: false,
                   prerelease: true,
                   target_commitish: context.sha
@@ -494,44 +550,102 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cleanup draft release (no changesets)
+      - name: Auto-generate changeset and promote (no changesets)
         if: steps.check.outputs.has_changesets == 'false' && steps.pr.outputs.pr_number
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             const prNumber = '${{ steps.pr.outputs.pr_number }}';
             const draftTag = `draft-pr-${prNumber}`;
 
-            // Delete draft release
+            // Check if draft release exists
+            let draft = null;
             try {
               const resp = await github.rest.repos.getReleaseByTag({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag: draftTag
               });
-              await github.rest.repos.deleteRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: resp.data.id,
-              });
-              core.info(`Deleted draft release for PR #${prNumber}`);
+              draft = resp.data;
             } catch (e) {
               if (e.status !== 404) throw e;
               core.info('No draft release found, skipping');
+              return;
             }
 
-            // Delete temp tag
+            // Auto-generate patch changeset
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const pkgName = pkg.name;
+            const changesetContent = `---\n"${pkgName}": patch\n---\n\nRelease from PR #${prNumber}\n`;
+            fs.writeFileSync('.changeset/auto-release.md', changesetContent);
+            core.info(`Generated changeset for ${pkgName}`);
+
+            // Run changeset version
+            await exec.exec('npx', ['changeset', 'version']);
+
+            // Read new version
+            const updatedPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const version = updatedPkg.version;
+            const tag = `v${version}-rc.${{ github.run_number }}`;
+
+            // Git commit, tag, push
+            await exec.exec('git', ['config', 'user.name', 'github-actions[bot]']);
+            await exec.exec('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']);
+            await exec.exec('git', ['add', 'package.json', 'pnpm-lock.yaml', '.changeset/', 'CHANGELOG.md']);
+            await exec.exec('git', ['commit', '-m', `chore: release ${tag}`]);
+            await exec.exec('git', ['tag', tag]);
+            await exec.exec('git', ['push', 'origin', 'staging', '--follow-tags']);
+
+            // Generate release notes
+            let releaseBody = '';
+            try {
+              const releases = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 10,
+              });
+              const previousRelease = releases.data.find(r => !r.draft && r.tag_name !== tag);
+              const previousTag = previousRelease ? previousRelease.tag_name : undefined;
+
+              const notesResp = await github.rest.repos.generateReleaseNotes({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                target_commitish: context.sha,
+                ...(previousTag ? { previous_tag_name: previousTag } : {}),
+              });
+              releaseBody = notesResp.data.body;
+            } catch (e) {
+              core.warning(`Failed to generate release notes: ${e.message}`);
+              releaseBody = draft.body || '';
+            }
+
+            // Promote draft release
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: draft.id,
+              tag_name: tag,
+              name: `Pre-release ${tag}`,
+              body: releaseBody,
+              draft: false,
+              prerelease: true,
+              target_commitish: context.sha
+            });
+
+            // Delete old temp tag
             try {
               await github.rest.git.deleteRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 ref: `tags/${draftTag}`
               });
-              core.info(`Deleted tag ${draftTag}`);
             } catch (e) {
-              if (e.status !== 404 && e.status !== 422) throw e;
-              core.info(`Tag ${draftTag} already deleted or not found`);
+              core.warning(`Failed to delete temp tag ${draftTag}: ${e.message}`);
             }
+
+            core.info(`Promoted draft release to pre-release ${tag}`);
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -688,7 +802,34 @@ jobs:
               commit_sha: context.sha
             });
             const merged = prs.data.find(p => p.merged_at && p.base.ref === 'main');
-            core.setOutput('pr_number', merged ? merged.number : '');
+
+            if (merged) {
+              core.setOutput('pr_number', merged.number.toString());
+            } else {
+              // Fallback: search for draft releases tagged draft-pr-*
+              core.warning('No merged PR found via commit SHA, searching draft releases...');
+              const releases = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 20,
+              });
+              const drafts = releases.data
+                .filter(r => r.draft && r.tag_name.startsWith('draft-pr-'))
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+              if (drafts.length > 0) {
+                const prNum = drafts[0].tag_name.replace('draft-pr-', '');
+                if (!/^\d+$/.test(prNum)) {
+                  core.warning(`Invalid PR number extracted: ${prNum}`);
+                  core.setOutput('pr_number', '');
+                } else {
+                  core.warning(`Resolved PR #${prNum} from draft release fallback (${drafts.length} draft(s) found)`);
+                  core.setOutput('pr_number', prNum);
+                }
+              } else {
+                core.setOutput('pr_number', '');
+              }
+            }
 
       - name: Check for changesets
         id: check
@@ -738,6 +879,31 @@ jobs:
               }
 
               if (draft) {
+                // Generate release notes (after tag push)
+                let releaseBody = '';
+                try {
+                  const releases = await github.rest.repos.listReleases({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    per_page: 10,
+                  });
+                  // production: find previous non-draft, non-prerelease release
+                  const previousRelease = releases.data.find(r => !r.draft && !r.prerelease && r.tag_name !== tag);
+                  const previousTag = previousRelease ? previousRelease.tag_name : undefined;
+
+                  const notesResp = await github.rest.repos.generateReleaseNotes({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    tag_name: tag,
+                    target_commitish: context.sha,
+                    ...(previousTag ? { previous_tag_name: previousTag } : {}),
+                  });
+                  releaseBody = notesResp.data.body;
+                } catch (e) {
+                  core.warning(`Failed to generate release notes: ${e.message}`);
+                  releaseBody = draft.body || '';
+                }
+
                 // Update the draft release to the real tag
                 await github.rest.repos.updateRelease({
                   owner: context.repo.owner,
@@ -745,6 +911,7 @@ jobs:
                   release_id: draft.id,
                   tag_name: tag,
                   name: `Release ${tag}`,
+                  body: releaseBody,
                   draft: false,
                   prerelease: false,
                   target_commitish: context.sha
@@ -783,43 +950,101 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cleanup draft release (no changesets)
+      - name: Auto-generate changeset and promote (no changesets)
         if: steps.check.outputs.has_changesets == 'false' && steps.pr.outputs.pr_number
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             const prNumber = '${{ steps.pr.outputs.pr_number }}';
             const draftTag = `draft-pr-${prNumber}`;
 
-            // Delete draft release
+            // Check if draft release exists
+            let draft = null;
             try {
               const resp = await github.rest.repos.getReleaseByTag({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag: draftTag
               });
-              await github.rest.repos.deleteRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: resp.data.id,
-              });
-              core.info(`Deleted draft release for PR #${prNumber}`);
+              draft = resp.data;
             } catch (e) {
               if (e.status !== 404) throw e;
               core.info('No draft release found, skipping');
+              return;
             }
 
-            // Delete temp tag
+            // Auto-generate patch changeset
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const pkgName = pkg.name;
+            const changesetContent = `---\n"${pkgName}": patch\n---\n\nRelease from PR #${prNumber}\n`;
+            fs.writeFileSync('.changeset/auto-release.md', changesetContent);
+            core.info(`Generated changeset for ${pkgName}`);
+
+            // Run changeset version
+            await exec.exec('npx', ['changeset', 'version']);
+
+            // Read new version
+            const updatedPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const version = updatedPkg.version;
+            const tag = `v${version}`;
+
+            // Git commit, tag, push
+            await exec.exec('git', ['config', 'user.name', 'github-actions[bot]']);
+            await exec.exec('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']);
+            await exec.exec('git', ['add', 'package.json', 'pnpm-lock.yaml', '.changeset/', 'CHANGELOG.md']);
+            await exec.exec('git', ['commit', '-m', `chore: release ${tag}`]);
+            await exec.exec('git', ['tag', tag]);
+            await exec.exec('git', ['push', 'origin', 'main', '--follow-tags']);
+
+            // Generate release notes
+            let releaseBody = '';
+            try {
+              const releases = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 10,
+              });
+              const previousRelease = releases.data.find(r => !r.draft && !r.prerelease && r.tag_name !== tag);
+              const previousTag = previousRelease ? previousRelease.tag_name : undefined;
+
+              const notesResp = await github.rest.repos.generateReleaseNotes({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                target_commitish: context.sha,
+                ...(previousTag ? { previous_tag_name: previousTag } : {}),
+              });
+              releaseBody = notesResp.data.body;
+            } catch (e) {
+              core.warning(`Failed to generate release notes: ${e.message}`);
+              releaseBody = draft.body || '';
+            }
+
+            // Promote draft release
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: draft.id,
+              tag_name: tag,
+              name: `Release ${tag}`,
+              body: releaseBody,
+              draft: false,
+              prerelease: false,
+              target_commitish: context.sha
+            });
+
+            // Delete old temp tag
             try {
               await github.rest.git.deleteRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 ref: `tags/${draftTag}`
               });
-              core.info(`Deleted tag ${draftTag}`);
             } catch (e) {
-              if (e.status !== 404 && e.status !== 422) throw e;
-              core.info(`Tag ${draftTag} already deleted or not found`);
+              core.warning(`Failed to delete temp tag ${draftTag}: ${e.message}`);
             }
+
+            core.info(`Promoted draft release to ${tag}`);
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

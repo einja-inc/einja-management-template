@@ -49,7 +49,7 @@ Agent Teams の共有TaskListとself-claimによるワーカープール方式�
 |------|------|-----------|-----|
 | Issue番号 | Yes | - | `#123`, `45番`, `issue 78` |
 | マージモード | No | `manual` | `auto`, `task-group-auto`, `manual` |
-| 実行範囲（max-phase） | No | 全Phase | `phase2まで`, `phase1のみ` |
+| 実行範囲（max-phase） | No | Phase 1のみ | `phase2まで`, `phase1のみ`, `全部` |
 | ベースブランチ | No | `main` | `develop`, `feature/xxx` |
 | セッション復旧 | No | `false` | `resume`, `再開`, `途中から` |
 
@@ -404,8 +404,24 @@ git push -u origin "$BRANCH" 2>/dev/null || true
 
 ---
 
-## Step 7: 全Phase完了 → 最終PR
+## Step 7: Phase完了 → 待機モード
 
+指定Phaseの実行が完了したら、**チームを維持したまま待機モード**に入る:
+
+1. Phase PR作成（未作成の場合）: einja-create-pr Skill で作成
+2. 完了報告をユーザーに表示（完了Phase、作成PR一覧、残りPhase）
+3. **AskUserQuestion で次のアクションを確認**:
+   - **次のPhaseを実行**: 次のPhaseの実行を開始。idle Director が新タスクを claim
+     - Note: 現在のPhaseがマージ済みであることを確認してから開始
+   - **修正を実施**: レビュー指摘やテスト結果に基づく修正を実行
+     - Note: 修正対象のPR番号・指摘内容を入力。該当Directorに修正指示を SendMessage
+   - **セッションを終了**: チーム解散・クリーンアップして終了
+     - Note: 後で `--resume` で再開も可能
+   - **その他（自由入力）**: 追加指示を入力
+
+## Step 8: 全Phase完了 → 最終PR・待機
+
+全Phaseが完了した場合:
 1. einja-create-pr Skill で最終PR作成:
    ```
    --auto --base ${baseBranch}
@@ -413,10 +429,16 @@ git push -u origin "$BRANCH" 2>/dev/null || true
    ```
 2. PR URL をユーザーに表示
 3. Issue にコメント追加（実行結果サマリ）
+4. **チームを維持したまま待機モード**に入る（クリーンアップしない）
+5. **AskUserQuestion で次のアクションを確認**:
+   - **修正を実施**: マージ後のレビュー指摘・テスト失敗への修正
+     - Note: 修正対象のPR番号・指摘内容を入力
+   - **セッションを終了**: チーム解散・クリーンアップして完全終了
+   - **その他（自由入力）**: 追加指示を入力
 
----
+## Step 9: クリーンアップ（ユーザー指示時のみ）
 
-## Step 8: クリーンアップ
+**ユーザーが明示的に「セッションを終了」を選択した場合のみ実行する。**
 
 1. 全 Director に `shutdown_request` を SendMessage で送信
 2. TeamDelete でチーム解散:

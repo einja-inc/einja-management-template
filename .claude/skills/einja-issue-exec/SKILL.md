@@ -76,10 +76,12 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 - header: "Phase範囲"
 - multiSelect: false
 - options:
-  1. label: "全Phase実行（推奨）"
-     description: "Issueに定義された全Phaseを順次実行する"
+  1. label: "Phase 1のみ（推奨）"
+     description: "Phase 1を実行し、完了後は待機モードに入る。レビュー・修正指示に対応可能"
   2. label: "特定Phaseまで"
-     description: "Phase番号を指定して途中まで実行。段階的に確認したい場合に有用（Other欄にPhase番号を入力）"
+     description: "Phase番号を指定して途中まで実行（Other欄にPhase番号を入力）。各Phase完了後に待機"
+  3. label: "全Phase実行"
+     description: "全Phaseを順次実行する。全完了後も待機モードに入り、レビュー指摘への修正に対応可能"
 
 #### Q3: ベースブランチ（未指定時のみ）
 - header: "Base branch"
@@ -373,11 +375,34 @@ Agent tool は完了時に結果を返すため、ポーリング不要:
 
 4. **リトライ**: Agent tool 再呼び出しで再起動
 
-### Step 7: 全Phase完了 → 最終PR
+### Step 7: Phase完了 → 待機モード
+
+指定Phaseの実行が完了したら、**セッションを維持したまま待機モード**に入る:
+
+1. Phase PR作成（未作成の場合）: `/einja-create-pr --auto --base issue/{N}`
+2. 完了報告をユーザーに表示:
+   - 完了したPhase番号、作成されたPR一覧
+   - 残りのPhase（ある場合）
+3. **AskUserQuestion で次のアクションを確認**:
+   - **次のPhaseを実行**: 次のPhaseの実行を開始
+     - Note: 現在のPhaseがマージ済みであることを確認してから開始
+   - **修正を実施**: レビュー指摘やテスト結果に基づく修正を実行
+     - Note: 修正対象のPR番号・指摘内容を入力。該当Workerを再起動して修正
+   - **セッションを終了**: worktree・セッションファイルをクリーンアップして終了
+     - Note: 後で `--resume` で再開も可能
+   - **その他（自由入力）**: 追加指示を入力
+
+### Step 8: 全Phase完了 → 最終PR・待機
+
+全Phaseが完了した場合:
 1. 最終PR作成: `/einja-create-pr --auto --base {baseBranch}` を実行
-   - changeset自動生成 + ラベル付与 + PR作成が一括実行される
 2. PR URL を表示
-3. セッションクリーンアップ（worktree 削除、セッションファイル削除）
+3. **セッションを維持したまま待機モード**に入る（クリーンアップしない）
+4. **AskUserQuestion で次のアクションを確認**:
+   - **修正を実施**: マージ後のレビュー指摘・テスト失敗への修正
+     - Note: 修正対象のPR番号・指摘内容を入力
+   - **セッションを終了**: クリーンアップして完全終了
+   - **その他（自由入力）**: 追加指示を入力
 
 ## マージモード詳細
 
@@ -575,7 +600,9 @@ tmux send-keys -t "$WORKER_PANE" '/einja-task-exec #{N} {X.Y}' Enter
 
 ## セッションクリーンアップ
 
-Issue完了時に以下を自動削除:
+**ユーザーが明示的に「セッションを終了」を選択した場合のみ実行する。** Phase完了・全Phase完了時には自動クリーンアップしない。
+
+以下を削除:
 - `~/.einja/sessions/issue-{N}/` （セッションファイル）
 - `~/.einja/worktrees/issue-{N}/` （worktree。事前に `git worktree remove` を各ディレクトリに対して実行）
   - `git worktree remove ~/.einja/worktrees/issue-{N}/task-{X.Y}`（Worker）

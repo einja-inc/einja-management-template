@@ -121,10 +121,9 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 
 1. `echo $TMUX` で現在 tmux セッション内かどうかを確認
 2. **セッション内の場合**: `executionMode = "tmux"` → tmuxモードで実行
-3. **セッション外の場合**: `executionMode = "agent-tool"` → Agent toolモードで自動フォールバック
-
-> Agent toolモードでは、tmux windowの代わりに Agent tool（`isolation: "worktree"`）でWorkerを起動する。
-> tmuxの可視性はないが、Agent tool の戻り値で完了検知・質問処理を行う。
+3. **セッション外の場合**: ユーザーに以下を案内して**停止**:
+   - 「tmuxセッション内で再実行してください。iTerm2をお使いの場合は `tmux -CC` で統合モードを推奨します（Workerがペイン分割で表示されます）」
+   - 代替: `einja-task-exec` Skill で逐次実行可能
 
 #### 2. ディレクトリ準備
 - `~/.einja/sessions/` と `~/.einja/worktrees/` ディレクトリを確認・作成
@@ -248,11 +247,20 @@ Managerは以下を直接実施する（旧Directorの責務を吸収）:
 
 #### tmuxモード（executionMode = "tmux"）
 
-tmuxセッションを作成し、Worker を tmux window で起動する:
+tmuxセッションを作成し、Worker を tmux pane で起動する:
 
 ```bash
-# tmuxセッション作成（初回のみ）
-tmux new-session -d -s einja-{issue番号} -n manager -c ~/.einja/worktrees/issue-{N}/manager
+# tmuxセッション初期化（初回のみ）
+# 既にtmuxセッション内にいる場合は現セッション内にペイン分割で起動、
+# tmux外から実行している場合のみ新規セッションを作成する
+if [ -n "$TMUX" ]; then
+  EINJA_TMUX_SESSION=$(tmux display-message -p '#S')
+  EINJA_TMUX_WINDOW=$(tmux display-message -p '#I')
+else
+  EINJA_TMUX_SESSION="einja-{issue番号}"
+  tmux new-session -d -s "$EINJA_TMUX_SESSION" -n manager -c ~/.einja/worktrees/issue-{N}/manager
+  EINJA_TMUX_WINDOW="0"
+fi
 
 # タスクブランチ作成（冪等）
 BRANCH="task/{N}-{X.Y}"
@@ -283,12 +291,14 @@ else
   git worktree add "$WORKTREE_PATH" "$BRANCH"
 fi
 
-# tmux window で claude 起動
-tmux new-window -t einja-{N} -n worker-{X.Y}
-tmux send-keys -t einja-{N}:worker-{X.Y} 'cd ~/.einja/worktrees/issue-{N}/task-{X.Y} && claude' Enter
+# tmux pane で claude 起動（$EINJA_TMUX_SESSION, $EINJA_TMUX_WINDOW は Step 5 冒頭で設定済み）
+# 現在のウィンドウを水平分割してWorkerペインを作成
+tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y}
+WORKER_PANE=$(tmux display-message -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -p '#{pane_id}')
+tmux send-keys -t "$WORKER_PANE" 'claude' Enter
 
 # einja-task-exec Skill を実行
-tmux send-keys -t einja-{N}:worker-{X.Y} '/einja-task-exec #{N} {X.Y}' Enter
+tmux send-keys -t "$WORKER_PANE" '/einja-task-exec #{N} {X.Y}' Enter
 ```
 
 #### Agent toolモード（executionMode = "agent-tool"）
@@ -551,13 +561,14 @@ else
   git worktree add "$WORKTREE_PATH" "$BRANCH"
 fi
 
-# 2. tmux window で claude 起動
-tmux new-window -t einja-{N} -n worker-{X.Y}
-tmux send-keys -t einja-{N}:worker-{X.Y} 'cd ~/.einja/worktrees/issue-{N}/task-{X.Y} && claude' Enter
+# 2. tmux pane で claude 起動（$EINJA_TMUX_SESSION, $EINJA_TMUX_WINDOW は Step 5 冒頭で設定済み）
+tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y}
+WORKER_PANE=$(tmux display-message -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -p '#{pane_id}')
+tmux send-keys -t "$WORKER_PANE" 'claude' Enter
 
 # 3. einja-task-exec Skill を実行
 # claude 起動後に以下を送信:
-tmux send-keys -t einja-{N}:worker-{X.Y} '/einja-task-exec #{N} {X.Y}' Enter
+tmux send-keys -t "$WORKER_PANE" '/einja-task-exec #{N} {X.Y}' Enter
 ```
 
 ## セッションクリーンアップ

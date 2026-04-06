@@ -26,7 +26,7 @@ export GITHUB_TOKEN=ghp_xxxxx
 ### 新規プロジェクト作成
 
 ```bash
-/einja:init
+/einja-dev-init
 ```
 
 対話形式でプロジェクト名・オプションを選択すると、以下が自動で行われます:
@@ -47,7 +47,7 @@ pnpm dev                       # PostgreSQL起動 + 開発サーバー起動
 ### テンプレート同期（定期的に実行）
 
 ```bash
-/einja:sync
+/einja-dev-sync
 ```
 
 カテゴリ選択式で `agents`, `skills`, `hooks`, `steering` 等を最新に更新します。コンフリクトも自動解消されます。
@@ -56,9 +56,8 @@ pnpm dev                       # PostgreSQL起動 + 開発サーバー起動
 
 | やりたいこと | コマンド |
 |-------------|---------|
-| 新規プロジェクトを作成したい | `/einja:init` |
-| Claude設定を最新に更新したい | `/einja:sync` |
-| プラグインの詳細を確認したい | `/einja:about` |
+| 新規プロジェクトを作成したい | `/einja-dev-init` |
+| Claude設定を最新に更新したい | `/einja-dev-sync` |
 
 > 📖 各シナリオのセットアップで何が実行されるかの詳細は [セットアップフローガイド](docs/einja/instructions/setup-flow.md) を参照してください。
 

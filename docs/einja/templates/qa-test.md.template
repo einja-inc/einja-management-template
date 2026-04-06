@@ -47,6 +47,7 @@ pnpm typecheck
 | AC-XXX-VAL-E-001 | VAL | 異常系 | 必須未入力時の阻止 | MUST | S3 |
 | AC-XXX-PERM-N-001 | PERM | 正常系 | 権限制御 | MUST | S4 |
 | AC-XXX-ERR-E-001 | ERR | 異常系 | API失敗時の表示 | MUST | S5 |
+| AC-XXX-UX-N-001 | UX | 正常系 | 多重送信防止 | SHOULD | S2 |
 
 ## シナリオ一覧
 

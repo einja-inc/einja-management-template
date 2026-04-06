@@ -265,17 +265,17 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
   - 以下のsteering文書を事前に読み込んでから作業すること:
     - `docs/einja/steering/development/pencil-design-management.md`
 
-**[並列-3] qa-generatorエージェント → qa-tests/**
+**[並列-3] qa-generatorエージェント → qa-test.md**
 1. requirements.mdの内容を参照（**design.mdは参照しない — 並列生成中のため**）
-2. **シナリオテスト（scenarios.md）**: 複数タスクをまたぐ継続操作フローのテスト仕様
-3. **Story別テスト仕様**: 各ユーザーストーリー（AC単位）のテスト仕様
-4. 受け入れ基準（AC）との対応付け
+2. `docs/einja/templates/qa-test.md.template` をテンプレートとして使用し、feature単位の単一QAテストファイルを生成
+3. 受け入れ基準（AC）との対応付け
 - **追加指示（呼び出し時にプロンプトに含める）**:
   - 以下のsteering文書を事前に読み込んでから作業すること:
     - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
     - `docs/einja/steering/development/testing-strategy.md`
+  - `docs/einja/templates/qa-test.md.template` をテンプレートとして使用し、feature単位の単一 `qa-test.md` ファイルを生成すること。
   - `AC一覧 → シナリオ一覧 → シナリオ詳細` の構造で QA 仕様を作成すること。
-  - QA仕様は最低限、`概要`、`テスト環境`、`AC一覧`、`シナリオ一覧`、各シナリオの `目的`、`関連AC`、`前提条件`、`テスト手順`、`結果` を持つこと。
+  - QA仕様は最低限、`概要`、`テスト環境`、`必須自動テスト結果`、`AC一覧`、`シナリオ一覧`、各シナリオの `目的`、`関連AC`、`前提条件`、`テスト手順`、`結果`、`統合テスト結果サマリー` を持つこと。
   - 各シナリオの `前提条件` には `テストデータ`、`ログインロール`、`依存` を必ず含めること。
   - `テスト手順` の表は `No / 手順 / 確認項目 / 期待値 / 結果 / 備考` を使用すること。
   - シナリオは Story単位ではなく、画面操作や契約確認のまとまりで切ること。
@@ -288,7 +288,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
 ##### パターンB: UI要件なし（二又並列）
 
 **[並列-1] design-generatorエージェント → design.md**（パターンAと同じ）
-**[並列-2] qa-generatorエージェント → qa-tests/**（パターンAの並列-3と同じ）
+**[並列-2] qa-generatorエージェント → qa-test.md**（パターンAの並列-3と同じ）
 
 ##### 三又（または二又）並列完了後の処理
 
@@ -300,7 +300,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
    - 全成果物を構造化フォーマットで一括提示:
      - **design.md**: パスと概要、確認ポイント（アーキテクチャの妥当性、API設計）
      - **ui-design.pen**（該当時のみ）: Pencil MCPのget_screenshotで各画面プレビュー、確認ポイント（レイアウト、コンポーネント選択）
-     - **qa-tests/**: ディレクトリ構成と概要、確認ポイント（テスト網羅性、AC対応、シナリオテストの妥当性）
+     - **qa-test.md**: 概要、確認ポイント（テスト網羅性、AC対応、シナリオテストの妥当性）
    - 承認後、一括コミット＆プッシュ
      - コミットメッセージ: `docs: {機能名}の設計・QAテスト仕様を追加`（ui-design含む場合: `docs: {機能名}の設計・UIデザイン・QAテスト仕様を追加`）
 
@@ -333,8 +333,8 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
 1. **tasks-generatorエージェントでタスク生成**
    - エージェント内で実装の影響範囲を分析
    - 実装タスクの分解と依存関係
-   - requirements.md、design.md、**qa-tests/scenarios.md**の内容を参照
-   - 各タスクに**シナリオテスト実施タイミング**を明記
+   - requirements.md、design.md、**qa-test.md**の内容を参照
+   - 各タスクに**QAテストシナリオ実施タイミング**を明記
    - **GitHub Issueの説明文にタスク一覧を記述**
    - **追加指示（呼び出し時にプロンプトに含める）**:
      - 🔴 **フォーマット厳守**: タスク一覧は必ず `_einja-issue-spec-tasks-generator` Skill（フロントマターでプリロード済み）のフォーマットに従うこと。特に: Phase見出しは `### Phase N:`、タスクグループは `- [ ] X.Y`、タスクは `  - X.Y.Z`、メタデータは `    - **太字キー**: 値` 形式。`Task X-Y` 形式や太字なしメタデータは即バリデーションエラーとなる。
@@ -394,8 +394,8 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
      - 要件ドキュメントへのリンク（requirements.mdまたはrequirements/README.md）
      - UIデザインへのリンク（ui-design.pen、存在する場合のみ）
      - 設計ドキュメントへのリンク（design.mdまたはdesign/README.md）
-     - QAテスト仕様へのリンク（qa-tests/scenarios.md）
-     - タスク一覧（Phase別チェックボックス形式、シナリオテスト実施タイミング明記）
+     - QAテスト仕様へのリンク（qa-test.md）
+     - タスク一覧（Phase別チェックボックス形式、QAテストシナリオ実施タイミング明記）
 
 6. **全ての仕様書作成が完了したことを報告**
    - GitHub Issue URLを明記
@@ -416,11 +416,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
         ├── requirements.md  # 要件定義書（ATDD形式）
         ├── ui-design.pen    # UIデザイン（UI関連のみ）
         ├── design.md        # 設計書（技術詳細）
-        └── qa-tests/        # QAテスト仕様
-            ├── scenarios.md # シナリオテスト（複数タスクをまたぐフロー）
-            ├── story{N}.md  # 各ストーリーのテスト仕様（AC単位）
-            └── evidence/    # エビデンス（スクリーンショット等）
-                └── story{N}/ # ストーリー別
+        └── qa-test.md       # QAテスト仕様（feature単位の単一ファイル、テンプレート: docs/einja/templates/qa-test.md.template）
 
 （注: タスク一覧はGitHub Issueに記述）
 ```
@@ -441,11 +437,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
         │   ├── architecture.md      # アーキテクチャ
         │   ├── implementation.md    # 実装詳細
         │   └── quality.md           # 品質と運用
-        └── qa-tests/                # QAテスト仕様
-            ├── scenarios.md         # シナリオテスト（複数タスクをまたぐフロー）
-            ├── story{N}.md          # 各ストーリーのテスト仕様（AC単位）
-            └── evidence/            # エビデンス（スクリーンショット等）
-                └── story{N}/        # ストーリー別
+        └── qa-test.md               # QAテスト仕様（feature単位の単一ファイル、テンプレート: docs/einja/templates/qa-test.md.template）
 
 （注: タスク一覧はGitHub Issueに記述）
 ```

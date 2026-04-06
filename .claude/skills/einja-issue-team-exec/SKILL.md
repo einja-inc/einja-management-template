@@ -83,6 +83,20 @@ echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
   または tmux版の einja-issue-exec Skill を使用してください。
   ```
 
+### 0-1.5. tmuxセッション確認（TEAMMATE_MODE=tmux時）
+
+```bash
+echo $CLAUDE_CODE_TEAMMATE_MODE
+echo $TMUX
+```
+
+- `CLAUDE_CODE_TEAMMATE_MODE=tmux` かつ `$TMUX` が空の場合: ユーザーに以下を案内して**停止**:
+  ```
+  tmuxセッション内で再実行してください。
+  iTerm2をお使いの場合は `tmux -CC` で統合モードを推奨します
+  （Teammateがペイン分割で表示されます）。
+  ```
+
 ### 0-2. GitHub CLI 確認
 
 ```bash

@@ -121,9 +121,13 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 
 1. `echo $TMUX` で現在 tmux セッション内かどうかを確認
 2. **セッション内の場合**: `executionMode = "tmux"` → tmuxモードで実行
-3. **セッション外の場合**: ユーザーに以下を案内して**停止**:
-   - 「tmuxセッション内で再実行してください。iTerm2をお使いの場合は `tmux -CC` で統合モードを推奨します（Workerがペイン分割で表示されます）」
-   - 代替: `einja-task-exec` Skill で逐次実行可能
+3. **セッション外の場合**: AskUserQuestionで確認:
+   - **tmuxモードで再実行（推奨）**: 「tmuxセッション内で再実行してください。iTerm2をお使いの場合は `tmux -CC` で統合モードを推奨します（Workerがペイン分割で表示されます）」→ 停止
+     - Note: Workerの進行状況がリアルタイムで見える。CLI環境向け
+   - **Agent toolモードで続行**: `executionMode = "agent-tool"` で実行を続行
+     - Note: Workerの可視性はないが、Desktop/VSCode等tmuxが使えない環境で利用可能
+   - **逐次実行に切り替え**: `einja-task-exec` Skill で1タスクずつ実行
+     - Note: 並列実行なし。最もシンプルだがタスク数が多いと時間がかかる
 
 #### 2. ディレクトリ準備
 - `~/.einja/sessions/` と `~/.einja/worktrees/` ディレクトリを確認・作成

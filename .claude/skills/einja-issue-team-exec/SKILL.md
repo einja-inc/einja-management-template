@@ -90,12 +90,11 @@ echo $CLAUDE_CODE_TEAMMATE_MODE
 echo $TMUX
 ```
 
-- `CLAUDE_CODE_TEAMMATE_MODE=tmux` かつ `$TMUX` が空の場合: ユーザーに以下を案内して**停止**:
-  ```
-  tmuxセッション内で再実行してください。
-  iTerm2をお使いの場合は `tmux -CC` で統合モードを推奨します
-  （Teammateがペイン分割で表示されます）。
-  ```
+- `CLAUDE_CODE_TEAMMATE_MODE=tmux` かつ `$TMUX` が空の場合: AskUserQuestionで確認:
+  - **tmuxモードで再実行（推奨）**: 「tmuxセッション内で再実行してください。iTerm2をお使いの場合は `tmux -CC` で統合モードを推奨します（Teammateがペイン分割で表示されます）」→ 停止
+    - Note: Teammateの進行状況がリアルタイムで見える。CLI環境向け
+  - **プロセス内モードで続行**: tmux統合なしでAgent Teamsを実行（Teammateはバックグラウンドプロセスとして起動）
+    - Note: Desktop/VSCode等tmuxが使えない環境で利用可能。Teammateの可視性は低い
 
 ### 0-2. GitHub CLI 確認
 

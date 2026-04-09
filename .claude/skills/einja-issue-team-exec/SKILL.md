@@ -279,9 +279,25 @@ Lead は TeamCreate 時に `Read(".claude/skills/einja-issue-team-exec/director-
 
 ---
 
-## Step 5: 監視（通知 + ポーリング）
+## Step 5: 監視（シグナルファイル + SendMessage）
 
 Lead の監視ループ:
+
+> **重要**: Leadの監視待機にはシグナルファイル方式を使用する。`sleep` によるポーリングは禁止。
+> ```bash
+> # シグナルファイル待機（最大120秒、2秒間隔チェック）
+> SIGNAL_DIR=~/.einja/sessions/issue-{N}/signals
+> mkdir -p "$SIGNAL_DIR"
+> for i in $(seq 1 60); do
+>   if ls "$SIGNAL_DIR"/*.signal 2>/dev/null | head -1; then
+>     rm -f "$SIGNAL_DIR"/*.signal
+>     echo "SIGNAL_RECEIVED"
+>     break
+>   fi
+>   sleep 2
+> done
+> ```
+> DirectorはSendMessageと併せて `touch ~/.einja/sessions/issue-{N}/signals/director-{ID}.signal` を実行する。
 
 ### 5-1. Director からの SendMessage 受信
 
@@ -327,7 +343,7 @@ Lead の監視ループ:
 
 | マージモード | 検知方法 |
 |------------|---------|
-| `manual` | `gh pr list --state merged` を30秒間隔ポーリング → マージ検知 |
+| `manual` | シグナルファイル待機（2秒間隔チェック、最大120秒）+ `gh pr list --state merged` で確認 |
 | `task-group-auto` | `gh pr merge --squash --auto` 実行 → CI通過で自動マージ |
 | `auto` | CI通過確認後に `gh pr merge --squash` 実行 |
 

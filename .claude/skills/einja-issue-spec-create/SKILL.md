@@ -13,6 +13,7 @@ TaskCreateツールを使用して全体の進捗を可視化し、ユーザー�
 - 各仕様書作成フェーズ（requirements.md、ui-design.pen、design.md、QAテスト仕様、GitHub Issueへのタスク記述）をトップレベルタスクとして管理
 - エージェント起動前にタスクを「in_progress」に更新
 - エージェント完了後に「completed」に更新
+- 各フェーズの成果物生成後にレビューゲート（`einja-review-spec`）を挿入し、レビュー中も進捗を更新
 - ユーザー承認待ちの状態も明示的に表示
 
 ## 命名規則
@@ -162,6 +163,21 @@ AskUserQuestion:
   - 🟡拡張推奨 → 既存Skill拡張の提案をユーザーに確認
   - ⚪不要 → そのまま次へ進む
 
+#### 0.6 フェーズレビューゲート
+
+各フェーズの成果物をユーザーに提示する**前**に、必ず `einja-review-spec` Skill を呼び出して多観点・並列レビューを行うこと。
+
+- Phase 1: `review_scope=requirements`
+- Phase 2: `review_scope=phase2_bundle`
+- Phase 3: `review_scope=tasks`
+
+レビュー結果の扱い:
+- **PASS**: そのままユーザー確認へ進む
+- **MINOR**: 可能な限り修正を反映してからユーザー確認へ進む
+- **MAJOR**: 先に修正し、再レビューを実施する（最大2回）
+
+`einja-review-spec` には、対象成果物のパス、ユーザー要求、要件ヒアリングサマリまたは差分サマリ、残存リスクを前置コンテキストとして渡すこと。Phase 2 では `ui-design.pen` のスクリーンショット要約も渡すこと。
+
 ### 1. 外部リソースの確認
 
 **AsanaタスクURL**の場合：
@@ -208,14 +224,19 @@ AskUserQuestion:
      - ACカテゴリは原則 `UI / NAV / VAL / ERR / PERM / UX` から選ぶこと。
      - AC本文は振る舞いの骨格だけを記述し、詳細条件は `→§N` の形で後続セクションに委譲すること。
      - AC詳細は `正常系` と `異常系` を分けること。
-2. **ユーザーに内容確認を依頼**
+2. **`einja-review-spec` Skillで並列レビューを実施**
+   - `review_scope=requirements`
+   - requirements.md の内容、要件ヒアリングサマリ、残存リスクを渡す
+   - **MAJOR** の場合は requirements-generator に修正指示を返し、再レビューする（最大2回）
+3. **ユーザーに内容確認を依頼**
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（要件の過不足、受け入れ基準の明確性など）
-3. **ユーザー承認後、コミット＆プッシュ**
+   - `einja-review-spec` が PASS/MINOR であることを明記する
+4. **ユーザー承認後、コミット＆プッシュ**
    - コミットメッセージ: `docs: {機能名}の要件を追加`
    - ブランチは `issue/{issue番号}` にプッシュ
    - 他のメンバーがレビューできるようにする
-4. **承認を得てから次のステップ（design.md）に進む**
+5. **承認を得てから次のステップ（design.md）に進む**
 
 #### Phase 2: 三又並列生成（design + ui-design + QA）
 
@@ -296,15 +317,22 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
    - designのAPIパス・画面名がQAシナリオで正しく参照されているか確認
    - 不整合がある場合は該当ファイルを修正
 
-2. **一括承認（ユーザー確認）**
+2. **`einja-review-spec` Skillで並列レビューを実施**
+   - `review_scope=phase2_bundle`
+   - requirements.md、design.md、qa-test.md、`ui-design.pen` がある場合はスクリーンショット要約を渡す
+   - design / qa / ui の用語・画面名・API名・外部API前提の不整合を重点確認する
+   - **MAJOR** の場合は該当エージェントに修正指示を返し、再レビューする（最大2回）
+
+3. **一括承認（ユーザー確認）**
    - 全成果物を構造化フォーマットで一括提示:
      - **design.md**: パスと概要、確認ポイント（アーキテクチャの妥当性、API設計）
      - **ui-design.pen**（該当時のみ）: Pencil MCPのget_screenshotで各画面プレビュー、確認ポイント（レイアウト、コンポーネント選択）
      - **qa-test.md**: 概要、確認ポイント（テスト網羅性、AC対応、シナリオテストの妥当性）
+   - `einja-review-spec` が PASS/MINOR であることを明記する
    - 承認後、一括コミット＆プッシュ
      - コミットメッセージ: `docs: {機能名}の設計・QAテスト仕様を追加`（ui-design含む場合: `docs: {機能名}の設計・UIデザイン・QAテスト仕様を追加`）
 
-3. **承認を得てから次のステップ（GitHub Issueへのタスク記述）に進む**
+4. **承認を得てから次のステップ（GitHub Issueへのタスク記述）に進む**
 
 #### Phase 3: GitHub Issueへのタスク記述
 
@@ -364,12 +392,18 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
 
 ##### 3.2 ユーザー確認
 
-4. **ユーザーに内容確認を依頼**
+4. **`einja-review-spec` Skillで並列レビューを実施**
+   - `review_scope=tasks`
+   - requirements.md、design.md、qa-test.md、タスク一覧本文を渡す
+   - tasks-validator合格後に実施し、ATDD粒度・依存関係・実行準備性を横断確認する
+   - **MAJOR** の場合は tasks-generator に修正指示を返し、再レビューする（最大2回）
+
+5. **ユーザーに内容確認を依頼**
    - 更新したGitHub IssueのURL（#{issue_number}）と概要を提示
    - 確認ポイントを明示（タスク分解の粒度、依存関係の妥当性など）
-   - **バリデーション合格済みであることを明記**
+   - **tasks-validator合格済み**かつ `einja-review-spec` が PASS/MINOR であることを明記
 
-5. **ユーザー承認後、以下の処理を実行**
+6. **ユーザー承認後、以下の処理を実行**
 
    a. **Issueブランチの確認**
    - 0.4でワークツリー内にIssueブランチ（`issue/{issue番号}`）は作成済み

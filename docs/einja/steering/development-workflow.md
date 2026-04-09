@@ -7,126 +7,105 @@
 
 本プロジェクトでは、Claude Codeを活用した自動化された開発ワークフローを採用しています。
 
-```
-仕様書作成（einja-issue-spec-create Skill）
-    ↓
-仕様書レビュー（Discord + Spec PR）
-    ↓
-タスク実行（/einja-issue-exec or einja-task-exec Skill）
-    ↓
-自己レビュー → PR作成（自動）
-    ↓
-コードレビュー（GitHub PR）
-    ↓
-マージ → 次タスク自動開始
+```mermaid
+flowchart TD
+    A["仕様書作成\n（einja-issue-spec-create Skill）"]
+    B["仕様書レビュー\n（Discord + Spec PR）"]
+    C["タスク実行\n（/einja-issue-exec or einja-task-exec Skill）"]
+    D["自己レビュー → PR作成（自動）"]
+    E["コードレビュー\n（GitHub PR）"]
+    F["マージ → 次タスク自動開始"]
+
+    A --> B --> C --> D --> E --> F
+
+    style B fill:#f9f,stroke:#333
+    style E fill:#f9f,stroke:#333
 ```
 
 ---
 
 ## 開発フロー全体図
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Phase A: 仕様書作成                                                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  einja-issue-spec-create Skill <タスク内容の説明またはAsanaタスクURL>                │
-│      │                                                                       │
-│      ├── 1. （AsanaURLの場合）Asanaからタスク情報取得                         │
-│      ├── 2. GitHub Issue作成                                                 │
-│      ├── 3. IssueBranchBase選択（AskUserQuestion）                           │
-│      ├── 4. issue/{番号}ブランチ作成（IssueBranchBaseから）                   │
-│      ├── 5. requirements.md作成 → ユーザー承認 → コミット                      │
-│      ├── 6. design.md作成 → ユーザー承認 → コミット                           │
-│      ├── 7. GitHub Issueにタスク一覧記述 → ユーザー承認                        │
-│      └── 8. Spec PR作成                                                     │
-│                                                                              │
-│  成果物:                                                                     │
-│  ├── docs/specs/issues/{カテゴリ}/issue{番号}-{機能名}/                       │
-│  │   ├── requirements.md                                                    │
-│  │   └── design.md                                                          │
-│  ├── GitHub Issue #{番号}（タスク一覧含む）                                    │
-│  └── Spec PR（仕様書レビュー用）                                              │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    ↓
-                      【Discordでスレッド作成・チームレビュー依頼】
-                                    ↓
-                          【人間が仕様書をレビュー・承認】
-                                    ↓
-                            Spec PRをマージ
-                                    ↓
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Phase B: タスク実行（/einja-issue-exec or einja-task-exec Skill）                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  /einja-issue-exec #<issue-number>                                          │
-│      │                                                                       │
-│      ├── Manager: Issue パース、Phase 毎に Director を tmux で起動            │
-│      │                                                                       │
-│      └── Director（Phase毎）────────────────────────────────┐               │
-│           │                                                   │               │
-│           ▼                                                   │               │
-│      ┌─────────────────────────────────────────────────────┐ │               │
-│      │ タスクグループを依存順に Worker を起動               │ │               │
-│      └─────────────────────────────────────────────────────┘ │               │
-│           │                                                   │               │
-│           ▼                                                   │               │
-│      ┌─────────────────────────────────────────────────────┐ │               │
-│      │ Worker（einja-task-exec Skill を実行）              │ │               │
-│      │                                                      │ │               │
-│      │  task-executer: 実装                                 │ │               │
-│      │       ↓                                              │ │               │
-│      │  task-reviewer: 設計との整合性チェック（自動）        │←┤ 問題時ループ  │
-│      │       ↓                                              │ │               │
-│      │  task-qa: 動作確認（Playwright/curl）（自動）        │←┘               │
-│      │       ↓ 全テスト合格                                 │                 │
-│      │  commit & push → PR 自動作成                         │                 │
-│      │       ↓                                              │                 │
-│      │  status → awaiting_review（Director承認待ち）        │                 │
-│      └─────────────────────────────────────────────────────┘                 │
-│           │                                                                   │
-│           ▼                                                                   │
-│      Director ゲートチェック                                                  │
-│      ├── Fast Gate: ステータス整合、PR整合、成果物存在、QA結果、CI、危険シグナル│
-│      ├── Risk Gate（条件付き）: 重要領域のスモークテスト                       │
-│      ├── 通過 → Worker正常終了                                                │
-│      └── 不通過 → Worker修正指示（最大2回）→ 3回目NG → Managerエスカレーション│
-│           │                                                                   │
-│           ▼                                                                   │
-│      【GitHubでPRレビュー】                                                   │
-│      ├── PRの内容を確認                                                       │
-│      └── マージモードに応じてマージ（manual / task-group-auto / auto）         │
-│           │                                                                   │
-│           ▼                                                                   │
-│      Director: PR マージ検知 → GitHub Issue チェックボックス更新              │
-│           │                                                                   │
-│      Phase全タスク完了？                                                      │
-│      ├─ Yes → Phase PR 作成（Phase → Issue ブランチ）                        │
-│      │        → マージモードに応じた処理                                      │
-│      └─ No  → 依存解除された次タスクの Worker を起動                          │
-│           │                                                                   │
-│           └──────────────────────────────────────────────────┘               │
-│                                                                              │
-│      全 Phase 完了 → 最終 PR 作成（Issue → base ブランチ）                    │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    ↓
-                     【PRレビュー・マージ → staging / main】
-                                    ↓
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Phase C: リリース（自動）                                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  staging マージ時:                                                           │
-│      → CI + Deploy（承認不要）                                               │
-│      → PreRelease 自動作成（v0.2.0-rc.42）                                   │
-│                                                                              │
-│  main マージ時（staging → main 昇格PR）:                                     │
-│      → CI + ⚠️承認待ち → Migrate + Deploy                                   │
-│      → changeset version → Release 自動作成（v0.2.0）                        │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+  subgraph PhaseA["Phase A: 仕様書作成"]
+    A1["1. Asanaからタスク情報取得\n（AsanaURLの場合）"]
+    A2["2. GitHub Issue作成"]
+    A3["3. IssueBranchBase選択\n（AskUserQuestion）"]
+    A4["4. issue/番号 ブランチ作成\n（IssueBranchBaseから）"]
+    A5["5. requirements.md作成\n→ 並列レビューゲート\n→ ユーザー承認 → コミット"]
+    A5b["6. ui-design.pen / design.md / qa-test.md作成\n→ 並列レビューゲート\n→ ユーザー承認 → コミット"]
+    A6["7. GitHub Issueにタスク一覧記述\n→ バリデーション\n→ 並列レビューゲート\n→ ユーザー承認"]
+    A8["8. Spec PR作成"]
+    A1 --> A2 --> A3 --> A4 --> A5 --> A5b --> A6 --> A8
+
+    AOut["成果物:\nrequirements.md / ui-design.pen / design.md\nGitHub Issue / Spec PR"]
+    A8 --> AOut
+  end
+
+  H1["Discordでスレッド作成・チームレビュー依頼"]
+  H2["人間が仕様書をレビュー・承認"]
+  H3["Spec PRをマージ"]
+  AOut --> H1 --> H2 --> H3
+
+  style H1 fill:#f9f,stroke:#333
+  style H2 fill:#f9f,stroke:#333
+  style H3 fill:#f9f,stroke:#333
+
+  subgraph PhaseB["Phase B: タスク実行（einja-issue-exec / einja-task-exec）"]
+    B1["Manager: Issueパース\nPhase毎にDirectorを起動"]
+
+    subgraph Director["Director（Phase毎）"]
+      D1["タスクグループを依存順にWorkerを起動"]
+
+      subgraph Worker["Worker（einja-task-exec）"]
+        W1["task-executer: 実装"]
+        W2["task-reviewer: 設計整合性チェック"]
+        W3["task-qa: 動作確認\n（Playwright/curl）"]
+        W4["commit & push → PR自動作成"]
+        W5["status → awaiting_review"]
+        W1 --> W2 --> W3 --> W4 --> W5
+        W2 -- "問題時ループ" --> W1
+        W3 -- "問題時ループ" --> W1
+      end
+
+      D1 --> W1
+      D2["Director ゲートチェック"]
+      W5 --> D2
+      D2 -- "Fast Gate / Risk Gate 通過" --> D3["Worker正常終了"]
+      D2 -- "不通過（最大2回修正）" --> W1
+      D2 -- "3回目NG" --> D4["Managerエスカレーション\n→ ユーザーに質問（AskUserQuestion）"]
+
+      D5["GitHubでPRレビュー"]
+      D3 --> D5
+      D5 --> D6["マージモードに応じてマージ\n（manual / task-group-auto / auto）"]
+      D6 --> D7["PR マージ検知\n→ Issue チェックボックス更新"]
+      D7 --> D8{"Phase全タスク完了?"}
+      D8 -- "Yes" --> D9["Phase PR作成\n（Phase → Issueブランチ）"]
+      D8 -- "No" --> D1
+    end
+
+    B1 --> D1
+    D9 --> B2{"全Phase完了?"}
+    B2 -- "No" --> B1
+    B2 -- "Yes" --> B3["最終PR作成\n（Issue → baseブランチ）"]
+  end
+
+  H3 --> B1
+
+  H4["PRレビュー・マージ → staging / main"]
+  B3 --> H4
+  style H4 fill:#f9f,stroke:#333
+
+  subgraph PhaseC["Phase C: リリース（自動）"]
+    C1["staging マージ時:\nCI + Deploy（承認不要）\n→ PreRelease自動作成\n（v0.2.0-rc.42）"]
+    C1h["昇格PR作成・レビュー・マージ"]
+    C2["main マージ時:\nCI + ⚠️承認待ち → Migrate + Deploy\n→ changeset version\n→ Release自動作成（v0.2.0）"]
+    C1 --> C1h --> C2
+    style C1h fill:#f9f,stroke:#333
+  end
+
+  H4 --> C1
 ```
 
 ---
@@ -149,13 +128,64 @@
 | 2        | Claude                | GitHub Issue作成                      |
 | 3        | Claude → **人間承認** | IssueBranchBase選択                   |
 | 4        | Claude                | `issue/{番号}`ブランチ作成            |
-| 5        | Claude → **人間承認** | requirements.md作成 → 確認 → コミット |
-| 6        | Claude → **人間承認** | ui-design.pen作成 → 確認 → コミット   |
-| 7        | Claude → **人間承認** | design.md作成 → 確認 → コミット       |
-| 8        | Claude → **人間承認** | GitHub Issueにタスク一覧記述          |
-| 9        | Claude                | **Spec PR作成**                       |
-| 10       | **人間**              | Discordでチームにレビュー依頼         |
-| 11       | **人間**              | Spec PRレビュー・承認・マージ         |
+| 5        | Claude → **並列レビューゲート** → **人間承認** | requirements.md作成 → `einja-review-spec` → 確認 → コミット |
+| 6        | Claude → **並列レビューゲート** → **人間承認** | ui-design.pen / design.md / qa-test.md作成 → `einja-review-spec` → 確認 → コミット |
+| 7        | Claude → **検証 + 並列レビューゲート** → **人間承認** | GitHub Issueにタスク一覧記述 → tasks-validator → `einja-review-spec` → 確認 |
+| 8        | Claude                | **Spec PR作成**                       |
+| 9        | **人間**              | Discordでチームにレビュー依頼         |
+| 10       | **人間**              | Spec PRレビュー・承認・マージ         |
+
+### コールフロー
+
+```mermaid
+sequenceDiagram
+    actor Dev as 開発者
+    participant Claude as Claude<br/>(einja-issue-spec-create)
+    participant GH as GitHub
+    participant Discord
+
+    rect rgb(230, 245, 255)
+        Note over Dev,GH: 情報取得・Issue作成
+        Dev->>Claude: タスク内容 or Asana URL
+        opt Asana URLの場合
+            Claude->>Claude: Asanaからタスク情報取得
+        end
+        Claude->>GH: GitHub Issue作成
+        Claude->>Dev: IssueBranchBase選択（AskUserQuestion）
+        Dev->>Claude: ブランチ選択
+        Claude->>GH: issue/{番号} ブランチ作成
+    end
+
+    rect rgb(230, 255, 230)
+        Note over Dev,GH: 仕様書作成（承認ループ）
+        Claude->>Claude: requirements.md 生成
+        Claude->>Claude: einja-review-spec\n(review_scope=requirements)
+        Claude->>Dev: requirements.md 提示
+        Dev->>Claude: 承認
+        Claude->>GH: コミット
+
+        Claude->>Claude: design/ui/qa 並列生成
+        Claude->>Claude: einja-review-spec\n(review_scope=phase2_bundle)
+        Claude->>Dev: ui-design.pen / design.md / qa-test.md 提示
+        Dev->>Claude: 承認
+        Claude->>GH: コミット
+
+        Claude->>Claude: tasks-generator
+        Claude->>Claude: tasks-validator
+        Claude->>Claude: einja-review-spec\n(review_scope=tasks)
+        Claude->>Dev: GitHub Issue タスク一覧 提示
+        Dev->>Claude: 承認
+        Claude->>GH: タスク一覧記述
+    end
+
+    rect rgb(255, 245, 230)
+        Note over Dev,Discord: PR作成・レビュー
+        Claude->>GH: Spec PR作成
+        Dev->>Discord: スレッド作成・レビュー依頼
+        Discord-->>Dev: チームレビュー
+        Dev->>GH: Spec PR レビュー・承認・マージ
+    end
+```
 
 ### 成果物
 
@@ -208,6 +238,77 @@ Spec PR                # 仕様書レビュー用
 
 ユーザーは `tmux attach -t einja-{issue番号}` で全プロセスを監視できます。
 
+### コールフロー
+
+```mermaid
+sequenceDiagram
+    actor User as 開発者
+    participant Mgr as Manager
+    participant Dir as Director
+    participant Wkr as Worker<br/>(einja-task-exec)
+    participant GH as GitHub
+
+    rect rgb(230, 245, 255)
+        Note over User,Mgr: 初期化
+        User->>Mgr: /einja-issue-exec #N
+        Mgr->>Mgr: Issue パース
+        Mgr->>Dir: Phase 毎に Director 起動（tmux）
+    end
+
+    rect rgb(230, 255, 230)
+        Note over Dir,GH: タスク実行ループ
+        Dir->>Dir: spec事前一括チェック + DAG構築
+        loop Layer 順にタスクグループ実行
+            Dir->>Wkr: Worker 起動
+
+            rect rgb(245, 245, 245)
+                Note over Wkr: 品質保証ループ
+                Wkr->>Wkr: task-executer（実装）
+                Wkr->>Wkr: task-reviewer（設計整合性チェック）
+                Wkr->>Wkr: task-qa（Playwright/curl 動作確認）
+                Note over Wkr: 問題発見時は task-executer に戻る
+            end
+
+            Wkr->>GH: commit & push → PR 自動作成
+            Wkr-->>Dir: status: awaiting_review
+        end
+    end
+
+    rect rgb(255, 245, 230)
+        Note over Dir,GH: ゲートチェック
+        Dir->>Dir: Fast Gate（ステータス/PR/成果物/QA/CI）
+        opt 重要領域
+            Dir->>Dir: Risk Gate（スモークテスト）
+        end
+        alt 通過
+            Dir-->>Wkr: approved
+        else 不通過（最大2回修正）
+            Dir-->>Wkr: fix_required
+            Wkr->>Wkr: 修正 → 再チェック
+        else 3回目NG
+            Dir-->>Mgr: エスカレーション
+            Mgr->>User: AskUserQuestion
+        end
+    end
+
+    rect rgb(255, 230, 255)
+        Note over User,GH: PRレビュー・マージ
+        alt manual モード
+            User->>GH: PRレビュー・マージ
+        else auto モード
+            Dir->>GH: PR 自動マージ
+        end
+        Dir->>GH: Issue チェックボックス更新
+        alt Phase 全タスク完了
+            Dir->>GH: Phase PR 作成
+        else 残タスクあり
+            Dir->>Wkr: 次タスクの Worker 起動
+        end
+    end
+
+    Note over Mgr,GH: 全 Phase 完了 → 最終 PR 作成（Issue → base）
+```
+
 ### `/einja-issue-exec` と `einja-task-exec` Skill の使い分け
 
 | 実行方法 | 用途 | 対象 | 推奨シーン |
@@ -228,36 +329,52 @@ Spec PR                # 仕様書レビュー用
 
 `task-reviewer`または`task-qa`で問題が発見された場合、自動的に`task-executer`に戻って修正が行われます。
 
-```
-task-executer → task-reviewer → task-qa → PR作成
-      ↑              │              │
-      └──────────────┴──────────────┘
-           問題発見時は自動ループ
+```mermaid
+stateDiagram-v2
+    [*] --> task_executer: 実装開始
+    task_executer --> task_reviewer: 実装完了
+    task_reviewer --> task_qa: レビュー通過
+    task_reviewer --> task_executer: 問題発見
+    task_qa --> pr_create: 全テスト合格
+    task_qa --> task_executer: 問題発見
+    pr_create --> [*]
+
+    pr_create: PR作成
 ```
 
 ### マージ後の自動処理（/einja-issue-exec 使用時）
 
-```
-Worker: task-exec 完了 → commit & push → PR 作成 → status: awaiting_review
-      ↓
-Director: ゲートチェック実施
-├── Fast Gate: ステータス整合、PR整合、成果物存在、QA結果、CI、危険シグナル
-├── Risk Gate（条件付き）: 重要領域のスモークテスト
-├── 通過 → directorVerdict: approved → Worker 正常終了
-└── 不通過 → directorVerdict: fix_required → Worker 修正（最大2回、fixCount で管理）
-      ↓ ゲート通過後
-Director: マージモードに応じた PR 処理
-      ↓
-PR マージ検知
-      ↓
-GitHub Issue チェックボックス更新
-      ↓
-Phase 全タスク完了？
-├─ Yes → Phase PR 作成（Phase → Issue ブランチ）
-│        → マージモードに応じた処理
-└─ No  → 依存解除された次タスクの Worker を起動
-      ↓
-全 Phase 完了 → 最終 PR 作成（Issue → base ブランチ）
+```mermaid
+flowchart TD
+    W["Worker: task-exec 完了\ncommit & push → PR 作成\nstatus: awaiting_review"]
+    GC{"Director:\nゲートチェック実施"}
+    FG["Fast Gate\nステータス整合 / PR整合 / 成果物存在\nQA結果 / CI / 危険シグナル"]
+    RG["Risk Gate（条件付き）\n重要領域のスモークテスト"]
+    PASS["directorVerdict: approved\nWorker 正常終了"]
+    FAIL["directorVerdict: fix_required\nWorker 修正（最大2回）"]
+    ESC["3回目NG\nManager エスカレーション"]
+    MERGE["Director:\nマージモードに応じた PR 処理"]
+    DETECT["PR マージ検知\nGitHub Issue チェックボックス更新"]
+    DONE{"Phase 全タスク完了？"}
+    PPR["Phase PR 作成\n（Phase → Issue ブランチ）"]
+    NEXT["依存解除された\n次タスクの Worker を起動"]
+    FINAL["全 Phase 完了\n最終 PR 作成（Issue → base ブランチ）"]
+
+    W --> GC
+    GC --> FG
+    FG -->|通過| RG
+    FG -->|不通過| FAIL
+    RG -->|通過| PASS
+    RG -->|不通過| FAIL
+    FAIL -->|修正後 再チェック| GC
+    FAIL -->|3回目NG| ESC
+    PASS --> MERGE --> DETECT --> DONE
+    DONE -->|Yes| PPR --> FINAL
+    DONE -->|No| NEXT -->|次タスク完了後| DETECT
+
+    style GC fill:#fff3cd,stroke:#856404
+    style DONE fill:#fff3cd,stroke:#856404
+    style ESC fill:#f8d7da,stroke:#721c24
 ```
 
 ---
@@ -389,12 +506,10 @@ pnpm changeset
 
 #### changeset消費フロー
 
-```
-feature → staging PR（changeset含む）
-  ↓ マージ
-staging: changeset未消費 → PreRelease（v0.2.0-rc.42）
-  ↓ 昇格PR
-main: changeset version → バージョンバンプ → Release（v0.2.0）
+```mermaid
+flowchart LR
+    A["feature"] -->|changeset含む| B["staging\nchangeset未消費\nPreRelease（v0.2.0-rc.42）"]
+    B -->|昇格PR| C["main\nchangeset version → バージョンバンプ\nRelease（v0.2.0）"]
 ```
 
 ---

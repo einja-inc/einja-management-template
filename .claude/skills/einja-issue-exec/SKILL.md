@@ -310,7 +310,7 @@ tmux send-keys -t "$WORKER_PANE" 'claude --dangerously-skip-permissions' Enter
 tmux send-keys -t "$WORKER_PANE" '/einja-task-exec #{N} {X.Y}' Enter
 ```
 
-> **Worker完了通知**: einja-task-exec Skillはステータスファイル更新後に `tmux send-keys -t "$EINJA_MANAGER_PANE" "" Enter` でManagerをトリガーする。`$EINJA_MANAGER_PANE` が未設定の場合（Agent toolモード等）はスキップする。
+> **Worker完了通知**: einja-task-exec Skillはステータスファイル更新後に `touch ~/.einja/sessions/issue-{N}/signals/worker-{X.Y}.signal` でManagerの待機ループをトリガーする。これによりManagerは最大2秒以内に完了を検知する。
 
 #### Agent toolモード（executionMode = "agent-tool"）
 
@@ -343,11 +343,28 @@ Agent tool（`isolation: "worktree"`）でWorkerを起動する:
 
 Manager は以下を監視:
 
-1. **ステータスファイル監視**（イベント駆動 + 60秒フォールバック）:
-   - **通常**: Workerがステータスファイル更新後に `tmux send-keys -t "$MANAGER_PANE" "" Enter` でManagerをトリガー
-   - **フォールバック**: 60秒間隔のポーリングで未検知の変更を拾う
+1. **ステータスファイル監視**（シグナルファイル方式）:
+   - Managerは以下のBashコマンドで**シグナルファイルの出現を待機**する:
+     ```bash
+     # 最大120秒待機、2秒間隔でチェック。シグナルファイルが出現したら即座に返る
+     SIGNAL_DIR=~/.einja/sessions/issue-{N}/signals
+     mkdir -p "$SIGNAL_DIR"
+     for i in $(seq 1 60); do
+       if ls "$SIGNAL_DIR"/*.signal 2>/dev/null | head -1; then
+         rm -f "$SIGNAL_DIR"/*.signal
+         echo "SIGNAL_RECEIVED"
+         break
+       fi
+       sleep 2
+     done
+     ```
+   - **Worker側**: ステータスファイル更新後にシグナルファイルを作成する:
+     ```bash
+     touch ~/.einja/sessions/issue-{N}/signals/worker-{X.Y}.signal
+     ```
+   - これにより、Workerが完了すると**最大2秒以内**にManagerが検知する（従来の60秒→2秒）
    - Worker 完了を検知したらゲートチェック実施（下記参照）
-   - 質問ファイルの pending 状態を検知
+   - 質問ファイルの pending 状態も同様にシグナルファイルで通知
 
 2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
 

@@ -285,19 +285,26 @@ Lead の監視ループ:
 
 > **重要**: Leadの監視待機にはシグナルファイル方式を使用する。`sleep` によるポーリングは禁止。
 > ```bash
-> # シグナルファイル待機（最大120秒、2秒間隔チェック）
+> # シグナルファイル待機（最大120秒、2秒間隔チェック、複数Director同時完了対応）
 > SIGNAL_DIR=~/.einja/sessions/issue-{N}/signals
 > mkdir -p "$SIGNAL_DIR"
 > for i in $(seq 1 60); do
->   if ls "$SIGNAL_DIR"/*.signal 2>/dev/null | head -1; then
->     rm -f "$SIGNAL_DIR"/*.signal
->     echo "SIGNAL_RECEIVED"
+>   FOUND=$(ls "$SIGNAL_DIR"/*.signal 2>/dev/null)
+>   if [ -n "$FOUND" ]; then
+>     for f in $FOUND; do rm -f "$f"; done
+>     echo "$FOUND"
 >     break
 >   fi
 >   sleep 2
 > done
 > ```
-> DirectorはSendMessageと併せて `touch ~/.einja/sessions/issue-{N}/signals/director-{ID}.signal` を実行する。
+>
+> **通知チャネルの役割分担**:
+> - **シグナルファイル** = 起床トリガー（Leadのbash待機ループを即座に抜けさせる）
+> - **SendMessage** = 内容通知（完了/エラー/進捗の詳細情報を運ぶ）
+> - DirectorはSendMessage送信**後に** `touch ~/.einja/sessions/issue-{N}/signals/director-{ID}.signal` を実行する
+> - Leadはシグナル受信後、ステータスファイルとSendMessageキューを両方チェックして処理する
+> - `processed_pr_numbers` セットにより同一イベントの二重処理を防止
 
 ### 5-1. Director からの SendMessage 受信
 
@@ -343,7 +350,7 @@ Lead の監視ループ:
 
 | マージモード | 検知方法 |
 |------------|---------|
-| `manual` | シグナルファイル待機（2秒間隔チェック、最大120秒）+ `gh pr list --state merged` で確認 |
+| `manual` | AskUserQuestionでユーザーにマージ完了を確認（PRマージは外部イベントのためポーリング不適） |
 | `task-group-auto` | `gh pr merge --squash --auto` 実行 → CI通過で自動マージ |
 | `auto` | CI通過確認後に `gh pr merge --squash` 実行 |
 

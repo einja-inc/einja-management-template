@@ -346,25 +346,33 @@ Manager は以下を監視:
 1. **ステータスファイル監視**（シグナルファイル方式）:
    - Managerは以下のBashコマンドで**シグナルファイルの出現を待機**する:
      ```bash
-     # 最大120秒待機、2秒間隔でチェック。シグナルファイルが出現したら即座に返る
+     # 最大120秒待機、2秒間隔でチェック。シグナルが出現したら収集して返る
      SIGNAL_DIR=~/.einja/sessions/issue-{N}/signals
      mkdir -p "$SIGNAL_DIR"
+     SIGNALS=""
      for i in $(seq 1 60); do
-       if ls "$SIGNAL_DIR"/*.signal 2>/dev/null | head -1; then
-         rm -f "$SIGNAL_DIR"/*.signal
-         echo "SIGNAL_RECEIVED"
+       FOUND=$(ls "$SIGNAL_DIR"/*.signal 2>/dev/null)
+       if [ -n "$FOUND" ]; then
+         # 見つかったシグナルを全て収集（複数Worker同時完了対応）
+         SIGNALS="$FOUND"
+         # 個別に削除（他Workerが同時にtouchしても安全）
+         for f in $FOUND; do rm -f "$f"; done
          break
        fi
        sleep 2
      done
+     echo "$SIGNALS"
      ```
    - **Worker側**: ステータスファイル更新後にシグナルファイルを作成する:
      ```bash
+     # ステータスファイル更新を先に行い、シグナルは最後に作成する
+     # シグナルファイル名にWorker IDを含めることで複数Worker対応
      touch ~/.einja/sessions/issue-{N}/signals/worker-{X.Y}.signal
      ```
-   - これにより、Workerが完了すると**最大2秒以内**にManagerが検知する（従来の60秒→2秒）
-   - Worker 完了を検知したらゲートチェック実施（下記参照）
-   - 質問ファイルの pending 状態も同様にシグナルファイルで通知
+   - これにより、Workerが完了すると**最大2秒以内**にManagerが検知する
+   - Managerはシグナル受信後、**全Workerのステータスファイルを走査**してゲートチェック実施
+   - 質問ファイルの pending 状態も同様にシグナルファイルで通知（`question-{UUID}.signal`）
+   - **シグナルファイルはあくまで「起床トリガー」**。完了の判定はステータスファイルで行う
 
 2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
 

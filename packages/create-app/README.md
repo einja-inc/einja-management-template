@@ -10,7 +10,7 @@ Einja Management Templateを使用したプロジェクトを素早く作成す�
 
 - 🚀 **新規プロジェクト作成**: `npx @einja-inc/create-app my-project` で即座にプロジェクトを作成
 - 🛠️ **既存プロジェクトセットアップ**: `setup` サブコマンドで既存プロジェクトにツールを追加
-- 🔧 **環境ツール統合**: direnv, dotenvx, Volta, Biome, Huskyなどのツールを自動セットアップ
+- 🔧 **環境ツール統合**: direnv, dotenvx, mise, Biome, Huskyなどのツールを自動セットアップ
 - 🔐 **認証方式選択**: NextAuth.js を使用するか選択可能
 - 🔄 **対話式プロンプト**: わかりやすいプロンプトで設定を選択
 
@@ -55,7 +55,7 @@ npx @einja-inc/create-app setup
 
 対話式プロンプトが表示され、以下を選択できます：
 
-- セットアップするツール（direnv, dotenvx, Volta, Biome, Husky）
+- セットアップするツール（direnv, dotenvx, mise, Biome, Husky）
 - 既存ファイルがある場合の動作（マージ, 上書き, スキップ）
 
 ---
@@ -265,13 +265,13 @@ pnpm env:encrypt  # 環境変数を暗号化
 pnpm env:decrypt  # 環境変数を復号化
 ```
 
-### Volta
+### mise
 
 チームメンバー全員が同じNode.jsバージョンを使用できます。
 
 **生成されるファイル:**
 - `.node-version`
-- `package.json` に `volta` フィールドを追加
+- `mise.toml` を生成
 
 ### Biome
 
@@ -359,7 +359,7 @@ chmod +x scripts/*.sh
 ./scripts/init.sh
 ```
 
-### Volta環境でpnpmが見つからない
+### mise環境でpnpmが見つからない
 
 **エラーメッセージ:**
 ```
@@ -368,10 +368,10 @@ pnpm: command not found
 
 **解決方法:**
 ```bash
-# pnpmを手動でインストール
-npm install -g pnpm@latest-10
+# mise.tomlからインストール
+mise install
 
-# またはターミナルを再起動してVoltaのPATHを反映
+# またはターミナルを再起動してmiseのPATHを反映
 exec $SHELL
 ```
 

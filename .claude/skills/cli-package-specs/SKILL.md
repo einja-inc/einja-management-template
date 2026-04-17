@@ -260,7 +260,7 @@ jsonPaths:
 
 | Step | 処理 | 行番号 |
 |------|------|--------|
-| 0 | 初回セットアップ（`scripts/init.sh` 実行: Volta/Node.js/pnpm/direnv） | L57-64 |
+| 0 | 初回セットアップ（`scripts/init.sh` 実行: mise/Node.js/pnpm/direnv） | L57-64 |
 | 1 | 依存関係インストール（`pnpm install`） + Prismaクライアント生成（`pnpm db:generate`） | L68-87 |
 | 2 | 秘密鍵の自動ローテーション（`pnpm env:rotate-secrets --all --non-interactive`） | L90-99 |
 | 3 | Git初期化（`git init` → `git add .` → `git commit`） | L102-113 |
@@ -277,9 +277,9 @@ jsonPaths:
 
 | Step | 処理 | 行番号 |
 |------|------|--------|
-| 1 | Volta インストール確認 | L158-191 |
-| 2 | Volta シェル設定（`VOLTA_FEATURE_PNPM`） | L194-213 |
-| 3 | Node.js / pnpm インストール（`volta install`） | L216-249 |
+| 1 | mise インストール確認 | L158-191 |
+| 2 | mise シェル設定（`eval "$(mise activate zsh)"`） | L194-213 |
+| 3 | Node.js / pnpm インストール（`mise install`） | L216-249 |
 | 4 | direnv インストール確認（macOS: `brew install direnv`） | L324-355 |
 | 5 | シェル設定（`direnv hook` を rc ファイルに追加） | L358-376 |
 | 6 | dotenvx インストール | L379-419 |
@@ -320,7 +320,7 @@ worktree 環境では `.env.keys` をメインリポジトリから自動コピ�
 
 | カテゴリ | 対象パターン |
 |---------|------------|
-| `env` | `.env*`, `.envrc`, `.volta`, `.node-version` |
+| `env` | `.env*`, `.envrc`, `mise.toml`, `.node-version` |
 | `tools` | `biome.json`, `.biomeignore`, `.vibe-kanban.json`, `.prettierrc*`, `.editorconfig` |
 | `git` | `.gitignore`, `.gitattributes` |
 | `git-hooks` | `.husky/**`, `.lintstagedrc.js` |

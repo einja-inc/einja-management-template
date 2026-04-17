@@ -162,13 +162,13 @@ einja-management-template/
 git clone <repository-url>
 cd einja-management-template
 
-# 2. Volta/Node/pnpmをインストール（初回のみ）
+# 2. mise/Node/pnpmをインストール（初回のみ）
 ./scripts/init.sh
 
 # 3. ターミナルを再起動
 exec $SHELL
 
-# 4. ツールセットアップ（Volta/direnv/dotenvx）
+# 4. ツールセットアップ（mise/direnv/dotenvx）
 pnpm dev:setup
 
 # 5. 開発サーバー起動（バックグラウンド）
@@ -184,8 +184,8 @@ pnpm dev:bg
 
 | コマンド | タイミング | 内容 |
 |---------|-----------|------|
-| `./scripts/init.sh` | 初回のみ | Volta/Node/pnpmのインストール |
-| `pnpm dev:setup` | 初回のみ | ツールインストール（Volta/direnv/dotenvx） |
+| `./scripts/init.sh` | 初回のみ | mise/Node/pnpmのインストール |
+| `pnpm dev:setup` | 初回のみ | ツールインストール（mise/direnv/dotenvx） |
 | `pnpm env:prepare` | 必要時 | 開発サーバーを起動せずに `.env` / PostgreSQL / DB / `db:push` まで整備 |
 | `pnpm dev:bg` | 毎回 | 開発サーバー起動（バックグラウンド・推奨） |
 | `pnpm dev:status` | 随時 | 開発サーバーの状態確認 |
@@ -358,27 +358,36 @@ pnpm typecheck  # 型チェック
 
 ### トラブルシューティング
 
-#### Volta関連エラー
+#### mise関連エラー
 
-**`zsh: command not found: volta`**
+**`zsh: command not found: mise`**
 
 ターミナルを開き直してください。それでも解決しない場合：
 ```bash
 source ~/.zshrc
 ```
 
-**`Volta error: Node is not available`**
+**Node.jsやpnpmが見つからない**
 
-Node.jsがインストールされていません：
+mise.tomlの定義に従ってインストールします：
 ```bash
-volta install node@22.16.0 pnpm@10.14.0
+mise install
 ```
 
 **`pnpm: command not found`**
 
 pnpmがインストールされていません：
 ```bash
-volta install pnpm@10.14.0
+mise install
+```
+
+**既存ユーザー向け: Voltaからの移行**
+
+rcファイル（`~/.zshrc` 等）から以下のVolta設定を手動で削除してください：
+```bash
+export VOLTA_HOME="$HOME/.volta"
+export PATH="$VOLTA_HOME/bin:$PATH"
+export VOLTA_FEATURE_PNPM=1
 ```
 
 #### Prisma関連エラー

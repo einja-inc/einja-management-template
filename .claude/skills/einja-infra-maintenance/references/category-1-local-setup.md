@@ -26,8 +26,8 @@ Phase 1の検出結果で `.env*` ファイルが**全て不在**の場合、「
 | `.env.keys`不在 | `git worktree list` でメインworktreeを検出し、`.env.keys` が存在すれば自動コピー。不在の場合は「チームメンバーから `.env.keys` ファイルを受け取り、プロジェクトルートに配置してください」と案内 |
 | Docker未インストール | [OrbStack](https://orbstack.dev/) のインストールを案内。`brew install orbstack` または公式サイトからダウンロード |
 | PostgreSQL接続エラー | `docker compose up -d postgres` → ヘルスチェック |
-| Node.jsバージョン不一致 | `volta install node@22` 提案 |
-| pnpmバージョン不一致 | `volta install pnpm@10` 提案 |
+| Node.jsバージョン不一致 | `mise install` 提案（mise.tomlから自動読み取り） |
+| pnpmバージョン不一致 | `mise install` 提案（mise.tomlから自動読み取り） |
 
 ## 参照ドキュメント
 - `docs/einja/instructions/local-server-environment-and-worktree.md`

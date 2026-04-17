@@ -48,14 +48,12 @@ cp .env.local.example .env.local
 
 #### Node.js & pnpm
 ```bash
-# Node.jsのインストール（推奨: Volta使用）
-volta install node@22
-volta install pnpm@10
+# Node.jsのインストール（推奨: mise使用）
+mise install
 
-# または fnm/nvm を使用
-fnm install 22
-fnm use 22
-npm install -g pnpm@10
+# または手動でバージョン指定
+mise use node@22
+mise use pnpm@10
 ```
 
 #### Docker
@@ -434,8 +432,8 @@ docker compose ps
 | `ENOENT: no such file or directory, open '.env.keys'` | `.env.keys`不在 | メインworktreeからコピー、または1Password等から取得して手動配置 |
 | `Error: connect ECONNREFUSED 127.0.0.1:25432` | PostgreSQL未起動 | `docker compose up -d postgres` → 10秒待機 → `docker compose exec postgres pg_isready` |
 | `prisma:error Error in schema` | Prismaスキーマエラー | エラーメッセージを確認し、`packages/server-core/prisma/schema.prisma`を修正 |
-| `Node.js version mismatch` / `Unsupported engine` | Node.jsバージョン不一致 | `volta install node@22` または `fnm use 22` |
-| `pnpm: command not found` | pnpm未インストール | `volta install pnpm@10` または `npm i -g pnpm@10` |
+| `Node.js version mismatch` / `Unsupported engine` | Node.jsバージョン不一致 | `mise install`（mise.tomlから自動読み取り）または `mise use node@22` |
+| `pnpm: command not found` | pnpm未インストール | `mise install`（mise.tomlから自動読み取り）または `npm i -g pnpm@10` |
 | `EACCES: permission denied` | ファイル権限エラー | 対象ファイルの権限確認（`ls -la`）、必要に応じて`chmod`で修正 |
 | `Cannot find module` | 依存関係不足 | `pnpm install` を再実行、`node_modules`を削除して再インストール |
 
@@ -576,8 +574,8 @@ node -v
 # pnpmバージョン
 pnpm -v
 
-# Volta確認
-volta list
+# mise確認
+mise list
 ```
 
 ### 2. Docker / PostgreSQL

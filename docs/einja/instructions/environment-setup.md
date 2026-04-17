@@ -51,7 +51,7 @@
 pnpm dev:setup
 
 # セットアップ内容:
-# - Volta（Node.jsバージョン管理）
+# - mise（Node.jsバージョン管理）
 # - direnv（環境変数自動読み込み）
 # - dotenvx（環境変数暗号化）
 # - .env.personal設定（GITHUB_TOKEN等）

@@ -42,11 +42,11 @@ sequenceDiagram
 
     Post->>Init: bash scripts/init.sh
     activate Init
-    Note over Init: Step 1: Volta インストール<br/>Step 2: シェル設定（VOLTA_FEATURE_PNPM）<br/>Step 3: Node.js / pnpm インストール<br/>Step 4: direnv allow
+    Note over Init: Step 1: mise インストール<br/>Step 2: シェル設定（eval "$(mise activate zsh)"）<br/>Step 3: Node.js / pnpm インストール<br/>Step 4: direnv allow
     Init-->>Post: 完了
     deactivate Init
 
-    Note over Post: PATH補完<br/>（~/.volta/bin を process.env.PATH に追加）
+    Note over Post: PATH補完<br/>（~/.local/share/mise/shims を process.env.PATH に追加）
 
     Post->>Post: pnpm install
     Post->>Post: pnpm db:generate
@@ -73,8 +73,8 @@ sequenceDiagram
 |---------|--------|---------|
 | 対話プロンプト | `cli.ts` | プロジェクト名、パッケージスコープ、認証方式等を対話的に入力 |
 | テンプレート展開 | `generators/template.ts` | テンプレートコピー → `{{projectName}}` `{{packageName}}` `{{description}}` `@repo/` 等の変数置換 → `.template` リネーム → `gitignore` → `.gitignore` リネーム → 認証方式に応じたファイル除外 → `.sh` に実行権限付与 |
-| Step 0: init.sh | `generators/post-setup.ts` | Volta/Node.js/pnpm/direnv の初期導入（`stdio: inherit` で出力をそのまま表示） |
-| PATH補完 | `generators/post-setup.ts` | `~/.volta/bin` を `process.env.PATH` に追加（init.sh で導入した Volta を後続ステップで利用可能にする） |
+| Step 0: init.sh | `generators/post-setup.ts` | mise/Node.js/pnpm/direnv の初期導入（`stdio: inherit` で出力をそのまま表示） |
+| PATH補完 | `generators/post-setup.ts` | `~/.local/share/mise/shims` を `process.env.PATH` に追加（init.sh で導入した mise を後続ステップで利用可能にする） |
 | Step 1: 依存関係 | `generators/post-setup.ts` | `pnpm install` + `pnpm db:generate`（Prisma クライアント生成） |
 | Step 2: 秘密鍵ローテーション | `env-rotate-secrets.ts` | `--all --non-interactive` モードで全環境の AUTH_SECRET と DOTENV_PRIVATE_KEY を自動ローテーション |
 | Step 3: Git初期化 | `generators/post-setup.ts` | `git init` → `git add .` → `git commit -m "Initial commit"` |
@@ -91,8 +91,8 @@ flowchart TD
     A[git clone → cd project] --> B[./scripts/init.sh]
 
     subgraph init ["scripts/init.sh（初回のみ手動実行）"]
-        B --> B1[Step 1: Volta インストール]
-        B1 --> B2[Step 2: シェル設定<br/>VOLTA_FEATURE_PNPM=1]
+        B --> B1[Step 1: mise インストール]
+        B1 --> B2[Step 2: シェル設定<br/>eval "$(mise activate zsh)"]
         B2 --> B3[Step 3: Node.js / pnpm インストール]
         B3 --> B4[Step 4: direnv allow]
     end
@@ -101,7 +101,7 @@ flowchart TD
     C --> D[pnpm dev:setup]
 
     subgraph devsetup ["scripts/setup-dev.ts（= pnpm dev:setup）"]
-        D --> D1[Step 1-3: Volta 確認 / シェル設定 / Node.js・pnpm]
+        D --> D1[Step 1-3: mise 確認 / シェル設定 / Node.js・pnpm]
         D1 --> D4[Step 4: direnv インストール<br/>macOS: brew install direnv]
         D4 --> D5[Step 5: シェルに direnv hook 追加]
         D5 --> D6[Step 6: dotenvx インストール]
@@ -119,9 +119,9 @@ flowchart TD
 
 | ステップ | 実行ファイル | 処理内容 |
 |---------|-------------|---------|
-| Step 1: Volta | `init.sh` → `setup-dev.ts` | Volta 未インストール時は `curl` で導入。macOS 以外では手動インストールを案内 |
-| Step 2: シェル設定 | `init.sh` → `setup-dev.ts` | `~/.zshrc` 等に `VOLTA_FEATURE_PNPM=1` を追記（既存なら冪等にスキップ） |
-| Step 3: Node.js/pnpm | `init.sh` → `setup-dev.ts` | `package.json` の `volta` フィールドからバージョンを読み取り `volta install` |
+| Step 1: mise | `init.sh` → `setup-dev.ts` | mise 未インストール時は `curl https://mise.run \| sh` で導入。macOS 以外では手動インストールを案内 |
+| Step 2: シェル設定 | `init.sh` → `setup-dev.ts` | `~/.zshrc` 等に `eval "$(mise activate zsh)"` を追記（既存なら冪等にスキップ） |
+| Step 3: Node.js/pnpm | `init.sh` → `setup-dev.ts` | `mise.toml` からバージョンを読み取り `mise install` |
 | Step 4: direnv | `setup-dev.ts` | macOS では `brew install direnv` を自動実行。他 OS は手動案内 |
 | Step 5: direnv hook | `setup-dev.ts` | `~/.zshrc` 等に `eval "$(direnv hook zsh)"` を追記 |
 | Step 6: dotenvx | `setup-dev.ts` | `curl -sfS https://dotenvx.sh/install.sh` で導入。失敗時は `npm install -g @dotenvx/dotenvx` にフォールバック |
@@ -238,7 +238,7 @@ sequenceDiagram
 
 | ファイル | managed | project-private | 残り |
 |---------|---------|----------------|------|
-| `package.json` | — | name, version, private, workspaces, packageManager, volta | 3方向マージ |
+| `package.json` | — | name, version, private, workspaces, packageManager | 3方向マージ |
 | `.claude/settings.json` | includeCoAuthoredBy | — | 3方向マージ |
 | `.vscode/settings.json` | editor.*, eslint.*, prettier.*, [json], [jsonc] | — | 3方向マージ |
 | `.mcp.json` | — | — | 3方向マージ |
@@ -255,7 +255,7 @@ sequenceDiagram
 
 | カテゴリ | 対象パターン | デフォルト選択 |
 |---------|-------------|--------------|
-| `env` | `.env*`, `.envrc`, `.volta`, `.node-version` | ON |
+| `env` | `.env*`, `.envrc`, `mise.toml`, `.node-version` | ON |
 | `tools` | `biome.json`, `.prettierrc*`, `.editorconfig`, `.vscode/` | ON |
 | `git` | `.gitignore`, `.gitattributes` | OFF |
 | `git-hooks` | `.husky/` | OFF |
@@ -280,8 +280,8 @@ sequenceDiagram
 
 | ファイル | 役割 | 呼び出し元 |
 |---------|------|-----------|
-| `scripts/init.sh` | Volta/Node.js/pnpm/direnv 初期導入（初回のみ） | `@einja-inc/create-app`（`post-setup.ts` から `bash scripts/init.sh`） / 手動実行 |
-| `scripts/setup-dev.ts` | ツールインストール（Volta確認・direnv・dotenvx・.env.personal設定） | `pnpm dev:setup` |
+| `scripts/init.sh` | mise/Node.js/pnpm/direnv 初期導入（初回のみ） | `@einja-inc/create-app`（`post-setup.ts` から `bash scripts/init.sh`） / 手動実行 |
+| `scripts/setup-dev.ts` | ツールインストール（mise確認・direnv・dotenvx・.env.personal設定） | `pnpm dev:setup` |
 | `scripts/ensure-serena.sh` | Serena MCP サーバーの冪等起動（PIDベース） | `scripts/serena-mcp-bridge.sh` からオンデマンド実行 |
 | `scripts/env-rotate-secrets.ts` | AUTH_SECRET / DOTENV_PRIVATE_KEY のローテーション | `@einja-inc/create-app`（`post-setup.ts` から `--all --non-interactive`） / `pnpm env:rotate-secrets` |
 | `.envrc` | dotenv 読み込み + worktree 間 `.env.personal` 共有 | direnv（シェルでディレクトリ進入時に自動評価） |
@@ -298,7 +298,7 @@ sequenceDiagram
 
 ### init.sh と setup-dev.ts の重複
 
-`init.sh` と `setup-dev.ts` の Step 1-3（Volta/シェル設定/Node.js・pnpm インストール）は意図的に重複しています。
+`init.sh` と `setup-dev.ts` の Step 1-3（mise/シェル設定/Node.js・pnpm インストール）は意図的に重複しています。
 
 | 観点 | 説明 |
 |------|------|

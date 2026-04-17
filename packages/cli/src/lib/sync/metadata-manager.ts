@@ -36,6 +36,21 @@ export class MetadataManager {
         data.jsonPaths.seed = undefined;
       }
 
+      // マイグレーション: project-private から volta を除去（Volta→mise移行）
+      if (data.jsonPaths?.["project-private"]?.["package.json"]) {
+        const pkgFields = data.jsonPaths["project-private"]["package.json"];
+        if (Array.isArray(pkgFields)) {
+          const idx = pkgFields.indexOf("volta");
+          if (idx !== -1) {
+            pkgFields.splice(idx, 1);
+            // ハッシュ無効化で再sync強制（ハッシュが最新でも3方向マージを実行させる）
+            if (data.files?.["package.json"]) {
+              data.files["package.json"].hash = "";
+            }
+          }
+        }
+      }
+
       return this.validate(data);
     } catch (error) {
       if (error instanceof Error) {
@@ -189,7 +204,7 @@ export class MetadataManager {
           ],
         },
         "project-private": {
-          "package.json": ["name", "version", "private", "workspaces", "packageManager", "volta"],
+          "package.json": ["name", "version", "private", "workspaces", "packageManager"],
         },
       },
     };

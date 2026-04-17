@@ -811,6 +811,10 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     await fs.ensureDir(path.dirname(projectPath));
     await fs.writeFile(projectPath, result.mergeContent, "utf-8");
 
+    // テンプレートファイルのパーミッションを引き継ぐ（.shファイルの実行権限保持）
+    const templateStat = await fs.stat(result.target.templatePath);
+    await fs.chmod(projectPath, templateStat.mode);
+
     if (result.success) {
       successCount++;
       log(`  ✓ ${result.target.path}`, options);

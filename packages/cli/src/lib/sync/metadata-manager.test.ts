@@ -51,6 +51,70 @@ describe("MetadataManager", () => {
       expect((metadata.jsonPaths as Record<string, unknown> | undefined)?.seed).toBeUndefined();
     });
 
+    it("project-private の package.json から volta を除去し、ハッシュを無効化する", async () => {
+      const oldMetadata = {
+        version: "1.0.0",
+        lastSync: "2025-01-01T00:00:00.000Z",
+        templateVersion: "0.2.0",
+        files: {
+          "package.json": {
+            hash: "abc123",
+            syncedAt: "2025-01-01T00:00:00.000Z",
+          },
+        },
+        jsonPaths: {
+          managed: {},
+          "project-private": {
+            "package.json": ["name", "version", "volta", "private"],
+          },
+        },
+      };
+
+      await fs.writeFile(
+        path.join(tempDir, ".einja-sync.json"),
+        JSON.stringify(oldMetadata),
+        "utf-8"
+      );
+
+      const metadata = await manager.load();
+
+      // voltaが除去されていること
+      expect(metadata.jsonPaths?.["project-private"]?.["package.json"]).not.toContain("volta");
+      expect(metadata.jsonPaths?.["project-private"]?.["package.json"]).toEqual(["name", "version", "private"]);
+      // ハッシュが無効化されていること
+      expect(metadata.files["package.json"].hash).toBe("");
+    });
+
+    it("voltaが存在しない場合はマイグレーションをスキップする", async () => {
+      const metadata = {
+        version: "1.0.0",
+        lastSync: "2025-01-01T00:00:00.000Z",
+        templateVersion: "0.2.0",
+        files: {
+          "package.json": {
+            hash: "abc123",
+            syncedAt: "2025-01-01T00:00:00.000Z",
+          },
+        },
+        jsonPaths: {
+          managed: {},
+          "project-private": {
+            "package.json": ["name", "version", "private"],
+          },
+        },
+      };
+
+      await fs.writeFile(
+        path.join(tempDir, ".einja-sync.json"),
+        JSON.stringify(metadata),
+        "utf-8"
+      );
+
+      const loaded = await manager.load();
+      expect(loaded.jsonPaths?.["project-private"]?.["package.json"]).toEqual(["name", "version", "private"]);
+      expect(loaded.files["package.json"].hash).toBe("abc123");
+    });
+
     it("メタデータファイルが存在する場合、読み込んで返す", async () => {
       const testMetadata: SyncMetadata = {
         version: "1.0.0",

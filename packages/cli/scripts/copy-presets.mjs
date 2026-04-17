@@ -132,6 +132,12 @@ const fileMappings = [
 		dest: path.join(cliDir, "presets/default/package.json"),
 		required: true,
 	},
+	// mise.toml
+	{
+		src: path.join(projectRoot, "mise.toml"),
+		dest: path.join(cliDir, "presets/default/mise.toml"),
+		required: true,
+	},
 ];
 
 /**

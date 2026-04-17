@@ -7,7 +7,7 @@ import * as logger from "@/utils/logger.js";
  * prompts/sync.ts の CATEGORY_CONFIGS と同じ定義
  */
 const CATEGORY_PATTERNS: Record<SyncCategory, string[]> = {
-  env: [".env*", ".envrc", ".volta", ".node-version"],
+  env: [".env*", ".envrc", "mise.toml", ".node-version"],
   tools: ["biome.json", ".biomeignore", ".vibe-kanban.json", ".prettierrc*", ".editorconfig"],
   git: [".gitignore", ".gitattributes"],
   "git-hooks": [".husky/**", ".lintstagedrc.js"],

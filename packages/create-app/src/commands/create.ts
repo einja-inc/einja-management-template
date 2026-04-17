@@ -86,7 +86,7 @@ export async function createCommand(
         tools: {
           direnv: true,
           dotenvx: true,
-          volta: true,
+          mise: true,
           biome: true,
           husky: true,
         },

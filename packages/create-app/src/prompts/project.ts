@@ -74,7 +74,7 @@ export async function promptProjectConfig(
   const tools = {
     direnv: true,
     dotenvx: true,
-    volta: true,
+    mise: true,
     biome: true,
     husky: true,
   };

@@ -8,10 +8,6 @@ type PackageJson = {
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
-  volta?: {
-    node?: string;
-    pnpm?: string;
-  };
   "lint-staged"?: Record<string, string | string[]>;
   [key: string]: unknown;
 };

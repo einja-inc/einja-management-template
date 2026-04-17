@@ -20,8 +20,8 @@ export type SyncPromptResult = {
 const CATEGORY_CONFIGS: Record<SyncCategory, SyncCategoryConfig> = {
   env: {
     name: "環境設定",
-    description: ".env*, .envrc, .volta, .node-version",
-    patterns: [".env*", ".envrc", ".volta", ".node-version"],
+    description: ".env*, .envrc, mise.toml, .node-version",
+    patterns: [".env*", ".envrc", "mise.toml", ".node-version"],
     defaultChecked: true,
     firstRunDefault: true,
   },

@@ -59,15 +59,15 @@ export async function execPostSetup(
 ): Promise<void> {
   const { skipGit, skipInstall } = options;
 
-  // 0. 初回セットアップ（Volta/Node.js/pnpm/direnv）
+  // 0. 初回セットアップ（mise/Node.js/pnpm/direnv）
   if (!skipInstall) {
     logger.info("初回セットアップを実行中...");
     try {
       await execa("bash", ["scripts/init.sh"], { cwd: targetPath, stdio: "inherit" });
-      // init.shでインストールされたVolta/pnpmを後続ステップで使えるようPATHに追加
-      const voltaBin = path.join(os.homedir(), ".volta", "bin");
-      if (!process.env.PATH?.includes(voltaBin)) {
-        process.env.PATH = `${voltaBin}:${process.env.PATH}`;
+      // init.shでインストールされたmise/pnpmを後続ステップで使えるようPATHに追加
+      const miseBin = path.join(os.homedir(), ".local", "share", "mise", "shims");
+      if (!process.env.PATH?.includes(miseBin)) {
+        process.env.PATH = `${miseBin}:${process.env.PATH}`;
       }
     } catch (error) {
       logger.warn("初回セットアップの自動実行に失敗しました");

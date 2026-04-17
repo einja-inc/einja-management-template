@@ -9,7 +9,7 @@ export type ConflictStrategy = "merge" | "overwrite" | "skip";
 export type ToolConfig = {
   direnv: boolean;
   dotenvx: boolean;
-  volta: boolean;
+  mise: boolean;
   biome: boolean;
   husky: boolean;
 };
@@ -77,7 +77,7 @@ export type SyncMetadata = {
  * 同期カテゴリの型定義
  */
 export type SyncCategory =
-  | "env" // .env*, .envrc, .volta, .node-version
+  | "env" // .env*, .envrc, mise.toml, .node-version
   | "tools" // biome.json, .prettierrc, .editorconfig, .vscode/
   | "git" // .gitignore, .gitattributes
   | "git-hooks" // .husky/

@@ -65,6 +65,7 @@ const fileMappings: string[] = [
   ".gitignore", ".envrc", ".env.local", ".env.example", ".npmrc",
   ".biomeignore", ".dockerignore", ".gitattributes",
   ".lintstagedrc.js", ".node-version",
+  "mise.toml",
   ".mcp.json",
   "README.md", "CLAUDE.md", "AGENTS.md",
   ".claude/settings.json",

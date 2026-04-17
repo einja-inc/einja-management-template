@@ -807,6 +807,7 @@ production環境へのデプロイは `migrate-production` ジョブで承認ゲ
 - [デプロイセットアップ手順](../../instructions/deployment-setup.md)
 - [環境変数セットアップ手順](../../instructions/environment-setup.md)
 - [Vercel CLI/APIリファレンス](../../instructions/vercel-cli-reference.md)
+- [Vercel GitHub連携 設計方針](./vercel-git-integration.md)
 <!-- @einja:managed:end -->
 
 <!-- @einja:project-private:start id="deployment-project" -->

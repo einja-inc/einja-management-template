@@ -95,111 +95,109 @@ function step(num: number, message: string): void {
 	console.log(`\n${colors.blue(`Step ${num}:`)} ${message}`);
 }
 
-async function setupVolta(): Promise<void> {
+async function setupMise(): Promise<void> {
 	const platform = getPlatform();
-	const home = os.homedir();
 
-	// 1. Voltaインストール確認
-	step(1, "Voltaの確認...");
+	// 1. miseインストール確認
+	step(1, "miseの確認...");
 
-	const hasVolta = commandExists("volta");
+	const hasMise = commandExists("mise");
 
-	if (!hasVolta) {
+	if (!hasMise) {
 		if (platform !== "macos") {
-			warn("Voltaがインストールされていません");
+			warn("miseがインストールされていません");
 			console.log(colors.yellow("  手動でインストールしてください:"));
-			console.log(colors.gray("    curl https://get.volta.sh | bash"));
+			console.log(colors.gray("    curl -fsSL https://mise.run | sh"));
 			console.log(
 				colors.gray("  インストール後、再度このスクリプトを実行してください\n"),
 			);
 			process.exit(1);
 		}
 
-		console.log("  Voltaをインストール中...");
+		console.log("  miseをインストール中...");
 		try {
-			execSync("curl -fsSL https://get.volta.sh | bash", {
+			execSync("curl -fsSL https://mise.run | sh", {
 				stdio: "inherit",
 				shell: "/bin/bash",
 			});
-			succeed("Voltaをインストールしました");
+			const miseBinDir = path.join(os.homedir(), ".local", "bin");
+			if (!process.env.PATH?.includes(miseBinDir)) {
+				process.env.PATH = `${miseBinDir}:${process.env.PATH}`;
+			}
+			succeed("miseをインストールしました");
 		} catch {
-			fail("Voltaのインストールに失敗しました");
+			fail("miseのインストールに失敗しました");
 			console.log(
 				colors.yellow(
-					"  手動でインストールしてください: curl https://get.volta.sh | bash",
+					"  手動でインストールしてください: curl -fsSL https://mise.run | sh",
 				),
 			);
 			process.exit(1);
 		}
 	} else {
-		succeed("Voltaは既にインストールされています");
+		succeed("miseは既にインストールされています");
 	}
 
-	// 2. シェル設定確認（VOLTA_FEATURE_PNPM）
-	step(2, "Voltaシェル設定の確認...");
+	// 2. シェル設定確認（mise activate）
+	step(2, "miseシェル設定の確認...");
 
-	const shellConfig = getShellConfig();
-	if (shellConfig) {
-		const { rcFile } = shellConfig;
+	const shell = process.env.SHELL || "";
+	const shellName = path.basename(shell);
+	const home = os.homedir();
+
+	let rcFile: string | null = null;
+	let activateCmd: string | null = null;
+
+	switch (shellName) {
+		case "zsh":
+			rcFile = path.join(home, ".zshrc");
+			activateCmd = 'eval "$(mise activate zsh)"';
+			break;
+		case "bash":
+			rcFile = path.join(home, ".bashrc");
+			activateCmd = 'eval "$(mise activate bash)"';
+			break;
+		case "fish":
+			rcFile = path.join(home, ".config", "fish", "config.fish");
+			activateCmd = "mise activate fish | source";
+			break;
+		default:
+			rcFile = null;
+			activateCmd = null;
+			break;
+	}
+
+	if (rcFile && activateCmd) {
 		const rcContent = fs.existsSync(rcFile)
 			? fs.readFileSync(rcFile, "utf-8")
 			: "";
 
-		if (!rcContent.includes("VOLTA_FEATURE_PNPM")) {
-			const voltaConfig = `
-# Volta - pnpm support
-export VOLTA_FEATURE_PNPM=1
-`;
-			appendToRcFile(rcFile, voltaConfig);
-			succeed(`${rcFile} にVOLTA_FEATURE_PNPMを追加しました`);
+		if (!rcContent.includes("mise activate")) {
+			const miseConfig = `\n# mise\n${activateCmd}\n`;
+			appendToRcFile(rcFile, miseConfig);
+			succeed(`${rcFile} にmise activateを追加しました`);
 		} else {
-			succeed("Voltaシェル設定は既に存在します");
-		}
-	}
-
-	// 3. Node.js/pnpmインストール
-	step(3, "Node.js/pnpmのインストール...");
-
-	const packageJsonPath = path.join(process.cwd(), "package.json");
-	const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-	const voltaConfig = packageJson.volta as
-		| { node?: string; pnpm?: string }
-		| undefined;
-
-	if (voltaConfig) {
-		const voltaPath = path.join(home, ".volta", "bin", "volta");
-		const voltaCmd = fs.existsSync(voltaPath) ? voltaPath : "volta";
-
-		const versionPattern = /^\d+\.\d+\.\d+$/;
-		try {
-			if (voltaConfig.node) {
-				if (!versionPattern.test(voltaConfig.node)) {
-					fail(`不正なNode.jsバージョン形式: ${voltaConfig.node}`);
-					process.exit(1);
-				}
-				execSync(`${voltaCmd} install node@${voltaConfig.node}`, {
-					stdio: "inherit",
-					env: { ...process.env, VOLTA_FEATURE_PNPM: "1" },
-				});
-			}
-			if (voltaConfig.pnpm) {
-				if (!versionPattern.test(voltaConfig.pnpm)) {
-					fail(`不正なpnpmバージョン形式: ${voltaConfig.pnpm}`);
-					process.exit(1);
-				}
-				execSync(`${voltaCmd} install pnpm@${voltaConfig.pnpm}`, {
-					stdio: "inherit",
-					env: { ...process.env, VOLTA_FEATURE_PNPM: "1" },
-				});
-			}
-			succeed(
-				`Node.js ${voltaConfig.node}, pnpm ${voltaConfig.pnpm} をインストールしました`,
-			);
-		} catch {
-			warn("Node.js/pnpmのインストールに失敗しました（シェル再起動後に再実行してください）");
+			succeed("miseシェル設定は既に存在します");
 		}
 	} else {
-		warn("package.jsonにvoltaフィールドがありません");
+		warn("未対応のシェルです。手動でmise activateを設定してください");
+	}
+
+	// 3. Node.js/pnpmインストール（mise.tomlから自動読み取り）
+	step(3, "Node.js/pnpmのインストール...");
+
+	try {
+		execSync("mise trust", {
+			stdio: "inherit",
+			cwd: process.cwd(),
+		});
+		execSync("mise install", {
+			stdio: "inherit",
+			cwd: process.cwd(),
+		});
+		succeed("mise.tomlに基づきNode.js/pnpmをインストールしました");
+	} catch {
+		warn("Node.js/pnpmのインストールに失敗しました（シェル再起動後に再実行してください）");
 	}
 }
 
@@ -302,8 +300,8 @@ async function main(): Promise<void> {
 
 	console.log(colors.blue("\n🚀 開発環境セットアップを開始します...\n"));
 
-	// Step 1-3: Voltaセットアップ
-	await setupVolta();
+	// Step 1-3: miseセットアップ
+	await setupMise();
 
 	// 4. direnvインストール確認・実行
 	step(4, "direnvの確認...");

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# init.sh - 初回セットアップ（Volta/Node/pnpm導入）
+# init.sh - 初回セットアップ（mise/Node/pnpm導入）
 #
 # 使い方:
 #   ./scripts/init.sh
@@ -30,22 +30,19 @@ echo "  初回セットアップ"
 echo "=========================================="
 echo -e "${NC}"
 
-# Step 1: Voltaの確認とインストール
-log_step 1 "Voltaのインストール..."
+# Step 1: miseの確認とインストール
+log_step 1 "miseのインストール..."
 
-if ! command -v volta &> /dev/null; then
-    curl -fsSL https://get.volta.sh | bash -s -- --skip-setup
-    export VOLTA_HOME="$HOME/.volta"
-    export PATH="$VOLTA_HOME/bin:$PATH"
-    log_success "Voltaをインストールしました"
+if ! command -v mise &> /dev/null; then
+    curl -fsSL https://mise.run | sh
+    export PATH="$HOME/.local/bin:$PATH"
+    log_success "miseをインストールしました"
 else
-    log_success "Voltaは既にインストール済み"
+    log_success "miseは既にインストール済み"
 fi
 
-# Volta PATHを設定
-export VOLTA_HOME="$HOME/.volta"
-export PATH="$VOLTA_HOME/bin:$PATH"
-export VOLTA_FEATURE_PNPM=1
+# mise PATHを設定
+export PATH="$HOME/.local/bin:$PATH"
 
 # Step 2: シェル設定
 log_step 2 "シェル設定..."
@@ -57,8 +54,8 @@ case "$SHELL_NAME" in
     *)    RC_FILE="" ;;
 esac
 
-if [ -n "$RC_FILE" ] && ! grep -q "VOLTA_FEATURE_PNPM" "$RC_FILE" 2>/dev/null; then
-    echo -e "\n# Volta - pnpm support\nexport VOLTA_FEATURE_PNPM=1" >> "$RC_FILE"
+if [ -n "$RC_FILE" ] && ! grep -q "mise activate" "$RC_FILE" 2>/dev/null; then
+    echo -e "\n# mise\neval \"\$(mise activate $SHELL_NAME)\"" >> "$RC_FILE"
     log_success "シェル設定を追加しました"
 else
     log_success "シェル設定は既に完了"
@@ -67,12 +64,9 @@ fi
 # Step 3: Node.js/pnpmインストール
 log_step 3 "Node.js/pnpmのインストール..."
 
-NODE_VERSION=$(grep -o '"node": *"[^"]*"' package.json | grep -o '[0-9.]*')
-PNPM_VERSION=$(grep -o '"pnpm": *"[^"]*"' package.json | grep -o '[0-9.]*')
-
-volta install node@"$NODE_VERSION"
-volta install pnpm@"$PNPM_VERSION"
-log_success "Node.js $NODE_VERSION, pnpm $PNPM_VERSION をインストールしました"
+mise trust
+mise install
+log_success "mise.tomlに基づきNode.js/pnpmをインストールしました"
 
 # Step 4: direnv allow（direnvが利用可能な場合）
 log_step 4 "direnv設定..."

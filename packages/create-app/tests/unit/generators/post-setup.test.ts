@@ -44,7 +44,7 @@ describe("post-setup generator", () => {
       tools: {
         direnv: false,
         dotenvx: false,
-        volta: false,
+        mise: false,
         biome: true,
         husky: true,
       },

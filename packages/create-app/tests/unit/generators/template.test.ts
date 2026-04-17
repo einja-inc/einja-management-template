@@ -127,7 +127,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       tools: {
         direnv: true,
         dotenvx: true,
-        volta: true,
+        mise: true,
         biome: true,
         husky: true,
       },
@@ -171,7 +171,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       tools: {
         direnv: true,
         dotenvx: true,
-        volta: true,
+        mise: true,
         biome: true,
         husky: true,
       },
@@ -210,7 +210,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       tools: {
         direnv: false,
         dotenvx: false,
-        volta: false,
+        mise: false,
         biome: true,
         husky: true,
       },
@@ -250,7 +250,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       tools: {
         direnv: true,
         dotenvx: true,
-        volta: true,
+        mise: true,
         biome: true,
         husky: true,
       },
@@ -297,7 +297,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       tools: {
         direnv: false,
         dotenvx: false,
-        volta: false,
+        mise: false,
         biome: true,
         husky: true,
       },
@@ -342,7 +342,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       tools: {
         direnv: false,
         dotenvx: false,
-        volta: false,
+        mise: false,
         biome: true,
         husky: true,
       },
@@ -388,7 +388,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       tools: {
         direnv: false,
         dotenvx: false,
-        volta: false,
+        mise: false,
         biome: true,
         husky: true,
       },
@@ -432,7 +432,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       tools: {
         direnv: false,
         dotenvx: false,
-        volta: false,
+        mise: false,
         biome: true,
         husky: true,
       },

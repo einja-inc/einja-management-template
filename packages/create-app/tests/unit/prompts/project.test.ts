@@ -37,7 +37,7 @@ describe("promptProjectConfig", () => {
       tools: {
         direnv: true,
         dotenvx: true,
-        volta: true,
+        mise: true,
         biome: true,
         husky: true,
       },
@@ -69,7 +69,7 @@ describe("promptProjectConfig", () => {
     // ツールは常に全て有効
     expect(result.tools.direnv).toBe(true);
     expect(result.tools.dotenvx).toBe(true);
-    expect(result.tools.volta).toBe(true);
+    expect(result.tools.mise).toBe(true);
     expect(result.tools.biome).toBe(true);
     expect(result.tools.husky).toBe(true);
     expect(result.setupEinjaCli).toBe(false);
@@ -95,7 +95,7 @@ describe("promptProjectConfig", () => {
     // ツールは常に全て有効（認証選択に関わらず）
     expect(result.tools.direnv).toBe(true);
     expect(result.tools.dotenvx).toBe(true);
-    expect(result.tools.volta).toBe(true);
+    expect(result.tools.mise).toBe(true);
   });
 
   it("Worktree設定をカスタマイズする場合、worktreeConfigが設定される", async () => {

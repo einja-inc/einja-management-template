@@ -125,7 +125,8 @@
       "mcp__n8n-mcp__get_node_documentation",
       "mcp__n8n-mcp__search_templates",
       "mcp__n8n-mcp__get_node",
-      "mcp__n8n-mcp__n8n_get_workflow"
+      "mcp__n8n-mcp__n8n_get_workflow",
+      "Bash(dev-browser:*)"
     ],
     "ask": [
       "Bash(rm -rf:*)",
@@ -210,7 +211,8 @@
     "claude-mem@thedotmack": true,
     "einja-common@einja-skills": true,
     "einja-dev@einja-skills": true,
-    "einja-marketing@einja-skills": true
+    "einja-marketing@einja-skills": true,
+    "dev-browser@sawyerhood": true
   },
   "extraKnownMarketplaces": {
     "thedotmack": {
@@ -223,6 +225,12 @@
       "source": {
         "source": "github",
         "repo": "einja-inc/einja-skills"
+      }
+    },
+    "sawyerhood": {
+      "source": {
+        "source": "github",
+        "repo": "sawyerhood/dev-browser"
       }
     }
   }

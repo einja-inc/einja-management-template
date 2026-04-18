@@ -98,7 +98,7 @@
 | [フロントエンド開発ガイド](development/frontend-development.md) | Tanstack Query、React Hook Form、コンポーネント設計 | フロントエンド開発者 |
 | [コーディング規約](development/coding-standards.md) | TypeScript/React命名規則、禁止パターン、インポート規約 | 全開発者 |
 | [コンポーネント設計](development/component-design.md) | ディレクトリ構造、Props設計、スタイリング | フロントエンド開発者 |
-| [Playwright動作確認](development/playwright-guidelines.md) | 一時ファイル管理、ブラウザ設定 | QA、開発者 |
+| [Playwright動作確認](development/playwright-guidelines.md) | ブラウザ操作ガイド（einja-common Skill統合済み） | QA、開発者 |
 | [Pencilデザイン管理](development/pencil-design-management.md) | Pencil.dev（.pen）を使用したデザイン管理規約 | フロントエンド開発者 |
 
 ### データベース

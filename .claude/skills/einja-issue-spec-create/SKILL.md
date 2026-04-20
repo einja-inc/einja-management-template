@@ -210,7 +210,9 @@ AskUserQuestion:
 **重要**: 各段階で必ずユーザー承認を得て、コミット＆プッシュしてから次へ進行すること。
 
 #### Phase 1: requirements.md（要件定義書）
-1. requirements-generatorエージェントで作成
+**Phase 1 フロー（UI要件あり）**:
+
+**Phase 1a**: requirements-generatorエージェントで requirements.md 生成
    - エージェント内で既存コードの分析を実施
    - 標準の項目構造で要件を作成
    - **追加指示（呼び出し時にプロンプトに含める）**:
@@ -219,24 +221,67 @@ AskUserQuestion:
        - `docs/einja/steering/development/testing-strategy.md`
      - また、過去Planを `docs/plans/` ディレクトリから検索し、類似Issueがあれば「実装参考情報」セクションに参考情報として記載すること。
      - **0.3で作成した「要件ヒアリングサマリ」と「事前調査結果」を必ずプロンプトに含める**こと。requirements-generatorはこのサマリを基に要件定義書を作成する。事前調査済みの内容はStep 0で重複調査せず、より深い分析に集中する。
-     - requirements.md は最低限、`Sources`、`目的・役割`、`対象外`、`前提条件・制約`、`画面構成・状態`、`AC一覧`、`AC詳細（正常系/異常系）`、`表示・計算ルール`、`入力ルール`、`権限マトリクス`、`画面遷移`、`処理フロー` を持つこと。
+     - requirements.md は最低限、以下のセクションを持つこと:
+       - Sources
+       - §1 目的・役割（+ §1.1 対象外, §1.2 スコープ境界・コンテキスト + コンテキスト図, §1.3 主要ユースケース + ユースケース図）
+       - §2 前提条件・制約
+       - §3 画面構成・状態（+ §3.3 ローファイWF参照 — UI要件時のみ）
+       - §4 受け入れ条件（Story単位に再構成 — 各Story配下に As a/I want to/So that + Story内AC一覧表 + AC詳細 正常系/異常系）
+       - §5 表示・計算ルール
+       - §6 入力ルール
+       - §7 権限マトリクス
+       - §8 画面遷移（+ §8.2 画面遷移図）
+       - §9 業務フロー — 権限・承認・部門横断がある場合必須
+       - §10 処理フロー（主要フロー + 例外フロー）
+       - §11 状態遷移 — 状態を持つ機能の場合必須
+       - §12 概念データモデル — 複数エンティティ間に関係がある場合必須
+       - §13 非機能要件
+       - §14 実装参考情報
+     - **AC命名体系**: `AC{Story#}.{Cat}.{N|E}.{連番3桁}` 形式（例: `AC1.UI.N.001`, `AC1.VAL.E.001`）
+       - カテゴリ: `UI / NAV / VAL / ERR / PERM / UX` のみ
+       - `N` = 正常系 / `E` = 異常系
+       - 連番は各 Story × カテゴリ × 区分 ごとに001から
+       - AC採番は Story起点（Story1配下のUI正常系は AC1.UI.N.001 から始まる）
+     - **Story ↔ WF参照規約**: UI/NAV カテゴリACは該当の lo-fi WF フレームを `[参照: WF-S1-F01]` 形式で引用する
+     - **mermaid記法方針**: C4記法（`C4Context`/`C4Container`等）は公式experimentalのため使用しない。`graph TB` + `subgraph` で C4 相当を表現すること
      - AC は Story番号ベースの単純連番ではなく、`カテゴリ / 区分 / 強度 / 検証レベル` を持つ `AC一覧` を先に出力すること。
-     - ACカテゴリは原則 `UI / NAV / VAL / ERR / PERM / UX` から選ぶこと。
      - AC本文は振る舞いの骨格だけを記述し、詳細条件は `→§N` の形で後続セクションに委譲すること。
      - AC詳細は `正常系` と `異常系` を分けること。
-2. **`einja-review-spec` Skillで並列レビューを実施**
+
+**UI要件の判定基準**:
+- requirements.md 内に「画面」「UI」「フォーム」「ダッシュボード」「表示」「ボタン」「入力」等のキーワードが含まれる場合、UI要件あり
+- 判断が曖昧な場合はAskUserQuestionでユーザーに確認
+
+**Phase 1b（UI要件あり時のみ）**: lo-fi WF を ui-design-generator で作成
+   - `mode=lo-fi`, `phase=1`, `requirements_path={仕様書ディレクトリ}/requirements.md` をパラメータで渡す
+   - 出力: `{仕様書ディレクトリ}/ui-design.pen`（`WF-S{n}-F{nn}` フレーム群）
+   - UI要件なしの場合は Phase 1b/1c をスキップし、直接 Phase 1d へ進む
+
+**Phase 1c（UI要件あり時のみ）**: 横断チェック（オーケストレーター実施）
+   - requirements.md の AC（UI/NAV カテゴリ）の WF参照（`[参照: WF-S1-F01]`）と ui-design.pen のフレーム命名（`WF-S{n}-F{nn}`）が一致しているか確認
+   - 不整合がある場合は該当ファイルを修正
+
+**Phase 1d**: `einja-review-spec` Skillで並列レビューを実施
    - `review_scope=requirements`
    - requirements.md の内容、要件ヒアリングサマリ、残存リスクを渡す
-   - **MAJOR** の場合は requirements-generator に修正指示を返し、再レビューする（最大2回）
-3. **ユーザーに内容確認を依頼**
+   - UI要件ありの場合は ui-design.pen の lo-fi WF も対象に含める
+   - Phase 1 の ui-design.pen レビュー観点（lo-fi WF）:
+     - 構成・情報優先度・操作導線のみ評価
+     - 色・フォント・詳細コンポーネントは評価対象外
+   - **MAJOR** の場合は requirements-generator（または ui-design-generator）に修正指示を返し、再レビューする（最大2回）
+
+**Phase 1e**: ユーザーに内容確認を依頼（requirements.md + lo-fi ui-design.pen 一括提示）
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（要件の過不足、受け入れ基準の明確性など）
+   - UI要件ありの場合: Pencil MCPのget_screenshotで lo-fi フレームプレビューを提示
    - `einja-review-spec` が PASS/MINOR であることを明記する
-4. **ユーザー承認後、コミット＆プッシュ**
+
+**Phase 1f**: ユーザー承認後、コミット＆プッシュ
    - コミットメッセージ: `docs: {機能名}の要件を追加`
    - ブランチは `issue/{issue番号}` にプッシュ
    - 他のメンバーがレビューできるようにする
-5. **承認を得てから次のステップ（design.md）に進む**
+
+**承認を得てから次のステップ（design.md）に進む**
 
 #### Phase 2: 三又並列生成（design + ui-design + QA）
 
@@ -271,17 +316,19 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
     - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
   - requirements.mdの「実装参考情報」セクションを参照し、design.mdに「関連ドキュメント」「関連Skill・サブエージェント」セクションを出力すること。
   - **外部API連携がある場合**: 上記「外部API連携がある場合の必須記載事項」に従うこと
-  - design.md は最低限、`Overview`、`Existing Architecture Analysis`、`Architecture Pattern & Boundary Map`、`Technology Stack`、`System Flows`、`Requirements Traceability`、`Component Summary`、`Components and Interfaces`、`Rules Mapping`、`Testing Strategy for This Feature` を持つこと。
-  - requirements.md の `AC一覧` と `§5〜§9 のルール系セクション` を参照し、設計へトレースすること。
+  - design.md は最低限、`Overview` / `Existing Architecture Analysis` / `Architecture Pattern & Boundary Map`（C4 Container相当 graph TB+subgraph、外部システム明示）/ `Technology Stack` / `System Flows`（主要+例外 alt/opt/loop/par）/ `Requirements Traceability` / `Component Summary`（C4 Component図 + 一覧テーブル）/ `Components and Interfaces` / `Data Model`（物理ERD erDiagram + Entity/DTO + Persistence）/ `API Contract` / `State Transitions`（該当時）/ `Rules Mapping` / `Testing Strategy for This Feature` / `Related Documents` / `Related Skills / Subagents` を持つこと。
+  - **mermaid記法方針**: C4記法（`C4Context`/`C4Container`等）は公式experimentalのため使用しない。`graph TB` + `subgraph` で C4 相当を表現すること。
+  - requirements.md の `Story単位AC一覧` と `§5〜§8 のルール系セクション（表示・計算ルール / 入力ルール / 権限マトリクス / 画面遷移）` と `§9〜§12 のフロー・状態・データモデル` を参照し、設計へトレースすること。
   - 一般論ではなく、既存実装に対して何を再利用し何を追加するかを優先して書くこと。
 
-**[並列-2] ui-design-generatorエージェント → ui-design.pen**
-1. 既存画面確認（改修の場合）
-   - Playwright MCPで既存画面のスクリーンショットを取得
-   - 改修対象のUIパターンを把握
+**[並列-2] ui-design-generatorエージェント → ui-design.pen（hi-fi 詳細化）**
+1. Phase 1 で作成した lo-fi WF を同一 `.pen` 上で詳細化する
+   - `mode=hi-fi`, `phase=2`, `existing_pen_path={仕様書ディレクトリ}/ui-design.pen`, `requirements_path={仕様書ディレクトリ}/requirements.md` をパラメータで渡す
+   - lo-fi フレーム（`WF-*`）は削除せず残す
+   - hi-fi フレーム群（`HF-S{n}-F{nn}` 命名）を追加する
 2. requirements.mdの内容を参照
-3. Pencil MCPでビジュアルモックアップを作成
-4. 出力: `{仕様書ディレクトリ}/ui-design.pen`
+3. einja-pencil-design-manager の共通コンポーネントと同期
+4. 出力: `{仕様書ディレクトリ}/ui-design.pen`（lo-fi + hi-fi 共存）
 - **追加指示（呼び出し時にプロンプトに含める）**:
   - 以下のsteering文書を事前に読み込んでから作業すること:
     - `docs/einja/steering/development/pencil-design-management.md`
@@ -321,6 +368,9 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
    - `review_scope=phase2_bundle`
    - requirements.md、design.md、qa-test.md、`ui-design.pen` がある場合はスクリーンショット要約を渡す
    - design / qa / ui の用語・画面名・API名・外部API前提の不整合を重点確認する
+   - Phase 2 の ui-design.pen レビュー観点（hi-fi）:
+     - デザイントークン・コンポーネント妥当性・実装可能性
+     - カラー・タイポ・スペーシング・ブランド適合
    - **MAJOR** の場合は該当エージェントに修正指示を返し、再レビューする（最大2回）
 
 3. **一括承認（ユーザー確認）**
@@ -481,6 +531,19 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
 - 1000行を超える場合、意味のあるまとまりで2-3個のパートに自動分割
 - README.mdで全体構成とナビゲーションを提供
 - 分割されたファイルも他エージェントから正しく参照可能
+
+## 既存進行中Issueへの移行判断
+
+本Skillのテンプレート・AC命名体系・章立ては 2026-04-20 に刷新された。既存の進行中Issueについては以下の判断ルールに従うこと。
+
+| 状態 | 判断 |
+|------|------|
+| 新規Issue（本Skillで spec-create を新規実行） | **新テンプレ必須** |
+| 完全新規着手（Phase 0-1段階の既存Issue） | 新テンプレへ移行推奨 |
+| Phase 2以降進行中（requirements.md承認済み） | **現行のまま完遂**（混在回避） |
+| 要件変更で大改訂が必要なIssue | 個別判断（残工数・AC数で判定。30件未満なら移行推奨） |
+
+旧形式サンプル（`/docs/einja/example/specs/issues/issue999-example-task/` の旧版）は本刷新時に新形式に完全書き換えされている。参照するサンプルは新形式のみ。
 
 ## 重要な原則
 - 段階的開発：requirements承認後は並列生成し一括承認

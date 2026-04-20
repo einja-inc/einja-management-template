@@ -1,101 +1,109 @@
 # マジックリンク認証機能 設計文書
 
-## 概要
+<!-- 図はMermaid記法を標準とする。C4記法（C4Context等）は使用せず、graph TB + subgraph で C4 相当を表現する -->
+<!-- 外部連携（SendGrid、認証プロバイダ）は "External Systems" subgraph に明示 -->
 
-パスワードレス認証を実現するマジックリンク機能を実装し、ユーザーのログイン体験を向上させます。メールアドレスに送信される一時的なリンクをクリックすることで、パスワード入力なしに安全な認証を可能にします。本設計書では、要件定義書で定義された3つのユーザーストーリー（マジックリンクリクエスト、認証処理、セキュリティ通知）を実現するための技術的実装を詳細に定義します。
+## Overview
 
-## アーキテクチャ
+- **Purpose**: パスワードレス認証を実現するマジックリンク機能を実装し、ユーザーのログイン体験を向上させる
+- **Users**: アプリケーション利用者（既存ユーザー・新規ユーザー）
+- **Impact**: パスワード管理不要による離脱率低下、フィッシング耐性向上
 
-### システム構成図
+### Goals
+
+- メールアドレスに送信される一時的なリンクをクリックすることで、パスワード入力なしに安全な認証を可能にする
+- マジックリンクリクエスト・認証処理・セキュリティ通知の3ユーザーストーリーを技術的に実現する
+
+### Non-Goals
+
+- ソーシャルログイン（OAuth）の実装
+- パスワード認証の廃止（移行期間中は並行運用）
+
+## Existing Architecture Analysis
+
+- **現状の実装**: パスワード認証が実装済み。並行運用期間中はパスワードログインも維持
+- **再利用する既存コンポーネント**: SessionProvider、既存のCookieベースセッション管理、PostgreSQL / Prisma
+- **拡張対象**: 既存のユーザーモデル（MagicLinkToken / Session テーブルを追加）
+- **新規追加対象**: TokenService、EmailService、SecurityService、MagicLinkForm、VerificationMessage、TokenVerifying コンポーネント
+
+## Architecture Pattern & Boundary Map
+
+<!-- C4 Container相当: graph TB + subgraph で表現。外部システム・技術スタックをラベルに含める -->
+<!-- 外部連携は "External Systems" subgraph に明示 -->
 
 ```mermaid
 graph TB
-    User[ユーザー] --> WebApp[Webアプリケーション]
-    WebApp --> AuthAPI[認証API]
-    AuthAPI --> TokenService[トークンサービス]
-    AuthAPI --> EmailService[メール送信サービス]
-    TokenService --> DB[(PostgreSQL)]
-    TokenService --> Redis[(Redis Cache)]
-    EmailService --> SendGrid[SendGrid API]
-    
-    AuthAPI --> SecurityService[セキュリティサービス]
-    SecurityService --> DeviceDetector[デバイス検知]
-    SecurityService --> RateLimit[レート制限]
-    
-    subgraph 認証フロー
-        TokenService
-        SecurityService
-        RateLimit
+    subgraph "User"
+        U[👤 ユーザー]
     end
+
+    subgraph "Web Application (Next.js)"
+        Page[Page Component]
+        Form[MagicLinkForm]
+        Client[API Client / authApi.ts]
+    end
+
+    subgraph "API Server (Hono / Route Handlers)"
+        AuthRoute[認証ルート<br/>/api/auth/*]
+        TokenService[TokenService<br/>トークン生成・検証]
+        EmailSvc[EmailService<br/>メール送信]
+        SecuritySvc[SecurityService<br/>レート制限・デバイス検知]
+        SessionMgr[セッション管理]
+    end
+
+    subgraph "Data Layer"
+        DB[(PostgreSQL<br/>via Prisma)]
+        Redis[(Redis<br/>レート制限キャッシュ)]
+    end
+
+    subgraph "External Systems"
+        SendGrid[📧 SendGrid API]
+    end
+
+    U --> Page
+    Page --> Form
+    Form --> Client
+    Client --> AuthRoute
+    AuthRoute --> TokenService
+    AuthRoute --> EmailSvc
+    AuthRoute --> SecuritySvc
+    AuthRoute --> SessionMgr
+    TokenService --> DB
+    SessionMgr --> DB
+    SecuritySvc --> Redis
+    EmailSvc --> SendGrid
 ```
 
-### データフロー図（DFD）
+### Architecture Notes
 
-```mermaid
-flowchart LR
-    %% 外部エンティティ
-    User[👤 ユーザー]
-    EmailProvider[📧 SendGrid]
-    
-    %% プロセス
-    P1((1.0<br/>リンク要求))
-    P2((2.0<br/>トークン生成))
-    P3((3.0<br/>メール送信))
-    P4((4.0<br/>リンク検証))
-    P5((5.0<br/>セッション作成))
-    
-    %% データストア
-    TokenDB[(トークンDB)]
-    SessionDB[(セッションDB)]
-    Cache[(キャッシュ)]
-    
-    %% データフロー
-    User -->|メールアドレス| P1
-    P1 -->|検証済みアドレス| P2
-    P2 -->|トークン| TokenDB
-    P2 -->|送信データ| P3
-    P3 -->|メール| EmailProvider
-    EmailProvider -->|配信| User
-    User -->|マジックリンク| P4
-    P4 -->|トークン照合| TokenDB
-    P4 -->|認証成功| P5
-    P5 -->|セッション| SessionDB
-    P5 -->|一時保存| Cache
-```
+- **採用パターン**: 4層アーキテクチャ（Page → API Route → UseCase/Service → Repository）
+- **依存境界**: EmailService / SecurityService は AuthRoute からのみ呼び出し。TokenService はトークンの生成・ハッシュ化・検証に特化
+- **既存規約との整合**: backend-architecture.md の Repository/Mapper パターンに準拠
 
-### データフロー説明
+## Technology Stack
 
-1. **マジックリンクリクエストフロー**
-   - ユーザーがメールアドレスを入力
-   - メールアドレスの形式検証とレート制限チェック
-   - 暗号学的に安全なトークンの生成（256ビット）
-   - トークンのハッシュ化とデータベース保存
-   - メール送信キューへの登録
+| Layer | Choice / Version | Role in Feature | Notes |
+|-------|------------------|-----------------|-------|
+| Frontend | React / Next.js (App Router) | UI実装 | 既存App Router準拠 |
+| Validation | Zod | 入力検証 | FE/BEで整合 |
+| Backend | Route Handlers / Hono | API層 | /api/auth/* ルート群 |
+| ORM | Prisma | データアクセス | 既存Repository経由 |
+| Cache | Redis | レート制限カウンター | セッション情報の一時キャッシュも兼用 |
+| Email | SendGrid | マジックリンクメール送信 | HTML/テキストマルチパート |
+| Token | crypto.randomBytes | 256ビット安全乱数生成 | Node.js標準crypto |
+| Hashing | bcrypt | トークンのハッシュ化保存 | DB漏洩時の保護 |
 
-2. **メール送信フロー**
-   - SendGrid APIを使用したメール送信
-   - HTMLとテキストのマルチパート形式
-   - リンクの有効期限（15分）を明記
-   - 配信ステータスの追跡
+## System Flows
 
-3. **認証処理フロー**
-   - マジックリンクのトークン抽出
-   - トークンの有効性検証（期限、使用済み、ハッシュ照合）
-   - セッション生成と Cookie 設定
-   - トークンの即座の無効化
-   - ダッシュボードへのリダイレクト
-
-## シーケンス図
-
-### マジックリンク認証の全体フロー
+### 主要フロー: マジックリンク認証の全体
 
 ```mermaid
 sequenceDiagram
     participant U as ユーザー
-    participant W as Webアプリ
+    participant W as Webアプリ (Next.js)
     participant A as 認証API
-    participant T as トークンサービス
-    participant E as メールサービス
+    participant T as TokenService
+    participant E as EmailService
     participant D as データベース
     participant S as SendGrid
 
@@ -113,9 +121,9 @@ sequenceDiagram
     E-->>A: 送信ステータス
     A-->>W: 成功レスポンス
     W-->>U: 確認画面表示
-    
+
     Note over U: メール受信
-    
+
     U->>W: マジックリンククリック
     W->>A: GET /api/auth/verify?token=xxx
     A->>T: verifyToken()
@@ -130,58 +138,404 @@ sequenceDiagram
     W-->>U: ダッシュボードへリダイレクト
 ```
 
-## コンポーネントとインターフェース
+### 例外フロー: トークン検証の分岐とエラーハンドリング
 
-### データベース設計
+<!-- alt: トークン状態分岐（有効/期限切れ/使用済み/無効） -->
+<!-- opt: セキュリティ通知メール送信（新規デバイス時） -->
+<!-- DB失敗時のエラーハンドリング -->
 
-#### ERD
+```mermaid
+sequenceDiagram
+    participant U as ユーザー
+    participant W as Webアプリ
+    participant A as 認証API
+    participant T as TokenService
+    participant D as データベース
+    participant E as EmailService
+    participant S as SendGrid
+
+    U->>W: マジックリンククリック
+    W->>A: GET /api/auth/verify?token=xxx
+    A->>T: verifyToken(token)
+    T->>D: トークン照合（ハッシュ検索）
+
+    alt DB参照失敗
+        D-->>T: Error
+        T-->>A: 500 INTERNAL_ERROR
+        A-->>W: 500
+        W-->>U: エラー画面（再試行案内）
+    else トークン見つからない
+        D-->>T: null
+        T-->>A: TOKEN_INVALID
+        A-->>W: 400 TOKEN_INVALID
+        W-->>U: エラー画面（無効なリンク）
+    else トークン期限切れ [expiresAt < now()]
+        D-->>T: トークン情報
+        T-->>A: TOKEN_EXPIRED
+        A-->>W: 400 TOKEN_EXPIRED
+        W-->>U: エラー画面（期限切れ + 再送信ボタン）
+    else トークン使用済み [used = true]
+        D-->>T: トークン情報
+        T-->>A: TOKEN_USED
+        A-->>W: 400 TOKEN_USED
+        W-->>U: エラー画面（使用済み + 再送信ボタン）
+    else トークン有効
+        D-->>T: トークン情報
+        T->>D: トークン無効化 (used = true)
+        T-->>A: 検証成功 + userId
+
+        A->>D: セッション作成
+        alt DB保存失敗
+            D-->>A: Error
+            A-->>W: 500
+            W-->>U: エラー画面（再試行案内）
+        else セッション保存成功
+            D-->>A: sessionId
+
+            opt 新規デバイスからのログイン
+                A->>E: sendSecurityNotification()
+                E->>S: セキュリティ通知メール送信
+                S-->>E: 送信完了
+            end
+
+            A-->>W: 認証Cookie設定 (HTTPOnly)
+            W-->>U: ダッシュボードへリダイレクト (3秒以内)
+        end
+    end
+```
+
+### 例外フロー: マジックリンクリクエストのレート制限
+
+```mermaid
+sequenceDiagram
+    participant U as ユーザー
+    participant W as Webアプリ
+    participant A as 認証API
+    participant SC as SecurityService
+    participant T as TokenService
+    participant D as データベース
+
+    U->>W: メールアドレス入力 + 送信
+    W->>A: POST /api/auth/magic-link {email}
+    A->>A: メール形式バリデーション
+
+    alt バリデーション失敗
+        A-->>W: 400 VALIDATION_ERROR
+        W-->>U: インラインエラー表示
+    else バリデーション成功
+        A->>SC: checkRateLimit(ip, email)
+
+        alt IPレート制限超過 (1分3回超)
+            SC-->>A: RATE_LIMIT_IP
+            A-->>W: 429 + retryAfter
+            W-->>U: レート制限エラー（次回リクエスト可能時刻表示）
+        else メールレート制限超過 (1分1回超)
+            SC-->>A: RATE_LIMIT_EMAIL
+            A-->>W: 429 + retryAfter
+            W-->>U: レート制限エラー
+        else レート制限OK
+            A->>T: generateToken(userId)
+            T->>D: トークン保存
+            loop メール送信リトライ（最大3回）
+                A->>A: sendMagicLink()
+                alt 送信失敗
+                    A->>A: 次回リトライ待機
+                else 送信成功
+                    A-->>W: 200 success
+                    W-->>U: 確認画面表示
+                end
+            end
+        end
+    end
+```
+
+## Requirements Traceability
+
+| Requirement / AC | Summary | Components | Interfaces | Flows |
+|------------------|---------|------------|------------|-------|
+| AC1.UI.N.001 | 有効メール送信時の成功メッセージ表示 | MagicLinkForm, VerificationMessage | Props: email | 主要フロー |
+| AC1.VAL.E.001 | 無効メール形式エラー | MagicLinkForm, Zod Schema | Validation contract | 例外フロー（リクエスト） |
+| AC1.ERR.E.001 | レート制限エラー | MagicLinkForm, AuthRoute | Error response | 例外フロー（レート制限） |
+| AC1.UI.N.002 | メールアドレスフィールドのフォーカス状態表示 | MagicLinkForm | Props: focusedField state | 主要フロー |
+| AC1.VAL.E.002 | 空欄送信で必須エラー | MagicLinkForm, Zod Schema | Validation contract | 例外フロー（リクエスト） |
+| AC1.VAL.E.003 | 不正形式で形式エラー | MagicLinkForm, Zod Schema | Validation contract | 例外フロー（リクエスト） |
+| AC1.UX.N.001 | 送信ボタン無効化・スピナー（多重送信防止） | MagicLinkForm | State: isSubmitting | 主要フロー |
+| AC1.UX.N.002 | 3秒以上で進捗メッセージ表示 | MagicLinkForm, TokenVerifying | State: elapsedTime | 主要フロー |
+| AC1.NAV.N.001 | 送信成功後の確認画面遷移 | MagicLinkForm, Router | onSubmitSuccess callback | 主要フロー |
+| AC2.NAV.N.001 | 有効リンクで自動ログインしダッシュボードへリダイレクト | TokenVerifying, AuthRoute | onSuccess callback | 主要フロー |
+| AC2.ERR.E.001 | 期限切れリンクエラーと再送信オプション | TokenVerifying, ErrorScreen | onError callback | 例外フロー（検証） |
+| AC2.ERR.E.002 | 使用済みリンクエラー | TokenVerifying, ErrorScreen | onError callback | 例外フロー（検証） |
+| AC2.UX.N.001 | 検証画面でのローディングスピナー | TokenVerifying | State: status = verifying | 主要フロー |
+| AC2.UX.N.002 | トークン検証中のユーザー操作防止 | TokenVerifying | State: isSubmitting | 主要フロー |
+| AC2.NAV.N.002 | 検証成功後3秒以内のダッシュボードリダイレクト | TokenVerifying | setTimeout(onSuccess, 3000) | 主要フロー |
+| AC2.ERR.E.003 | 期限切れトークンで再送信ボタン表示 | ErrorScreen | Props: errorType = TOKEN_EXPIRED | 例外フロー（検証） |
+| AC2.ERR.E.004 | 使用済みトークンで再送信ボタン表示 | ErrorScreen | Props: errorType = TOKEN_USED | 例外フロー（検証） |
+| AC2.ERR.E.005 | 無効トークンでログインページへの導線表示 | ErrorScreen | Props: errorType = TOKEN_INVALID | 例外フロー（検証） |
+| AC2.UI.N.001 | エラー画面からの再送信時のメールアドレスプリフィル | ErrorScreen, MagicLinkForm | Props: defaultEmail | 例外フロー（検証） |
+| AC3.UI.N.001 | 新規デバイスログイン時のセキュリティ通知メール送信 | EmailService, SecurityService | sendSecurityNotification() | 例外フロー（検証）opt |
+| AC3.UI.N.002 | 通知からワンクリックでセッション無効化 | SessionRevocationScreen | revokeSession API | 主要フロー |
+| AC3.UI.N.003 | 新規デバイスログイン後のダッシュボード通知バナー | Dashboard | SecurityBanner component | 主要フロー |
+| AC3.NAV.N.001 | セキュリティ通知メールからのセッション無効化確認画面遷移 | EmailService, Router | /auth/revoke?sessionId= | 主要フロー |
+| AC3.UI.N.004 | 確認画面で「無効化する」クリックで無効化実行 | SessionRevocationScreen | POST /api/auth/revoke | 主要フロー |
+| AC3.NAV.N.002 | 確認画面で「キャンセル」クリックでセッション維持 | SessionRevocationScreen | Router.back() | 主要フロー |
+
+## Component Summary
+
+### C4 Component図
+
+<!-- UI変更を伴うため必須。Feature: Auth 内部のコンポーネント分割を示す -->
+
+```mermaid
+graph TB
+    subgraph "Web Application (Next.js)"
+        subgraph "Feature: Auth"
+            LoginPage[LoginPage<br/>ルーティング・状態制御]
+            MagicLinkForm[MagicLinkForm<br/>入力・クライアントバリデーション]
+            VerificationMsg[VerificationMessage<br/>送信確認・再送信UI]
+            TokenVerifying[TokenVerifying<br/>トークン検証中表示]
+            ErrorScreen[ErrorScreen<br/>エラー種別別UI]
+            SessionRevoke[SessionRevocationScreen<br/>セッション無効化確認]
+            AuthSchema[Zod Schema<br/>メール・トークン検証]
+            AuthApiClient[authApi.ts<br/>API通信層]
+            UseSession[useSession.ts<br/>セッション状態管理]
+            UseMagicLink[useMagicLink.ts<br/>送信フック]
+        end
+    end
+
+    subgraph "API Server"
+        subgraph "Feature: Auth API"
+            MagicLinkRoute[POST /api/auth/magic-link]
+            VerifyRoute[GET /api/auth/verify]
+            LogoutRoute[POST /api/auth/logout]
+            SessionRoute[GET /api/auth/session]
+            ResendRoute[POST /api/auth/resend]
+            RevokeRoute[POST /api/auth/revoke]
+            TokenSvc[TokenService]
+            EmailSvc[EmailService]
+            SecuritySvc[SecurityService]
+            SessionSvc[SessionManager]
+        end
+    end
+
+    LoginPage --> MagicLinkForm
+    LoginPage --> VerificationMsg
+    LoginPage --> TokenVerifying
+    LoginPage --> ErrorScreen
+    MagicLinkForm --> AuthSchema
+    MagicLinkForm --> UseMagicLink
+    UseMagicLink --> AuthApiClient
+    TokenVerifying --> AuthApiClient
+    SessionRevoke --> AuthApiClient
+    UseSession --> AuthApiClient
+
+    AuthApiClient --> MagicLinkRoute
+    AuthApiClient --> VerifyRoute
+    AuthApiClient --> LogoutRoute
+    AuthApiClient --> SessionRoute
+    AuthApiClient --> ResendRoute
+    AuthApiClient --> RevokeRoute
+
+    MagicLinkRoute --> TokenSvc
+    MagicLinkRoute --> EmailSvc
+    MagicLinkRoute --> SecuritySvc
+    VerifyRoute --> TokenSvc
+    VerifyRoute --> SessionSvc
+    VerifyRoute --> EmailSvc
+```
+
+### Component一覧テーブル
+
+| Component | Domain/Layer | Intent | Req Coverage | Key Dependencies | Contracts |
+|-----------|--------------|--------|--------------|------------------|-----------|
+| LoginPage | UI/Page | 認証フロー全体の制御・ルーティング | AC1.NAV.N.001, AC2.NAV.N.001 | AuthApiClient, Router | State管理 |
+| MagicLinkForm | UI/Feature | メールアドレス入力・バリデーション | AC1.UI.N.001, AC1.VAL.*, AC1.UX.* | AuthSchema, useMagicLink | Props: onSubmit, defaultEmail |
+| VerificationMessage | UI/Feature | 送信確認・再送信カウントダウン | AC1.UI.N.001, AC1.NAV.N.001 | - | Props: email, onResend |
+| TokenVerifying | UI/Feature | トークン検証中UI・自動リダイレクト | AC2.UX.*, AC2.NAV.* | AuthApiClient | Props: token, onSuccess, onError |
+| ErrorScreen | UI/Feature | エラー種別別UI・リカバリーアクション | AC2.ERR.* | Router | Props: errorType, email |
+| SessionRevocationScreen | UI/Feature | セッション無効化確認 | AC3.UI.N.002, AC3.UI.N.004, AC3.NAV.N.002 | AuthApiClient | Props: sessionId |
+| TokenService | Server/Service | トークン生成・ハッシュ化・検証・無効化 | AC2.ERR.*, AC2.NAV.* | DB (Prisma) | generateToken(), verifyToken() |
+| EmailService | Server/Service | マジックリンク・セキュリティ通知メール送信 | AC1.UI.N.001, AC3.UI.N.001 | SendGrid API | sendMagicLink(), sendSecurityNotification() |
+| SecurityService | Server/Service | レート制限・デバイス検知 | AC1.ERR.E.001 | Redis | checkRateLimit() |
+| SessionManager | Server/Service | セッション生成・Cookie設定・無効化 | AC2.NAV.N.001, AC3.UI.N.002 | DB (Prisma) | createSession(), revokeSession() |
+
+## Components and Interfaces
+
+### MagicLinkForm
+
+- **Responsibilities**:
+  - メールアドレス入力状態管理
+  - クライアントサイドバリデーション（フォーカスアウト時・送信時）
+  - 送信中の多重送信防止
+  - 長時間処理時の進捗メッセージ表示
+- **Dependencies**:
+  - Inbound: LoginPage
+  - Outbound: useMagicLink hook, Zod Schema
+- **Props**:
+
+**MagicLinkFormProps**
+| プロパティ | 型 | 必須 | 説明 |
+|-----------|-----|-----|------|
+| onSubmit | (email: string) => Promise\<void\> | ○ | 送信ハンドラ |
+| defaultEmail | string | - | エラー後の再表示用デフォルト値 |
+| isLoading | boolean | - | ローディング状態の外部制御 |
+| error | string \| null | - | 外部からのエラーメッセージ |
+
+**MagicLinkFormState**
+| プロパティ | 型 | 説明 |
+|-----------|-----|------|
+| email | string | 入力中のメールアドレス |
+| validationError | string \| null | バリデーションエラーメッセージ |
+| isSubmitting | boolean | 送信中フラグ（多重送信防止） |
+| focusedField | 'email' \| null | フォーカス中フィールド名 |
+
+**バリデーションロジック** (処理フロー):
+- 空文字・空白のみ → 「メールアドレスを入力してください」エラー
+- メール形式不正（`@` / ドメイン不在）→ 「有効なメールアドレスを入力してください」エラー
+- 上記以外 → バリデーション通過（null を返却）
+
+### VerificationMessage
+
+- **Responsibilities**:
+  - メール送信確認画面の表示
+  - 再送信カウントダウン管理（60秒）
+  - 再送信ボタンの有効/無効制御
+- **Contracts**:
+
+**VerificationMessageProps**
+| プロパティ | 型 | 必須 | 説明 |
+|-----------|-----|-----|------|
+| email | string | ○ | 送信先メールアドレス（表示用） |
+| onResend | () => Promise\<void\> | ○ | 再送信ハンドラ |
+| onChangeEmail | () => void | ○ | 別メールアドレスへ変更するコールバック |
+| expiryMinutes | number | - | リンク有効期限（分）。デフォルト: 15 |
+
+**VerificationMessageState**
+| プロパティ | 型 | 説明 |
+|-----------|-----|------|
+| resendCountdown | number | 再送信ボタン有効化までの残秒数 |
+| canResend | boolean | 再送信ボタン有効フラグ |
+| isResending | boolean | 再送信処理中フラグ |
+
+### TokenVerifying
+
+- **Responsibilities**:
+  - マウント時に自動的にトークン検証開始
+  - 検証中ローディングUI表示
+  - 3秒以上経過時のプログレスバー追加
+  - 検証成功後3秒以内の自動リダイレクト
+- **Contracts**:
+
+**TokenVerifyingProps**
+| プロパティ | 型 | 必須 | 説明 |
+|-----------|-----|-----|------|
+| token | string | ○ | URLクエリパラメータから取得したトークン |
+| onSuccess | (user: User) => void | ○ | 検証成功時コールバック |
+| onError | (error: TokenVerificationError) => void | ○ | 検証失敗時コールバック |
+
+**TokenVerifyingState**
+| プロパティ | 型 | 説明 |
+|-----------|-----|------|
+| status | 'verifying' \| 'success' \| 'error' | 検証フェーズ |
+| elapsedTime | number | 経過秒数（プログレスバー表示判定用） |
+| showProgressBar | boolean | プログレスバー表示フラグ（3秒超過で true） |
+
+### TokenService
+
+- **Responsibilities**:
+  - 256ビット暗号学的乱数トークン生成
+  - bcryptによるトークンのハッシュ化・保存
+  - トークン照合・有効期限チェック・使用済みチェック
+  - 使用後の即時無効化
+- **Contracts**:
+
+**TokenService メソッド一覧**
+| メソッド | 引数 | 戻り値 | 説明 |
+|---------|------|--------|------|
+| generateToken | userId: string, ipAddress?: string, userAgent?: string | Promise\<\{ rawToken: string \}\> | 256ビット安全乱数トークンを生成しハッシュ化してDBに保存 |
+| verifyToken | rawToken: string | Promise\<\{ userId: string \} \| TokenVerificationError\> | トークン照合・有効期限・使用済みチェックを実施 |
+| invalidateToken | tokenId: string | Promise\<void\> | 指定トークンを即時無効化（used = true に更新） |
+
+## Data Model
+
+### 物理ERD
+
+<!-- DB変更を伴うため必須。PK/FK/UK を含む物理モデル -->
 
 ```mermaid
 erDiagram
-    User {
-        string id PK
-        string email UK
-        string name
-        datetime createdAt
-        datetime updatedAt
+    USER {
+        string id PK "cuid()"
+        string email UK "NOT NULL"
+        string name "NULL"
+        datetime createdAt "DEFAULT now()"
+        datetime updatedAt "AUTO"
     }
-    
-    MagicLinkToken {
-        string id PK
-        string userId FK
-        string hashedToken UK
-        datetime expiresAt
-        boolean used
-        string ipAddress
-        string userAgent
-        datetime createdAt
+
+    MAGIC_LINK_TOKEN {
+        string id PK "cuid()"
+        string userId FK "NOT NULL → USER.id (CASCADE)"
+        string hashedToken UK "NOT NULL, index"
+        datetime expiresAt "NOT NULL, index"
+        boolean used "DEFAULT false"
+        string ipAddress "NULL"
+        string userAgent "NULL"
+        datetime createdAt "DEFAULT now()"
     }
-    
-    Session {
-        string id PK
-        string userId FK
-        string deviceFingerprint
-        datetime expiresAt
-        datetime createdAt
-        datetime lastActivity
+
+    SESSION {
+        string id PK "cuid()"
+        string userId FK "NOT NULL → USER.id (CASCADE)"
+        string deviceFingerprint "NULL"
+        datetime expiresAt "NOT NULL, index"
+        datetime createdAt "DEFAULT now()"
+        datetime lastActivity "DEFAULT now()"
     }
-    
-    SecurityLog {
-        string id PK
-        string userId FK
-        string eventType
-        string ipAddress
-        string deviceInfo
-        json metadata
-        datetime createdAt
+
+    SECURITY_LOG {
+        string id PK "cuid()"
+        string userId FK "NOT NULL → USER.id (CASCADE)"
+        string eventType "NOT NULL, index (userId,eventType)"
+        string ipAddress "NULL"
+        string deviceInfo "NULL"
+        json metadata "NULL"
+        datetime createdAt "DEFAULT now(), index"
     }
-    
-    User ||--o{ MagicLinkToken : generates
-    User ||--o{ Session : has
-    User ||--o{ SecurityLog : logs
+
+    USER ||--o{ MAGIC_LINK_TOKEN : "generates"
+    USER ||--o{ SESSION : "has"
+    USER ||--o{ SECURITY_LOG : "logs"
 ```
 
-#### Prismaスキーマ
+### Entity / DTO
+
+**MagicLinkTokenEntity**
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| id | string | PK (cuid) |
+| userId | string | FK → User.id |
+| hashedToken | string | bcryptハッシュ化済みトークン |
+| expiresAt | Date | 有効期限（生成から15分） |
+| used | boolean | 使用済みフラグ |
+| ipAddress | string \| null | リクエスト元IPアドレス |
+| userAgent | string \| null | リクエスト元ユーザーエージェント |
+| createdAt | Date | 生成日時 |
+
+**SessionEntity**
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| id | string | PK (cuid) |
+| userId | string | FK → User.id |
+| deviceFingerprint | string \| null | デバイス識別子 |
+| expiresAt | Date | セッション有効期限（30日） |
+| createdAt | Date | セッション生成日時 |
+| lastActivity | Date | 最終アクティビティ日時 |
+
+**TokenVerificationError (union type)**
+- `TOKEN_INVALID`: トークンが存在しない / 無効なトークン
+- `TOKEN_EXPIRED`: トークンの有効期限切れ（expiresAt < now）
+- `TOKEN_USED`: トークンが既に使用済み（used = true）
+
+### Persistence (Prisma)
 
 ```prisma
 model User {
@@ -193,7 +547,7 @@ model User {
   magicLinkTokens MagicLinkToken[]
   sessions        Session[]
   securityLogs    SecurityLog[]
-  
+
   @@index([email])
   @@map("users")
 }
@@ -208,7 +562,7 @@ model MagicLinkToken {
   userAgent   String?
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   // インデックス戦略
   @@index([hashedToken])           // トークン検証の高速化
   @@index([userId, createdAt])     // ユーザー別の履歴取得
@@ -224,7 +578,7 @@ model Session {
   createdAt        DateTime @default(now())
   lastActivity     DateTime @default(now())
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId])
   @@index([expiresAt])              // セッション期限管理
   @@map("sessions")
@@ -239,213 +593,111 @@ model SecurityLog {
   metadata   Json?
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId, eventType])      // イベントタイプ別の監査
   @@index([createdAt])               // 時系列での分析
   @@map("security_logs")
 }
 ```
 
-### API エンドポイント
+## API Contract
 
-| メソッド | エンドポイント | 説明 | リクエスト | レスポンス |
-|---------|---------------|------|------------|------------|
-| POST | `/api/auth/magic-link` | マジックリンク送信 | `{email: string}` | `{success: boolean, message: string}` |
-| GET | `/api/auth/verify` | トークン検証 | `?token=xxx` | リダイレクト or エラー |
-| POST | `/api/auth/logout` | ログアウト | - | `{success: boolean}` |
-| GET | `/api/auth/session` | セッション確認 | - | `{user: User \| null}` |
-| POST | `/api/auth/resend` | リンク再送信 | `{email: string}` | `{success: boolean, message: string}` |
+### Endpoint Summary
 
-### フロントエンドコンポーネント
+| Method | Endpoint | Purpose | Auth |
+|--------|----------|---------|------|
+| POST | `/api/auth/magic-link` | マジックリンク送信 | 不要 |
+| GET | `/api/auth/verify` | トークン検証 | 不要 |
+| POST | `/api/auth/logout` | ログアウト | 必要 |
+| GET | `/api/auth/session` | セッション確認 | 必要 |
+| POST | `/api/auth/resend` | リンク再送信 | 不要 |
+| POST | `/api/auth/revoke` | セッション無効化 | メールトークン |
 
-```typescript
-// ディレクトリ構造
-/components/auth/
-├── MagicLinkForm.tsx          // メールアドレス入力フォーム
-├── VerificationMessage.tsx    // 送信確認メッセージ
-├── TokenVerifying.tsx         // トークン検証中の表示
-└── SessionProvider.tsx        // 認証状態管理
+### Request / Response
 
-/hooks/auth/
-├── useMagicLink.ts           // マジックリンク送信
-├── useSession.ts             // セッション管理
-└── useAuth.ts                // 認証状態
+**POST /api/auth/magic-link**
+| 区分 | フィールド | 型 | 必須 | 説明 |
+|-----|-----------|-----|-----|------|
+| Request | email | string | ○ | 送信先メールアドレス |
+| Response | success | boolean | ○ | 送信成功フラグ |
+| Response | message | string | ○ | 結果メッセージ |
 
-/services/auth/
-├── authApi.ts                // API通信
-└── tokenStorage.ts           // トークン管理
-```
+**GET /api/auth/verify?token=xxx**
+- 成功時: 302 リダイレクト（ダッシュボードへ）
+- 失敗時: エラーレスポンス（Error Contract 参照）
 
-## 画面設計
+**GET /api/auth/session**
+| 区分 | フィールド | 型 | 説明 |
+|-----|-----------|-----|------|
+| Response | user | User \| null | 認証済みユーザー情報。未認証時は null |
 
-### 画面ワイヤーフレーム（Mermaid図）
+### Error Contract
 
-#### 1. ログイン画面 (Login Screen)
+| HTTP Status | Code | Meaning | Caller Behavior |
+|-------------|------|---------|-----------------|
+| 400 | VALIDATION_ERROR | 入力不正（メール形式） | インラインエラー表示 |
+| 400 | TOKEN_EXPIRED | トークン期限切れ | エラー画面（再送信ボタン） |
+| 400 | TOKEN_USED | トークン使用済み | エラー画面（再送信ボタン） |
+| 400 | TOKEN_INVALID | トークン無効 | エラー画面（ログインページ導線） |
+| 429 | RATE_LIMIT_ERROR | レート制限超過 | エラー表示（retryAfter時刻） |
+| 500 | INTERNAL_ERROR | 内部エラー | エラー表示（再試行案内） |
 
-```mermaid
-graph TB
-    subgraph "ログイン画面"
-        Header[ヘッダー: アプリケーション名/ロゴ]
-        Title[タイトル: マジックリンクでログイン]
-        Description[説明: メールアドレスを入力してログインリンクを受け取ります]
-        EmailField[入力フィールド: メールアドレス<br/>placeholder: your@email.com]
-        ValidationError[バリデーションエラー表示エリア<br/>条件付き表示: エラー時のみ赤文字]
-        SubmitBtn[ボタン: ログインリンクを送信<br/>状態: デフォルト/ローディング/無効化]
-        LoadingIndicator[ローディングスピナー<br/>条件付き表示: 送信中のみ]
-        PasswordLink[リンク: パスワードでログイン<br/>※並行運用期間中のみ]
+## State Transitions
 
-        Header --> Title
-        Title --> Description
-        Description --> EmailField
-        EmailField --> ValidationError
-        ValidationError --> SubmitBtn
-        SubmitBtn --> LoadingIndicator
-        LoadingIndicator --> PasswordLink
-    end
-```
+### MagicLinkToken の状態遷移
 
-**レイアウト詳細**:
-- 中央寄せレイアウト、最大幅480px
-- 各要素間の余白: 16px
-- フィールド高さ: 48px
-- ボタン高さ: 48px
-
-**状態管理**:
-- デフォルト: 全要素表示、バリデーションエラーは非表示
-- 入力中: フィールドにフォーカスインジケーター表示
-- 送信中: ボタン無効化、ローディングスピナー表示
-- エラー: バリデーションエラーメッセージ表示、フィールド赤枠
-
-#### 2. メール送信確認画面 (Email Sent Screen)
+<!-- 状態を持つ機能のため必須。state/event/guard 付き -->
 
 ```mermaid
-graph TB
-    subgraph "メール送信確認画面"
-        Header[ヘッダー: アプリケーション名/ロゴ]
-        SuccessIcon[アイコン: メール送信成功✓]
-        Title[タイトル: メールを送信しました]
-        Message[メッセージ: {email}宛にログインリンクを送信しました<br/>メールを確認してリンクをクリックしてください]
-        ExpiryNote[注意書き: リンクは15分間有効です]
-        Divider[区切り線]
-        NoEmailTitle[サブタイトル: メールが届きませんか？]
-        CheckSpam[案内: 迷惑メールフォルダも確認してください]
-        ResendBtn[ボタン: 再送信<br/>状態: カウントダウン中は無効/1分後に有効化]
-        Countdown[カウントダウン表示: 00:XX<br/>条件付き表示: 1分間のみ]
-        TryAnotherLink[リンク: 別のメールアドレスを試す]
+stateDiagram-v2
+    [*] --> Active: generateToken() [bcryptハッシュ化保存]
 
-        Header --> SuccessIcon
-        SuccessIcon --> Title
-        Title --> Message
-        Message --> ExpiryNote
-        ExpiryNote --> Divider
-        Divider --> NoEmailTitle
-        NoEmailTitle --> CheckSpam
-        CheckSpam --> ResendBtn
-        ResendBtn --> Countdown
-        Countdown --> TryAnotherLink
-    end
+    Active --> Expired: システムチェック [expiresAt < now()]
+    Active --> Consumed: verifyToken() [有効期限内 + used=false]
+    Active --> Revoked: adminRevoke()
+
+    Expired --> [*]: cleanupBatch() [定期削除]
+    Consumed --> [*]: cleanupBatch() [定期削除]
+    Revoked --> [*]: cleanupBatch() [定期削除]
+
+    note right of Active
+        expiresAt: 生成から15分
+        used: false
+        hashedToken: bcrypt済み
+    end note
+
+    note right of Consumed
+        used: true に更新
+        → Session 生成へ
+    end note
 ```
 
-**レイアウト詳細**:
-- 中央寄せレイアウト、最大幅540px
-- 成功アイコンサイズ: 64x64px
-- 再送信ボタンは1分間カウントダウン表示
-
-**状態管理**:
-- 初期表示: 再送信ボタン無効、カウントダウン60秒開始
-- カウントダウン中: ボタンに「再送信 (00:XX)」と表示
-- カウントダウン完了: ボタン有効化、「再送信」のみ表示
-
-#### 3. トークン検証画面 (Token Verification Screen)
+### Session の状態遷移
 
 ```mermaid
-graph TB
-    subgraph "トークン検証画面"
-        Header[ヘッダー: アプリケーション名/ロゴ]
-        Spinner[ローディングスピナー: 大サイズ]
-        Message[メッセージ: 認証しています...<br/>しばらくお待ちください]
-        ProgressBar[プログレスバー: インジケーター<br/>条件付き表示: 3秒以上経過時]
+stateDiagram-v2
+    [*] --> Valid: createSession() [MagicLinkToken検証成功後]
 
-        Header --> Spinner
-        Spinner --> Message
-        Message --> ProgressBar
-    end
+    Valid --> Valid: updateLastActivity() [APIアクセスごと]
+    Valid --> Expired: システムチェック [expiresAt < now()]
+    Valid --> Revoked: revokeSession() [ユーザー操作 or セキュリティ通知]
+
+    Expired --> [*]: セッションクリーンアップ
+    Revoked --> [*]: 即時無効化（Cookie削除）
+
+    note right of Valid
+        HTTPOnly Cookie で管理
+        Secure + SameSite=Strict
+        expiresAt: 30日
+    end note
+
+    note right of Revoked
+        AC3.UI.N.002: セキュリティ通知から
+        ワンクリック無効化
+    end note
 ```
 
-**レイアウト詳細**:
-- 中央寄せレイアウト、最小高さ400px
-- スピナーサイズ: 48x48px
-- 自動リダイレクト: 検証成功後3秒以内
-
-**状態管理**:
-- 検証中: スピナー表示、メッセージ表示
-- 3秒以上: プログレスバー追加表示
-- 検証完了: 自動リダイレクト
-
-#### 4. エラー画面 (Error Screen)
-
-```mermaid
-graph TB
-    subgraph "エラー画面"
-        Header[ヘッダー: アプリケーション名/ロゴ]
-        ErrorIcon[アイコン: エラーアイコン ⚠️]
-        ErrorTitle[タイトル: エラー種別により変動<br/>- リンクの有効期限が切れています<br/>- このリンクは既に使用されています<br/>- 無効なリンクです<br/>- リクエスト回数の上限に達しました]
-        ErrorMessage[メッセージ: エラー詳細と対処法]
-        ActionBtn[ボタン: リカバリーアクション<br/>- 新しいリンクを送信<br/>- ログインページに戻る<br/>- 時間経過後リトライ]
-        RetryAfter[リトライ可能時刻表示<br/>条件付き表示: レート制限エラー時のみ]
-        BackLink[リンク: ホームに戻る]
-
-        Header --> ErrorIcon
-        ErrorIcon --> ErrorTitle
-        ErrorTitle --> ErrorMessage
-        ErrorMessage --> ActionBtn
-        ActionBtn --> RetryAfter
-        RetryAfter --> BackLink
-    end
-```
-
-**エラー種別ごとの表示内容**:
-
-| エラー種別 | タイトル | ボタンラベル | 追加表示 |
-|-----------|---------|------------|---------|
-| TOKEN_EXPIRED | リンクの有効期限が切れています | 新しいリンクを送信 | - |
-| TOKEN_USED | このリンクは既に使用されています | 新しいリンクを送信 | - |
-| TOKEN_INVALID | 無効なリンクです | ログインページに戻る | - |
-| RATE_LIMIT | リクエスト回数の上限に達しました | - | 次回リクエスト可能時刻 |
-
-#### 5. セッション無効化確認画面 (Session Revocation Screen)
-
-```mermaid
-graph TB
-    subgraph "セッション無効化確認画面"
-        Header[ヘッダー: アプリケーション名/ロゴ]
-        WarningIcon[アイコン: 警告アイコン ⚠️]
-        Title[タイトル: セッションの無効化]
-        Message[メッセージ: 以下のセッションを無効化しますか？]
-        SessionInfo[セッション情報カード<br/>- デバイス情報<br/>- IPアドレス<br/>- ログイン日時<br/>- 最終アクティビティ]
-        WarningNote[警告: この操作は取り消せません]
-        ButtonGroup[ボタングループ]
-        RevokeBtn[ボタン: 無効化する - 危険アクション]
-        CancelBtn[ボタン: キャンセル - 通常アクション]
-
-        Header --> WarningIcon
-        WarningIcon --> Title
-        Title --> Message
-        Message --> SessionInfo
-        SessionInfo --> WarningNote
-        WarningNote --> ButtonGroup
-        ButtonGroup --> RevokeBtn
-        ButtonGroup --> CancelBtn
-    end
-```
-
-**レイアウト詳細**:
-- 中央寄せレイアウト、最大幅480px
-- ボタングループ: 横並び配置、間隔12px
-- 無効化ボタン: 赤色系（危険アクション）
-- キャンセルボタン: グレー系（通常アクション）
-
-### 画面遷移フロー図（詳細版）
+### 画面遷移（UI State）
 
 ```mermaid
 stateDiagram-v2
@@ -485,241 +737,189 @@ stateDiagram-v2
     Dashboard --> [*]: ログアウト
 ```
 
-## UIインタラクション設計
+## Rules Mapping
 
-### コンポーネント詳細仕様
+| requirements.md 節 | 設計への反映箇所 |
+|--------------------|------------------|
+| §レート制限ルール | SecurityService / RATE_LIMIT_ERROR (429) / レート制限例外フロー |
+| §トークンセキュリティ | TokenService: 256bit乱数・bcryptハッシュ・即時無効化 |
+| §セッション管理ルール | SessionManager: HTTPOnly Cookie・Secure・SameSite=Strict |
+| §権限マトリクス | Route Handler: 各エンドポイントの認証要否 / UseCase: 操作権限チェック |
+| §画面遷移 | UI State Transitions / Router制御 |
+| §セキュリティ通知ルール | EmailService.sendSecurityNotification() / opt ブロック（新規デバイス時） |
 
-#### MagicLinkForm.tsx
+## Testing Strategy for This Feature
 
-**Props**:
-```typescript
-interface MagicLinkFormProps {
-  onSubmit: (email: string) => Promise<void>;
-  defaultEmail?: string;  // エラー後の再表示用
-  isLoading?: boolean;
-  error?: string | null;
-}
+| Viewpoint | Level | Target |
+|-----------|-------|--------|
+| トークン生成・ハッシュ化 | Unit | TokenService.generateToken() |
+| トークン検証（有効/期限切れ/使用済み/無効） | Unit | TokenService.verifyToken() |
+| メール形式バリデーション | Unit | Zod Schema |
+| レート制限ロジック | Unit | SecurityService.checkRateLimit() |
+| マジックリンクリクエストAPI | Integration | POST /api/auth/magic-link + DB + EmailService mock |
+| トークン検証API | Integration | GET /api/auth/verify + DB |
+| セッション生成・Cookie設定 | Integration | GET /api/auth/verify → Session作成 |
+| 完全な認証フロー | Browser (E2E) | メール入力 → リンククリック → ダッシュボード確認 |
+| トークン期限切れシナリオ | Browser (E2E) | 15分後リンククリック → エラー画面確認 |
+| セキュリティ通知・セッション無効化 | Browser (E2E) | 新規デバイスログイン → 通知確認 → 無効化 |
+
+## 画面設計
+
+### 画面ワイヤーフレーム（Mermaid図）
+
+#### 1. ログイン画面 (Login Screen)
+
+```mermaid
+graph TB
+    subgraph "ログイン画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        Title[タイトル: マジックリンクでログイン]
+        Description[説明: メールアドレスを入力してログインリンクを受け取ります]
+        EmailField[入力フィールド: メールアドレス<br/>placeholder: your@email.com]
+        ValidationError[バリデーションエラー表示エリア<br/>条件付き表示: エラー時のみ赤文字]
+        SubmitBtn[ボタン: ログインリンクを送信<br/>状態: デフォルト/ローディング/無効化]
+        LoadingIndicator[ローディングスピナー<br/>条件付き表示: 送信中のみ]
+        PasswordLink[リンク: パスワードでログイン<br/>※並行運用期間中のみ]
+
+        Header --> Title
+        Title --> Description
+        Description --> EmailField
+        EmailField --> ValidationError
+        ValidationError --> SubmitBtn
+        SubmitBtn --> LoadingIndicator
+        LoadingIndicator --> PasswordLink
+    end
 ```
 
-**State**:
-```typescript
-interface MagicLinkFormState {
-  email: string;
-  validationError: string | null;
-  isSubmitting: boolean;
-  focusedField: 'email' | null;
-}
+**レイアウト詳細**:
+- 中央寄せレイアウト、最大幅480px
+- 各要素間の余白: 16px
+- フィールド高さ: 48px
+- ボタン高さ: 48px
+
+#### 2. メール送信確認画面 (Email Sent Screen)
+
+```mermaid
+graph TB
+    subgraph "メール送信確認画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        SuccessIcon[アイコン: メール送信成功]
+        Title[タイトル: メールを送信しました]
+        Message[メッセージ: {email}宛にログインリンクを送信しました<br/>メールを確認してリンクをクリックしてください]
+        ExpiryNote[注意書き: リンクは15分間有効です]
+        Divider[区切り線]
+        NoEmailTitle[サブタイトル: メールが届きませんか？]
+        CheckSpam[案内: 迷惑メールフォルダも確認してください]
+        ResendBtn[ボタン: 再送信<br/>状態: カウントダウン中は無効/1分後に有効化]
+        Countdown[カウントダウン表示: 00:XX<br/>条件付き表示: 1分間のみ]
+        TryAnotherLink[リンク: 別のメールアドレスを試す]
+
+        Header --> SuccessIcon
+        SuccessIcon --> Title
+        Title --> Message
+        Message --> ExpiryNote
+        ExpiryNote --> Divider
+        Divider --> NoEmailTitle
+        NoEmailTitle --> CheckSpam
+        CheckSpam --> ResendBtn
+        ResendBtn --> Countdown
+        Countdown --> TryAnotherLink
+    end
 ```
 
-**Events**:
-- `onChange`: メールアドレス入力時
-- `onBlur`: フィールドフォーカスアウト時、バリデーション実行
-- `onSubmit`: フォーム送信時、バリデーション後API呼び出し
+#### 3. トークン検証画面 (Token Verification Screen)
 
-**バリデーションロジック**:
-```typescript
-const validateEmail = (email: string): string | null => {
-  if (!email.trim()) return 'メールアドレスを入力してください';
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return '有効なメールアドレスを入力してください';
-  return null;
-};
+```mermaid
+graph TB
+    subgraph "トークン検証画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        Spinner[ローディングスピナー: 大サイズ]
+        Message[メッセージ: 認証しています...<br/>しばらくお待ちください]
+        ProgressBar[プログレスバー: インジケーター<br/>条件付き表示: 3秒以上経過時]
+
+        Header --> Spinner
+        Spinner --> Message
+        Message --> ProgressBar
+    end
 ```
 
-**インタラクション詳細**:
-1. **フィールドフォーカス**
-   - フォーカス時: 枠線色変更
-   - フォーカスアウト時: バリデーション実行
+#### 4. エラー画面 (Error Screen)
 
-2. **送信ボタンクリック**
-   - バリデーション実行
-   - エラーがあれば表示してreturn
-   - エラーなければボタン無効化、ローディング表示
-   - API呼び出し
-   - 成功時: 確認画面へ遷移
-   - 失敗時: エラー表示、ボタン再有効化
+```mermaid
+graph TB
+    subgraph "エラー画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        ErrorIcon[アイコン: エラーアイコン]
+        ErrorTitle[タイトル: エラー種別により変動<br/>- リンクの有効期限が切れています<br/>- このリンクは既に使用されています<br/>- 無効なリンクです<br/>- リクエスト回数の上限に達しました]
+        ErrorMessage[メッセージ: エラー詳細と対処法]
+        ActionBtn[ボタン: リカバリーアクション<br/>- 新しいリンクを送信<br/>- ログインページに戻る<br/>- 時間経過後リトライ]
+        RetryAfter[リトライ可能時刻表示<br/>条件付き表示: レート制限エラー時のみ]
+        BackLink[リンク: ホームに戻る]
 
-3. **ローディング状態**
-   - ボタン内にスピナー表示
-   - 3秒以上かかる場合: 追加メッセージ表示
-
-#### VerificationMessage.tsx
-
-**Props**:
-```typescript
-interface VerificationMessageProps {
-  email: string;
-  onResend: () => Promise<void>;
-  onChangeEmail: () => void;
-  expiryMinutes?: number;  // デフォルト: 15
-}
+        Header --> ErrorIcon
+        ErrorIcon --> ErrorTitle
+        ErrorTitle --> ErrorMessage
+        ErrorMessage --> ActionBtn
+        ActionBtn --> RetryAfter
+        RetryAfter --> BackLink
+    end
 ```
 
-**State**:
-```typescript
-interface VerificationMessageState {
-  resendCountdown: number;  // 秒単位
-  canResend: boolean;
-  isResending: boolean;
-}
+**エラー種別ごとの表示内容**:
+
+| エラー種別 | タイトル | ボタンラベル | 追加表示 |
+|-----------|---------|------------|---------|
+| TOKEN_EXPIRED | リンクの有効期限が切れています | 新しいリンクを送信 | - |
+| TOKEN_USED | このリンクは既に使用されています | 新しいリンクを送信 | - |
+| TOKEN_INVALID | 無効なリンクです | ログインページに戻る | - |
+| RATE_LIMIT | リクエスト回数の上限に達しました | - | 次回リクエスト可能時刻 |
+
+#### 5. セッション無効化確認画面 (Session Revocation Screen)
+
+```mermaid
+graph TB
+    subgraph "セッション無効化確認画面"
+        Header[ヘッダー: アプリケーション名/ロゴ]
+        WarningIcon[アイコン: 警告アイコン]
+        Title[タイトル: セッションの無効化]
+        Message[メッセージ: 以下のセッションを無効化しますか？]
+        SessionInfo[セッション情報カード<br/>- デバイス情報<br/>- IPアドレス<br/>- ログイン日時<br/>- 最終アクティビティ]
+        WarningNote[警告: この操作は取り消せません]
+        ButtonGroup[ボタングループ]
+        RevokeBtn[ボタン: 無効化する - 危険アクション]
+        CancelBtn[ボタン: キャンセル - 通常アクション]
+
+        Header --> WarningIcon
+        WarningIcon --> Title
+        Title --> Message
+        Message --> SessionInfo
+        SessionInfo --> WarningNote
+        WarningNote --> ButtonGroup
+        ButtonGroup --> RevokeBtn
+        ButtonGroup --> CancelBtn
+    end
 ```
-
-**Events**:
-- `onResend`: 再送信ボタンクリック時
-- `onChangeEmail`: 別のアドレスを試すリンククリック時
-
-**カウントダウンロジック**:
-```typescript
-useEffect(() => {
-  const timer = setInterval(() => {
-    setCountdown(prev => {
-      if (prev <= 1) {
-        setCanResend(true);
-        return 0;
-      }
-      return prev - 1;
-    });
-  }, 1000);
-
-  return () => clearInterval(timer);
-}, []);
-```
-
-**インタラクション詳細**:
-1. **初期表示**
-   - カウントダウン60秒開始
-   - 再送信ボタン無効化
-   - カウントダウン表示: 「再送信 (00:XX)」
-
-2. **カウントダウン完了**
-   - 再送信ボタン有効化
-   - ボタンラベル: 「再送信」
-
-3. **再送信ボタンクリック**
-   - ボタン無効化、ローディング表示
-   - API呼び出し
-   - 成功時: カウントダウンリセット
-   - 失敗時: エラー表示
-
-#### TokenVerifying.tsx
-
-**Props**:
-```typescript
-interface TokenVerifyingProps {
-  token: string;
-  onSuccess: (user: User) => void;
-  onError: (error: TokenVerificationError) => void;
-}
-```
-
-**State**:
-```typescript
-interface TokenVerifyingState {
-  status: 'verifying' | 'success' | 'error';
-  elapsedTime: number;  // 秒単位
-  showProgressBar: boolean;
-}
-```
-
-**Events**:
-- `useEffect`: マウント時に自動的にトークン検証開始
-- `onVerificationComplete`: 検証完了時
-
-**検証フロー**:
-```typescript
-useEffect(() => {
-  const verifyToken = async () => {
-    try {
-      const result = await authApi.verifyToken(token);
-      setStatus('success');
-      setTimeout(() => onSuccess(result.user), 3000);
-    } catch (error) {
-      setStatus('error');
-      onError(error);
-    }
-  };
-
-  verifyToken();
-}, [token]);
-```
-
-**インタラクション詳細**:
-1. **検証中**
-   - ローディングスピナー表示
-   - メッセージ: 「認証しています...」
-   - 3秒経過後: プログレスバー追加表示
-
-2. **検証成功**
-   - メッセージ変更: 「ログインしています...」
-   - 3秒以内に自動リダイレクト
-
-3. **検証失敗**
-   - エラー画面へ遷移
-   - エラー種別に応じたメッセージとアクション表示
-
-### フォームバリデーション設計
-
-**バリデーションタイミング**:
-- リアルタイムバリデーション: 実施しない（UX配慮）
-- フォーカスアウト時: 実施する
-- 送信時: 必ず実施する
-
-**エラー表示ルール**:
-- エラーメッセージ: フィールド直下に赤文字で表示
-- フィールド枠: エラー時は赤色に変更
-- エラー自動消去: しない（ユーザーが修正するまで表示）
-
-### ローディング状態管理
-
-**ローディングインジケーター**:
-- 短時間（< 3秒）: ボタン内スピナーのみ
-- 長時間（≥ 3秒）: 追加メッセージ表示
-
-**ローディング中のユーザー操作制限**:
-- ボタン無効化
-- フォーム入力フィールド無効化
-- 戻るボタン/リロードの警告表示（検証画面）
-
-### エラーハンドリングUI
-
-**エラー表示パターン**:
-
-1. **インラインエラー** (フォームバリデーション)
-   - 位置: フィールド直下
-   - 色: 赤色
-   - アイコン: エラーアイコン（小）
-
-2. **ページレベルエラー** (API エラー)
-   - 位置: 専用のエラー画面
-   - 色: 赤色系
-   - アイコン: エラーアイコン（大）
-   - リカバリーアクションボタン必須
-
-3. **通知バナーエラー** (セキュリティ通知)
-   - 位置: ページ上部
-   - 色: 黄色系（警告）または赤色系（重大）
-   - 閉じるボタン: あり
 
 ## エラーハンドリング
 
 ### エラー分類とコード体系
 
-認証システムで発生する可能性のあるエラーを以下のように分類します：
+認証システムで発生する可能性のあるエラーを以下のように分類します:
 
 1. **検証エラー (VALIDATION_ERROR)**
    - 無効なメールアドレス形式
    - 必須フィールドの欠落
-   - 不正な入力値
 
 2. **認証エラー (AUTH_ERROR)**
-   - 期限切れトークン
-   - 使用済みトークン
-   - 無効なトークン
+   - 期限切れトークン (TOKEN_EXPIRED)
+   - 使用済みトークン (TOKEN_USED)
+   - 無効なトークン (TOKEN_INVALID)
    - セッション期限切れ
 
 3. **レート制限エラー (RATE_LIMIT_ERROR)**
-   - 短時間での過剰なリクエスト
-   - 1日の送信上限超過
+   - IPベース: 1分あたり3回超過
+   - メールベース: 1分あたり1回超過
+   - 日次上限: 同一メール20回超過
 
 4. **システムエラー (SYSTEM_ERROR)**
    - データベース接続エラー
@@ -728,16 +928,14 @@ useEffect(() => {
 
 ### エラー処理戦略
 
-- **ユーザー向けメッセージ**: 技術的詳細を含まない、理解しやすいメッセージを表示
+- **ユーザー向けメッセージ**: 技術的詳細を含まない理解しやすいメッセージを表示
 - **開発者向けログ**: 詳細なスタックトレースとコンテキスト情報を記録
-- **リトライ可能性の提示**: エラーの種類に応じて、再試行ボタンや代替アクションを提供
+- **リトライ可能性の提示**: エラー種類に応じて再試行ボタンや代替アクションを提供
 - **フォールバック処理**: メール送信失敗時は再送信オプションを提供
 
 ## セキュリティ考慮事項
 
-### 認証・認可の実装
-
-> **📖 権限マトリクスの詳細は [requirements.md「権限マトリクス」セクション](./requirements.md#権限マトリクス) を参照**
+> **権限マトリクスの詳細は [requirements.md「権限マトリクス」セクション](./requirements.md#権限マトリクス) を参照**
 
 1. **トークンのセキュリティ**
    - 暗号学的に安全な256ビットのランダムトークン生成
@@ -758,7 +956,6 @@ useEffect(() => {
    - ロールベースアクセス制御（RBAC）を採用
    - Guest / User / Admin / System の4階層
    - API各エンドポイントで権限チェックを実施
-   - 詳細な操作可否は権限マトリクスに準拠
 
 ### データ保護戦略
 
@@ -782,54 +979,6 @@ useEffect(() => {
 - **非同期処理**
   - メール送信のキューイング
   - バックグラウンドでのセキュリティログ記録
-  - 非同期バリデーション処理
-
-## テスト設計
-
-### 単体テスト
-
-#### 正常系テストケース
-
-1. **トークン生成処理**
-   - Given: 有効なメールアドレスが提供される
-   - When: トークン生成関数を実行する
-   - Then: 256ビットの暗号学的に安全なトークンが生成される
-
-2. **メール送信処理**
-   - Given: 有効なトークンとメールアドレスが存在する
-   - When: メール送信サービスを呼び出す
-   - Then: SendGrid APIが正しいパラメータで呼び出される
-
-#### 異常系テストケース
-
-1. **無効なメールアドレス**
-   - Given: 不正な形式のメールアドレスが入力される
-   - When: バリデーション処理を実行する
-   - Then: VALIDATION_ERRORが返され、処理が中断される
-
-2. **レート制限超過**
-   - Given: 同一IPから1分以内に4回目のリクエストが来る
-   - When: レート制限チェックを実行する
-   - Then: RATE_LIMIT_ERRORが返され、429ステータスコードが返される
-
-### 統合テスト
-
-- データベースとの連携確認
-- メールサービスとの通信テスト
-- キャッシュとセッションストアの動作確認
-- 複数コンポーネント間のデータフロー検証
-
-### E2Eテスト
-
-1. **完全な認証フロー**
-   - Given: 新規ユーザーがログインページにアクセス
-   - When: メールアドレスを入力し、受信したリンクをクリック
-   - Then: ダッシュボードにログインでき、セッションが確立される
-
-2. **トークン期限切れシナリオ**
-   - Given: 15分以上経過したマジックリンクを持つユーザー
-   - When: そのリンクをクリックする
-   - Then: 期限切れエラーが表示され、再送信オプションが提示される
 
 ## マイグレーション戦略
 
@@ -837,7 +986,7 @@ Prismaを使用しているため、通常のスキーマ変更は`prisma migrat
 
 ### 特別なデータ移行が必要なケース
 
-既存のパスワード認証システムからの移行時：
+既存のパスワード認証システムからの移行時:
 1. 既存ユーザーのメールアドレスを保持
 2. パスワードフィールドを段階的に非推奨化
 3. 移行期間中は両方の認証方式を並行運用
@@ -878,24 +1027,24 @@ Prismaを使用しているため、通常のスキーマ変更は`prisma migrat
 - ログは構造化形式で出力し、分析や監視を容易に
 - テストカバレッジ80%以上を維持し、リグレッションを防止
 
-## 関連ドキュメント
+## Related Documents
 
-### 参照すべきsteering文書
-- backend-architecture.md: 4層アーキテクチャ、Repository/Mapper パターン
-- testing-strategy.md: テストレベル・テスト対象の判断
+- requirements.md: `docs/einja/example/specs/issues/issue999-example-task/requirements.md`
+- tasks.md: `docs/einja/example/specs/issues/issue999-example-task/tasks.md`
+- qa-tests/: `docs/einja/example/specs/issues/issue999-example-task/qa-tests/`
+- 参照steering: backend-architecture.md（4層アーキテクチャ）、testing-strategy.md（テストレベル判断）
 
-### 参考リソース
-- 参考steering: backend-architecture.md（4層アーキテクチャ）
-
-## 関連Skill・サブエージェント
+## Related Skills / Subagents
 
 ### この機能で使用が想定されるサブエージェント
+
 | サブエージェント | 用途 |
 |----------------|------|
 | [frontend-coder] | フォーム等のUI実装 |
 | [backend-architect] | API・ドメインロジックの設計 |
 
 ### この機能で使用が想定されるSkill
+
 | Skill | 用途 |
 |-------|------|
 | [steering:backend-architecture] | 4層アーキテクチャに従った実装 |

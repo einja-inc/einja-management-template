@@ -31,7 +31,7 @@ qa-tests/
 
 - **上書き更新**: 実施結果セクションは最新の結果のみを記載。過去の履歴は保持しない（Gitで管理）。更新日時を必ず記載。
 - **ステータス定義**: ✅ PASS（すべての受け入れ条件を満たす）、❌ FAIL（要修正）、⚠️ PARTIAL（軽微な問題あり）、🔄 未実施（テスト未実施）
-- **エビデンスの保存**: `qa-tests/evidence/story{N}/` 配下にログファイル、スクリーンショット、テストレポート等を保存。命名規則: `AC{N}-{M}-{内容}.{拡張子}`
+- **エビデンスの保存**: `qa-tests/evidence/story{N}/` 配下にログファイル、スクリーンショット、テストレポート等を保存。命名規則: `AC{Story#}-{Cat}-{N|E}-{連番3桁}-{内容}.{拡張子}`
 - **実施タイミング**: AC実装完了時（個別テスト）、ストーリー全AC完了時（統合テスト）、リリース前（回帰テスト）
 
 ## テストシナリオの記載形式
@@ -87,9 +87,9 @@ curl -X POST http://localhost:3000/api/auth/magic-link \
 ```
 evidence/
 ├── story{N}/
-│   ├── AC{N}-{M}-[状態].png
-│   ├── AC1-1-default.png          # AC1.1のデフォルト状態
-│   ├── AC1-1-error.png            # AC1.1のエラー状態
+│   ├── AC{Story#}-{Cat}-{N|E}-{連番3桁}-[状態].png
+│   ├── AC1-UI-N-001-default.png          # AC1.UI.N.001のデフォルト状態
+│   ├── AC1-UI-N-001-error.png            # AC1.UI.N.001のエラー状態
 │   └── ...
 ```
 
@@ -119,7 +119,7 @@ mcp_playwright.type({
 
 // スクリーンショット取得
 mcp_playwright.screenshot({
-  path: 'qa-tests/evidence/story1/AC1-1-screenshot.png'
+  path: 'qa-tests/evidence/story1/AC1-UI-N-001-screenshot.png'
 })
 ```
 

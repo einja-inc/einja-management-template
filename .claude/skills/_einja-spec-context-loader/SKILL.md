@@ -35,7 +35,7 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
 2. 以下のファイルの存在を確認:
    - `requirements.md` または `requirements/README.md`
    - `design.md` または `design/README.md`
-   - `qa-tests/scenarios.md`
+   - `qa-test.md`（存在しない場合は後方互換として `qa-tests/scenarios.md` を探索）
 3. 不足ファイルがある場合はエラーを返却
 
 ---
@@ -69,7 +69,7 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
 
 1. AC番号からストーリー番号を特定し、テストファイルを参照
    - 例: AC1.1 → Story 1 → `qa-tests/story1.md`、AC2.3 → Story 2 → `qa-tests/story2.md`
-2. scenarios.md から該当タスクのシナリオテストを確認
+2. `qa-test.md` から該当タスクのシナリオテストを確認（`qa-test.md` が存在しない場合は後方互換として `qa-tests/scenarios.md` を参照）
 3. 以下の情報を抽出:
    - **テストシナリオ**: 実行すべきテストケース
    - **確認項目**: 各シナリオの検証ポイント

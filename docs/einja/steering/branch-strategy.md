@@ -395,6 +395,50 @@ Managerの監視ループでIssueBranchBaseの進行を検知し、以下を実�
 
 ---
 
+## Epic配下でのIssueBranchBase解釈
+
+複数Issueを束ねる大規模機能や新規プロダクト開発（以下 **Epic**）を扱う場合、ブランチ階層は4階層になる。
+
+```
+main / develop（IssueBranchBase）
+ └─ epic/{epic-slug}                        Epic作業ブランチ
+      └─ issue/{issue番号}                   Issueブランチ（既存運用どおり）
+           └─ issue/{issue番号}-phase{N}     Phaseブランチ（既存運用どおり）
+```
+
+Epic配下では **そのEpicにおける IssueBranchBase = `epic/{epic-slug}`** と解釈する。既存の `issue/{N}` / `issue/{N}-phase{M}` 階層構造・CRUDタイミング・同期ルール・ブランチ操作安全ルールは**一切変更しない**。「Issueブランチの作成元ブランチ」という IssueBranchBase の定義が、Epicの有無によって次のように解釈される:
+
+| Epic有無 | Issueブランチの作成元（IssueBranchBase） |
+|---------|--------------------------------------|
+| Epicなし（通常時） | `main` / `develop` 等 |
+| Epicあり | `epic/{epic-slug}` |
+
+Epicブランチ自体は `main` / `develop`（上位のIssueBranchBase）から作成し、最終的に同じ上位ブランチへマージする。
+
+### ブランチ用途
+
+| 階層 | ブランチ | 作成元 | 目的 |
+|------|----------|--------|------|
+| Base | `main` / `develop` | - | Epic親のIssueBranchBase |
+| Epic | `epic/{epic-slug}` | `main` / `develop` | Epic全体成果物と各Issue Spec PRの統合先 |
+| Issue | `issue/{N}` | `epic/{epic-slug}` | 各Issue仕様書・実装の作業ブランチ（既存運用） |
+| Issue Phase | `issue/{N}-phase{M}` | `issue/{N}` | 既存運用どおり |
+
+### PRモデル
+
+| PR | base | head | 目的 |
+|----|------|------|------|
+| Issue Spec PR | `epic/{epic-slug}` | `issue/{N}` | 個別Issue仕様書レビュー |
+| Epic PR | `main` / `develop` | `epic/{epic-slug}` | Epic全体成果物のレビュー・統合 |
+
+Epic PR は Draft で先行作成し、子 Issue Spec PR のチェックリストを本文に記載する。子PRが全てマージされた後に Ready for review に遷移させる。
+
+### 関連
+
+- `einja-epic-spec-create` Skill（Epic仕様書作成） - 本階層を前提にEpic仕様書と各Issue仕様書を展開する
+
+---
+
 ## 注意事項
 
 1. **ブランチ名の一貫性**: すべてのブランチは命名規則に従うこと

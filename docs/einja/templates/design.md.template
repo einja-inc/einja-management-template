@@ -1,5 +1,8 @@
 # [機能名] 設計書
 
+<!-- このテンプレートは新規タスクの設計書作成時に使用してください -->
+<!-- 図はMermaid記法を標準とする。C4記法（C4Context等）は公式experimentalのため使用せず、graph TB + subgraph で C4 相当を表現する -->
+<!-- 条件付き必須化: UI変更時→C4 Component図、DB変更時→物理ERD、状態を持つ機能→State Transitions、外部連携→C4 Containerに外部システム明示 -->
 <!-- requirements.md の AC一覧 / AC詳細 / ルール系セクションを参照して記述してください -->
 
 ## Overview
@@ -27,33 +30,45 @@
 
 ## Architecture Pattern & Boundary Map
 
+<!-- C4 Container相当: graph TB + subgraph で表現。外部システム・技術スタックをラベルに含める -->
+<!-- 外部連携がある場合は "External Systems" subgraph に明示すること（条件付き必須） -->
+
 ```mermaid
 graph TB
-    subgraph UI
-        Page[Page]
-        Form[Form]
+    subgraph "User"
+        U[👤 User]
     end
 
-    subgraph Feature
-        UseCase[UseCase]
+    subgraph "Web Application (Next.js)"
+        Page[Page Component]
+        Form[Form Component]
         Client[API Client]
     end
 
-    subgraph Server
+    subgraph "API Server (Hono / Route Handlers)"
         Route[Route Handler]
+        UseCase[UseCase]
         Repo[Repository]
     end
 
-    subgraph Data
-        DB[(Database)]
+    subgraph "Data Layer"
+        DB[(PostgreSQL via Prisma)]
     end
 
+    subgraph "External Systems"
+        Email[📧 Email Service]
+        Auth[🔐 Auth Provider]
+    end
+
+    U --> Page
     Page --> Form
     Form --> Client
     Client --> Route
     Route --> UseCase
     UseCase --> Repo
     Repo --> DB
+    UseCase --> Email
+    UseCase --> Auth
 ```
 
 ### Architecture Notes
@@ -94,74 +109,90 @@ sequenceDiagram
 
 ### 例外フロー
 
-- バリデーション失敗:
-- 権限不足:
-- 保存失敗:
+<!-- alt/opt/loop/par を使って例外・分岐を網羅的に表現する -->
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant API
+    participant UseCase
+    participant Repo
+    participant DB
+
+    User->>UI: 操作
+    UI->>UI: クライアントバリデーション
+
+    alt バリデーション失敗
+        UI-->>User: エラー表示
+    else バリデーション成功
+        UI->>API: リクエスト
+        API->>UseCase: 実行
+
+        opt 権限チェック
+            UseCase->>UseCase: 権限検証
+        end
+
+        alt 権限なし
+            UseCase-->>API: 403
+            API-->>UI: 403
+            UI-->>User: 権限エラー
+        else 権限あり
+            UseCase->>Repo: 保存
+
+            alt DB成功
+                Repo->>DB: 永続化
+                DB-->>Repo: OK
+                Repo-->>UseCase: 成功
+                UseCase-->>API: 200
+                API-->>UI: 成功
+                UI-->>User: 成功トースト
+            else DB失敗
+                Repo->>DB: 永続化
+                DB-->>Repo: Error
+                Repo-->>UseCase: 失敗
+                UseCase-->>API: 500
+                API-->>UI: エラー
+                UI-->>User: エラー表示（再試行可能）
+            end
+        end
+    end
+```
 
 ## Requirements Traceability
 
 | Requirement / AC | Summary | Components | Interfaces | Flows |
 |------------------|---------|------------|------------|-------|
-| AC-XXX-UI-N-001 | 初期表示 | Page, Form | Props | 主要フロー |
-| AC-XXX-VAL-E-001 | 必須入力検証 | Form, Schema | Validation contract | 例外フロー |
-| AC-XXX-PERM-N-001 | 権限制御 | Route, UseCase | Auth contract | 主要フロー |
-
-## Data Model
-
-### Entity / DTO
-
-```typescript
-interface FeatureEntity {
-  id: string;
-  fieldA: string;
-  fieldB: string | null;
-}
-```
-
-### Persistence
-
-```prisma
-model FeatureEntity {
-  id        String   @id @default(cuid())
-  fieldA    String
-  fieldB    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-```
-
-## API Contract
-
-### Endpoint Summary
-
-| Method | Endpoint | Purpose | Auth |
-|--------|----------|---------|------|
-| GET | /api/feature/:id | 取得 | 必要 |
-| PATCH | /api/feature/:id | 更新 | 必要 |
-
-### Request / Response
-
-```typescript
-type UpdateFeatureRequest = {
-  fieldA: string;
-  fieldB?: string | null;
-};
-
-type UpdateFeatureResponse = {
-  item: FeatureEntity;
-};
-```
-
-### Error Contract
-
-| HTTP Status | Code | Meaning | Caller Behavior |
-|-------------|------|---------|-----------------|
-| 400 | VALIDATION_ERROR | 入力不正 | エラー表示 |
-| 403 | FORBIDDEN | 権限不足 | 遷移 / ブロック |
-| 404 | NOT_FOUND | データなし | エラー表示 |
-| 500 | INTERNAL_ERROR | 想定外失敗 | 再試行案内 |
+| AC1.UI.N.001 | 初期表示 | Page, Form | Props | 主要フロー |
+| AC1.VAL.E.001 | 必須入力検証 | Form, Schema | Validation contract | 例外フロー |
+| AC1.PERM.N.001 | 権限制御 | Route, UseCase | Auth contract | 主要フロー |
 
 ## Component Summary
+
+### C4 Component図
+
+<!-- UI変更を伴う場合は必須。Container内部の主要コンポーネントと責務分割を示す -->
+
+```mermaid
+graph TB
+    subgraph "Web Application"
+        subgraph "Feature: [機能名]"
+            Page[Page: ルーティング]
+            Form[Form: 入力・バリデーション]
+            UseCaseHook[useCase Hook: 状態管理]
+            ApiClient[API Client: 通信]
+            Schema[Zod Schema: 検証]
+        end
+    end
+
+    Page --> Form
+    Form --> UseCaseHook
+    UseCaseHook --> ApiClient
+    Form --> Schema
+    ApiClient --> Schema
+```
+
+### Component一覧テーブル
 
 | Component | Domain/Layer | Intent | Req Coverage | Key Dependencies | Contracts |
 |-----------|--------------|--------|--------------|------------------|-----------|
@@ -216,6 +247,116 @@ interface FeatureFormProps {
   - Repository 呼び出し
   - 例外のアプリケーションエラー化
 
+## Data Model
+
+### 物理ERD
+
+<!-- DB変更を伴う場合は必須。エンティティ間の関係性を俯瞰する -->
+
+```mermaid
+erDiagram
+    USER ||--o{ ORDER : "places"
+    ORDER ||--|{ ORDER_ITEM : "contains"
+    PRODUCT ||--o{ ORDER_ITEM : "included in"
+
+    USER {
+        string id PK
+        string email UK
+        string name
+        datetime createdAt
+    }
+    ORDER {
+        string id PK
+        string userId FK
+        string status
+        datetime createdAt
+    }
+    ORDER_ITEM {
+        string id PK
+        string orderId FK
+        string productId FK
+        int quantity
+    }
+    PRODUCT {
+        string id PK
+        string name
+        int price
+    }
+```
+
+### Entity / DTO
+
+```typescript
+interface FeatureEntity {
+  id: string;
+  fieldA: string;
+  fieldB: string | null;
+}
+```
+
+### Persistence (Prisma)
+
+```prisma
+model FeatureEntity {
+  id        String   @id @default(cuid())
+  fieldA    String
+  fieldB    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+```
+
+## API Contract
+
+### Endpoint Summary
+
+| Method | Endpoint | Purpose | Auth |
+|--------|----------|---------|------|
+| GET | /api/feature/:id | 取得 | 必要 |
+| PATCH | /api/feature/:id | 更新 | 必要 |
+
+### Request / Response
+
+```typescript
+type UpdateFeatureRequest = {
+  fieldA: string;
+  fieldB?: string | null;
+};
+
+type UpdateFeatureResponse = {
+  item: FeatureEntity;
+};
+```
+
+### Error Contract
+
+| HTTP Status | Code | Meaning | Caller Behavior |
+|-------------|------|---------|-----------------|
+| 400 | VALIDATION_ERROR | 入力不正 | エラー表示 |
+| 403 | FORBIDDEN | 権限不足 | 遷移 / ブロック |
+| 404 | NOT_FOUND | データなし | エラー表示 |
+| 500 | INTERNAL_ERROR | 想定外失敗 | 再試行案内 |
+
+## State Transitions
+
+<!-- 状態を持つ機能（ワークフロー・ステータス遷移など）がある場合は必須 -->
+<!-- 実装上の state/event/guard を示す。ガード条件は [] で表記 -->
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: new()
+
+    Draft --> Submitted: submit() [バリデーションOK]
+    Draft --> Draft: save() [部分保存]
+
+    Submitted --> UnderReview: startReview() [管理者ログイン]
+    UnderReview --> Approved: approve()
+    UnderReview --> Rejected: reject(reason)
+
+    Rejected --> Draft: reopen()
+    Approved --> [*]
+```
+
 ## Rules Mapping
 
 | requirements.md 節 | 設計への反映箇所 |
@@ -224,7 +365,9 @@ interface FeatureFormProps {
 | §6 入力ルール | Schema / Form / UseCase |
 | §7 権限マトリクス | Route / UseCase / UI |
 | §8 画面遷移 | Page / Router制御 |
-| §9 処理フロー | Sequence diagram / 責務分担 |
+| §10 処理フロー | Sequence diagram / 責務分担 |
+| §9 業務フロー | スイムレーン / 担当境界 |
+| §11 状態遷移 | State machine / ガード条件 |
 
 ## Testing Strategy for This Feature
 

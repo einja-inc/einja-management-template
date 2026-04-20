@@ -318,6 +318,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `Skill計画` `Skill仕様策定` `skill-plan-guide` `Skill品質チェック` | `.claude/skills/einja-skill-plan-guide/SKILL.md` |
 | `Planレビュー` `plan review` `計画レビュー` | `.claude/skills/einja-review-plan/SKILL.md` |
 | `マイグレーション修復` `migration fix` `マイグレーション壊れた` `migrate失敗` `migration broken` `prisma migrate エラー` `P3006` `P3009` | `.claude/skills/einja-migration-fix/SKILL.md` |
+| `Epic仕様` `epic-spec-create` `プロダクト仕様` `複数Issue仕様` `大規模Issue` `Epic仕様書` | `.claude/skills/einja-epic-spec-create/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 

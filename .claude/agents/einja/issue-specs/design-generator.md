@@ -189,9 +189,9 @@ TaskCreateツールを使用して詳細な進捗を可視化します：
 
 | エージェント | タイプ | 担当セクション |
 |-------------|--------|---------------|
-| backend-architect | backend-architect | セクション1（概要）、2（アーキテクチャ概要）、3（DB設計）、4（Domain層）、5（Infrastructure層）、6（Application層）、7（Presentation層 - API仕様） |
-| backend-architect（DB/インフラ専門） | backend-architect | セクション8（認証設計）、12（エラーハンドリング）、13（セキュリティ設計） |
-| frontend-architect | frontend-architect | セクション9（UI層設計）、10（画面設計）、11（UIインタラクション設計）。※セクション7（API仕様）はbackend出力を参照前提で記載 |
+| backend-architect | backend-architect | Overview、Existing Architecture Analysis、Architecture Pattern & Boundary Map（C4 Container図）、Technology Stack、System Flows、Data Model（物理ERD + Entity/DTO + Persistence）、Components and Interfaces（バックエンド層）、API Contract |
+| backend-architect（認証/セキュリティ専門） | backend-architect | State Transitions（該当時）、Rules Mapping の認証・権限部分、Testing Strategy for This Feature（バックエンド観点） |
+| frontend-architect | frontend-architect | Component Summary（C4 Component図 + 一覧テーブル、UI変更時）、Components and Interfaces（フロントエンド層）、Requirements Traceability。※API Contractはbackend出力を参照前提で記載 |
 
 **各エージェントへの入力:**
 - requirements.mdの全内容
@@ -216,10 +216,10 @@ TaskCreateツールを使用して詳細な進捗を可視化します：
 不整合がある場合は、backend-architectの出力を優先して修正する（API仕様はbackend主導）。
 
 マージ後、以下のセクションをdesign-generator本体が生成:
-- セクション14（テスト設計）
-- セクション15（実装フェーズ）
-- セクション16（関連ドキュメント）
-- セクション17（関連Skill・サブエージェント）
+- Testing Strategy for This Feature（テスト設計）
+- Rules Mapping（全セクション横断でのマッピング整合確認を含む）
+- Related Documents（関連ドキュメント）
+- Related Skills / Subagents（関連Skill・サブエージェント）
 
 ### 5. 既存ファイルの考慮
 **既存のdesign.mdが存在する場合**：
@@ -309,151 +309,261 @@ TaskCreateツールを使用して詳細な進捗を可視化します：
 
 - **すべてのインターフェースが表形式**（TypeScriptコードなし）
 - **mermaid図による視覚化**
-  - システム構成図（graph TD）
-  - データフロー図（flowchart）
-  - ER図（erDiagram）
-  - シーケンス図（sequenceDiagram）
-  - 画面遷移図（stateDiagram）
-  - ワイヤーフレーム（graph）
-- **ディレクトリ構造を表で明示**
+  - C4 Container相当図（graph TB + subgraph、外部システム明示）
+  - C4 Component図（graph TB + subgraph ネスト）
+  - ER図（erDiagram、物理ERD）
+  - シーケンス図（sequenceDiagram、alt/opt/loop/par 含む）
+  - 状態遷移図（stateDiagram-v2、state/event/guard 含む）
+- **AC ID は新体系（`AC<N>.<カテゴリ>.<N|E>.<連番>` 形式）**
 - **処理フローは箇条書きで説明**
-- **実装フェーズでPhase分割**
+- **mermaid記法: graph TB + subgraph 使用。C4Context等の C4記法は使用しない**
 
-## design.md の必須セクション
+## mermaid記法方針
 
-**注意**: 各セクションの内容はすべて**表形式またはmermaid図**で記載すること。TypeScriptコードは禁止。
+**全図において以下の方針に従うこと:**
 
-### 1. 概要
-- 機能の目的と価値を2-3段落で説明（日本語）
-- 関連ドキュメントへのリンク一覧
+- **C4記法（C4Context、C4Container等）は使用禁止** — 公式experimentalのため非推奨。代わりに `graph TB` + `subgraph` で C4相当を表現する
+- コンテナ境界は `subgraph "システム名 (技術スタック)"` で表現し、技術スタックをラベルに含める
+- 外部システムは独立した `subgraph "External Systems"` で明示する
 
-### 2. アーキテクチャ概要
-- **システム構成図**（mermaid graph TD）
-- **データフロー図**（mermaid flowchart）
-- **ディレクトリ構造**（表形式：層、パス、新規/更新）
+## 条件付き必須図
 
-| 層 | パス | 新規/更新 |
-|----|------|----------|
-| Domain | packages/xxx/src/domain/entities/Xxx.ts | 新規 |
-| ... | ... | ... |
+設計書に含める図は以下の条件に従って判断すること:
 
-### 3. データベース設計
-- **ER図**（mermaid erDiagram）
-- **テーブル仕様**（表形式：カラム、型、制約、説明）
-- **Prismaスキーマ**（唯一許可されるコードブロック）
+| 条件 | 必須図 | 備考 |
+|------|-------|------|
+| UI変更あり | C4 Component図（Component Summaryセクション） | 画面遷移図は requirements.md 側（req側） |
+| DB変更あり | 物理ERD（`erDiagram`） | Data Modelセクション冒頭 |
+| 状態を持つ機能（申請/注文/認証/招待/支払等） | 詳細状態遷移図（`stateDiagram-v2`） | state/event/guard を含む |
+| 外部連携あり（API/認証/決済等） | C4 Container図（Architecture Pattern & Boundary Map）に外部システムの subgraph を明示 | 必須ノード |
+| 複雑なドメイン（集約複数等） | 概念ERは requirements.md 側、物理ERは design.md 側 | 二重記載しない |
 
-| カラム | 型 | 制約 | 説明 |
-|--------|------|------|------|
-| id | String | PK, cuid | 主キー |
-| ... | ... | ... | ... |
+## 5つの新規図の作成指示
 
-### 4. Domain層設計（該当する場合）
-- **Entity**（プロパティ・メソッドは表形式）
-- **Value Object**（表形式）
-- **Repository Interface**（メソッド仕様は表形式）
+### 図1: C4 Container図（Architecture Pattern & Boundary Map 強化）
 
-| メソッド | 引数 | 戻り値 | 説明 |
-|----------|------|--------|------|
-| find | criteria | Result\<Entity \| null\> | 条件検索 |
-| ... | ... | ... | ... |
+`graph TB` + `subgraph` で以下を表現する:
+- 各コンテナに技術スタックをラベルとして含める（例: `"Web Application (Next.js)"`）
+- 外部連携がある場合は `subgraph "External Systems"` を必ず追加する（条件付き必須）
+- コンテナ間の依存方向を矢印で明示する
 
-### 5. Infrastructure層設計（該当する場合）
-- Repository実装の説明（日本語）
-- Mapper仕様（表形式）
-- 外部サービス連携（表形式）
+```mermaid
+graph TB
+    subgraph "User"
+        U[👤 User]
+    end
 
-### 6. Application層設計（該当する場合）
-- **UseCase**（メソッド仕様は表形式）
-- **処理フロー**（箇条書きで説明、コードなし）
+    subgraph "Web Application (Next.js)"
+        Page[Page Component]
+        Client[API Client]
+    end
 
-**処理フロー例：**
-1. メールアドレス重複チェック
-2. ユーザー作成
-3. トークン生成
-4. メール送信
+    subgraph "API Server (Hono / Route Handlers)"
+        Route[Route Handler]
+        UseCase[UseCase]
+        Repo[Repository]
+    end
 
-### 7. Presentation層設計
-- **API エンドポイント**（表形式：メソッド、パス、説明、認証）
-- **バリデーションスキーマ**（表形式）
-- **レート制限**（表形式）
+    subgraph "Data Layer"
+        DB[(PostgreSQL via Prisma)]
+    end
 
-| メソッド | パス | 説明 | 認証 |
-|---------|------|------|------|
-| GET | /api/users | 一覧取得 | 必須 |
-| ... | ... | ... | ... |
+    subgraph "External Systems"
+        Email[📧 Email Service]
+        Auth[🔐 Auth Provider]
+    end
 
-### 8. 認証設計（該当する場合）
-- 認証方式の説明（日本語）
-- セッション管理（表形式）
-- 認証ミドルウェアの処理フロー（箇条書き）
+    U --> Page
+    Page --> Client
+    Client --> Route
+    Route --> UseCase
+    UseCase --> Repo
+    Repo --> DB
+    UseCase --> Email
+    UseCase --> Auth
+```
 
-### 9. UI層設計（該当する場合）
-- **ページ構成**（表形式）
-- **コンポーネント**（表形式）
-- **カスタムフック**（表形式）
+### 図2: 例外込みシーケンス図（System Flows 強化）
 
-| コンポーネント | 機能 |
-|----------------|------|
-| UserList | 一覧表示、検索、ページネーション |
-| ... | ... |
+`sequenceDiagram` に `alt / opt / loop / par` を使って分岐・例外・繰り返しを網羅的に表現する:
 
-### 10. 画面設計（該当する場合）
-- **ui-design.penが存在する場合**: Pencil MCPで参照し、ビジュアルモックアップの情報を基にmermaid図を作成
-  - `mcp__pencil__batch_get` でノード構造を取得
-  - `mcp__pencil__get_screenshot` で画面プレビューを確認
-  - モックアップのレイアウト・コンポーネント構成をmermaid図と表に変換
-- **ワイヤーフレーム**（mermaid graph）
-- **画面遷移フロー**（mermaid stateDiagram）
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant API
+    participant UseCase
+
+    User->>UI: 操作
+    UI->>UI: クライアントバリデーション
+
+    alt バリデーション失敗
+        UI-->>User: エラー表示
+    else バリデーション成功
+        UI->>API: リクエスト
+        opt 権限チェック
+            API->>UseCase: 権限検証
+        end
+        alt 権限なし
+            UseCase-->>API: 403
+            API-->>UI: 権限エラー
+        else 権限あり
+            UseCase-->>API: 200
+            API-->>UI: 成功
+            UI-->>User: 成功トースト
+        end
+    end
+```
+
+### 図3: C4 Component図（Component Summary セクション）
+
+UI変更を伴う場合は必須。`graph TB` + `subgraph` のネストでコンテナ内部のコンポーネント責務を示す:
+
+```mermaid
+graph TB
+    subgraph "Web Application"
+        subgraph "Feature: [機能名]"
+            Page[Page: ルーティング]
+            Form[Form: 入力・バリデーション]
+            UseCaseHook[useCase Hook: 状態管理]
+            ApiClient[API Client: 通信]
+            Schema[Zod Schema: 検証]
+        end
+    end
+
+    Page --> Form
+    Form --> UseCaseHook
+    UseCaseHook --> ApiClient
+    Form --> Schema
+    ApiClient --> Schema
+```
+
+### 図4: 物理ERD（Data Model セクション冒頭）
+
+DB変更を伴う場合は必須。`erDiagram` でエンティティ間の物理的関係を表現する。概念ERは requirements.md 側で記載し、design.md では物理ERDのみ記載する（二重記載禁止）:
+
+```mermaid
+erDiagram
+    USER ||--o{ ORDER : "places"
+    ORDER ||--|{ ORDER_ITEM : "contains"
+
+    USER {
+        string id PK
+        string email UK
+        string name
+        datetime createdAt
+    }
+    ORDER {
+        string id PK
+        string userId FK
+        string status
+        datetime createdAt
+    }
+```
+
+### 図5: 詳細状態遷移図（State Transitions セクション）
+
+状態を持つ機能（申請/注文/認証/招待/支払等）では必須。`stateDiagram-v2` に state / event / guard を含める:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> LoginScreen
-    LoginScreen --> Dashboard: ログイン成功
-    ...
+    [*] --> Draft: new()
+
+    Draft --> Submitted: submit() [バリデーションOK]
+    Draft --> Draft: save() [部分保存]
+
+    Submitted --> UnderReview: startReview() [管理者ログイン]
+    UnderReview --> Approved: approve()
+    UnderReview --> Rejected: reject(reason)
+
+    Rejected --> Draft: reopen()
+    Approved --> [*]
 ```
 
-### 11. UIインタラクション設計（該当する場合）
-- **コンポーネント詳細仕様**（表形式：Props、State、Events）
-- **フォームバリデーション設計**（表形式）
-- **ローディング状態管理**（日本語で説明）
+## 新AC ID体系への対応
 
-### 12. エラーハンドリング
-- **エラークラス**（表形式：クラス、コード、HTTPステータス）
+requirements.md の AC一覧は新体系（`AC<StoryNo>.<カテゴリ>.<N|E>.<連番>` 形式、例: `AC1.UI.N.001`）で記載されている。
+Requirements Traceability セクションでは、この新体系の AC ID を使用してトレースすること。
+Story単位の構造に対応して、Component Summary 等のセクションも Story 毎の対応関係を意識して設計すること。
 
-| クラス | コード | HTTPステータス |
-|--------|--------|----------------|
-| UserNotFoundError | USER_NOT_FOUND | 404 |
-| ... | ... | ... |
+## design.md の最低セクション構成
 
-### 13. セキュリティ設計
-- パスワード、トークン、セッション等の仕様（表形式）
+**注意**: 各セクションの内容はすべて**表形式またはmermaid図**で記載すること。TypeScriptコードは禁止（Data Model の Prisma スキーマを除く）。
 
-| 項目 | 仕様 |
-|------|------|
-| ハッシュアルゴリズム | bcrypt |
-| コスト係数 | 12 |
-| ... | ... |
+最低限以下のセクションを含めること:
 
-### 14. テスト設計
-- 単体テスト、統合テスト、E2Eテスト、Browserテストそれぞれについて、正常系・異常系のテストケースをGiven-When-Then形式で記載
-  - E2E: Playwrightコードによる自動テスト（`pnpm test:e2e`で実行）
-  - Browser: Playwright MCPによるブラウザテスト（task-qaが実行）
-  - 詳細は `docs/einja/steering/terminology.md` を参照
-- テストカバレッジ目標
+1. **Overview** — 機能の目的・ユーザー・Goals/Non-Goals
+2. **Existing Architecture Analysis** — 現状実装・再利用コンポーネント・拡張対象
+3. **Architecture Pattern & Boundary Map** — C4 Container相当（graph TB + subgraph、外部システム明示）
+4. **Technology Stack** — Layer/Choice/Role/Notes テーブル
+5. **System Flows** — 主要フロー + 例外フロー（alt/opt/loop/par 使用）
+6. **Requirements Traceability** — AC ID（新体系）→ Components/Interfaces/Flows のマッピング表
+7. **Component Summary** — C4 Component図（graph TB + subgraph ネスト）+ Component一覧テーブル（UI変更時は必須）
+8. **Components and Interfaces** — 各コンポーネントの責務・依存・状態を表形式で記載
+9. **Data Model** — 物理ERD（erDiagram、DB変更時は必須）+ Entity/DTO（表形式）+ Persistence（Prismaスキーマ）
+10. **API Contract** — Endpoint Summary テーブル + Error Contract テーブル
+11. **State Transitions** — stateDiagram-v2（状態を持つ機能時は必須）
+12. **Rules Mapping** — requirements.md 節 → 設計反映箇所のマッピング表
+13. **Testing Strategy for This Feature** — Viewpoint/Level/Target テーブル
+14. **Related Documents** — 参照すべきsteering文書・類似Issue/Plan・既存実装
+15. **Related Skills / Subagents** — 使用Skill・推奨サブエージェントのテーブル
 
-### 15. 実装フェーズ
-- Phase分割と各Phaseの内容（箇条書き）
+**注意**: State Transitions は「状態を持つ機能」のみ必須。Component Summary の C4 Component図は「UI変更あり」のみ必須。Data Model の物理ERDは「DB変更あり」のみ必須。詳細は「条件付き必須図」セクションを参照。
 
-**Phase 1: データベース設計**
-- Prismaスキーマ更新
-- マイグレーション実行
+---
 
-**Phase 2: 基本機能実装**
-- Domain層
-- Infrastructure層
-- ...
+以下は旧セクション構成の詳細説明（参考用）:
 
-### 16. 関連ドキュメント
+### Overview（旧: 1. 概要）
+- 機能の目的と価値を2-3段落で説明（日本語）
+- Goals / Non-Goals を箇条書きで列挙
+
+### Existing Architecture Analysis（旧: アーキテクチャ概要 前半）
+- 現状の実装・再利用コンポーネント・拡張対象・新規追加対象
+
+### Architecture Pattern & Boundary Map（旧: 2. アーキテクチャ概要 後半）
+- **C4 Container相当図**（graph TB + subgraph）: 外部システムを "External Systems" subgraph に明示
+- **Architecture Notes**: 採用パターン・依存境界・既存規約との整合
+
+### Technology Stack
+- Layer/Choice/Role/Notes の4列テーブル
+
+### System Flows（旧: 一部シーケンス図）
+- **主要フロー**: sequenceDiagram（正常系）
+- **例外フロー**: sequenceDiagram + alt/opt/loop/par
+
+### Requirements Traceability
+- AC ID（新体系 `AC<N>.<カテゴリ>.<N|E>.<連番>` 形式）→ Components/Interfaces/Flows のマッピング表
+
+### Component Summary（旧: 9. UI層設計 を強化）
+- **C4 Component図**（graph TB + subgraph ネスト）
+- **Component一覧テーブル**: Component/Domain/Layer/Intent/Req Coverage/Key Dependencies/Contracts
+
+### Components and Interfaces（旧: 4〜8. 各層設計を統合）
+- 各コンポーネントの責務・依存を箇条書き + 表形式
+- インターフェース定義はTypeScriptコード禁止。表形式またはmermaid classDiagramを使用
+
+### Data Model（旧: 3. データベース設計）
+- **物理ERD**（erDiagram）— DB変更時は必須（概念ERはrequirements.md側で記載）
+- **Entity / DTO**（表形式）
+- **Persistence**（Prismaスキーマ）— 唯一許可されるコードブロック
+
+### API Contract（旧: 7. Presentation層設計 の API部分）
+- **Endpoint Summary**（Method/Endpoint/Purpose/Auth テーブル）
+- **Error Contract**（HTTP Status/Code/Meaning/Caller Behavior テーブル）
+
+### State Transitions（新規）
+- stateDiagram-v2 + state/event/guard — 状態を持つ機能時は必須
+
+### Rules Mapping
+- requirements.md 節 → 設計反映箇所のマッピング表
+
+### Testing Strategy for This Feature（旧: 14. テスト設計）
+- Viewpoint/Level/Target テーブル
+- E2E（Playwright自動）/ Browser（Playwright MCP、task-qa実行）の区別を記載
+- 詳細は `docs/einja/steering/terminology.md` を参照
+
+### Related Documents（旧: 16. 関連ドキュメント）
 
 この機能の実装で参照すべきドキュメントを整理する。requirements.mdの「実装参考情報」セクションの内容を踏まえ、技術設計の観点から整理すること。
 
@@ -463,7 +573,12 @@ stateDiagram-v2
 ※ 以下はあくまで出力例。実際の内容は設計対象の機能に応じて適切に生成すること。
 
 ```markdown
-## 関連ドキュメント
+## Related Documents
+
+- requirements.md: （該当requirements.mdへのパス）
+- ui-design.pen: （存在する場合）
+- 関連spec: （類似Issue/Planのパス）
+- 関連Issue: （Issue番号・リンク）
 
 ### 参照すべきsteering文書
 - backend-architecture.md: 4層アーキテクチャ、Repository/Mapper パターン
@@ -477,7 +592,7 @@ stateDiagram-v2
 - 既存実装: src/features/users/ （類似のCRUD実装）
 ```
 
-### 17. 関連Skill・サブエージェント
+### Related Skills / Subagents（旧: 17. 関連Skill・サブエージェント）
 
 この機能全体で使用が想定されるSkill・サブエージェントをフラットなテーブル形式で列挙する。requirements.mdの「実装参考情報」セクションの内容も踏まえること。
 
@@ -486,7 +601,7 @@ stateDiagram-v2
 ※ 以下はあくまで出力例。実際の内容は設計対象の機能に応じて適切に生成すること。
 
 ```markdown
-## 関連Skill・サブエージェント
+## Related Skills / Subagents
 
 ### この機能で使用が想定されるサブエージェント
 | サブエージェント | 用途 |
@@ -579,6 +694,15 @@ CLAUDE.mdに記載された以下の要素を必ず考慮：
    - **【必須】設計書にソースコードが含まれていないことを最終確認**
      - TypeScript/JavaScriptコードブロックがないか（Prismaスキーマ除く）
      - インターフェース定義は図または表形式になっているか
+   - **【必須】条件付き必須図の確認**（「条件付き必須図」セクション参照）
+     - UI変更あり → Component Summary に C4 Component図があるか
+     - DB変更あり → Data Model に 物理ERD（erDiagram）があるか
+     - 状態を持つ機能 → State Transitions に stateDiagram-v2 があるか
+     - 外部連携あり → Architecture Pattern & Boundary Map に External Systems subgraph があるか
+   - **【必須】AC ID体系の確認**
+     - Requirements Traceability の AC ID が新体系（`AC<N>.<カテゴリ>.<N|E>.<連番>`）形式になっているか
+   - **【必須】mermaid記法の確認**
+     - C4Context、C4Container等の C4記法が使われていないか（graph TB + subgraph に置き換えること）
    - 全ての指摘事項が適切に対応されたことを確認
    - requirements.mdの全要件がdesign.mdでカバーされているか確認
    - mermaid図が正しく描画されるか確認

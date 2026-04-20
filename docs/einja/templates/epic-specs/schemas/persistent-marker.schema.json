@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://einja.inc/schemas/epic-specs/persistent-marker.schema.json",
+  "title": "Persistent Marker (HTML Comment)",
+  "description": "Epic 関連 GitHub リソース（Issue / PR / Milestone description）冒頭に埋め込む HTML コメント形式の永続マーカー。タイトルリネーム・仕様変更への耐性を持ち、GitHub Search API in:body でリソースを再発見するための識別子。Milestone のみ Search API 非対応のため、REST List API + クライアント側 description 照合を使用する。詳細は persistent-marker-spec.md を参照。このスキーマは、マーカー文字列のバリデーションと、マーカーを分解した論理構造の両方を表現する。",
+  "oneOf": [
+    {
+      "title": "Marker string (raw)",
+      "type": "string",
+      "pattern": "^<!-- einja:epic-id=EPIC-\\d+ issue-slug=([a-z0-9-]+|null) kind=(issue-spec|issue-spec-pr|tracker|epic-pr|milestone) schema=1\\.0 -->$",
+      "description": "HTML コメント形式の完全な文字列。生の埋め込み値。"
+    },
+    {
+      "title": "Marker parsed (structured)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["epicId", "issueSlug", "kind", "schema"],
+      "description": "マーカーを分解した構造体。パーサが生成。",
+      "properties": {
+        "epicId": {
+          "type": "string",
+          "pattern": "^EPIC-\\d+$",
+          "description": "Epic ID。例: EPIC-1。"
+        },
+        "issueSlug": {
+          "type": ["string", "null"],
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Issue slug。Epic 全体リソース（tracker / epic-pr / milestone）では null。Issue 単位リソース（issue-spec / issue-spec-pr）では必須。"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "issue-spec",
+            "issue-spec-pr",
+            "tracker",
+            "epic-pr",
+            "milestone"
+          ],
+          "description": "リソース種別。issue-spec=各 Issue の GitHub Issue、issue-spec-pr=Issue Spec PR（Headless IssueSpec 側で create-or-update）、tracker=Epic Tracker Issue、epic-pr=Epic PR（Draft 先行作成）、milestone=GitHub Milestone（description 冒頭に埋込）。"
+        },
+        "schema": {
+          "type": "string",
+          "const": "1.0",
+          "description": "マーカーフォーマットのバージョン。v1 系は 1.0 固定。"
+        }
+      }
+    }
+  ]
+}

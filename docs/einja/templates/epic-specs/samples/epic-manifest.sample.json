@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "1.0",
+  "epicId": "EPIC-1",
+  "slug": "user-profile-settings",
+  "title": "ユーザープロフィール設定機能",
+  "hasUI": true,
+  "baseBranch": "develop",
+  "epicBranch": "epic/user-profile-settings",
+  "milestoneTitle": "ユーザープロフィール設定機能",
+  "milestoneId": null,
+  "trackerIssueNumber": null,
+  "features": [
+    {
+      "id": "F-01",
+      "title": "プロフィール情報表示・編集",
+      "storyIds": ["S-01"],
+      "acIds": ["AC-01", "AC-02"],
+      "issueSlug": "profile-view-edit"
+    },
+    {
+      "id": "F-02",
+      "title": "アバター画像アップロード",
+      "storyIds": ["S-02"],
+      "acIds": ["AC-03", "AC-04"],
+      "issueSlug": "profile-avatar-upload"
+    }
+  ],
+  "issues": [
+    {
+      "slug": "profile-view-edit",
+      "title": "プロフィール表示・編集画面の実装",
+      "category": "feature",
+      "scopePath": "docs/specs/epics/user-profile-settings/issues/profile-view-edit/scope.md",
+      "dependsOn": [],
+      "featureIds": ["F-01"],
+      "storyIds": ["S-01"],
+      "acIds": ["AC-01", "AC-02"],
+      "uiFrameIds": ["profile-view", "profile-edit"],
+      "transitionIds": ["TR-01", "TR-02"],
+      "githubIssueNumber": null,
+      "branch": null,
+      "specPrUrl": null
+    },
+    {
+      "slug": "profile-avatar-upload",
+      "title": "アバター画像アップロード機能の実装",
+      "category": "feature",
+      "scopePath": "docs/specs/epics/user-profile-settings/issues/profile-avatar-upload/scope.md",
+      "dependsOn": ["profile-view-edit"],
+      "featureIds": ["F-02"],
+      "storyIds": ["S-02"],
+      "acIds": ["AC-03", "AC-04"],
+      "uiFrameIds": ["avatar-upload-modal"],
+      "transitionIds": ["TR-03"],
+      "githubIssueNumber": null,
+      "branch": null,
+      "specPrUrl": null
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-01",
+      "summary": "認証済みユーザーがプロフィール情報（名前・メール・自己紹介）を閲覧できる",
+      "ownerIssueSlug": "profile-view-edit"
+    },
+    {
+      "id": "AC-02",
+      "summary": "認証済みユーザーがプロフィール情報を編集・保存できる（バリデーション付き）",
+      "ownerIssueSlug": "profile-view-edit"
+    },
+    {
+      "id": "AC-03",
+      "summary": "ユーザーがアバター画像をアップロードでき、即時にプレビュー表示される",
+      "ownerIssueSlug": "profile-avatar-upload"
+    },
+    {
+      "id": "AC-04",
+      "summary": "画像サイズ上限（2MB）・形式制限（JPEG/PNG）を超過した場合にエラー表示する",
+      "ownerIssueSlug": "profile-avatar-upload"
+    }
+  ],
+  "uiFrames": [
+    {
+      "id": "profile-view",
+      "name": "プロフィール表示画面",
+      "ownerIssueSlug": "profile-view-edit"
+    },
+    {
+      "id": "profile-edit",
+      "name": "プロフィール編集画面",
+      "ownerIssueSlug": "profile-view-edit"
+    },
+    {
+      "id": "avatar-upload-modal",
+      "name": "アバター画像アップロードモーダル",
+      "ownerIssueSlug": "profile-avatar-upload"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "TR-01",
+      "from": "profile-view",
+      "to": "profile-edit",
+      "trigger": "「編集」ボタン押下",
+      "ownerIssueSlug": "profile-view-edit"
+    },
+    {
+      "id": "TR-02",
+      "from": "profile-edit",
+      "to": "profile-view",
+      "trigger": "「保存」ボタン押下（成功時）",
+      "ownerIssueSlug": "profile-view-edit"
+    },
+    {
+      "id": "TR-03",
+      "from": "profile-edit",
+      "to": "avatar-upload-modal",
+      "trigger": "アバター画像クリック",
+      "ownerIssueSlug": "profile-avatar-upload"
+    }
+  ]
+}

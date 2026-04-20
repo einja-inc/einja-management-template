@@ -1,0 +1,325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://einja.inc/schemas/epic-specs/epic-manifest.schema.json",
+  "title": "Epic Manifest",
+  "description": "Epic（複数Issueを束ねる大規模機能）からIssueへ渡すSingle Source of Truth。epic-planner が生成し、_einja-epic-contract-validator が構造検証し、将来の einja-epic-exec が消費する。schemaVersion は major 一致で互換判定（1.x 系は互換、2.x 系は非互換）。IDの一意性（epicId, features[].id, issues[].slug, acceptanceCriteria[].id, uiFrames[].id, transitions[].id）および AC の一意割当は JSON Schema では表現困難なため、_einja-epic-contract-validator で検証すること。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "epicId",
+    "slug",
+    "title",
+    "hasUI",
+    "baseBranch",
+    "epicBranch",
+    "milestoneTitle",
+    "milestoneId",
+    "trackerIssueNumber",
+    "features",
+    "issues",
+    "acceptanceCriteria"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.",
+      "description": "スキーマバージョン。1.x 系（minor 後方互換）は許容。major バンプは非互換変更、minor バンプは後方互換追加。"
+    },
+    "epicId": {
+      "type": "string",
+      "pattern": "^EPIC-\\d+$",
+      "description": "Epic識別子。例: EPIC-1。GitHub Issue番号と必ずしも一致しない（Epicの論理ID）。"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "description": "Epicスラッグ。epic/{slug} ブランチや docs/specs/epics/{slug}/ ディレクトリで使用。小文字英数とハイフンのみ。"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Epic名（人間可読）。GitHub Milestone タイトルや Epic PR タイトルで使用。"
+    },
+    "hasUI": {
+      "type": "boolean",
+      "description": "UI要件の有無。true の場合は uiFrames / transitions / ui-design.pen / screen-transitions.drawio が通常存在する。false の場合は UI 関連フィールドを省略可。"
+    },
+    "baseBranch": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Epic ブランチの作成元ブランチ（IssueBranchBase）。main / develop / 任意ブランチ。"
+    },
+    "epicBranch": {
+      "type": "string",
+      "pattern": "^epic/[a-z0-9-]+$",
+      "description": "Epic ブランチ名。epic/{slug} 形式。各 Issue Spec PR の base になる。"
+    },
+    "milestoneTitle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "GitHub Milestone タイトル。通常は title と同一。永続マーカー kind=milestone で検索される。"
+    },
+    "milestoneId": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "作成済み GitHub Milestone の数値 ID。未作成時は null。冪等再開時の再照合に使用。"
+    },
+    "trackerIssueNumber": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Epic Tracker Issue の GitHub Issue 番号。永続マーカー kind=tracker で検索される。未作成時は null。"
+    },
+    "features": {
+      "type": "array",
+      "description": "Epic を構成する Feature 一覧。各 Feature は 1 つ以上の Issue に割り当てられること（validator が検証）。",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "storyIds", "acIds", "issueSlug"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^F-\\d+$",
+            "description": "Feature ID。例: F-01。Epic 内で一意。"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Feature 名。"
+          },
+          "storyIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^S-\\d+$"
+            },
+            "minItems": 1,
+            "description": "この Feature が扱う Story ID 一覧。"
+          },
+          "acIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^AC-\\d+$"
+            },
+            "minItems": 1,
+            "description": "この Feature が扱う AC ID 一覧。"
+          },
+          "issueSlug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "この Feature を担当する Issue の slug。issues[].slug と一致すること。"
+          }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "description": "Epic を構成する Issue 一覧。Issue 縦切り独立性は einja-review-spec で LLM 検証、構造整合は validator で検証。",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "slug",
+          "title",
+          "category",
+          "scopePath",
+          "dependsOn",
+          "featureIds",
+          "storyIds",
+          "acIds",
+          "githubIssueNumber",
+          "branch",
+          "specPrUrl"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "Issue スラッグ。Epic 内で一意。docs/specs/epics/{epic-slug}/issues/{issue-slug}/ ディレクトリ名や issue/{N} ブランチに紐付く論理ID。"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Issue タイトル（人間可読）。"
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Issue カテゴリ。例: feature / infra / migration / ops 等。Epic 内で自由に定義。"
+          },
+          "scopePath": {
+            "type": "string",
+            "pattern": "^docs/specs/epics/[a-z0-9-]+/issues/[a-z0-9-]+/scope\\.md$",
+            "description": "scope.md の相対パス。固定パターン: docs/specs/epics/{epic-slug}/issues/{issue-slug}/scope.md"
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]+$"
+            },
+            "uniqueItems": true,
+            "description": "依存先 Issue slug の配列。DAG として validator が topological sort 可能性を検証（循環禁止）。"
+          },
+          "featureIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^F-\\d+$"
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "この Issue が担当する Feature ID 一覧。"
+          },
+          "storyIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^S-\\d+$"
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "この Issue が担当する Story ID 一覧。"
+          },
+          "acIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^AC-\\d+$"
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "この Issue が担当する AC ID 一覧。各 AC は Epic 全体でちょうど 1 Issue に割り当てられること（validator で検証）。"
+          },
+          "uiFrameIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "任意フィールド。この Issue が担当する UI frame ID 一覧。hasUI=true の場合のみ通常存在。uiFrames[].id に含まれること（validator で検証）。"
+          },
+          "transitionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^TR-\\d+$"
+            },
+            "uniqueItems": true,
+            "description": "任意フィールド。この Issue が担当する画面遷移 ID 一覧。hasUI=true の場合のみ通常存在。transitions[].id に含まれること（validator で検証）。"
+          },
+          "githubIssueNumber": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "description": "Epic 側で事前作成した GitHub Issue 番号。Headless IssueSpec 入力として必須。未作成時は null。"
+          },
+          "branch": {
+            "type": ["string", "null"],
+            "pattern": "^issue/\\d+$",
+            "description": "issue/{N} ブランチ名。未作成時は null。"
+          },
+          "specPrUrl": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "Issue Spec PR URL。Headless IssueSpec 側が create-or-update で管理。未作成時は null。"
+          }
+        }
+      }
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "description": "Epic 全体の AC 一覧。各 AC は ownerIssueSlug でちょうど 1 つの Issue に紐付くこと（validator が一意性を検証）。",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "summary", "ownerIssueSlug"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^AC-\\d+$",
+            "description": "AC ID。Epic 内で一意。例: AC-01。"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "description": "AC 概要（1-2 文の短文）。詳細は各 Issue の requirements.md に記述。"
+          },
+          "ownerIssueSlug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "この AC を担当する Issue の slug。issues[].slug と一致し、かつ issues[].acIds にこの AC ID が含まれること（validator で双方向検証）。"
+          }
+        }
+      }
+    },
+    "uiFrames": {
+      "type": "array",
+      "description": "任意フィールド。UI 画面（frame）一覧。hasUI=true の場合のみ通常存在。各 frame ID は Epic 内で一意。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "ownerIssueSlug"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "frame ID。Pencil ui-design.pen のフレーム命名と一致させること。"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "frame 名（人間可読）。"
+          },
+          "ownerIssueSlug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "この frame を担当する Issue の slug。"
+          }
+        }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "description": "任意フィールド。画面遷移一覧。hasUI=true の場合のみ通常存在。screen-transitions.drawio と同期すること。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "from", "to", "trigger", "ownerIssueSlug"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^TR-\\d+$",
+            "description": "遷移 ID。Epic 内で一意。例: TR-01。"
+          },
+          "from": {
+            "type": "string",
+            "minLength": 1,
+            "description": "遷移元 frame ID。uiFrames[].id に存在すること（validator で検証）。"
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1,
+            "description": "遷移先 frame ID。uiFrames[].id に存在すること（validator で検証）。"
+          },
+          "trigger": {
+            "type": "string",
+            "minLength": 1,
+            "description": "遷移トリガー。ユーザー操作（例: 「保存ボタン押下」）またはシステムイベント（例: 「セッション失効」）。"
+          },
+          "ownerIssueSlug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "この遷移を担当する Issue の slug。"
+          }
+        }
+      }
+    }
+  }
+}

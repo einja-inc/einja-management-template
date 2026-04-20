@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://einja.inc/schemas/epic-specs/operation-log-entry.schema.json",
+  "title": "Operation Log Entry",
+  "description": "外部リソース操作（GitHub Issue / Milestone / PR の create/update）単位の監査ログエントリ。resume-state.json の operationLog[] に格納される。冪等再開時の再利用判定に使用するが、スキップ根拠としてそのまま信頼せず、必ず外部状態を GET で再照合すること。status=failed エントリはスキップ禁止（error.retryable=true は再試行、false は PENDING_QUESTIONS に昇格）。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operationType",
+    "idempotencyKey",
+    "remoteId",
+    "persistentMarker",
+    "status",
+    "createdAt",
+    "updatedAt",
+    "error"
+  ],
+  "properties": {
+    "operationType": {
+      "type": "string",
+      "enum": [
+        "issue-create",
+        "issue-update",
+        "milestone-create",
+        "tracker-issue-create",
+        "tracker-issue-update",
+        "pr-create",
+        "pr-update"
+      ],
+      "description": "操作種別。issue-spec / epic-pr / milestone / tracker の組み合わせを網羅。"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "pattern": "^EPIC-\\d+:([a-z0-9-]+|null):(issue-spec|issue-spec-pr|tracker|epic-pr|milestone)$",
+      "description": "冪等キー。形式: {epicId}:{issueSlug|null}:{kind}。Epic 全体に 1 つのリソース（tracker/epic-pr/milestone）では issueSlug=null、Issue 単位リソース（issue-spec/issue-spec-pr）では issueSlug を入れる。"
+    },
+    "remoteId": {
+      "type": ["string", "integer", "null"],
+      "description": "GitHub Issue 番号 / PR 番号 / Milestone 数値 ID。create が失敗中の場合は null。文字列も許容（ノードID系を使うケースの将来拡張）。"
+    },
+    "persistentMarker": {
+      "type": "string",
+      "pattern": "^<!-- einja:epic-id=EPIC-\\d+ issue-slug=([a-z0-9-]+|null) kind=(issue-spec|issue-spec-pr|tracker|epic-pr|milestone) schema=1\\.0 -->$",
+      "description": "外部リソース本文（または Milestone description）冒頭に埋め込まれる永続マーカー。persistent-marker.schema.json / persistent-marker-spec.md 参照。GitHub Search API in:body 検索で既存リソースを再利用するための識別子。"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "failed"],
+      "description": "操作結果。success=成功、failed=エラー（error フィールドに詳細）。failed エントリは再利用時必ず再試行 or エスカレーションすること。"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "このエントリを追加した時刻（ISO 8601, UTC）。"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "このエントリを最後に更新した時刻（ISO 8601, UTC）。再照合で remoteId を補正した際も更新する。"
+    },
+    "error": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["message", "retryable", "code"],
+          "properties": {
+            "message": {
+              "type": "string",
+              "minLength": 1,
+              "description": "エラー本文（人間可読）。"
+            },
+            "retryable": {
+              "type": "boolean",
+              "description": "再試行可能か。true=自動再試行対象、false=PENDING_QUESTIONS に昇格してユーザー判断を仰ぐ。"
+            },
+            "code": {
+              "type": "string",
+              "minLength": 1,
+              "description": "GitHub API エラーコードや内部エラーコード（例: 'rate-limit-exceeded', 'not-found', 'validation-failed'）。"
+            }
+          }
+        }
+      ],
+      "description": "status=failed 時のエラー詳細。status=success 時は null。"
+    }
+  }
+}

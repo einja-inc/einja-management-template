@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://einja.inc/schemas/epic-specs/question-broker.schema.json",
+  "title": "Question Broker",
+  "description": "サブエージェント↔Epic 間の通信プロトコルは既存 _einja-subagent-question-protocol の Markdown ## PENDING_QUESTIONS 形式を維持する。Epic 側が受け取った Markdown を正規化（normalizedFromMarkdown=true）し、このスキーマの JSON エントリとして docs/specs/epics/{epic-slug}/question-broker.json に保存する。fingerprint で重複排除し、appliesToIssueSlugs で複数 Issue に同じ回答を伝播させる。status=answered になった質問は、対象 Issue の resume-state.json の answers[] にも反映される。_einja-subagent-question-protocol 自体は未変更。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "questions"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.",
+      "description": "スキーマバージョン。epic-manifest.json と同一でなければならない。"
+    },
+    "questions": {
+      "type": "array",
+      "description": "質問エントリの一覧。fingerprint で重複排除する。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "questionId",
+          "sourceSkill",
+          "sourceIssueSlug",
+          "type",
+          "fingerprint",
+          "question",
+          "appliesToIssueSlugs",
+          "status",
+          "answer",
+          "normalizedFromMarkdown"
+        ],
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "pattern": "^Q-[a-f0-9]{12}$",
+            "description": "質問の一意 ID。'Q-' + sha256(sourceSkill + '|' + 正規化後の question 本文) の先頭 12 文字（16進）。fingerprint とは異なり、ID として参照される。"
+          },
+          "sourceSkill": {
+            "type": "string",
+            "enum": [
+              "einja-issue-spec-create",
+              "einja-review-spec",
+              "_einja-epic-contract-validator",
+              "epic-planner"
+            ],
+            "description": "質問の発生元 Skill。返却元を一意に識別し、Epic 側が正規化ロジックを切り替えるために使用。"
+          },
+          "sourceIssueSlug": {
+            "type": ["string", "null"],
+            "pattern": "^[a-z0-9-]+$",
+            "description": "発生元 Issue の slug。validator など Epic 全体に属する質問では null。"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "requirement-ambiguity",
+              "design-decision",
+              "review-major",
+              "validator-failure"
+            ],
+            "description": "質問の分類。requirement-ambiguity=要件曖昧、design-decision=設計判断、review-major=einja-review-spec の MAJOR 指摘、validator-failure=構造検証失敗。"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "同一質問検出用の sha256 ハッシュ（64文字 hex）。正規化ルール: (1) 質問本文から前後空白除去、(2) 連続空白を単一スペースに圧縮、(3) 行末の記号（'。', '.', '?', '？', '!', '！'）を除去、(4) 小文字化、(5) sourceSkill + '|' + 正規化済み本文を sha256 した値。重複排除に使用（同じ fingerprint の質問は 1 件として扱う）。"
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "description": "質問本文（ユーザーへ提示する形）。Markdown 入力時の PENDING_QUESTIONS セクションから抽出。"
+          },
+          "appliesToIssueSlugs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]+$"
+            },
+            "uniqueItems": true,
+            "description": "この質問の回答を伝播する Issue slug 一覧。1 件でも可。未開始 Issue も含められ、Headless 初回実行時にここを参照して共有回答コンテキストをプロンプト注入する。"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "answered", "obsolete"],
+            "description": "open=未回答、answered=ユーザー回答済み（appliesToIssueSlugs 全 Issue の resume-state に反映済み）、obsolete=要件変更等で質問自体が不要になった。"
+          },
+          "answer": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["text", "answeredAt"],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "ユーザー回答本文。"
+                  },
+                  "answeredAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "回答時刻（ISO 8601, UTC）。"
+                  }
+                }
+              }
+            ],
+            "description": "status=answered 時の回答詳細。status=open / obsolete 時は null。"
+          },
+          "normalizedFromMarkdown": {
+            "type": "boolean",
+            "description": "Markdown ## PENDING_QUESTIONS 形式からこの JSON エントリに正規化済みか。v1 では常に true（ブローカー登録時に正規化するため）。将来、直接 JSON で投入するパスを追加する場合の識別子として予約。"
+          }
+        }
+      }
+    }
+  }
+}

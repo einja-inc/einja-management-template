@@ -22,6 +22,6 @@ fi
 jq -n '{
   "hookSpecificOutput": {
     "hookEventName": "UserPromptSubmit",
-    "additionalContext": "【Plan mode自動リマインダー】計画作成前にeinja-skill-firstの評価を実施してください。.claude/skills/einja-skill-first/SKILL.mdを参照し、スキップ基準に該当しない場合はSkill作成の必要性を評価してください。スキップ基準（単発の小規模修正、既存キーワードトリガー一致、具体的かつ限定的な作業指示、1回限りの作業）に該当する場合は省略可。"
+    "additionalContext": "【Plan mode自動リマインダー】計画作成前にeinja-skill-firstの評価を実施してください。.claude/skills/einja-skill-first/SKILL.mdを参照し、スキップ基準に該当しない場合はSkill作成の必要性を評価してください。ExitPlanMode前にはeinja-review-planを実行し、plan本文末尾に <!-- einja-plan-review: PASS --> / <!-- einja-plan-review: MINOR fixed --> / <!-- einja-plan-review: SKIPPED user-explicit --> のいずれかを追加してください。"
   }
 }'

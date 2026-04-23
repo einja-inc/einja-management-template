@@ -196,6 +196,14 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
 
 3. **以降の操作は全て Manager worktree 内から実行**（cwd: `~/.einja/worktrees/issue-{N}/manager`）
 
+   **初期同期ゲート**: Issueブランチ作成/再利用後、Manager worktree内で必ず `origin/{baseBranch}` の進行をIssueブランチへ取り込む。Issue/Phaseブランチは merge-only（rebase/force-push禁止）。
+   ```bash
+   cd ~/.einja/worktrees/issue-{N}/manager
+   git fetch origin
+   git merge "origin/{baseBranch}"
+   git push origin "issue/{N}"
+   ```
+
 4. 各 Phase のブランチ作成（冪等）:
    ```bash
    # Phase ブランチ作成（冪等）
@@ -209,6 +217,19 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
      git branch "$BRANCH" "$BASE"
    fi
    git push -u origin "$BRANCH" 2>/dev/null || true
+   ```
+
+5. **Phase同期ゲート**: Phaseブランチ作成/再利用後、タスクブランチを切る前に `origin/issue/{N}` をmergeする。これは初回起動時だけでなく、resume時も必須。mergeは対象Phaseブランチをcheckoutした同期用worktreeで実行する。
+   ```bash
+   PHASE_SYNC_WORKTREE=~/.einja/worktrees/issue-{N}/phase-{M}-sync
+   if ! git worktree list --porcelain | grep -qFx "worktree $PHASE_SYNC_WORKTREE"; then
+     git worktree add "$PHASE_SYNC_WORKTREE" "issue/{N}-phase{M}"
+   fi
+   cd "$PHASE_SYNC_WORKTREE"
+   git fetch origin
+   git merge "origin/issue/{N}"
+   git push origin "issue/{N}-phase{M}"
+   cd ~/.einja/worktrees/issue-{N}/manager
    ```
 
 ### Step 3: セッションファイル初期化
@@ -247,7 +268,11 @@ Managerは以下を直接実施する（旧Directorの責務を吸収）:
 
 1. **spec事前一括チェック**: 詳細は issue-exec-protocol.md「spec事前一括チェック仕様」を参照。チェック結果を `phase-{M}/spec-check.json` に記録
 2. **Phase内依存関係の詳細解析**: 詳細は issue-exec-protocol.md「依存関係解析仕様」を参照。解析結果を `events.jsonl` に `dependency_graph` イベントとして記録
-3. **Worker起動**: 実行モードに応じた方式でWorkerを起動（Step 5参照）
+3. **タスク開始前同期ゲート**: Workerを起動する直前に、issue-exec-protocol.md「IssueBranchBase自動同期プロトコル」の同期ゲートを実施する
+   - `origin/{baseBranch}` が進んでいれば `issue/{N}` にmergeしてpush
+   - `issue/{N}` が更新された場合は `issue/{N}-phase{M}` にmergeしてpush
+   - active Workerが存在する場合は、ステータスファイルに `sync_required=true` を記録し、次の安全ポイントで取り込ませる
+4. **Worker起動**: 実行モードに応じた方式でWorkerを起動（Step 5参照）
 
 ### Step 5: Worker起動（モード別）
 
@@ -376,6 +401,12 @@ Manager は以下を監視:
 
 2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
 
+   **マージ後同期ゲート**: タスクPRマージ後、blockedBy解除や次Worker起動より前に以下を行う。
+   - `git fetch origin` で `origin/{baseBranch}` の進行を確認
+   - 進行あり → Manager worktreeで `issue/{N}` にmergeしてpush
+   - Phase worktreeまたはPhaseブランチへ `origin/issue/{N}` をmergeしてpush
+   - active Workerの `phase-{M}/task-{X.Y}.json` に `sync_required=true` を記録し、signalを作成
+
 3. **質問エスカレーション処理**:
    - `~/.einja/sessions/issue-{N}/questions/` の pending 質問を検知
    - AskUserQuestion で人間に質問を表示
@@ -383,6 +414,7 @@ Manager は以下を監視:
 
 4. **Phase 完了処理**:
    - Phase完了条件（issue-exec-protocol.md参照）を満たしたら:
+   - Phase PR作成前に、IssueBranchBase → Issue → Phase の順で同期ゲートを再実行
    - Phase PR 作成: `/einja-create-pr --auto --base issue/{N}`
    - マージモードに応じた処理（manual: 待機、auto: 自動マージ）
    - 他 active Phase への変更伝播通知
@@ -391,6 +423,12 @@ Manager は以下を監視:
    - Worker の tmux pane が消失した場合のリカバリ処理（`tmux display-message -t "$WORKER_PANE" -p '#P' 2>/dev/null` で存在確認）
    - Worker のステータスを確認 → 未完了 Worker のみ再実行
    - リトライポリシー（fixCount / retryCount の上限、エスカレーション条件）は issue-exec-protocol.md を参照
+
+6. **待ち合わせ復旧**:
+   - シグナルファイルは起床トリガーであり、完了判定はステータスファイル・PR状態・tmux pane状態を正本とする
+   - 120秒のシグナル待機で何も見つからない場合も、全Workerのステータスファイル、質問ファイル、PR状態、base/issue/phaseブランチ差分を再走査する
+   - 1時間変化がない場合は通常監視を停止せず、5分間隔の低頻度ハートビートに落として状態再走査を継続する
+   - `sync_required=true` のWorkerがいる場合、Managerは次の安全ポイントまで待ち、Workerの作業中断を強制しない
 
 #### Agent toolモード
 
@@ -412,6 +450,7 @@ Agent tool は完了時に結果を返すため、ポーリング不要:
 指定Phaseの実行が完了したら、**セッションを維持したまま待機モード**に入る:
 
 1. Phase PR作成（未作成の場合）: `/einja-create-pr --auto --base issue/{N}`
+   - PR作成前に IssueBranchBase → Issue → Phase の同期ゲートを実施
 2. 完了報告をユーザーに表示:
    - 完了したPhase番号、作成されたPR一覧
    - 残りのPhase（ある場合）
@@ -427,10 +466,11 @@ Agent tool は完了時に結果を返すため、ポーリング不要:
 ### Step 8: 全Phase完了 → 最終PR・待機
 
 全Phaseが完了した場合:
-1. 最終PR作成: `/einja-create-pr --auto --base {baseBranch}` を実行
-2. PR URL を表示
-3. **セッションを維持したまま待機モード**に入る（クリーンアップしない）
-4. **AskUserQuestion で次のアクションを確認**:
+1. 最終PR作成前同期ゲート: `origin/{baseBranch}` を `issue/{N}` にmergeしてpushし、古いbaseに対するPR作成を防ぐ
+2. 最終PR作成: `/einja-create-pr --auto --base {baseBranch}` を実行
+3. PR URL を表示
+4. **セッションを維持したまま待機モード**に入る（クリーンアップしない）
+5. **AskUserQuestion で次のアクションを確認**:
    - **修正を実施**: マージ後のレビュー指摘・テスト失敗への修正
      - Note: 修正対象のPR番号・指摘内容を入力
    - **セッションを終了**: クリーンアップして完全終了
@@ -647,4 +687,4 @@ tmux send-keys -t "$WORKER_PANE" '/einja-task-exec #{N} {X.Y}' Enter
 - Worker 内部のタスク並列実行は既存の einja-task-exec Skill フロー（Task ツール + run_in_background）をそのまま活用
 - ステータスファイルの `status.json` 更新には `flock` による排他制御を使用
 - 質問ファイルは1ファイル1質問のためロック不要（UUID でアトミック書き込み）
-- Worker は各タスク完了毎 + PR作成前にステータスファイルをチェック（sync_required検知時は次タスク開始前にrebase）
+- Worker は各タスク完了毎 + PR作成前にステータスファイルをチェック（sync_required検知時は次タスク開始前にPhaseブランチへmerge。Issue/Phaseブランチはrebase禁止）

@@ -30,6 +30,14 @@ allowed-tools:
 GitHub Issue全体のタスクを Lead → Director(Teammate Pool) → Worker(Subagent) の3ロール体制で並列実行する。
 Agent Teams の共有TaskListとself-claimによるワーカープール方式で、tmux不要、Desktop/CLI両対応。
 
+## Agent Teams共通ガイド
+
+TeamCreateを呼び出す前に、必ず `einja-common:agent-teams-guide` Skillを読み込むこと。特に以下をこのSkill実行に適用する:
+- teammateMode設定と切り替え操作
+- 初回Worker完了待ち前のWorker出力確認ガイド表示
+- Leadの確認責務（SendMessage / TaskList / TaskOutput / PR差分の確認）
+- Agent Teams利用不可時のフォールバック
+
 ## 共通プロトコル参照
 
 共通ルール（ステータス遷移、ゲートチェック、リトライ、マージモード等）は以下を参照:
@@ -83,18 +91,24 @@ echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
   または tmux版の einja-issue-exec Skill を使用してください。
   ```
 
-### 0-1.5. tmuxセッション確認（TEAMMATE_MODE=tmux時）
+### 0-1.5. teammateMode / tmuxセッション確認
 
 ```bash
+# settings.json の top-level teammateMode を確認（推奨）
+grep -n '"teammateMode"' .claude/settings.json
+
+# 旧環境変数も互換確認
 echo $CLAUDE_CODE_TEAMMATE_MODE
 echo $TMUX
 ```
 
-- `CLAUDE_CODE_TEAMMATE_MODE=tmux` かつ `$TMUX` が空の場合: AskUserQuestionで確認:
+- `teammateMode=tmux` または `CLAUDE_CODE_TEAMMATE_MODE=tmux` かつ `$TMUX` が空の場合: AskUserQuestionで確認:
   - **tmuxモードで再実行（推奨）**: 「tmuxセッション内で再実行してください。iTerm2をお使いの場合は `tmux -CC` で統合モードを推奨します（Teammateがペイン分割で表示されます）」→ 停止
     - Note: Teammateの進行状況がリアルタイムで見える。CLI環境向け
   - **プロセス内モードで続行**: tmux統合なしでAgent Teamsを実行（Teammateはバックグラウンドプロセスとして起動）
     - Note: Desktop/VSCode等tmuxが使えない環境で利用可能。Teammateの可視性は低い
+
+切り替え操作は `einja-common:agent-teams-guide` の「Worker出力確認ガイド」を参照する。公式に安定して案内できるin-process操作は `Shift+Down` による巡回、`Enter` で表示、`Escape` で割り込み、`Ctrl+T` でTaskList切替。
 
 ### 0-2. GitHub CLI 確認
 
@@ -156,6 +170,19 @@ else
 fi
 git push -u origin "$BRANCH" 2>/dev/null || true
 
+# 初期同期ゲート: IssueBranchBase -> Issue
+# mergeは対象ブランチをcheckoutした管理worktree内で実行する
+ISSUE_SYNC_WORKTREE="../${project-name}-worktrees/issue-${N}-lead"
+if ! git worktree list --porcelain | grep -qFx "worktree $(cd "$(dirname "$ISSUE_SYNC_WORKTREE")" 2>/dev/null && echo "$(pwd)/$(basename "$ISSUE_SYNC_WORKTREE")" || echo "$ISSUE_SYNC_WORKTREE")"; then
+  git worktree add "$ISSUE_SYNC_WORKTREE" "issue/${N}"
+fi
+(
+  cd "$ISSUE_SYNC_WORKTREE"
+  git fetch origin
+  git merge "origin/${baseBranch}"
+  git push origin "issue/${N}"
+)
+
 # Phase ブランチ作成（冪等）
 BRANCH="issue/${N}-phase1"
 BASE="issue/${N}"
@@ -167,6 +194,19 @@ else
   git branch "$BRANCH" "$BASE"  # 新規作成
 fi
 git push -u origin "$BRANCH" 2>/dev/null || true
+
+# 初期同期ゲート: Issue -> Phase
+# mergeは対象Phaseブランチをcheckoutした管理worktree内で実行する
+PHASE_SYNC_WORKTREE="../${project-name}-worktrees/issue-${N}-phase1-sync"
+if ! git worktree list --porcelain | grep -qFx "worktree $(cd "$(dirname "$PHASE_SYNC_WORKTREE")" 2>/dev/null && echo "$(pwd)/$(basename "$PHASE_SYNC_WORKTREE")" || echo "$PHASE_SYNC_WORKTREE")"; then
+  git worktree add "$PHASE_SYNC_WORKTREE" "issue/${N}-phase1"
+fi
+(
+  cd "$PHASE_SYNC_WORKTREE"
+  git fetch origin
+  git merge "origin/issue/${N}"
+  git push origin "issue/${N}-phase1"
+)
 
 # ※ git checkout は使用しない。git branch でHEADを変えずにブランチを作成する
 # ※ lock系エラー（packed-refs.lock, FETCH_HEAD.lock, cannot lock ref等）発生時は
@@ -265,6 +305,12 @@ TeamCreate:
   teammates: [{poolSize}個の Teammate 定義]
 ```
 
+### 初回Worker出力確認ガイド表示
+
+TeamCreate成功後、Step 5の最初の監視待機に入る前に、`einja-common:agent-teams-guide` の「Worker出力確認ガイド」をユーザーへ一度だけ表示する。
+
+Leadは内部状態として `workerOutputGuideShown=true` を保持し、同一セッション内では再表示しない。resume時に表示済みか不明な場合は、ユーザーが迷わないよう再表示してよい。
+
 ### Teammate spawn時の権限モード
 
 各 Teammate の `mode` に `"bypassPermissions"` を指定する。これにより Teammate 内のツール呼び出しで承認プロンプトが不要になる。
@@ -283,7 +329,7 @@ Lead は TeamCreate 時に `Read(".claude/skills/einja-issue-team-exec/director-
 
 Lead の監視ループ:
 
-> **重要**: Leadの監視待機にはシグナルファイル方式を使用する。`sleep` によるポーリングは禁止。
+> **重要**: Leadの監視待機はシグナルファイルを起床トリガーにする。単純な無期限ポーリングは禁止。120秒などの短い待機単位でタイムアウトした場合は、SendMessage・TaskList・TaskOutput・PR状態・ブランチ差分を再走査して復旧する。
 > ```bash
 > # シグナルファイル待機（最大120秒、2秒間隔チェック、複数Director同時完了対応）
 > SIGNAL_DIR=~/.einja/sessions/issue-{N}/signals
@@ -303,8 +349,9 @@ Lead の監視ループ:
 > - **シグナルファイル** = 起床トリガー（Leadのbash待機ループを即座に抜けさせる）
 > - **SendMessage** = 内容通知（完了/エラー/進捗の詳細情報を運ぶ）
 > - DirectorはSendMessage送信**後に** `touch ~/.einja/sessions/issue-{N}/signals/director-{ID}.signal` を実行する
-> - Leadはシグナル受信後、ステータスファイルとSendMessageキューを両方チェックして処理する
+> - Leadはシグナル受信後、TaskList・TaskOutput・SendMessageキュー・PR状態をチェックして処理する
 > - `processed_pr_numbers` セットにより同一イベントの二重処理を防止
+> - タイムアウト時も「何も起きていない」と判断せず、全状態を再走査してから次の待機単位へ進む
 
 ### 5-1. Director からの SendMessage 受信
 
@@ -332,6 +379,18 @@ Lead の監視ループ:
    - `[verdict] Task {X.Y}: rejected` — fixCount超過またはユーザーエスカレーション後の却下
 4. fix_required 時: fixCount をインクリメント。最大2回まで修正指示 → 3回目NG → AskUserQuestion でユーザーにエスカレーション（ゲートチェックの詳細は Step 5-2 参照）
 
+### 5-1b. 同期待ち合わせゲート
+
+Leadは以下のタイミングで、issue-exec-protocol.md「IssueBranchBase自動同期プロトコル」の同期ゲートを必ず実行する:
+- Step 2のIssue/Phaseブランチ作成直後
+- `[pr-ready]` のゲートチェック前
+- タスクPRマージ直後、TaskUpdate completed / blockedBy解除の前
+- Phase PR作成直前
+- Phase PRマージ直後、次Phaseタスクunblockの前
+- 最終PR作成直前
+
+同期でIssueブランチが更新された場合、Leadは該当Directorへ `sync_required` をSendMessageで通知する。Directorは現在の作業を破壊しない安全ポイントで `origin/issue/${N}` をPhase/Taskブランチへmergeする。
+
 ### 5-2. ゲートチェック（protocol.md 参照）
 
 1. **Fast Gate 通過** → マージモードに応じた処理:
@@ -350,16 +409,17 @@ Lead の監視ループ:
 
 | マージモード | 検知方法 |
 |------------|---------|
-| `manual` | AskUserQuestionでユーザーにマージ完了を確認（PRマージは外部イベントのためポーリング不適） |
+| `manual` | `gh pr list --state merged` / `gh pr view` を低頻度で確認し、マージ済みを自動検知。ユーザーへのAskUserQuestionは長時間未変化・判断必要時のみ |
 | `task-group-auto` | `gh pr merge --squash --auto` 実行 → CI通過で自動マージ |
 | `auto` | CI通過確認後に `gh pr merge --squash` 実行 |
 
 ### 5-4. マージ後処理
 
 1. TaskUpdate でタスク status を `completed` に更新
-2. **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）
-3. blockedBy 解除（依存タスクが claimable になる）
-4. idle Director が次タスクを自動 claim
+2. IssueBranchBase → Issue → Phase の同期ゲートを実施
+3. **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）
+4. blockedBy 解除（依存タスクが claimable になる）
+5. idle Director が次タスクを自動 claim
 
 ### 5-5. ポーリング停止・再開（protocol.md 参照）
 
@@ -370,6 +430,13 @@ Lead の監視ループ:
 | トリガー検知 | 通常ポーリング復帰 |
 
 - `processed_pr_numbers` セットで冪等処理を保証（同一PRの二重処理を防止）
+
+### 5-5a. Lead/Directorの相互停止防止
+
+- LeadはDirectorのSendMessageだけを待たない。待機単位ごとにTaskList、TaskOutput、PR、ブランチ差分を再走査する
+- DirectorはLeadのverdictだけを無期限に黙って待たない。一定時間ごとに `[idle] Task {X.Y}: waiting_for_verdict PR #{PR番号}` を送る
+- Leadは`[idle] waiting_for_verdict`を受けたら、未送信verdict・CI状態・同期必要性を再確認する
+- `sync_required` は作業中断命令ではない。Directorはコミット前、PR作成後、verdict処理後などの安全ポイントで取り込む
 
 ### 5-6. ファイル競合俯瞰チェック
 
@@ -392,6 +459,8 @@ Director の `[task-claim]` と `[change-summary]` から、Director別の変更
 
 ### 完了時の処理
 
+Phase PR作成前に、IssueBranchBase → Issue → Phase の同期ゲートを実行する。
+
 ```bash
 # Phase PR 作成
 gh pr create --base issue/${N} --head issue/${N}-phase{M} \
@@ -406,7 +475,8 @@ gh pr create --base issue/${N} --head issue/${N}-phase{M} \
 ### マージ後の次Phase準備
 
 ```bash
-# 次Phase ブランチ作成（冪等）
+# 次Phase ブランチ作成前に、Issue管理worktreeで IssueBranchBase -> Issue の同期ゲートを実行済みにする
+# ここではHEADを変更せず、同期済みの origin/issue/${N} から次Phaseブランチを作成する
 git fetch origin
 BRANCH="issue/${N}-phase{M+1}"
 BASE="origin/issue/${N}"
@@ -431,7 +501,7 @@ git push -u origin "$BRANCH" 2>/dev/null || true
 
 指定Phaseの実行が完了したら、**チームを維持したまま待機モード**に入る:
 
-1. Phase PR作成（未作成の場合）: einja-create-pr Skill で作成
+1. Phase PR作成前に IssueBranchBase → Issue → Phase の同期ゲートを実行し、未作成の場合は einja-create-pr Skill で作成
 2. 完了報告をユーザーに表示（完了Phase、作成PR一覧、残りPhase）
 3. **AskUserQuestion で次のアクションを確認**:
    - **次のPhaseを実行**: 次のPhaseの実行を開始。idle Director が新タスクを claim
@@ -445,15 +515,16 @@ git push -u origin "$BRANCH" 2>/dev/null || true
 ## Step 8: 全Phase完了 → 最終PR・待機
 
 全Phaseが完了した場合:
-1. einja-create-pr Skill で最終PR作成:
+1. 最終PR作成前に IssueBranchBase → Issue の同期ゲートを実行
+2. einja-create-pr Skill で最終PR作成:
    ```
    --auto --base ${baseBranch}
    head: issue/${N}
    ```
-2. PR URL をユーザーに表示
-3. Issue にコメント追加（実行結果サマリ）
-4. **チームを維持したまま待機モード**に入る（クリーンアップしない）
-5. **AskUserQuestion で次のアクションを確認**:
+3. PR URL をユーザーに表示
+4. Issue にコメント追加（実行結果サマリ）
+5. **チームを維持したまま待機モード**に入る（クリーンアップしない）
+6. **AskUserQuestion で次のアクションを確認**:
    - **修正を実施**: マージ後のレビュー指摘・テスト失敗への修正
      - Note: 修正対象のPR番号・指摘内容を入力
    - **セッションを終了**: チーム解散・クリーンアップして完全終了
@@ -518,4 +589,3 @@ Lead・Director 双方がメッセージ送受信時にこのファイルを参�
       └── issue/{N}-phase2        ← Lead が Phase 1 完了後に作成
            └── task/{N}-2.1      ← Teammate C が作成・作業・PR (base: phase2)
 ```
-

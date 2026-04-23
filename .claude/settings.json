@@ -6,6 +6,7 @@
     "CLAUDE_CODE_NO_FLICKER": "1"
   },
   "includeCoAuthoredBy": false,
+  "teammateMode": "tmux",
   "permissions": {
     "allow": [
       "Bash(npm:*)",
@@ -143,6 +144,15 @@
   },
   "hooks": {
     "PreToolUse": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/einja/plan-review-gate.sh"
+          }
+        ]
+      },
       {
         "matcher": "mcp__playwright__.*",
         "hooks": [

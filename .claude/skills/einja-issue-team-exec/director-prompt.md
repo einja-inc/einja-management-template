@@ -12,6 +12,7 @@
    - claim 後、主要編集予定ファイルを含めて broadcast:
      `[task-claim] Task {X.Y}: {タスク名}\nFiles: {編集予定ファイルリスト}\nDirector: {自分の名前}`
    - 受信した `[task-claim]` から「誰がどのタスク・どのファイルを担当しているか」の宛先マップを保持
+   - claim前にLeadから `sync_required` を受信している場合、先に `origin/issue/${N}` を対象Phaseへmergeしてからclaimする
 
 2. **作業環境準備**: [ブランチ運用戦略](../../../docs/einja/steering/branch-strategy.md)に従う
    - **Director worktree**（マージ先・PR用）を作成:
@@ -45,6 +46,12 @@
        fi
        git worktree add "$WORKTREE_PATH" "$BRANCH"
      fi
+     ```
+   - 作業開始前同期ゲート:
+     ```bash
+     git fetch origin
+     git merge "origin/issue/${N}-phase{M}"
+     git push origin "task/${N}-{X.Y}"
      ```
    - `_einja-worktree-guide` Skillの手順に従ってworktreeをセットアップ
    - PR base: `issue/${N}-phase{M}`
@@ -105,6 +112,9 @@
         g. 「作業ディレクトリ: ../${project-name}-worktrees/task-${N}-{X.Y.Z} で作業すること」
      7. サブエージェントは **必ず `run_in_background: true`** で起動する（1タスクでも同様）。これによりDirector自身はメッセージ受信・ピア間通信を並行処理できる
      8. 各エージェントの完了を待機（TaskOutput で結果取得）
+        - 無期限に黙って待たない。一定時間ごとにTaskListとTaskOutputを確認し、LeadからのSendMessageも処理する
+        - 完了したWorkerのTaskOutputは省略せず確認し、Leadが後から追えるよう該当タスクIDと要点をprogressに含める
+        - Leadから `sync_required` を受信した場合、実行中Workerを中断せず、次の安全ポイントで取り込む
      9. Worker worktree の変更を Director worktree にマージ:
         ```bash
         cd ../${project-name}-worktrees/task-${N}-{X.Y}
@@ -123,7 +133,9 @@
    - 重複懸念がある場合は直列化する（同じworktreeではなく、順次実行で前のWorkerの変更を引き継ぐ）
    - task-executer にはコミットさせない（Step 7でまとめて実行）
    - **進捗報告**: 各個別タスク（X.Y.Z）の開始時・完了時に Lead へ SendMessage で報告
-     形式: `[progress] Task {X.Y.Z}: {started|completed} - {タスク名}`
+     形式:
+     - `[progress] Task {X.Y.Z}: started - {タスク名}`
+     - `[progress] Task {X.Y.Z}: completed - {タスク名}\nWorker output checked: TaskOutput {taskId}\nSummary: {確認した出力の要点}`
 
 5. **レビューフェーズ**: task-reviewer サブエージェント起動（グループ全体で1回実行）
    - PASS/MINOR 判定 → 品質保証フェーズへ
@@ -138,7 +150,7 @@
 7. **コミット・PR**: 変更がある場合のみ実行
    - einja-task-commit Skill でコミット・プッシュ（確認なしで自動実行）
    - einja-create-pr Skill で PR 作成
-   - Lead に `[pr-ready] Task {X.Y}: PR #{PR番号}` を送信
+   - Lead に `[pr-ready] Task {X.Y}: PR #{PR番号}\nBranch: task/${N}-{X.Y}\nBase: issue/${N}-phase{M}\nWorker outputs checked: yes` を送信
    - タスク完了後に共有リソース変更がある場合は broadcast:
      ```
      [change-summary] Task {X.Y}: {タスク名}
@@ -155,6 +167,8 @@
    - `approved` → worktree 削除 → 次タスク claim（1に戻る）
    - `fix_required` → fixInstructions に従い修正 → 既存 PR にpush（新規PR作成禁止）→ 5に戻る
    - `rejected` → エラー報告 → 次タスク claim
+   - verdict待ちで一定時間応答がない場合、`[idle] Task {X.Y}: waiting_for_verdict PR #{PR番号}` をLeadへ送信する
+   - `sync_required` を受信した場合、verdict後または修正着手前の安全ポイントで `origin/issue/${N}` をmergeする
 
 9. **全タスク完了 or claimable なし**: Lead に `[idle]` 通知
 
@@ -183,6 +197,7 @@ Lead からタスクグループ実行以外の指示（例: 特定ファイル�
   - 調整完了後: `[conflict-resolved]` を Lead に報告
   - タイムアウト: 5分以内に合意できない場合は Lead にエスカレーション
 - `[ci-failure]` 受信 → 該当 PR の修正
+- `[sync_required]` 受信 → 実行中作業を破壊しない安全ポイントで `origin/issue/${N}` をPhase/Taskブランチへmergeし、完了後に `[progress] sync_required handled` をLeadへ返信
 
 ### ピアレビュー（アイドル時）
 自タスク完了後、次タスクが claimable でない場合またはCI待ち・マージ待ちのアイドル時間に実施:

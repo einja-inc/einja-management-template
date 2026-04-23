@@ -283,6 +283,20 @@ Agent Teams版（einja-issue-team-exec）: Worker → Director(Teammate) → Lea
 
 Managerの監視ループでIssueBranchBaseの進行を検知し、Issueブランチに取り込むプロトコル。
 
+#### 同期ゲート（必須タイミング）
+
+以下のタイミングでは、通常の待機・次タスク起動より前に必ず同期確認を行う:
+
+| タイミング | 実行者 | 確認内容 |
+|-----------|--------|----------|
+| Issue実行初期化直後 | Manager / Lead | `origin/{IssueBranchBase}` を fetch し、Issueブランチへ merge する差分がないか確認 |
+| タスクグループPRマージ直後 | Manager / Lead | IssueBranchBaseの進行とPhaseブランチの最新化を確認してから次タスクをunblock |
+| Phase完了PR作成直前 | Manager / Lead | IssueブランチがIssueBranchBase最新を含み、PhaseブランチがIssueブランチ最新を含むことを確認 |
+| Phase PRマージ直後・次Phase開始直前 | Manager / Lead | 次Phaseブランチ作成元のIssueブランチを最新化 |
+| 最終PR作成直前 | Manager / Lead | IssueブランチへIssueBranchBase最新をmergeし、最終PRを古いbaseに対して作らない |
+
+この同期ゲートは、Worker/Directorの完了通知待ちとは独立して実施する。待機中にIssueBranchBaseの進行を検知した場合も、次の安全ポイントで必ず取り込む。
+
 #### 同期手順
 
 1. **進行検知**: Manager監視ループ内で `git fetch origin` 実行時、`origin/{IssueBranchBase}` の HEAD が前回確認時から進行していることを検知
@@ -311,6 +325,17 @@ Managerの監視ループでIssueBranchBaseの進行を検知し、Issueブラ�
 | `git fetch` で IssueBranchBase の進行を検知 | Manager | Issueブランチに merge → Worker（tmux版）/ Teammate（Agent Teams版）に通知 |
 | `sync_required` 通知の受信 | Worker（tmux版）/ Director（Agent Teams版） | 安全ポイントで Phase ブランチに merge |
 | タスク開始前 | Manager（tmux版）/ Director（Agent Teams版） | Phase ブランチの最新を確認 |
+
+### 12.3.1 待ち合わせの堅牢化
+
+Manager / Lead と Worker / Director は、互いの応答だけに依存して停止してはならない。
+
+- 完了・質問・エラー通知はシグナルファイルまたはSendMessageで即時に起床する
+- シグナルは起床トリガーであり、完了判定の正本はステータスファイル・TaskList・PR状態・TaskOutputとする
+- 120秒などの短い待機単位でタイムアウトした場合、必ず全状態を再走査する
+- 1時間変化がない場合でも完全停止せず、5分間隔の低頻度ハートビートへ移行する
+- Worker / Director側もLeadからのverdict待ちを無期限に黙って待たず、一定時間ごとに `[idle]` または進捗メッセージを送信する
+- `sync_required` を受信したWorker / Directorは、現在のコミット・PR作成・verdict対応を壊さない安全ポイントまで進めてからPhaseブランチへmergeする
 
 ### 12.4 複数Issue並行時のマージ順序
 

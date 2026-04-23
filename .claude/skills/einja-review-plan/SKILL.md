@@ -18,6 +18,21 @@ allowed-tools:
 以下に該当する場合のみ、このSkillを呼び出す必要はありません:
 - **ユーザー明示スキップ**: ユーザーが「レビュー不要」「スキップ」等と明示的に指示した場合のみ。変更規模に関わらず、ユーザー指示がなければ必ずレビューを実行すること
 
+## ExitPlanMode 強制ゲート
+
+PlanモードでExitPlanModeを実行する前に、このSkillの結果をplan本文へ反映し、末尾に以下いずれかのレビュー結果マーカーを追加すること。PreToolUse hookがこのマーカーを検査し、未記載の場合はExitPlanModeをブロックする。
+
+| マーカー | 使用条件 |
+|---------|----------|
+| `<!-- einja-plan-review: PASS -->` | 最終判定がPASSで、plan修正が不要な場合 |
+| `<!-- einja-plan-review: MINOR fixed -->` | 最終判定がMINORで、指摘をplanへ反映済みの場合 |
+| `<!-- einja-plan-review: SKIPPED user-explicit -->` | ユーザーが明示的にレビュー不要・スキップを指示した場合のみ |
+
+**禁止**:
+- ユーザー明示スキップなしで `SKIPPED user-explicit` を使うこと
+- MAJOR指摘が未解消のままPASS/MINORマーカーを付けること
+- レビュー結果をplan本文に反映せず、マーカーだけを追加すること
+
 ## 実行フロー
 
 ### Step 1: planファイルの読み込み
@@ -136,6 +151,7 @@ codex-agentへの依頼内容:
 ### 統合サマリー
 - 指摘数: N件（MAJOR: X, MINOR: Y）
 - 対応方針: {PASS→ExitPlanModeへ / MINOR→指摘をplanに反映後ExitPlanMode / MAJOR→親エージェントがplan修正→再レビュー}
+- ExitPlanModeマーカー: {PASS→`<!-- einja-plan-review: PASS -->` / MINOR→`<!-- einja-plan-review: MINOR fixed -->` / SKIP→`<!-- einja-plan-review: SKIPPED user-explicit -->`}
 ```
 
 #### MAJOR指摘時の挙動（呼び出し元の責務）
@@ -143,6 +159,7 @@ codex-agentへの依頼内容:
 - MAJOR指摘あり → 親エージェントがplanを修正 → 再レビュー（最大2回）
 - 2回修正してもMAJOR残存 → レビュー結果を付記してExitPlanMode（ユーザー判断に委ねる）
 - MINOR/PASSのみ → MINOR指摘があればplanに反映 → ExitPlanMode
+- ExitPlanMode直前 → plan本文末尾に上記マーカーを追加する。マーカーがない場合、hookによりExitPlanModeは拒否される
 
 ## 判定基準
 

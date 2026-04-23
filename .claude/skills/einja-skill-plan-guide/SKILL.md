@@ -77,7 +77,7 @@ Planモードで親エージェントが新規Skillの設計を行う際の手�
 2. **description**: 3rd person、what + when + triggers + "Do NOT use for"、1024文字以内
 3. **frontmatter設定**: context: fork、user-invocable、allowed-tools
    - `context: fork` を設定する場合、Skill内でSkill tool / Agent toolは使用不可（隔離サブエージェントの制約）
-4. **依存Skill**: Agent Teams使用時 → agent-teams-guide、Pencil使用時 → pencil-guide 等
+4. **依存Skill**: Agent Teams使用時 → `einja-common:agent-teams-guide`、Pencil使用時 → pencil-guide 等
 5. **Progressive disclosure設計**: SKILL.md本体 vs references/ の分離方針
 
 #### description の記述ルール
@@ -123,7 +123,7 @@ Skill実装完了後にSkill固有の品質を検証するレビュー。汎用�
 - user-invocable: Skill種別に適切か
 - context: fork: タスク型のみに使われているか
 - allowed-tools: 必要最小限か
-- Agent Teams使用時: 前提セクションに agent-teams-guide 読み込みが含まれているか
+- Agent Teams使用時: 前提セクションに `einja-common:agent-teams-guide` 読み込みが含まれているか
 
 #### Step 2: 構造・ボリュームチェック
 

@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://einja.inc/schemas/epic-specs/resume-state.schema.json",
+  "title": "Issue Resume State",
+  "description": "各 Issue ごとの Headless 実行状態を保持する JSON。docs/specs/epics/{epic-slug}/issues/{issue-slug}/resume-state.json に配置（git管理対象、PRレビューで進捗が追える）。冪等再開時は operationLog と generatedArtifacts を参照して未完了フェーズだけ実行する。v1 は順次実行のみのため atomic write / ファイルロックは不要。並列化は将来の einja-epic-exec で対応。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "epicId",
+    "issueSlug",
+    "status",
+    "currentPhase",
+    "generatedArtifacts",
+    "githubIssueNumber",
+    "milestoneId",
+    "trackerIssueNumber",
+    "branch",
+    "issuePrNumber",
+    "pendingQuestions",
+    "answers",
+    "operationLog",
+    "attemptCounts",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.",
+      "description": "スキーマバージョン。1.x 系（minor 後方互換）は許容。major バージョンが 1 系と一致すること。"
+    },
+    "epicId": {
+      "type": "string",
+      "pattern": "^EPIC-\\d+$",
+      "description": "所属する Epic の ID。"
+    },
+    "issueSlug": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "この Issue の slug。"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "blocked",
+        "resumed",
+        "completed",
+        "failed"
+      ],
+      "description": "Issue 実行ステータス。pending=未開始、running=実行中、blocked=質問待ち、resumed=回答後再開済み、completed=完了、failed=回復不能エラー。"
+    },
+    "currentPhase": {
+      "type": "string",
+      "enum": [
+        "requirements",
+        "ui-design",
+        "design",
+        "qa-test",
+        "tasks",
+        "completed"
+      ],
+      "description": "現在処理中のフェーズ。einja-issue-spec-create の Phase に対応。UI 要件なし Issue では ui-design をスキップ。"
+    },
+    "generatedArtifacts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "description": "生成済み成果物の相対パス一覧。冪等再開時に既存生成物を skip するための参照。例: 'docs/specs/epics/{epic-slug}/issues/{issue-slug}/requirements.md'"
+    },
+    "githubIssueNumber": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Epic 側で事前作成された GitHub Issue 番号。null の場合は未リンク。"
+    },
+    "milestoneId": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "GitHub Milestone の数値 ID。null の場合は未作成または未リンク。"
+    },
+    "trackerIssueNumber": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Epic Tracker Issue の GitHub Issue 番号。null の場合は未作成または未リンク。"
+    },
+    "branch": {
+      "type": ["string", "null"],
+      "pattern": "^issue/\\d+$",
+      "description": "issue/{N} ブランチ名。未作成時は null。"
+    },
+    "issuePrNumber": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Issue Spec PR の GitHub PR 番号。未作成時は null。Headless IssueSpec 側が create-or-update で管理。"
+    },
+    "pendingQuestions": {
+      "type": "array",
+      "description": "未解決の質問 ID 一覧。question-broker.json の questionId を参照。同一 Issue で 3 件連続すると（attemptCounts.questionLoop >= 3）Epic 全体を停止する。",
+      "items": {
+        "type": "string",
+        "pattern": "^Q-[a-f0-9]{12}$"
+      },
+      "uniqueItems": true
+    },
+    "answers": {
+      "type": "array",
+      "description": "解決済み質問とユーザー回答の記録。再開時に Markdown 形式の『前回の質問と回答』セクションとしてサブエージェントへ渡される。未開始 Issue の appliesToIssueSlugs 伝播時にも参照される。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questionId", "question", "answer", "answeredAt"],
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "pattern": "^Q-[a-f0-9]{12}$",
+            "description": "question-broker.json の questionId。"
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "description": "質問本文（正規化後）。"
+          },
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "description": "ユーザーからの回答本文。"
+          },
+          "answeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "回答時刻（ISO 8601, UTC）。"
+          }
+        }
+      }
+    },
+    "operationLog": {
+      "type": "array",
+      "description": "外部リソース操作（Issue/Milestone/PR の create/update）の監査ログ。詳細は operation-log-entry.schema.json を参照。冪等再開時は operationLog をスキップ根拠としてそのまま信頼せず、必ず GET で再照合してから reuse/create 判定すること。",
+      "items": {
+        "$ref": "./operation-log-entry.schema.json"
+      }
+    },
+    "attemptCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewSpec", "tasksValidator", "questionLoop"],
+      "description": "各種リトライ回数。resume 時に引き継ぎ、無限ループを防止する。ユーザー回答反映後も再試行回数は保持。",
+      "properties": {
+        "reviewSpec": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "einja-review-spec の MAJOR 再生成回数。2 回まで自動再生成、それでも MAJOR なら PENDING_QUESTIONS 返却。"
+        },
+        "tasksValidator": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "tasks-validator 失敗時の再生成回数。2 回まで自動再生成、それでも失敗で PENDING_QUESTIONS 返却。"
+        },
+        "questionLoop": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "質問ループ発生回数。>= 3 で Epic 全体を停止し、未解決事項をまとめて報告する。"
+        }
+      }
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "最終更新時刻（ISO 8601, UTC）。"
+    }
+  }
+}

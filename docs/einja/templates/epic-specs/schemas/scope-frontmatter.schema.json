@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://einja.inc/schemas/epic-specs/scope-frontmatter.schema.json",
+  "title": "Scope.md YAML Frontmatter",
+  "description": "各 Issue の scope.md ファイル冒頭の YAML frontmatter の構造。人間とIssueSpec生成エージェントが読む本文は scope.md 本体に、validator が読む契約は frontmatter に分離する。schemaVersion は epic-manifest.json と必ず一致すること（不一致で validator FAILURE）。featureIds / storyIds / acIds / dependsOn は対応する issues[] エントリと一致すること（validator が双方向検証）。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "epicId",
+    "issueSlug",
+    "featureIds",
+    "storyIds",
+    "acIds",
+    "dependsOn"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.",
+      "description": "スキーマバージョン。1.x 系（minor 後方互換）は許容。epic-manifest.json と major バージョンが一致すること。"
+    },
+    "epicId": {
+      "type": "string",
+      "pattern": "^EPIC-\\d+$",
+      "description": "所属する Epic の ID。epic-manifest.json の epicId と一致すること。"
+    },
+    "issueSlug": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "この Issue の slug。epic-manifest.json の issues[].slug と一致し、scope.md の配置パス docs/specs/epics/{epic-slug}/issues/{issueSlug}/scope.md とも一致すること。"
+    },
+    "featureIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^F-\\d+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "この Issue が担当する Feature ID 一覧。manifest 側の issues[].featureIds と一致すること。"
+    },
+    "storyIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^S-\\d+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "この Issue が担当する Story ID 一覧。manifest 側の issues[].storyIds と一致すること。"
+    },
+    "acIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^AC-\\d+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "この Issue が担当する AC ID 一覧。manifest 側の issues[].acIds と一致し、かつ acceptanceCriteria[].ownerIssueSlug と双方向整合すること（validator で検証）。"
+    },
+    "dependsOn": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$"
+      },
+      "uniqueItems": true,
+      "description": "依存先 Issue slug 一覧。manifest 側の issues[].dependsOn と一致すること。空配列可。"
+    },
+    "uiFrameIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "description": "任意フィールド。hasUI=true Epic の場合のみ通常存在。manifest 側の issues[].uiFrameIds と一致すること。"
+    },
+    "transitionIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^TR-\\d+$"
+      },
+      "uniqueItems": true,
+      "description": "任意フィールド。hasUI=true Epic の場合のみ通常存在。manifest 側の issues[].transitionIds と一致すること。"
+    }
+  }
+}

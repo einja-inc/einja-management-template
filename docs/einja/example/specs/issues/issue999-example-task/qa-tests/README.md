@@ -8,7 +8,7 @@
 ```
 qa-tests/
 ├── README.md       # このファイル（QAテストガイド）
-├── scenarios.md    # シナリオテスト仕様（必須）
+├── qa-test.md      # シナリオテスト仕様（必須）※旧称 scenarios.md。本サンプルでは移行前の scenarios.md を残している
 ├── story1.md       # Story 1（AC1.x）のテスト結果
 ├── story2.md       # Story 2（AC2.x）のテスト結果
 ├── story3.md       # Story 3（AC3.x）のテスト結果
@@ -17,6 +17,8 @@ qa-tests/
     ├── story2/     # Story 2のスクリーンショット等
     └── story3/     # Story 3のスクリーンショット等
 ```
+
+**注**: 新規生成は `qa-test.md` に統一。既存spec互換のため、`qa-test.md` が存在しない場合は `scenarios.md` を参照する（移行期間中の後方互換）。
 
 ## QAテストファイルの記載内容
 

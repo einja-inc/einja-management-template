@@ -253,7 +253,7 @@ Story数が5以上になる場合は、§4の冒頭に目次を設ける。Story
 **シナリオテストの特徴**:
 - 複数のタスクグループにまたがる
 - 各タスク完了時に実施可能な範囲が拡大
-- Issue全体で共有される（`qa-tests/scenarios.md`に記載）
+- Issue全体で共有される（`qa-test.md` に記載。旧称 `qa-tests/scenarios.md` から統一。既存spec互換のため `qa-test.md` が存在しない場合は `qa-tests/scenarios.md` を参照）
 
 **シナリオテストテンプレート**:
 ```markdown
@@ -470,7 +470,7 @@ pnpm test / pnpm test:e2e / pnpm lint / pnpm build / pnpm typecheck
 
 ```
 Phase 1: 事前確認
-  ├── シナリオテスト仕様（scenarios.md）の確認
+  ├── シナリオテスト仕様（qa-test.md。旧称 scenarios.md）の確認
   ├── 必須自動テストの実行（pnpm test/lint/build/typecheck）
   └── すべて成功 → Phase 2へ / 失敗 → 即座にFAILURE
 
@@ -485,7 +485,7 @@ Phase 3: 動作確認実施（🔴 最重要・必須）
   └── 動作確認なしでのSUCCESS判定は禁止
 
 Phase 4: シナリオテスト実行
-  ├── scenarios.md の該当シナリオを実行
+  ├── qa-test.md（旧称 scenarios.md）の該当シナリオを実行
   └── 複数タスクをまたぐフローの統合確認
 
 Phase 5: 結果報告

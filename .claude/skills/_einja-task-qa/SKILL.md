@@ -97,7 +97,7 @@ AskUserQuestion:
 1. **テスト仕様ファイルの特定**: 自然言語で指定されたAC番号からStoryを判定
    - 例: 「AC1.1, AC1.2のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
    - 例: 「AC2.3のテストを実行」→ `qa-tests/story2.md`
-2. **シナリオテストの確認**: `qa-tests/scenarios.md` で該当ACの実施タイミングを確認
+2. **シナリオテストの確認**: `qa-test.md` で該当ACの実施タイミングを確認（`qa-test.md` が存在しない場合は後方互換として `qa-tests/scenarios.md` を参照）
 3. **テスト仕様の読み込み**: story{N}.md内の該当ACセクションからテストシナリオ、確認項目、期待値を把握
 
 **エラー時**: テスト仕様が存在しない場合は失敗分類B（要件齟齬）→ qa-generatorで作成が必要
@@ -259,7 +259,7 @@ AskUserQuestion:
 
 1. **結果欄の更新**: 各テストシナリオの「結果」列を ✅/❌/⚠️ で更新
 2. **エビデンス保存**: `qa-tests/evidence/story{N}/` にスクリーンショット、ログを保存
-3. **実行ログの記載**: scenarios.md の該当シナリオに実行ログを追記
+3. **実行ログの記載**: `qa-test.md` の該当シナリオに実行ログを追記（`qa-test.md` が存在せず `qa-tests/scenarios.md` のみの場合は後者へ追記）
 
 ---
 
@@ -304,7 +304,7 @@ AskUserQuestion:
 ```
 {spec_dir}/
 └── qa-tests/
-    ├── scenarios.md
+    ├── qa-test.md
     ├── story1.md
     ├── story2.md
     ├── story3.md
@@ -313,6 +313,8 @@ AskUserQuestion:
         ├── story2/
         └── story3/
 ```
+
+**注**: 既存spec互換のため、`qa-test.md` が存在しない場合は `qa-tests/scenarios.md` を読み込む（移行期間中の後方互換）。新規生成は全て `qa-test.md` とする。
 
 **パス規則**: AC番号 "AC2.3" → Story番号 2 → `qa-tests/story2.md`（AC2.3セクション）
 

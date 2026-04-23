@@ -1,0 +1,123 @@
+{
+  "_note": "このファイルは resume-state.json のサンプル。1 Epic 内の 2 Issue のうち、profile-view-edit は completed、profile-avatar-upload は blocked（質問待ち）の状態を示す。実運用では各 Issue ごとに docs/specs/epics/{epic-slug}/issues/{issue-slug}/resume-state.json に個別配置する。サンプルを判読しやすくするため、ここでは2件を配列で示すが、実ファイルは単一オブジェクト。",
+  "samples": [
+    {
+      "schemaVersion": "1.0",
+      "epicId": "EPIC-1",
+      "issueSlug": "profile-view-edit",
+      "status": "completed",
+      "currentPhase": "completed",
+      "generatedArtifacts": [
+        "docs/specs/epics/user-profile-settings/issues/profile-view-edit/requirements.md",
+        "docs/specs/epics/user-profile-settings/issues/profile-view-edit/ui-design.pen",
+        "docs/specs/epics/user-profile-settings/issues/profile-view-edit/design.md",
+        "docs/specs/epics/user-profile-settings/issues/profile-view-edit/qa-test.md"
+      ],
+      "githubIssueNumber": 101,
+      "milestoneId": 42,
+      "trackerIssueNumber": 100,
+      "branch": "issue/101",
+      "issuePrNumber": 201,
+      "pendingQuestions": [],
+      "answers": [],
+      "operationLog": [
+        {
+          "operationType": "milestone-create",
+          "idempotencyKey": "EPIC-1:null:milestone",
+          "remoteId": 42,
+          "persistentMarker": "<!-- einja:epic-id=EPIC-1 issue-slug=null kind=milestone schema=1.0 -->",
+          "status": "success",
+          "createdAt": "2026-04-18T09:00:00Z",
+          "updatedAt": "2026-04-18T09:00:00Z",
+          "error": null
+        },
+        {
+          "operationType": "tracker-issue-create",
+          "idempotencyKey": "EPIC-1:null:tracker",
+          "remoteId": 100,
+          "persistentMarker": "<!-- einja:epic-id=EPIC-1 issue-slug=null kind=tracker schema=1.0 -->",
+          "status": "success",
+          "createdAt": "2026-04-18T09:01:00Z",
+          "updatedAt": "2026-04-18T09:01:00Z",
+          "error": null
+        },
+        {
+          "operationType": "issue-create",
+          "idempotencyKey": "EPIC-1:profile-view-edit:issue-spec",
+          "remoteId": 101,
+          "persistentMarker": "<!-- einja:epic-id=EPIC-1 issue-slug=profile-view-edit kind=issue-spec schema=1.0 -->",
+          "status": "success",
+          "createdAt": "2026-04-18T09:05:00Z",
+          "updatedAt": "2026-04-18T09:05:00Z",
+          "error": null
+        },
+        {
+          "operationType": "pr-create",
+          "idempotencyKey": "EPIC-1:profile-view-edit:issue-spec-pr",
+          "remoteId": 201,
+          "persistentMarker": "<!-- einja:epic-id=EPIC-1 issue-slug=profile-view-edit kind=issue-spec-pr schema=1.0 -->",
+          "status": "success",
+          "createdAt": "2026-04-18T11:30:00Z",
+          "updatedAt": "2026-04-18T11:30:00Z",
+          "error": null
+        }
+      ],
+      "attemptCounts": {
+        "reviewSpec": 1,
+        "tasksValidator": 0,
+        "questionLoop": 0
+      },
+      "updatedAt": "2026-04-18T11:35:00Z"
+    },
+    {
+      "schemaVersion": "1.0",
+      "epicId": "EPIC-1",
+      "issueSlug": "profile-avatar-upload",
+      "status": "blocked",
+      "currentPhase": "design",
+      "generatedArtifacts": [
+        "docs/specs/epics/user-profile-settings/issues/profile-avatar-upload/requirements.md",
+        "docs/specs/epics/user-profile-settings/issues/profile-avatar-upload/ui-design.pen"
+      ],
+      "githubIssueNumber": 102,
+      "milestoneId": 42,
+      "trackerIssueNumber": 100,
+      "branch": "issue/102",
+      "issuePrNumber": null,
+      "pendingQuestions": ["Q-a1b2c3d4e5f6"],
+      "answers": [],
+      "operationLog": [
+        {
+          "operationType": "issue-create",
+          "idempotencyKey": "EPIC-1:profile-avatar-upload:issue-spec",
+          "remoteId": 102,
+          "persistentMarker": "<!-- einja:epic-id=EPIC-1 issue-slug=profile-avatar-upload kind=issue-spec schema=1.0 -->",
+          "status": "success",
+          "createdAt": "2026-04-18T12:00:00Z",
+          "updatedAt": "2026-04-18T12:00:00Z",
+          "error": null
+        },
+        {
+          "operationType": "pr-create",
+          "idempotencyKey": "EPIC-1:profile-avatar-upload:issue-spec-pr",
+          "remoteId": null,
+          "persistentMarker": "<!-- einja:epic-id=EPIC-1 issue-slug=profile-avatar-upload kind=issue-spec-pr schema=1.0 -->",
+          "status": "failed",
+          "createdAt": "2026-04-18T12:45:00Z",
+          "updatedAt": "2026-04-18T12:45:00Z",
+          "error": {
+            "message": "GitHub API rate limit exceeded. Reset at 2026-04-18T13:00:00Z.",
+            "retryable": true,
+            "code": "rate-limit-exceeded"
+          }
+        }
+      ],
+      "attemptCounts": {
+        "reviewSpec": 0,
+        "tasksValidator": 0,
+        "questionLoop": 1
+      },
+      "updatedAt": "2026-04-18T12:50:00Z"
+    }
+  ]
+}

@@ -125,8 +125,9 @@ tasks-validator から差し戻された場合（error_feedback が渡された�
      - `design/README.md`を確認（分割されている場合）
      - 分割されている場合は全パート（`design/architecture.md`、`design/implementation.md`、`design/quality.md`）を読み込む
 
-3. **qa-tests/scenarios.md（シナリオテスト仕様）** - 必須
+3. **qa-test.md（シナリオテスト仕様）** - 必須
    - 複数タスクをまたぐ継続操作フローのテスト仕様
+   - 旧称 `qa-tests/scenarios.md` から `qa-test.md` に統一。`qa-test.md` が見つからない場合は後方互換として `qa-tests/scenarios.md` を参照する
    - 各シナリオの「実施タイミング」を確認し、**該当ACを実装するタスクにのみ**記載
    - 例：「AC3.UI.N.001〜AC3.UI.N.003実装後に実行」→ 該当ACを含むタスクにシナリオテストを記載
 
@@ -334,7 +335,7 @@ einja-issue-spec-create Skillから呼ばれた場合（Issue番号が渡され�
 - ❌ NG: `シナリオ#1`、`#1`、`Scenario #1`
 - ✅ OK: `シナリオ1`、`Scenario 1`、`S1`
 
-scenarios.mdの「実施タイミング」を確認し、該当ACを実装するタスクにのみ記載。
+qa-test.md（旧称 scenarios.md）の「実施タイミング」を確認し、該当ACを実装するタスクにのみ記載。
 シナリオテストには3パターンある：
 
 | パターン | 説明 | 記載例 |
@@ -504,7 +505,7 @@ tasks-validatorは以下の場合に横切り分割としてエラーを出し�
 - **完了条件に受け入れ基準番号（AC形式）が記載されている**
 - **シナリオテストは全タスクに必須項目として記載されている**
   - 該当なしの場合は「なし（理由）」を明記
-  - scenarios.mdの「実施タイミング」と一致していること
+  - qa-test.md（旧称 scenarios.md）の「実施タイミング」と一致していること
 
 ### Issue構造
 - **AS-IS**: requirements.mdから適切に抽出されている

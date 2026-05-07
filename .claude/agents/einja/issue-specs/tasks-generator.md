@@ -130,7 +130,14 @@ tasks-validator から差し戻された場合（error_feedback が渡された�
    - 各シナリオの「実施タイミング」を確認し、**該当ACを実装するタスクにのみ**記載
    - 例：「AC3.UI.N.001〜AC3.UI.N.003実装後に実行」→ 該当ACを含むタスクにシナリオテストを記載
 
-4. **その他のファイル** - 存在する場合は全て読み込む
+4. **ui-design-url.md（FigmaデザインURL・フレームmanifest）** - **UI要件がある場合は必須**
+   - `ui-design-url.md` が存在する場合は必ず読み込む
+   - YAMLフロントマターから `file_key` と各フレームの `node_id` を取得する
+   - UI実装タスクの `**対応UIデザイン**` メタデータ生成に使用する:
+     - URL形式: `https://www.figma.com/design/{file_key}?node-id={nodeId-with-hyphens}`（`node_id` の `:` を `-` に変換）
+     - 記載形式: `ui-design-url.md「{フレーム名}」（{URL}）`
+
+5. **その他のファイル** - 存在する場合は全て読み込む
 
 これらのドキュメントの内容を完全に理解してから、それを実行するためのGitHub Issueを作成します。
 
@@ -182,7 +189,7 @@ tasks-validator から差し戻された場合（error_feedback が渡された�
 
 - [ ] 1.1 [タスクグループ名]
   **実行サブエージェント**: [frontend-coder]（任意：グループ内の全タスクに共通適用。**1つのみ指定可能**）
-  **使用Skill**: [einja-pencil-design-manager], [steering:api-development]（任意：グループ内の全タスクに共通適用）
+  **使用Skill**: [einja-common:figma-guide], [steering:api-development]（任意：グループ内の全タスクに共通適用）
 
   - 1.1.1 [タスク名]
     - サブタスク1
@@ -296,7 +303,7 @@ einja-issue-spec-create Skillから呼ばれた場合（Issue番号が渡され�
 ```markdown
 - [ ] 1.1 タスクグループ名
   **実行サブエージェント**: [frontend-coder]（任意）
-  **使用Skill**: [einja-pencil-design-manager]（任意）
+  **使用Skill**: [einja-common:figma-guide]（任意）
 
   - 1.1.1 タスク名
     - サブタスク内容
@@ -306,7 +313,7 @@ einja-issue-spec-create Skillから呼ばれた場合（Issue番号が渡され�
     - **完了条件**: [条件]（AC1.UI.N.001を満たす）
     - **対応設計**: design.md「[セクション名]」セクション
     - **シナリオテスト**: なし（基盤構築タスク、UIフロー未実装のため）
-    - **対応UIデザイン**: ui-design.pen「フレーム名」（任意：UI実装タスクのみ）
+    - **対応UIデザイン**: ui-design-url.md「フレーム名」（https://www.figma.com/design/XXXX?node-id=123-456）（任意：UI実装タスクのみ）
 
   - 1.1.2 タスク名
     - サブタスク内容
@@ -318,7 +325,7 @@ einja-issue-spec-create Skillから呼ばれた場合（Issue番号が渡され�
     - **完了条件**: [条件]（AC1.VAL.E.001〜AC1.NAV.N.001を満たす）
     - **対応設計**: design.md「[セクション名]」セクション
     - **シナリオテスト**: シナリオ1 Step 1-3（部分実行）
-    - **対応UIデザイン**: ui-design.pen「フレーム名」「フレーム名--state」（任意：UI実装タスクのみ）
+    - **対応UIデザイン**: ui-design-url.md「フレーム名」「フレーム名--state」（https://www.figma.com/design/XXXX?node-id=123-456）（任意：UI実装タスクのみ）
 ```
 
 ### フェーズ構成の原則
@@ -639,7 +646,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 
 | 形式 | 用途 | 例 |
 |------|------|-----|
-| `[Skill名]` | Skillを直接指定 | `[einja-pencil-design-manager]` |
+| `[Skill名]` | Skillを直接指定 | `[einja-common:figma-guide]` |
 | `[steering:ファイル名]` | `docs/einja/steering/` 配下のガイドラインを参照 | `[steering:api-development]` |
 
 ### 実装コンテキスト参照指示
@@ -655,7 +662,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 - **サブエージェントは1つのみ**: タスクグループ・タスクとも `**実行サブエージェント**` は **1つのみ指定可能**（複数指定禁止）。異なるサブエージェントが必要なタスクはタスクレベルで個別に指定する
 - **継承とオーバーライド**: タスクグループレベルで共通の場合はグループレベルで指定し、タスクごとに異なる場合はタスクレベルでオーバーライドする
 - **タスクレベルの記載位置**: サブタスク内容の直後、`**要件**` の前に記載する
-- **対応UIデザインの書式**: `ui-design.pen「フレーム名」`。複数フレームは連続記載: `ui-design.pen「frame1」「frame2」`。UI実装タスクにのみ付与
+- **対応UIデザインの書式**: `ui-design-url.md「フレーム名」（https://www.figma.com/design/{file_key}?node-id={nodeId-with-hyphens}）`。URLは `ui-design-url.md` のYAMLフロントマターから `file_key` と対応フレームの `node_id`（`123:456` → `123-456` に変換）を読み取って生成。複数フレームは連続記載: `ui-design-url.md「frame1」「frame2」（URL）`。UI実装タスクにのみ付与
 
 ## 特別な考慮事項
 

@@ -10,7 +10,7 @@ description: "Issue仕様書作成Skill"
 
 ## タスク管理
 TaskCreateツールを使用して全体の進捗を可視化し、ユーザーに現在の状況を明確に伝えます：
-- 各仕様書作成フェーズ（requirements.md、ui-design.pen、design.md、QAテスト仕様、GitHub Issueへのタスク記述）をトップレベルタスクとして管理
+- 各仕様書作成フェーズ（requirements.md、UIデザイン（Figma: ui-design-url.md）、design.md、QAテスト仕様、GitHub Issueへのタスク記述）をトップレベルタスクとして管理
 - エージェント起動前にタスクを「in_progress」に更新
 - エージェント完了後に「completed」に更新
 - 各フェーズの成果物生成後にレビューゲート（`einja-review-spec`）を挿入し、レビュー中も進捗を更新
@@ -176,7 +176,7 @@ AskUserQuestion:
 - **MINOR**: 可能な限り修正を反映してからユーザー確認へ進む
 - **MAJOR**: 先に修正し、再レビューを実施する（最大2回）
 
-`einja-review-spec` には、対象成果物のパス、ユーザー要求、要件ヒアリングサマリまたは差分サマリ、残存リスクを前置コンテキストとして渡すこと。Phase 2 では `ui-design.pen` のスクリーンショット要約も渡すこと。
+`einja-review-spec` には、対象成果物のパス、ユーザー要求、要件ヒアリングサマリまたは差分サマリ、残存リスクを前置コンテキストとして渡すこと。Phase 2 では `ui-design-url.md` がある場合は YAMLフロントマターの `file_key`/`node_id` から `mcp__claude_ai_Figma__get_screenshot` で取得したスクリーンショット要約も渡すこと。
 
 ### 1. 外部リソースの確認
 
@@ -187,6 +187,7 @@ AskUserQuestion:
 **FigmaURL**が含まれる場合：
 - FigmaDevModeMCPでデザイン分析
 - UI要件、コンポーネント仕様、デザイントークンを抽出
+- 抽出したコンポーネント仕様・デザイントークンを **ui-design-generatorエージェントへのプロンプトに含める**（ステップ4の「外部リソース（Asana/Figma URL）」調査結果として統合する）
 
 ### 2. GitHub Issue作成（最初に実行）
 
@@ -210,9 +211,7 @@ AskUserQuestion:
 **重要**: 各段階で必ずユーザー承認を得て、コミット＆プッシュしてから次へ進行すること。
 
 #### Phase 1: requirements.md（要件定義書）
-**Phase 1 フロー（UI要件あり）**:
-
-**Phase 1a**: requirements-generatorエージェントで requirements.md 生成
+1. requirements-generatorエージェントで作成
    - エージェント内で既存コードの分析を実施
    - 標準の項目構造で要件を作成
    - **追加指示（呼び出し時にプロンプトに含める）**:
@@ -221,67 +220,24 @@ AskUserQuestion:
        - `docs/einja/steering/development/testing-strategy.md`
      - また、過去Planを `docs/plans/` ディレクトリから検索し、類似Issueがあれば「実装参考情報」セクションに参考情報として記載すること。
      - **0.3で作成した「要件ヒアリングサマリ」と「事前調査結果」を必ずプロンプトに含める**こと。requirements-generatorはこのサマリを基に要件定義書を作成する。事前調査済みの内容はStep 0で重複調査せず、より深い分析に集中する。
-     - requirements.md は最低限、以下のセクションを持つこと:
-       - Sources
-       - §1 目的・役割（+ §1.1 対象外, §1.2 スコープ境界・コンテキスト + コンテキスト図, §1.3 主要ユースケース + ユースケース図）
-       - §2 前提条件・制約
-       - §3 画面構成・状態（+ §3.3 ローファイWF参照 — UI要件時のみ）
-       - §4 受け入れ条件（Story単位に再構成 — 各Story配下に As a/I want to/So that + Story内AC一覧表 + AC詳細 正常系/異常系）
-       - §5 表示・計算ルール
-       - §6 入力ルール
-       - §7 権限マトリクス
-       - §8 画面遷移（+ §8.2 画面遷移図）
-       - §9 業務フロー — 権限・承認・部門横断がある場合必須
-       - §10 処理フロー（主要フロー + 例外フロー）
-       - §11 状態遷移 — 状態を持つ機能の場合必須
-       - §12 概念データモデル — 複数エンティティ間に関係がある場合必須
-       - §13 非機能要件
-       - §14 実装参考情報
-     - **AC命名体系**: `AC{Story#}.{Cat}.{N|E}.{連番3桁}` 形式（例: `AC1.UI.N.001`, `AC1.VAL.E.001`）
-       - カテゴリ: `UI / NAV / VAL / ERR / PERM / UX` のみ
-       - `N` = 正常系 / `E` = 異常系
-       - 連番は各 Story × カテゴリ × 区分 ごとに001から
-       - AC採番は Story起点（Story1配下のUI正常系は AC1.UI.N.001 から始まる）
-     - **Story ↔ WF参照規約**: UI/NAV カテゴリACは該当の lo-fi WF フレームを `[参照: WF-S1-F01]` 形式で引用する
-     - **mermaid記法方針**: C4記法（`C4Context`/`C4Container`等）は公式experimentalのため使用しない。`graph TB` + `subgraph` で C4 相当を表現すること
+     - requirements.md は最低限、`Sources`、`目的・役割`、`対象外`、`前提条件・制約`、`画面構成・状態`、`AC一覧`、`AC詳細（正常系/異常系）`、`表示・計算ルール`、`入力ルール`、`権限マトリクス`、`画面遷移`、`処理フロー` を持つこと。
      - AC は Story番号ベースの単純連番ではなく、`カテゴリ / 区分 / 強度 / 検証レベル` を持つ `AC一覧` を先に出力すること。
+     - ACカテゴリは原則 `UI / NAV / VAL / ERR / PERM / UX` から選ぶこと。
      - AC本文は振る舞いの骨格だけを記述し、詳細条件は `→§N` の形で後続セクションに委譲すること。
      - AC詳細は `正常系` と `異常系` を分けること。
-
-**UI要件の判定基準**:
-- requirements.md 内に「画面」「UI」「フォーム」「ダッシュボード」「表示」「ボタン」「入力」等のキーワードが含まれる場合、UI要件あり
-- 判断が曖昧な場合はAskUserQuestionでユーザーに確認
-
-**Phase 1b（UI要件あり時のみ）**: lo-fi WF を ui-design-generator で作成
-   - `mode=lo-fi`, `phase=1`, `requirements_path={仕様書ディレクトリ}/requirements.md` をパラメータで渡す
-   - 出力: `{仕様書ディレクトリ}/ui-design.pen`（`WF-S{n}-F{nn}` フレーム群）
-   - UI要件なしの場合は Phase 1b/1c をスキップし、直接 Phase 1d へ進む
-
-**Phase 1c（UI要件あり時のみ）**: 横断チェック（オーケストレーター実施）
-   - requirements.md の AC（UI/NAV カテゴリ）の WF参照（`[参照: WF-S1-F01]`）と ui-design.pen のフレーム命名（`WF-S{n}-F{nn}`）が一致しているか確認
-   - 不整合がある場合は該当ファイルを修正
-
-**Phase 1d**: `einja-review-spec` Skillで並列レビューを実施
+2. **`einja-review-spec` Skillで並列レビューを実施**
    - `review_scope=requirements`
    - requirements.md の内容、要件ヒアリングサマリ、残存リスクを渡す
-   - UI要件ありの場合は ui-design.pen の lo-fi WF も対象に含める
-   - Phase 1 の ui-design.pen レビュー観点（lo-fi WF）:
-     - 構成・情報優先度・操作導線のみ評価
-     - 色・フォント・詳細コンポーネントは評価対象外
-   - **MAJOR** の場合は requirements-generator（または ui-design-generator）に修正指示を返し、再レビューする（最大2回）
-
-**Phase 1e**: ユーザーに内容確認を依頼（requirements.md + lo-fi ui-design.pen 一括提示）
+   - **MAJOR** の場合は requirements-generator に修正指示を返し、再レビューする（最大2回）
+3. **ユーザーに内容確認を依頼**
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（要件の過不足、受け入れ基準の明確性など）
-   - UI要件ありの場合: Pencil MCPのget_screenshotで lo-fi フレームプレビューを提示
    - `einja-review-spec` が PASS/MINOR であることを明記する
-
-**Phase 1f**: ユーザー承認後、コミット＆プッシュ
+4. **ユーザー承認後、コミット＆プッシュ**
    - コミットメッセージ: `docs: {機能名}の要件を追加`
    - ブランチは `issue/{issue番号}` にプッシュ
    - 他のメンバーがレビューできるようにする
-
-**承認を得てから次のステップ（design.md）に進む**
+5. **承認を得てから次のステップ（design.md）に進む**
 
 #### Phase 2: 三又並列生成（design + ui-design + QA）
 
@@ -306,7 +262,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
 1. エージェント内で既存アーキテクチャの調査を実施
 2. 差分設計を中心に設計書を作成
 3. requirements.mdの内容を参照
-4. **⚠️ ui-design.pen は並列生成中のため参照不可。UI関連セクション（9-11）では、UIの詳細仕様は `ui-design.pen` を参照先として記載すること（例: 「UIレイアウトの詳細は ui-design.pen を参照」）**
+4. **⚠️ ui-design-url.md は並列生成中のため参照不可。UI関連セクション（9-11）では、UIの詳細仕様は `ui-design-url.md` を参照先として記載すること（例: 「UIレイアウトの詳細は ui-design-url.md を参照」）**
 - **追加指示（呼び出し時にプロンプトに含める）**:
   - 以下のsteering文書を事前に読み込んでから作業すること:
     - `docs/einja/steering/development/backend-architecture.md`
@@ -316,22 +272,20 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
     - `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
   - requirements.mdの「実装参考情報」セクションを参照し、design.mdに「関連ドキュメント」「関連Skill・サブエージェント」セクションを出力すること。
   - **外部API連携がある場合**: 上記「外部API連携がある場合の必須記載事項」に従うこと
-  - design.md は最低限、`Overview` / `Existing Architecture Analysis` / `Architecture Pattern & Boundary Map`（C4 Container相当 graph TB+subgraph、外部システム明示）/ `Technology Stack` / `System Flows`（主要+例外 alt/opt/loop/par）/ `Requirements Traceability` / `Component Summary`（C4 Component図 + 一覧テーブル）/ `Components and Interfaces` / `Data Model`（物理ERD erDiagram + Entity/DTO + Persistence）/ `API Contract` / `State Transitions`（該当時）/ `Rules Mapping` / `Testing Strategy for This Feature` / `Related Documents` / `Related Skills / Subagents` を持つこと。
-  - **mermaid記法方針**: C4記法（`C4Context`/`C4Container`等）は公式experimentalのため使用しない。`graph TB` + `subgraph` で C4 相当を表現すること。
-  - requirements.md の `Story単位AC一覧` と `§5〜§8 のルール系セクション（表示・計算ルール / 入力ルール / 権限マトリクス / 画面遷移）` と `§9〜§12 のフロー・状態・データモデル` を参照し、設計へトレースすること。
+  - design.md は最低限、`Overview`、`Existing Architecture Analysis`、`Architecture Pattern & Boundary Map`、`Technology Stack`、`System Flows`、`Requirements Traceability`、`Component Summary`、`Components and Interfaces`、`Rules Mapping`、`Testing Strategy for This Feature` を持つこと。
+  - requirements.md の `AC一覧` と `§5〜§9 のルール系セクション` を参照し、設計へトレースすること。
   - 一般論ではなく、既存実装に対して何を再利用し何を追加するかを優先して書くこと。
 
-**[並列-2] ui-design-generatorエージェント → ui-design.pen（hi-fi 詳細化）**
-1. Phase 1 で作成した lo-fi WF を同一 `.pen` 上で詳細化する
-   - `mode=hi-fi`, `phase=2`, `existing_pen_path={仕様書ディレクトリ}/ui-design.pen`, `requirements_path={仕様書ディレクトリ}/requirements.md` をパラメータで渡す
-   - lo-fi フレーム（`WF-*`）は削除せず残す
-   - hi-fi フレーム群（`HF-S{n}-F{nn}` 命名）を追加する
+**[並列-2] ui-design-generatorエージェント → ui-design-url.md（Figma）**
+1. 既存画面確認（改修の場合）
+   - Playwright MCPで既存画面のスクリーンショットを取得
+   - 改修対象のUIパターンを把握
 2. requirements.mdの内容を参照
-3. einja-pencil-design-manager の共通コンポーネントと同期
-4. 出力: `{仕様書ディレクトリ}/ui-design.pen`（lo-fi + hi-fi 共存）
+3. Figma MCPでビジュアルモックアップを作成
+4. 出力: `{仕様書ディレクトリ}/ui-design-url.md`（YAMLフロントマター付きMarkdown）
 - **追加指示（呼び出し時にプロンプトに含める）**:
   - 以下のsteering文書を事前に読み込んでから作業すること:
-    - `docs/einja/steering/development/pencil-design-management.md`
+    - `docs/einja/steering/development/figma-design-management.md`
 
 **[並列-3] qa-generatorエージェント → qa-test.md**
 1. requirements.mdの内容を参照（**design.mdは参照しない — 並列生成中のため**）
@@ -364,19 +318,28 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
    - designのAPIパス・画面名がQAシナリオで正しく参照されているか確認
    - 不整合がある場合は該当ファイルを修正
 
+1-A. **requirements.md §3.3 Figmaデザイン参照の更新**（ui-design-url.mdが生成された場合のみ、オーケストレーター実施）
+   - `ui-design-url.md` のYAMLフロントマターから実際のフレーム名一覧を取得する
+   - requirements.mdの `§3.3 Figmaデザイン参照` テーブルを実際のフレーム名で更新する（Phase 1時点の仮案を確定値に更新）
+   - AC一覧表の `参照` 列（UIカテゴリAC）を `§3, ui-design-url.md「{確定フレーム名}」` 形式に更新する
+   - AC詳細の `[デザイン参照: {フレーム名}]` を確定フレーム名に更新する
+
+1-B. **qa-test.md UIシナリオへのFigmaフレーム参照追加**（ui-design-url.mdが生成された場合のみ、オーケストレーター実施）
+   - 画面操作（UI/NAVカテゴリAC）を含む各シナリオに `**デザイン参照**` フィールドを追加する
+   - 追記形式: `**デザイン参照**: \`ui-design-url.md「{フレーム名}」\`（[Figma直リンク](https://www.figma.com/design/{file_key}?node-id={nodeId-hyphenated})）`
+   - 前提条件の `**依存**` 欄に「Figmaデザイン `{フレーム名}` フレームに準拠した実装が完了していること」を追記する（UI実装タスクがある場合）
+   - `ui-design-url.md` のフレーム名と qa-test.md のデザイン参照の整合を確認する
+
 2. **`einja-review-spec` Skillで並列レビューを実施**
    - `review_scope=phase2_bundle`
-   - requirements.md、design.md、qa-test.md、`ui-design.pen` がある場合はスクリーンショット要約を渡す
+   - requirements.md、design.md、qa-test.md、`ui-design-url.md` がある場合は YAMLフロントマターから `file_key`/`node_id` を読み取り Figma MCPでスクリーンショット要約を渡す
    - design / qa / ui の用語・画面名・API名・外部API前提の不整合を重点確認する
-   - Phase 2 の ui-design.pen レビュー観点（hi-fi）:
-     - デザイントークン・コンポーネント妥当性・実装可能性
-     - カラー・タイポ・スペーシング・ブランド適合
    - **MAJOR** の場合は該当エージェントに修正指示を返し、再レビューする（最大2回）
 
 3. **一括承認（ユーザー確認）**
    - 全成果物を構造化フォーマットで一括提示:
      - **design.md**: パスと概要、確認ポイント（アーキテクチャの妥当性、API設計）
-     - **ui-design.pen**（該当時のみ）: Pencil MCPのget_screenshotで各画面プレビュー、確認ポイント（レイアウト、コンポーネント選択）
+     - **ui-design-url.md**（該当時のみ）: Figma MCPのget_screenshotで各画面プレビュー（ui-design-url.mdのfile_key/node_idから取得）、確認ポイント（レイアウト、コンポーネント選択）
      - **qa-test.md**: 概要、確認ポイント（テスト網羅性、AC対応、シナリオテストの妥当性）
    - `einja-review-spec` が PASS/MINOR であることを明記する
    - 承認後、一括コミット＆プッシュ
@@ -416,6 +379,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
    - **GitHub Issueの説明文にタスク一覧を記述**
    - **追加指示（呼び出し時にプロンプトに含める）**:
      - 🔴 **フォーマット厳守**: タスク一覧は必ず `_einja-issue-spec-tasks-generator` Skill（フロントマターでプリロード済み）のフォーマットに従うこと。特に: Phase見出しは `### Phase N:`、タスクグループは `- [ ] X.Y`、タスクは `  - X.Y.Z`、メタデータは `    - **太字キー**: 値` 形式。`Task X-Y` 形式や太字なしメタデータは即バリデーションエラーとなる。
+     - **`ui-design-url.md` が存在する場合は必ず読み込み**（パス: `{仕様書ディレクトリ}/ui-design-url.md`）、UIコンポーネントを含む実装タスクに `**対応UIデザイン**` メタデータを付与すること。YAMLフロントマターから `file_key` と各フレームの `node_id` を取得し、`ui-design-url.md「フレーム名」（https://www.figma.com/design/{file_key}?node-id={nodeId-with-hyphens}）` 形式で記載する。
      - requirements.mdの「実装参考情報」とdesign.mdの「関連ドキュメント」「関連Skill・サブエージェント」セクションを参照し、各タスクグループ/タスクに `**実行サブエージェント**` と `**使用Skill**` を付与すること。
      - 委託ルール対応表（参考）:
        | 作業 | 推奨サブエージェント |
@@ -476,7 +440,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
    - 本文に以下を含める:
      - Spec PR へのリンク
      - 要件ドキュメントへのリンク（requirements.mdまたはrequirements/README.md）
-     - UIデザインへのリンク（ui-design.pen、存在する場合のみ）
+     - UIデザインへのリンク（Figma URL: ui-design-url.md記載のURL、存在する場合のみ）
      - 設計ドキュメントへのリンク（design.mdまたはdesign/README.md）
      - QAテスト仕様へのリンク（qa-test.md）
      - タスク一覧（Phase別チェックボックス形式、QAテストシナリオ実施タイミング明記）
@@ -498,7 +462,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
 └── {機能カテゴリ名}/
     └── issue{issue番号}-{機能名}/
         ├── requirements.md  # 要件定義書（ATDD形式）
-        ├── ui-design.pen    # UIデザイン（UI関連のみ）
+        ├── ui-design-url.md # UIデザイン（FigmaURL + フレームmanifest、UI関連のみ）
         ├── design.md        # 設計書（技術詳細）
         └── qa-test.md       # QAテスト仕様（feature単位の単一ファイル、テンプレート: docs/einja/templates/qa-test.md.template）
 
@@ -515,7 +479,7 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
         │   ├── overview.md          # 概要とスコープ
         │   ├── stories.md           # ユーザーストーリー
         │   └── technical.md         # 技術要件
-        ├── ui-design.pen            # UIデザイン（UI関連のみ）
+        ├── ui-design-url.md         # UIデザイン（FigmaURL + フレームmanifest、UI関連のみ）
         ├── design/                  # 設計書ディレクトリ
         │   ├── README.md            # 目次
         │   ├── architecture.md      # アーキテクチャ
@@ -531,19 +495,6 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
 - 1000行を超える場合、意味のあるまとまりで2-3個のパートに自動分割
 - README.mdで全体構成とナビゲーションを提供
 - 分割されたファイルも他エージェントから正しく参照可能
-
-## 既存進行中Issueへの移行判断
-
-本Skillのテンプレート・AC命名体系・章立ては 2026-04-20 に刷新された。既存の進行中Issueについては以下の判断ルールに従うこと。
-
-| 状態 | 判断 |
-|------|------|
-| 新規Issue（本Skillで spec-create を新規実行） | **新テンプレ必須** |
-| 完全新規着手（Phase 0-1段階の既存Issue） | 新テンプレへ移行推奨 |
-| Phase 2以降進行中（requirements.md承認済み） | **現行のまま完遂**（混在回避） |
-| 要件変更で大改訂が必要なIssue | 個別判断（残工数・AC数で判定。30件未満なら移行推奨） |
-
-旧形式サンプル（`/docs/einja/example/specs/issues/issue999-example-task/` の旧版）は本刷新時に新形式に完全書き換えされている。参照するサンプルは新形式のみ。
 
 ## 重要な原則
 - 段階的開発：requirements承認後は並列生成し一括承認

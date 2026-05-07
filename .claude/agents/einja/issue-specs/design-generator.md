@@ -1,7 +1,7 @@
 ---
 name: design-generator
 description: タスクの設計仕様書を生成する必要がある場合にこのエージェントを使用します。このエージェントは、/docs/specs/tasksディレクトリに、日付付きタスクフォルダーとdesign.mdファイルを含む構造化された設計ドキュメントを作成します。<example>Context: ユーザーが新しい認証機能の設計仕様書を作成したい場合。user: "新しい認証機能の設計書を作成して" assistant: "design-generatorエージェントを使用して、認証機能の設計仕様書を生成します" <commentary>ユーザーが設計ドキュメントの作成を要求しているため、Taskツールを使用してdesign-generatorエージェントを起動し、構造化された仕様書を作成します。</commentary></example> <example>Context: ユーザーが課金サブスクリプション機能の設計をドキュメント化する必要がある場合。user: "billing-subscriptionタスクの設計ドキュメントを整理して" assistant: "design-generatorエージェントを起動して、billing-subscriptionの設計ドキュメントを/docs/specs/tasksに生成します" <commentary>ユーザーが設計ドキュメントを整理したいので、design-generatorエージェントを使用して適切な構造を作成します。</commentary></example>
-tools: Read, Write, Edit, MultiEdit, Bash, Grep, Glob, Task, mcp__pencil__batch_get, mcp__pencil__get_screenshot
+tools: Read, Write, Edit, MultiEdit, Bash, Grep, Glob, Task, mcp__claude_ai_Figma__get_screenshot, mcp__claude_ai_Figma__get_design_context
 model: sonnet
 color: orange
 skills:
@@ -79,7 +79,7 @@ TaskCreateツールを使用して詳細な進捗を可視化します：
    - ユーザーから提供された情報（ディレクトリパス、タスク説明など）を整理
    - 何を設計する必要があるか、どのような技術要件が期待されているかを明確化
    - requirements.mdの存在確認と内容把握
-   - ui-design.penの存在確認（UIデザインモックアップがある場合はUI関連セクションの参考にする）
+   - ui-design-url.mdの存在確認（FigmaデザインURLがある場合はUI関連セクションの参考にする。fileKeyからmcp__claude_ai_Figma__get_screenshotで画面確認可能）
    - 不明点や曖昧な点をリストアップ
 
 #### 1.5 並列調査（第1段）
@@ -166,7 +166,7 @@ TaskCreateツールを使用して詳細な進捗を可視化します：
    - `requirements.md`が存在しない場合:
      - `requirements/README.md`を確認（分割されている場合）
      - 分割されている場合は全パート（`requirements/overview.md`、`requirements/stories.md`、`requirements/technical.md`）を読み込む
-   - `ui-design.pen` - UIデザインモックアップ（存在する場合、Pencil MCPで参照）
+   - `ui-design-url.md` - UIデザイン（FigmaファイルURL。存在する場合、YAMLフロントマターからfileKey/nodeIdを取得してmcp__claude_ai_Figma__get_screenshotで参照）
    - その他のドキュメント（*.md、*.txt）
    - 設計メモや図面ファイル
    - API仕様書やスキーマファイル
@@ -197,7 +197,7 @@ TaskCreateツールを使用して詳細な進捗を可視化します：
 - requirements.mdの全内容
 - ステップ0の並列調査結果（第1段の統合結果）
 - ステップ0で読み込んだsteering文書の要約
-- ui-design.penの情報（存在する場合、frontend-architectのみ）
+- ui-design-url.mdの情報（存在する場合、frontend-architectのみ。YAMLフロントマターからfileKey/nodeIdを渡す）
 - 担当セクションのサンプル（`docs/einja/example/specs/issues/issue999-example-task/design.md` の該当セクション）
 
 **各エージェントへの指示:**
@@ -387,6 +387,7 @@ graph TB
 
 `sequenceDiagram` に `alt / opt / loop / par` を使って分岐・例外・繰り返しを網羅的に表現する:
 
+
 ```mermaid
 sequenceDiagram
     participant User
@@ -464,6 +465,13 @@ erDiagram
 ### 図5: 詳細状態遷移図（State Transitions セクション）
 
 状態を持つ機能（申請/注文/認証/招待/支払等）では必須。`stateDiagram-v2` に state / event / guard を含める:
+
+### 10. 画面設計（該当する場合）
+- **ui-design-url.mdが存在する場合**: YAMLフロントマターから `file_key` と各フレームの `node_id` を取得し、`mcp__claude_ai_Figma__get_screenshot` で画面プレビューを確認してmermaid図を作成
+  - `file_key` と `node_id`（コロン形式: `123:456`）を指定してスクリーンショット取得
+  - Figmaのレイアウト・コンポーネント構成をmermaid図と表に変換
+- **ワイヤーフレーム**（mermaid graph）
+- **画面遷移フロー**（mermaid stateDiagram）
 
 ```mermaid
 stateDiagram-v2
@@ -586,6 +594,9 @@ Story単位の構造に対応して、Component Summary 等のセクションも
 - frontend-development.md: Server Components / Client Components使い分け
 - testing-strategy.md: テストレベル・テスト対象の判断
 
+### UIデザイン参照
+- [UIデザイン（Figma）](./ui-design-url.md) — `{figma_url from ui-design-url.md frontmatter}`
+
 ### 参考リソース
 - 類似Issue: #42（認証機能） - 同じ認証パターンを使用
 - 類似Plan: docs/plans/202602/20250215-auth-flow.plan.md
@@ -607,14 +618,14 @@ Story単位の構造に対応して、Component Summary 等のセクションも
 | サブエージェント | 用途 |
 |----------------|------|
 | [frontend-coder] | フォーム・ダッシュボード等のUI実装 |
-| [design-engineer] | ui-design.penからのデザイン実装 |
+| [design-engineer] | ui-design-url.md（Figma URL）からのデザイン実装 |
 
 ### この機能で使用が想定されるSkill
 | Skill | 用途 |
 |-------|------|
 | [steering:api-development] | RPC APIの新規追加時に参照 |
 | [steering:backend-architecture] | 4層アーキテクチャに従った実装 |
-| [einja-pencil-design-manager] | デザインマスターとの同期（UI変更時） |
+| [einja-common:figma-guide] | Figma MCPを使ったデザイン操作のガイド（UI変更時に参照） |
 ```
 
 ## 品質ガイドライン

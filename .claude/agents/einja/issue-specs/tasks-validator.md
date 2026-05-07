@@ -158,7 +158,7 @@ tasks-generator に差し戻し、上記エラーを修正した新しいタス�
 - 記載されている場合、以下の形式チェックを実施:
   - `実行サブエージェント`: `[エージェント名]` 形式で **単一指定のみ**（複数指定は `multiple_subagents` エラー）
   - `使用Skill`: `[Skill名]` or `[steering:ファイル名]` 形式（`[]` で囲まれている）。複数指定時はカンマ区切り
-  - `対応UIデザイン`: `ui-design.pen「フレーム名」` 形式（正規表現: `ui-design\.pen(「[\w-]+」)+`）
+  - `対応UIデザイン`: `ui-design-url.md「フレーム名」（https://...）` 形式（正規表現: `ui-design-url\.md(「[\w-]+」)+（https://www\.figma\.com/design/[^\s）]+）`）
   - タスクグループレベル: 2スペースインデント
   - タスクレベル: 4スペースインデント
 - 形式違反はFAILURE扱い
@@ -174,8 +174,8 @@ tasks-generator に差し戻し、上記エラーを修正した新しいタス�
    - 修正案: タスクグループレベルでは1つのみ指定し、異なるサブエージェントが必要なタスクはタスクレベルで個別に指定してください
 
 3. **タスク 2.1.1** - invalid_optional_metadata_format
-   - 問題: `対応UIデザイン` の値 `voice-call` が `ui-design.pen「フレーム名」` 形式ではありません
-   - 修正案: `ui-design.pen「voice-call」` に修正してください
+   - 問題: `対応UIデザイン` の値 `voice-call` が `ui-design-url.md「フレーム名」（https://...）` 形式ではありません
+   - 修正案: `ui-design-url.md「voice-call」（https://www.figma.com/design/XXXX?node-id=123-456）` に修正してください
 ```
 
 ## 関連ドキュメント

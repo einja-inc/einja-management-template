@@ -57,8 +57,8 @@ GitHub Issueの本文（Markdown形式）:
 
 以下は任意項目。該当する場合に付与する：
 - **実行サブエージェント**: `[エージェント名]`（例: `[frontend-coder]`, `[design-engineer]`, `[backend-architect]`）。**1つのみ指定可能（複数指定禁止）**
-- **使用Skill**: `[Skill名]` or `[steering:ファイル名]`（例: `[einja-pencil-design-manager]`, `[steering:api-development]`）。複数指定はカンマ区切り
-- **対応UIデザイン**: `ui-design.pen「フレーム名」`（例: `ui-design.pen「voice-call」「voice-call--ai-speaking」`）。UI実装を含むタスクにのみ付与
+- **使用Skill**: `[Skill名]` or `[steering:ファイル名]`（例: `[einja-common:figma-guide]`, `[steering:api-development]`）。複数指定はカンマ区切り
+- **対応UIデザイン**: `ui-design-url.md「フレーム名」（https://www.figma.com/design/{file_key}?node-id={nodeId}）`（例: `ui-design-url.md「voice-call」（https://...）`）。UI実装を含むタスクにのみ付与。URLは `ui-design-url.md` のYAMLフロントマターから生成（nodeIdの `:` → `-` 変換）
 
 **継承ルール**: タスクグループレベルで指定した場合、配下の全タスクに継承される。タスクレベルで指定した場合はタスクグループの指定をオーバーライドする。サブエージェントはグループ・タスクとも1つのみ指定可能。
 
@@ -108,8 +108,8 @@ TDDは**1タスク内のサブタスク**として記載（3タスク分割で�
   - **対応設計**: ...
   - **シナリオテスト**: ...
   - **実行サブエージェント**: [frontend-coder]（任意）
-  - **使用Skill**: [einja-pencil-design-manager]（任意）
-  - **対応UIデザイン**: ui-design.pen「フレーム名」（任意：UI実装タスクのみ）
+  - **使用Skill**: [einja-common:figma-guide]（任意）
+  - **対応UIデザイン**: ui-design-url.md「フレーム名」（https://www.figma.com/design/XXXX?node-id=123-456）（任意：UI実装タスクのみ）
 ```
 
 詳細は[タスク管理ガイドライン](../../../docs/einja/steering/task-management.md)の「TDDタスク構造」セクションを参照。

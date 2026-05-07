@@ -34,7 +34,7 @@ Issue本文には以下のセクションを含みます：
 
 - [ ] 1.1 [タスクグループ名]
   **実行サブエージェント**: [frontend-coder]
-  **使用Skill**: [einja-pencil-design-manager]
+  **使用Skill**: [einja-common:figma-guide]
 
   - 1.1.1 [タスク名]
     - サブタスク内容
@@ -356,7 +356,7 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
     - **対応設計**: design.md「DB設計」セクション
     - **シナリオテスト**: なし（DB設定のみ、UIフロー未実装のため）
     - **実行サブエージェント**: [frontend-coder]
-    - **使用Skill**: [einja-pencil-design-manager]
+    - **使用Skill**: [einja-common:figma-guide]
 ```
 
 **メタデータ項目（全て必須）**:
@@ -369,8 +369,8 @@ TDDは**3タスク分割（X.Y.1 テスト / X.Y.2 実装 / X.Y.3 リファク�
 
 **メタデータ項目（任意）**:
 - **実行サブエージェント**: タスク実行時に使用するサブエージェント。`[エージェント名]` 形式で記載。**1つのみ指定可能（複数指定禁止）**。例: `[frontend-coder]`, `[design-engineer]`, `[backend-architect]`
-- **使用Skill**: タスク実行時に読み込むSkill。`[Skill名]` または `[steering:ファイル名]` 形式で記載。複数指定はカンマ区切り。例: `[einja-pencil-design-manager]`, `[steering:api-development]`
-- **対応UIデザイン**: UI実装を含むタスクで、対応する .pen ファイルのフレームを参照。`ui-design.pen「フレーム名」` 形式で記載。複数フレームは連続記載: `ui-design.pen「frame1」「frame2」`。バックエンドのみのタスクには不要
+- **使用Skill**: タスク実行時に読み込むSkill。`[Skill名]` または `[steering:ファイル名]` 形式で記載。複数指定はカンマ区切り。例: `[einja-common:figma-guide]`, `[steering:api-development]`
+- **対応UIデザイン**: UI実装を含むタスクで、対応する ui-design-url.md のフレームを参照。`ui-design-url.md「フレーム名」（https://www.figma.com/design/{file_key}?node-id={nodeId}）` 形式で記載。URLは ui-design-url.md のYAMLフロントマターから生成（`node_id` の `:` を `-` に変換）。複数フレームは連続記載: `ui-design-url.md「frame1」「frame2」（URL）`。バックエンドのみのタスクには不要
 
 **任意メタデータの継承ルール**:
 - **タスクグループレベル**: タスクグループ名行の直下（2スペースインデント）、最初のタスクより前に記載。配下の全タスクに継承される。**サブエージェントは1つのみ指定可能**

@@ -1,6 +1,9 @@
 <!-- @einja:managed:start -->
 # Pencilデザイン管理規約
 
+> **[Deprecated]** このドキュメントはPencil MCP（.penファイル）利用プロジェクト向けです。
+> 新規Issueでは Figma MCP を使用します。→ `figma-design-management.md` を参照してください。
+
 ## 概要
 
 Pencil.dev（.penファイル）を使用したUIデザインの管理規約を定義します。design-master.penをSingle Source of Truthとして、Issue仕様書フェーズのui-design.penと実装確定後のdesign-master.penの2層構造でデザインを管理します。

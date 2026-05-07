@@ -34,12 +34,12 @@ flowchart TB
     A3["3. IssueBranchBase選択\n（AskUserQuestion）"]
     A4["4. issue/番号 ブランチ作成\n（IssueBranchBaseから）"]
     A5["5. requirements.md作成\n→ 並列レビューゲート\n→ ユーザー承認 → コミット"]
-    A5b["6. ui-design.pen / design.md / qa-test.md作成\n→ 並列レビューゲート\n→ ユーザー承認 → コミット"]
+    A5b["6. ui-design-url.md（Figma）/ design.md / qa-test.md作成\n→ 並列レビューゲート\n→ ユーザー承認 → コミット"]
     A6["7. GitHub Issueにタスク一覧記述\n→ バリデーション\n→ 並列レビューゲート\n→ ユーザー承認"]
     A8["8. Spec PR作成"]
     A1 --> A2 --> A3 --> A4 --> A5 --> A5b --> A6 --> A8
 
-    AOut["成果物:\nrequirements.md / ui-design.pen / design.md\nGitHub Issue / Spec PR"]
+    AOut["成果物:\nrequirements.md / ui-design-url.md（Figma）/ design.md\nGitHub Issue / Spec PR"]
     A8 --> AOut
   end
 
@@ -129,7 +129,7 @@ flowchart TB
 | 3        | Claude → **人間承認** | IssueBranchBase選択                   |
 | 4        | Claude                | `issue/{番号}`ブランチ作成            |
 | 5        | Claude → **並列レビューゲート** → **人間承認** | requirements.md作成 → `einja-review-spec` → 確認 → コミット |
-| 6        | Claude → **並列レビューゲート** → **人間承認** | ui-design.pen / design.md / qa-test.md作成 → `einja-review-spec` → 確認 → コミット |
+| 6        | Claude → **並列レビューゲート** → **人間承認** | ui-design-url.md（Figma）/ design.md / qa-test.md作成 → `einja-review-spec` → 確認 → コミット |
 | 7        | Claude → **検証 + 並列レビューゲート** → **人間承認** | GitHub Issueにタスク一覧記述 → tasks-validator → `einja-review-spec` → 確認 |
 | 8        | Claude                | **Spec PR作成**                       |
 | 9        | **人間**              | Discordでチームにレビュー依頼         |
@@ -166,7 +166,7 @@ sequenceDiagram
 
         Claude->>Claude: design/ui/qa 並列生成
         Claude->>Claude: einja-review-spec\n(review_scope=phase2_bundle)
-        Claude->>Dev: ui-design.pen / design.md / qa-test.md 提示
+        Claude->>Dev: ui-design-url.md（Figma）/ design.md / qa-test.md 提示
         Dev->>Claude: 承認
         Claude->>GH: コミット
 
@@ -192,7 +192,7 @@ sequenceDiagram
 ```
 docs/specs/issues/{カテゴリ}/issue{番号}-{機能名}/
 ├── requirements.md    # 要件定義書（ATDD形式）
-├── ui-design.pen      # UIモックアップ（Pencil MCP形式）
+├── ui-design-url.md   # UIモックアップ（Figma URL）
 └── design.md          # 設計書（技術詳細）
 
 GitHub Issue #{番号}   # タスク一覧（Phase別チェックボックス形式）
@@ -385,7 +385,7 @@ flowchart TD
 
 | PRの種類    | 作成タイミング       | 内容                       | レビュー観点                                   |
 | ----------- | -------------------- | -------------------------- | ---------------------------------------------- |
-| **Spec PR** | `einja-issue-spec-create` Skill完了時 | requirements.md, ui-design.pen, design.md | 要件の妥当性、UIデザインの適切さ、設計の適切さ、スコープの確認 |
+| **Spec PR** | `einja-issue-spec-create` Skill完了時 | requirements.md, ui-design-url.md（Figma）, design.md | 要件の妥当性、UIデザインの適切さ、設計の適切さ、スコープの確認 |
 | **実装PR**  | タスクグループ完了時（Worker が自動作成） | ソースコード、テスト       | コード品質、設計書との整合性、テストカバレッジ |
 
 ### なぜ2段階でPRを作成するのか

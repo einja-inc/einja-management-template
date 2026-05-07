@@ -59,7 +59,7 @@ graph TD
     C --> LoopStart["⟲ 品質保証ループ開始"]
 
     LoopStart --> D["ステップ1: 実装フェーズ<br/>(task-executer)"]
-    D --> E["requirements.md, ui-design.pen, design.md を参照"]
+    D --> E["requirements.md, ui-design-url.md, design.md を参照"]
     E --> F["SerenaMAP で既存コード分析"]
     F --> G["コード実装・修正<br/>ファイル作成/編集<br/>テストコード追加"]
 
@@ -195,7 +195,7 @@ Step 4: GitHub Issueにタスク一覧を記述
 │  └─ 修正依頼 → 再作成
 └─ 📄 成果物構成:
    **基本構成**（各ファイル1000行以下）:
-   - requirements.md, ui-design.pen, design.md
+   - requirements.md, ui-design-url.md, design.md
    - GitHub Issueにタスク一覧
 
    **分割構成**（1000行超過時）:
@@ -239,7 +239,7 @@ einja-task-exec: 123
 └─────────────────────────────────────────────────────┘
   ↓
   ├─ task-executerサブエージェント起動
-  ├─ requirements.md, ui-design.pen, design.md を参照
+  ├─ requirements.md, ui-design-url.md, design.md を参照
   ├─ SerenaMAP で既存コード分析
   │  ├─ 関連ファイルの検索
   │  ├─ シンボル定義の確認
@@ -552,7 +552,7 @@ einja-task-exec: #123 1.1  # 先行タスクグループを指定して実行
 
 ```bash
 # 原因: 要件や設計との不整合
-# 対処: requirements.md, ui-design.pen, design.md を再確認
+# 対処: requirements.md, ui-design-url.md, design.md を再確認
 
 # レビュー結果を確認後、再度実装フェーズから実行される
 # （task-exec内で自動的に実装をやり直します）

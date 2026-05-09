@@ -241,13 +241,13 @@ function slugify(text: string): string {
 
 #### 4.7 タスク自己レビュー + Outcome Manifest生成
 
-実装完了後、以下のP0チェック（必須）・P1チェック（条件付き）を実施し、`artifacts/task-{taskId}.outcome.json` を出力すること。
+実装完了後、以下のP0チェック（必須）・P1チェック（条件付き）を実施し、`artifacts/outcomes/{taskId}-outcome.json` を出力すること。
 
 ##### P0チェック（常時必須・1つでもFAILなら fix_required）
 
 | チェック | コマンド/方法 |
 |---------|-------------|
-| Outcome Manifest生成 | `artifacts/task-{taskId}.outcome.json` を出力（acResults[]形式、evidenceRef+toolCallIdで紐付け） |
+| Outcome Manifest生成 | `artifacts/outcomes/{taskId}-outcome.json` を出力（acResults[]形式、evidenceRef+toolCallIdで紐付け） |
 | diff限定残骸検出 | `git diff --name-only HEAD~1 2>/dev/null \| head -20` で変更ファイルを取得し、それらに対して `rg 'TODO\|FIXME\|faker\b\|alert(\|debugger'` を実行（tests/docs/example除外） |
 | PII/secret logging（diff限定） | auth/api関連ファイル変更時のみ: 変更ファイルで `console\.\|logger\.` と `email\|password\|token\|session` の近接確認 |
 | unsafe cast（diff限定） | 変更ファイルで `as any\|@ts-ignore\|biome-ignore` を検出（allowlist除外） |
@@ -309,7 +309,10 @@ einja-task-execから `baseline_png` と `manifest_json` のパスが渡され�
 }
 ```
 
-保存先: `artifacts/task-{taskId}.outcome.json`（`artifacts/outcomes/{taskId}-outcome.json` にもコピー）
+※ task-qa がユーザビリティチェック後に type: "ux_finding" エントリを riskFlags に追記する。
+task-qa は artifacts/outcomes/{taskId}-outcome.json を読み込み → マージして更新する。
+
+保存先: `artifacts/outcomes/{taskId}-outcome.json`
 
 ### 5. 修正記録の作成
 

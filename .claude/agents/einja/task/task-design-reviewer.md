@@ -56,6 +56,8 @@ einja-task-exec から以下を受け取る:
 }
 ```
 
+> UI設計によって状態は異なる。4状態（disabled/error/empty/loading）が推奨だが、expected_states に定義された状態を基準とする。
+
 frameName は常に primaryFrameName（単一フレーム名）。複数フレーム指定の場合はeinja-task-execが最初のフレームを選択済み。
 
 ### 1. strictモード判定
@@ -89,10 +91,9 @@ manifest.json の内容と実装コード・baseline.png を照合する。
 | コンポーネント種別 | Button→Link等、種別が異なる | variant 違い（primary→secondary等） | 一致 |
 | レイアウト軸 | 2col→1col、flex→grid 方向反転 | 余白数px差 | 一致 |
 | 情報階層/優先度 | primary CTA 位置逆、見出し階層崩壊 | 補助テキストの微小ズレ | 一致 |
-| 状態網羅 | disabled/error state 未実装 | loading state 未実装 | expected_states 全実装 |
+| 状態網羅 | expected_states に含まれる状態のいずれかが未実装（disabled/error/empty/loading の4状態は推奨として含める） | loading state の CSS クラスが不完全 | expected_states 全実装 |
 | トークン使用 | ハードコードのカラー（`#fff`, `rgb(...)` 等） | 非推奨トークン（廃止予定の変数名） | variables_used の全トークン使用 |
 | 視覚的追加 | 情報階層を変える追加要素（新規セクション、未定義ナビ等） | UX 補助的追加（ローディングスピナー等） | デザイン通り |
-| 状態完全性（4状態） | disabled/error/empty/loadingのいずれかが未実装 | loading状態のCSSクラスが不完全 | expected_states全状態実装済み |
 
 > エラーメッセージ位置・フィードバック適時性などの実行時挙動はtask-qaのユーザビリティチェックで確認する。
 
@@ -142,7 +143,6 @@ manifest.json の内容と実装コード・baseline.png を照合する。
 | 状態網羅 | [✅ / ⚠️ / ❌] | [内容] |
 | トークン使用 | [✅ / ⚠️ / ❌] | [内容] |
 | 視覚的追加 | [✅ / ⚠️ / ❌] | [内容] |
-| 状態完全性（4状態） | [✅ / ⚠️ / ❌] | [内容] |
 
 ### 検出事項
 [問題が見つかった場合のみ記載]

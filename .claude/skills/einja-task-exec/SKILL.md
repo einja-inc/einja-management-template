@@ -189,12 +189,19 @@ UIタスクフラグは Step 2.5・Step 5.5・TaskCreate の description に反�
    - specディレクトリ配下の `ui-design.pen` のパスとフレーム名（`「」`で囲まれた部分）を抽出して保持
    - この情報は Step 2.5・Step 5.5 および task-executer への渡し情報に使用する
 
-   **複数フレーム縮退ルール**（タスクグループ内に複数の「対応UIデザイン」フィールドが存在する場合）:
-   - `frameNames = ["frame1", "frame2", ...]`（全フレーム名の配列、パース順＝左から右）
-   - `primaryFrameName = frameNames[0]`（Step 2.5 で使用するメインフレーム）
-   - `skippedFrames = frameNames[1:]`（未照合フレーム）
-   - Step 2.5 では `primaryFrameName` のみ `baseline.png` / `manifest.json` を生成する
-   - `skippedFrames` は `riskFlags` に記録する: `{"type": "skipped_frames", "frames": skippedFrames, "reason": "複数フレーム対応は別Issue"}`
+   **複数フレーム縮退ルール**（1つのタスクの「対応UIデザイン」フィールドに複数フレームが指定されている場合）:
+
+   > **縮退はタスクグループ全体で1枚ではなく、各タスクの「対応UIデザイン」フィールドから独立して解決する。**
+   > 異なるタスクが異なるフレームを担当するケースがあるため、タスクグループ共通の `primaryFrameName` に縮退すると誤った baseline が渡される。
+
+   - 各タスクごとに「対応UIデザイン」フィールドをパースし、フレーム名の配列を取得する
+   - 単一フレームの場合: そのフレーム名をそのまま使用する
+   - 複数フレームが指定されている場合:
+     - `primaryFrameName = frameNames[0]`（そのタスクの Step 2.5 / task-executer 起動時に使用）
+     - `skippedFrames = frameNames[1:]`（未照合フレーム）
+     - **einja-task-exec（親エージェント）が** `skippedFrames` を `riskFlags` に記録する（task-executer や task-qa に記録させない）:
+       `{"type": "skipped_frames", "taskId": "{タスクID}", "frames": skippedFrames, "reason": "複数フレーム対応は別Issue"}`
+   - Step 2.5 の `baseline.png` / `manifest.json` はタスクグループ共通ではなく、各タスクの起動時に必要に応じて生成する（design-engineer が指定されたタスクは Step 2.5 実行後に起動する）
 
 ### Step 2.5: UI design context load（UIタスクの場合のみ）
 
@@ -290,7 +297,8 @@ while (未完了タスクが存在):
   4. 【実行サブエージェント判定】各タスクの `実行サブエージェント` フィールドを確認し、
      上記マッピングで起動エージェントを決定する:
      - [design-engineer] の場合:
-       * Step 2.5 が未実行であれば先に実行（baseline.png + manifest.json を生成）
+       * そのタスクの「対応UIデザイン」フィールドからフレーム名を独立して解決し、複数フレームの場合は frameNames[0] を使用、残りは einja-task-exec（親）が riskFlags に記録する
+       * Step 2.5 が未実行（またはそのタスクの対象フレームで未生成）であれば先に実行（baseline.png + manifest.json を生成）
        * Task ツールで design-engineer を起動
        * promptに含める: タスクID + タスク名 + AC + 設計パス + 完了条件 +
          baseline_png（Step 2.5 で保存した絶対パス） + manifest_json（同）+
@@ -314,9 +322,10 @@ while (未完了タスクが存在):
          h. baseline_png（UIタスクかつ Step 2.5 完了済みの場合のみ）→ 「UIデザイン基準画像: {絶対パス}」
          i. manifest_json（同上）→ 「UIデザインマニフェスト: {絶対パス}」
          j. 対応UIデザインフレーム名（対応UIデザインフィールドが存在する場合）:
+            - 各タスクの「対応UIデザイン」フィールドから独立して解決する（タスクグループ共通の primaryFrameName を使い回さないこと）
             - 単一フレームの場合: 「対応UIデザイン: ui-design.pen「{frameName}」」
-            - 複数フレームの場合: primaryFrameName（frameNames[0]）を渡す → 「対応UIデザイン: ui-design.pen「{primaryFrameName}」」
-              （残りの skippedFrames は riskFlags に記録済みのため再送不要）
+            - 複数フレームの場合: そのタスクの frameNames[0] を渡す → 「対応UIデザイン: ui-design.pen「{primaryFrameName}」」
+              （残りの skippedFrames は einja-task-exec（親）が riskFlags に記録してから task-executer を起動すること）
      - **必ず `run_in_background: true`** で非同期起動する（1タスクでも同様。親エージェントがメッセージ受信等を並行処理できるようにするため）
   5. 各エージェントの完了を待機（TaskOutput で結果取得）
   6. 完了したタスクを TaskUpdate で completed に設定
@@ -334,7 +343,7 @@ while (未完了タスクが存在):
 
 1. **task-executer の代わりに phase-reviewer エージェントを起動する**
    - Task ツールで `phase-reviewer` エージェントを直列起動（並列不可）
-   - 入力: 全Outcome Manifest（`artifacts/outcomes/` 配下の `task-*.outcome.json`）、Phase diff範囲（`git diff --name-only origin/issue/{N}...HEAD`）、specパス
+   - 入力: 全Outcome Manifest（`artifacts/outcomes/` 配下の `{taskId}-outcome.json`）、Phase diff範囲（`git diff --name-only origin/issue/{N}...HEAD`）、specパス
 
 2. **判定結果の処理**
 

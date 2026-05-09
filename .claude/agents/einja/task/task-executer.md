@@ -22,6 +22,10 @@ task-exec（親）からpromptで以下の情報を受け取ります:
 - **設計参照**: design.mdのファイルパス + セクション名（自分でReadする）
 - **完了条件**: ACを含む具体的な完了条件
 - **フォールバックパス**: requirements.md / design.md のフルパス（追加情報が必要な場合）
+- **baseline_png**（UIタスクの場合のみ）: Step 2.5 で生成した baseline.png の絶対パス
+- **manifest_json**（UIタスクの場合のみ）: Step 2.5 で生成した manifest.json の絶対パス
+  - manifest.json には `frameName`（primaryFrameName、単一フレーム名）、`frameNames`（全フレーム配列）、`skippedFrames`（未照合フレーム）が含まれる
+- **対応UIデザイン**（UIタスクの場合のみ）: ui-design.pen の primaryFrameName（参照情報）
 
 ACはpromptに直接含まれるので即座に参照可能。
 設計情報は指定されたパス+セクションをRead toolで読み込む。
@@ -35,6 +39,13 @@ ACはpromptに直接含まれるので即座に参照可能。
 #### 1.1 promptに埋め込まれた情報の確認
 - task-exec（親）から渡されたACを確認し、実装対象の受け入れ基準を把握
 - タスクの完了条件と実装指示を確認
+
+#### 1.1.5 UIデザイン基準の確認（UIタスクの場合のみ）
+
+`baseline_png` が渡された場合（UIタスク）:
+- `baseline_png`（baseline.png）と `manifest_json`（manifest.json）のパスを確認し、実装前に参照する
+- `manifest.json` の `frameName`（= primaryFrameName）が実装対象のデザイン基準フレームである
+- 複数フレームが存在する場合は `frameNames` で全フレームを把握し、`skippedFrames` は別Issueで対応予定として認識する
 
 #### 1.2 設計情報の読み込み
 - 設計参照パス + セクション名に基づき、design.mdの該当セクションをReadで読み込む

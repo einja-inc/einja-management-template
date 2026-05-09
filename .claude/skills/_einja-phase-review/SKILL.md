@@ -281,6 +281,20 @@ Phase diffに `.tsx`, `.jsx`, `.css`, `.pen` ファイルが含まれる場合�
 - エラー状態・ローディング状態が適切に表示されるか
 - レスポンシブ対応（モバイル幅 375px でのレイアウト崩れ）
 - アクセシビリティ基本項目（alt属性、aria-label等）
+- 操作後フィードバック（toast/snackbar/インラインメッセージ）の存在確認
+  - FAIL条件: フィードバックが一切ない → MAJOR指摘として記録
+- 空状態（empty state）UIの表示確認
+  - FAIL条件: データ0件時に空のリストが表示される（empty stateなし）→ MINOR指摘
+- フォーカス管理（初期フォーカス・エラー時フォーカス移動）
+  - FAIL条件: 初期フォーカスなし、またはエラー後のフォーカス移動なし → MINOR指摘
+
+以下の手順でtask-qaのuxFindingsを集計する:
+1. Step 1で読み込み済みのOutcome Manifest（artifacts/outcomes/{taskId}-outcome.json全件）から
+   type: "ux_finding" のriskFlagsエントリを収集する
+2. FAIL件数を確認:
+   - severity: "MAJOR" のエントリ → MAJOR指摘として記録
+   - severity: "MINOR" のエントリ → MINOR指摘として記録
+3. 集計した ux_major_count / ux_minor_count を Step 8の算出に渡す
 
 Playwright MCPでスクリーンショットを撮影し、`artifacts/evidence/phase{P}/ux/` に保存する。
 
@@ -320,6 +334,19 @@ reviewペナルティ = MAJOR件数 × (-5) + MINOR件数 × (-1)  ※最大-15p
 Total Score = 合算（ペナルティは各項目で0を下限とする）
 ```
 
+```
+# Step 7 ユーザビリティチェック結果の集計
+ux_major_count = uxFindings where severity == "MAJOR" and result == "FAIL"
+ux_minor_count = uxFindings where severity == "MINOR" and result == "FAIL"
+
+# reviewセベリティペナルティ（-15上限）に統合
+review_severity_penalty = max(
+  -15,
+  -( (major_count + ux_major_count) × 5 + (minor_count + ux_minor_count) × 1 )
+)
+# ※ スコア式の最大値（75点）・PASS閾値（65点）は変更しない
+```
+
 #### 判定
 
 ```
@@ -343,6 +370,7 @@ Score < 45           → FAIL
 | AC検証率 (40pt) | {score}pt | verified: {n}/{total} |
 | required checks (20pt) | {score}pt | lint:{result} typecheck:{result} build:{result} test:{result} |
 | reviewペナルティ (-15pt上限) | -{score}pt | MAJOR:{n}件 MINOR:{n}件 |
+| ユーザビリティチェック（UX-1〜6） | ux_major_count件MAJOR, ux_minor_count件MINOR | reviewセベリティペナルティに加算済み |
 | QAエビデンス密度 (10pt) | {score}pt | 証跡付きAC: {n}/{total} |
 | リトライペナルティ (-10pt上限) | -{score}pt | fixCount合計: {n} |
 | コストバジェット (5pt) | {score}pt | - |

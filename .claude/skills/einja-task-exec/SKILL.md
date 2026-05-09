@@ -189,6 +189,13 @@ UIタスクフラグは Step 2.5・Step 5.5・TaskCreate の description に反�
    - specディレクトリ配下の `ui-design.pen` のパスとフレーム名（`「」`で囲まれた部分）を抽出して保持
    - この情報は Step 2.5・Step 5.5 および task-executer への渡し情報に使用する
 
+   **複数フレーム縮退ルール**（タスクグループ内に複数の「対応UIデザイン」フィールドが存在する場合）:
+   - `frameNames = ["frame1", "frame2", ...]`（全フレーム名の配列、パース順＝左から右）
+   - `primaryFrameName = frameNames[0]`（Step 2.5 で使用するメインフレーム）
+   - `skippedFrames = frameNames[1:]`（未照合フレーム）
+   - Step 2.5 では `primaryFrameName` のみ `baseline.png` / `manifest.json` を生成する
+   - `skippedFrames` は `riskFlags` に記録する: `{"type": "skipped_frames", "frames": skippedFrames, "reason": "複数フレーム対応は別Issue"}`
+
 ### Step 2.5: UI design context load（UIタスクの場合のみ）
 
 **UIタスクフラグが立っていない場合はこのステップをスキップする。**
@@ -201,7 +208,9 @@ UIタスクフラグは Step 2.5・Step 5.5・TaskCreate の description に反�
 4. 取得情報から **manifest.json** を生成し、`artifacts/ui-design/manifest.json` に保存する:
    ```json
    {
-     "frameName": "{フレーム名}",
+     "frameName": "{primaryFrameName}",
+     "frameNames": ["{全フレーム名の配列（複数フレーム縮退時に記録）}"],
+     "skippedFrames": ["{未照合フレーム名（複数指定時のみ。単一フレームの場合は省略可）}"],
      "components": ["{Pencil batch_get から抽出したコンポーネント種別一覧}"],
      "layout_axis": "{vertical | horizontal}",
      "expected_states": ["{デフォルト状態・インタラクション状態一覧}"],
@@ -289,7 +298,9 @@ while (未完了タスクが存在):
      - [frontend-coder] / [backend-architect] / [codex-agent] の場合:
        * Task ツールで対応エージェントを起動
        * promptに含める: タスクID + タスク名 + AC + 設計パス + 完了条件 +
-         使用Skill指示（指定されている場合）+ 外部API連携フラグ（該当する場合）
+         使用Skill指示（指定されている場合）+ 外部API連携フラグ（該当する場合）+
+         baseline_png（UIタスクかつ Step 2.5 完了済みの場合のみ）+
+         manifest_json（同上）
      - 未指定 or [task-executer] の場合（デフォルト）:
        * Task ツールで task-executer を起動
        * promptに含める（ハイブリッド方式）:
@@ -300,6 +311,12 @@ while (未完了タスクが存在):
          e. フォールバック用specファイルパス（追加情報が必要な場合）
          f. 使用Skill指示（指定されている場合）→ 「以下のSkillを事前に読み込んでから作業すること: [Skill名]」
          g. 外部API連携フラグ（Step 1.5で検出された場合）→ 「⚠️ このタスクは外部API連携を含みます。実装前にAPI打鍵テスト（curl等）で正しいリクエスト/レスポンス形式を確認してから実装してください（task-executer 4.6参照）」
+         h. baseline_png（UIタスクかつ Step 2.5 完了済みの場合のみ）→ 「UIデザイン基準画像: {絶対パス}」
+         i. manifest_json（同上）→ 「UIデザインマニフェスト: {絶対パス}」
+         j. 対応UIデザインフレーム名（対応UIデザインフィールドが存在する場合）:
+            - 単一フレームの場合: 「対応UIデザイン: ui-design.pen「{frameName}」」
+            - 複数フレームの場合: primaryFrameName（frameNames[0]）を渡す → 「対応UIデザイン: ui-design.pen「{primaryFrameName}」」
+              （残りの skippedFrames は riskFlags に記録済みのため再送不要）
      - **必ず `run_in_background: true`** で非同期起動する（1タスクでも同様。親エージェントがメッセージ受信等を並行処理できるようにするため）
   5. 各エージェントの完了を待機（TaskOutput で結果取得）
   6. 完了したタスクを TaskUpdate で completed に設定

@@ -83,6 +83,16 @@ SkillでJSON結果を生成後、以下のeinja-task-exec Skill互換形式に�
 - **判定**: MATCH / MISMATCH / SKIP
 - **エビデンス**: `qa-tests/evidence/design-fidelity/{task-group}/comparison.md`
 
+### ユーザビリティチェック結果
+| # | 項目 | 結果 |
+|---|------|------|
+| UX-1 | エラーメッセージ位置 | {result} |
+| UX-2 | 再試行導線 | {result} |
+| UX-3 | 操作後フィードバック | {result} |
+| UX-4 | ローディング状態 | {result} |
+| UX-5 | empty状態UI | {result} |
+| UX-6 | フォーカス管理 | {result} |
+
 ### テストケース詳細
 {テストケースの一覧をJSON結果から生成}
 

@@ -251,6 +251,34 @@ AskUserQuestion:
      baseline/*.png, actual/*.png, comparison.md
    ```
 
+### ユーザビリティチェック（UIタスク時・P1）
+
+baseline_png が提供されたUIタスクの場合、以下の6項目をPlaywright MCPで確認し、
+各項目のPASS/FAILを outcome.json の riskFlags に記録する。
+
+| # | 項目 | チェック方法 | FAIL条件 |
+|---|------|-------------|---------|
+| UX-1 | エラーメッセージ位置 | browser_snapshot でエラー要素の位置を確認 | フィールドから離れた場所に表示される |
+| UX-2 | 再試行導線の存在 | API失敗をシミュレートし、再試行ボタン/リンクの存在を確認 | 再試行手段がない |
+| UX-3 | 操作後フィードバック | 保存/削除等の操作後、toast/snackbar/メッセージの表示を確認 | フィードバックが一切ない |
+| UX-4 | ローディング状態 | API呼び出し中のスピナー/disabled状態を確認 | ローディング表示がない（多重送信防止含む）|
+| UX-5 | empty状態UI | データ0件時の表示をPlaywrightで確認 | 空のリストが表示される（empty state なし）|
+| UX-6 | フォーカス管理 | browser_evaluate でdocument.activeElementを確認 | 初期フォーカスなし or エラー後のフォーカス移動なし |
+
+各FAIL の riskFlags エントリ（artifacts/outcomes/{taskId}-outcome.json に追記）:
+```json
+{
+  "type": "ux_finding",
+  "id": "UX-1",
+  "severity": "MINOR",
+  "source": "task-qa",
+  "taskId": "{taskId}",
+  "result": "FAIL",
+  "detail": "..."
+}
+```
+※ UX-3（操作後フィードバック）のFAILのみ severity: "MAJOR"、それ以外は "MINOR"。
+
 ---
 
 ### ステップ5: 失敗原因の分類
@@ -352,6 +380,14 @@ AskUserQuestion:
       "description": "Lintエラー10件が検出されました",
       "recommendation": "Biomeでコードを修正してください"
     }
+  ],
+  "uxFindings": [
+    {"id": "UX-1", "item": "エラーメッセージ位置", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-2", "item": "再試行導線の存在", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-3", "item": "操作後フィードバック", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-4", "item": "ローディング状態", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-5", "item": "empty状態UI", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-6", "item": "フォーカス管理", "result": "PASS/FAIL", "detail": "..."}
   ]
 }
 ```

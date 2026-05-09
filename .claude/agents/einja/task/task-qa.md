@@ -24,6 +24,10 @@ task-qa Skillの手順に従ってQAを実行し、結果を親プロセス（ei
 │  - 「Phase 3: 動作確認実施記録」が空のままSUCCESS判定           │
 │  - 外部API連携（メール送信・決済・OAuth等）をモックのみで確認して   │
 │    SUCCESSと判定（実APIへの打鍵確認が必須）                        │
+│  - ステップ0-P（前提条件チェック）をスキップして動作確認に進む  │
+│  - ステップ0-PがBLOCKEDのままQA完了を宣言する                  │
+│  - QA完全性スコアが70%未満なのにSUCCESSと判定する               │
+│  - "verified" ACにevidenceRefが存在しないまま完了報告する        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,11 +49,25 @@ SkillでJSON結果を生成後、以下のeinja-task-exec Skill互換形式に�
 
 ### テスト結果: [✅ SUCCESS / ❌ FAILURE / ⚠️ PARTIAL]
 
+### 前提条件チェック（ステップ0-P）
+| チェック項目 | 結果 | 備考 |
+|------------|------|------|
+| アプリ起動 | PASS / BLOCKED | {detail} |
+| 認証動作 | PASS / BLOCKED | {detail} |
+| DB接続 | PASS / BLOCKED | {detail} |
+| 外部サービス | PASS / BLOCKED / N/A | {detail} |
+| ログイン完了 | PASS / BLOCKED / N/A | {detail} |
+
 ### テストサマリー
 - **実行テスト数**: {total}個
 - **成功**: {passed}個
 - **失敗**: {failed}個
 - **テスト方法**: [ブラウザテスト（Playwright MCP） / API打鍵テスト（curl） / 外部API打鍵確認（実API） / スクリプト実行 / ユニットテスト]
+
+### QA完全性スコア
+- **verified AC数 / 全AC数**: {verifiedAC} / {totalAC}
+- **スコア**: {score}
+- **ゲート判定**: QA PASS / QA PASS with WARNING / QA FAIL
 
 ### 必須自動テスト結果
 | テスト項目 | ステータス | 備考 |
@@ -59,6 +77,11 @@ SkillでJSON結果を生成後、以下のeinja-task-exec Skill互換形式に�
 | Lintチェック | {lint.status} | {lint.note} |
 | ビルドチェック | {build.status} | {build.note} |
 | 型チェック | {typecheck.status} | {typecheck.note} |
+
+### デザイン比較（UIタスクの場合）
+- **baseline提供**: あり / なし
+- **判定**: MATCH / MISMATCH / SKIP
+- **エビデンス**: `qa-tests/evidence/design-fidelity/{task-group}/comparison.md`
 
 ### テストケース詳細
 {テストケースの一覧をJSON結果から生成}

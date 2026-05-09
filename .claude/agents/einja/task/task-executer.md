@@ -228,6 +228,78 @@ function slugify(text: string): string {
 - [ ] レスポンスの実際の構造（フィールド名、型、ネスト）を確認したか？
 - [ ] エラーレスポンスのフォーマットも確認したか？
 
+#### 4.7 タスク自己レビュー + Outcome Manifest生成
+
+実装完了後、以下のP0チェック（必須）・P1チェック（条件付き）を実施し、`artifacts/task-{taskId}.outcome.json` を出力すること。
+
+##### P0チェック（常時必須・1つでもFAILなら fix_required）
+
+| チェック | コマンド/方法 |
+|---------|-------------|
+| Outcome Manifest生成 | `artifacts/task-{taskId}.outcome.json` を出力（acResults[]形式、evidenceRef+toolCallIdで紐付け） |
+| diff限定残骸検出 | `git diff --name-only HEAD~1 2>/dev/null \| head -20` で変更ファイルを取得し、それらに対して `rg 'TODO\|FIXME\|faker\b\|alert(\|debugger'` を実行（tests/docs/example除外） |
+| PII/secret logging（diff限定） | auth/api関連ファイル変更時のみ: 変更ファイルで `console\.\|logger\.` と `email\|password\|token\|session` の近接確認 |
+| unsafe cast（diff限定） | 変更ファイルで `as any\|@ts-ignore\|biome-ignore` を検出（allowlist除外） |
+| typecheck（impacted package） | workspace変更: `turbo run typecheck --filter=...<changed_package>`（dependents向き）。workspace外（scripts/）: `tsc --noEmit -p scripts/tsconfig.json`（存在時のみ）。未対応時はskip |
+| impacted unit tests | `turbo run test --filter=...<changed_package>`（dependents向き）。packages/ui等test script未保持のshared packageはturboが自動スキップ。package.json/pnpm-lock.yaml/turbo.json変更時はfull suite（`pnpm test`）にフォールバック |
+
+##### P1チェック（条件付き・WARNでapproved維持・riskFlagsに記録）
+
+| チェック | 条件 |
+|---------|------|
+| lint（biome） | biome設定あるworkspaceのみ: `pnpm --filter <ws> exec biome check <diff_files>` |
+| テスト同伴チェック | apps/src変更時: 差分ファイル近傍の `*.test.*` 存在確認 |
+| env整合性 | `.env*`/auth/deploy周辺変更時: `.env.example` vs `.env.*` キー名照合 |
+| anti-shortcut | テストのみ変更時: snapshot更新のみ・辞書ハードコード・本体未変更を検出 |
+| scope drift | ファイル変更数 > 設計想定の2倍: task metadataのACと無関係な変更ファイルに警告 |
+
+##### 自己修正ルール
+
+- ループ上限: 最大2回（ローカルカウンター。変数として追跡。Workerの fixCount とは独立）
+- P0失敗 → `fix_required`（既存の directorVerdict 状態機械をそのまま使用）
+- P1 WARN → `directorVerdict = approved` のまま + outcome.json の root `riskFlags` 配列に記録
+
+##### UIタスクの追加処理
+
+einja-task-execから `baseline_png` と `manifest_json` のパスが渡された場合のみ実施:
+
+- 実装したUIが基準デザイン（baseline.png + manifest.json）と意図的に整合しているか確認する
+- 重大な乖離（コンポーネント種別変更・情報階層変更）があれば `riskFlags` に記録する
+
+##### Outcome Manifest出力形式
+
+```json
+{
+  "taskId": "1.2.3",
+  "acResults": [
+    {
+      "acId": "AC1.1",
+      "claim": "実装内容の主張",
+      "candidateVerdict": "implemented",
+      "finalVerdict": "implemented",
+      "evidenceRefs": ["artifacts/evidence/1.2.3-ac1.1.log"],
+      "evidenceBytes": 12345,
+      "toolCallId": "toolu_01ABC..."
+    }
+  ],
+  "changedFiles": ["apps/web/src/components/Foo.tsx"],
+  "testsAdded": ["apps/web/src/__tests__/Foo.test.tsx"],
+  "evidenceCommands": [
+    {
+      "cmd": "turbo run test --filter=...@repo/web",
+      "exitCode": 0,
+      "stdoutSummary": "42 tests passed",
+      "artifactPath": "artifacts/logs/1.2.3-test.log",
+      "gitSha": "abc123"
+    }
+  ],
+  "riskFlags": [],
+  "notes": ""
+}
+```
+
+保存先: `artifacts/task-{taskId}.outcome.json`（`artifacts/outcomes/{taskId}-outcome.json` にもコピー）
+
 ### 5. 修正記録の作成
 
 #### 5.1 記録ファイルパスの決定

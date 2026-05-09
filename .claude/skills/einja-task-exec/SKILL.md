@@ -250,21 +250,56 @@ TaskCreate:
 
 ### Step 4: 依存関係ベース並列実行ループ
 
+#### 実行サブエージェントの判定（タスクごとに実施）
+
+各タスクのメタデータから `実行サブエージェント: [...]` フィールドを読み取り、
+以下のマッピングで起動するエージェントを決定する:
+
+| 指定値 | 使用エージェント | 主な用途 |
+|--------|----------------|---------|
+| [design-engineer] | design-engineer | UIデザイン実装（Figma/Pencil参照必須） |
+| [frontend-coder] | frontend-coder | フロントエンド実装 |
+| [backend-architect] | backend-architect | バックエンド設計 |
+| [codex-agent] | codex-agent | Codex活用実装 |
+| （未指定 or [task-executer]） | task-executer | 通常の実装タスク |
+| [phase-reviewer] | phase-reviewer | Phase末尾の品質確認（後述の特殊処理を参照） |
+
+判定ロジック:
+1. タスクメタデータの `実行サブエージェント` フィールドを抽出（Step 1の継承ルールを適用済みであること）
+2. 上記マッピングに従い、起動するエージェントを決定
+3. **design-engineer が指定された場合は必ず Step 2.5（UI design context load）を実行してから起動**
+4. 指定がない or 認識できない値の場合は task-executer を使用（デフォルト）
+
+**重要**: この判定を行わず常に task-executer を使うことは禁止。
+実行サブエージェント指定はユーザーの意図であり、無視してはならない。
+
 ```
 while (未完了タスクが存在):
   1. TaskList で未完了タスクを確認
   2. blockedBy が空かつ pending のタスクを収集
   3. 収集したタスクを TaskUpdate で in_progress に設定
-  4. Task ツールで複数の task-executer を並列起動:
-     - 各 task-executer のpromptに以下を含める（ハイブリッド方式）:
-       a. タスクID + タスク名 + 実装指示（Issueから抽出したサブタスク内容）
-       b. AC（受け入れ基準）→ 直接埋め込み（親が抽出済み）
-       c. 設計 → design.mdパス + セクション名（executerが自分でRead）
-       d. 完了条件
-       e. フォールバック用specファイルパス（追加情報が必要な場合）
-       f. 実行サブエージェント指示（指定されている場合）→ 「このタスクは [エージェント名] サブエージェントに委託して実装すること」
-       g. 使用Skill指示（指定されている場合）→ 「以下のSkillを事前に読み込んでから作業すること: [Skill名]」
-       h. 外部API連携フラグ（Step 1.5で検出された場合）→ 「⚠️ このタスクは外部API連携を含みます。実装前にAPI打鍵テスト（curl等）で正しいリクエスト/レスポンス形式を確認してから実装してください（task-executer 4.6参照）」
+  4. 【実行サブエージェント判定】各タスクの `実行サブエージェント` フィールドを確認し、
+     上記マッピングで起動エージェントを決定する:
+     - [design-engineer] の場合:
+       * Step 2.5 が未実行であれば先に実行（baseline.png + manifest.json を生成）
+       * Task ツールで design-engineer を起動
+       * promptに含める: タスクID + タスク名 + AC + 設計パス + 完了条件 +
+         baseline_png（Step 2.5 で保存した絶対パス） + manifest_json（同）+
+         使用Skill指示（指定されている場合）+ 外部API連携フラグ（該当する場合）
+     - [frontend-coder] / [backend-architect] / [codex-agent] の場合:
+       * Task ツールで対応エージェントを起動
+       * promptに含める: タスクID + タスク名 + AC + 設計パス + 完了条件 +
+         使用Skill指示（指定されている場合）+ 外部API連携フラグ（該当する場合）
+     - 未指定 or [task-executer] の場合（デフォルト）:
+       * Task ツールで task-executer を起動
+       * promptに含める（ハイブリッド方式）:
+         a. タスクID + タスク名 + 実装指示（Issueから抽出したサブタスク内容）
+         b. AC（受け入れ基準）→ 直接埋め込み（親が抽出済み）
+         c. 設計 → design.mdパス + セクション名（executerが自分でRead）
+         d. 完了条件
+         e. フォールバック用specファイルパス（追加情報が必要な場合）
+         f. 使用Skill指示（指定されている場合）→ 「以下のSkillを事前に読み込んでから作業すること: [Skill名]」
+         g. 外部API連携フラグ（Step 1.5で検出された場合）→ 「⚠️ このタスクは外部API連携を含みます。実装前にAPI打鍵テスト（curl等）で正しいリクエスト/レスポンス形式を確認してから実装してください（task-executer 4.6参照）」
      - **必ず `run_in_background: true`** で非同期起動する（1タスクでも同様。親エージェントがメッセージ受信等を並行処理できるようにするため）
   5. 各エージェントの完了を待機（TaskOutput で結果取得）
   6. 完了したタスクを TaskUpdate で completed に設定
@@ -274,7 +309,7 @@ while (未完了タスクが存在):
 **注意事項**:
 - 並列起動するタスク間でファイル変更対象が重複しないよう、設計セクションから推定して確認する
 - 重複懸念がある場合は直列化する
-- task-executerにはコミットさせない（Step 7でまとめて実行）
+- どのエージェントを起動した場合もコミットさせない（Step 7でまとめて実行）
 
 #### Phase末尾タスクグループの特殊処理
 

@@ -12,6 +12,24 @@
 - [エラー時の対処](#エラー時の対処)
 - [参照ドキュメント](#参照ドキュメント)
 
+## CI設計ハーネス（必須チェック）
+
+> **ワークフローを追加・変更する前後に必ず実行すること。** FAIL項目があれば修正してからコミットする。
+
+| # | ルール | 検出コマンド | 合格条件 |
+|---|--------|-------------|---------|
+| R1 | `db:push` をCI/デプロイで使用禁止 | `grep -rn "db:push\|prisma db push" .github/` | 出力なし |
+| R2 | 全アプリ無条件デプロイ禁止（パスフィルタ必須） | `grep -n '"app":' .github/workflows/deploy-stable-branches.yml \| grep -v "steps\|matrix\|discover\|secret_suffix"` | ハードコードなし |
+| R3 | 2重ビルド禁止（Turboキャッシュ確認） | `grep -rn "TURBO_TOKEN" .github/workflows/` | deploy/CIジョブ両方で設定済み。`vercel deploy --prebuilt` を使用していること |
+| R4 | migration変更なし時はスキップ（stable branchのみ・PR Previewは除外） | `grep -n "migration_changed" .github/workflows/deploy-stable-branches.yml` | `changes` outputと`migrate-*`の`if:`条件に存在すること |
+| R5 | `\|\| true` でエラーを握りつぶさない | `grep -rn "\|\| true" .github/` | 存在しないこと。冪等なクリーンアップ（存在しないリソースの削除等）は例外とし、`# intentional: <理由>` コメントを必須とする |
+
+> **PR Preview（`deploy-pr-preview.yml`）はR4の対象外**。Neon新規ブランチへの初回migrationのため常時実行が正しい。
+
+> ハーネスチェックはCI自動化対象外（手動実行）。
+
+---
+
 ## サブメニュー
 - **リポジトリ設定**: ブランチ保護ルールの初期設定
 - **ワークフロー状態確認**: 最新の実行結果一覧

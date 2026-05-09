@@ -52,7 +52,7 @@ jobs:
             PROJECT_NAME=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')
             ALIAS="${PROJECT_NAME}-pr-${{ github.event.number }}.vercel.app"
             echo "Removing alias: $ALIAS"
-            vercel alias rm "$ALIAS" --token=$VERCEL_TOKEN --yes || true
+            vercel alias rm "$ALIAS" --token=$VERCEL_TOKEN --yes || true # intentional: alias may not exist (idempotent cleanup)
           else
             echo "::warning::プロジェクト名を取得できませんでした (app: ${{ matrix.app }})"
           fi

@@ -50,6 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       deploy_matrix: ${{ steps.detect.outputs.deploy_matrix }}
+      migration_changed: ${{ steps.detect.outputs.migration_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,6 +72,7 @@ jobs:
           if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
             echo "::warning::No valid base commit (force push or initial push). Deploying all apps."
             echo "deploy_matrix=$APPS_JSON" >> $GITHUB_OUTPUT
+            echo "migration_changed=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -78,12 +80,14 @@ jobs:
           if ! git cat-file -e "$BEFORE" 2>/dev/null; then
             echo "::warning::Base commit $BEFORE not found. Deploying all apps."
             echo "deploy_matrix=$APPS_JSON" >> $GITHUB_OUTPUT
+            echo "migration_changed=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           CHANGED_FILES=$(git diff --name-only "$BEFORE" "${{ github.sha }}" 2>/dev/null) || {
             echo "::warning::git diff failed. Deploying all apps."
             echo "deploy_matrix=$APPS_JSON" >> $GITHUB_OUTPUT
+            echo "migration_changed=true" >> $GITHUB_OUTPUT
             exit 0
           }
 
@@ -155,12 +159,18 @@ jobs:
           echo "deploy_matrix=$DEPLOY_MATRIX" >> $GITHUB_OUTPUT
           echo "Deploy matrix: $DEPLOY_MATRIX"
 
+          if echo "$CHANGED_FILES" | grep -q "^prisma/migrations/"; then
+            echo "migration_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "migration_changed=false" >> $GITHUB_OUTPUT
+          fi
+
   # ========================================
   # develop: 環境なし、承認なし
   # ========================================
   migrate-develop:
-    needs: ci
-    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'develop'
+    needs: [ci, changes]
+    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'develop' && (needs.changes.outputs.migration_changed == 'true' || needs.changes.outputs.migration_changed == '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -273,8 +283,8 @@ jobs:
   # staging: staging環境、承認なし
   # ========================================
   migrate-staging:
-    needs: ci
-    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'staging'
+    needs: [ci, changes]
+    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'staging' && (needs.changes.outputs.migration_changed == 'true' || needs.changes.outputs.migration_changed == '')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -653,8 +663,8 @@ jobs:
   # main: production環境、1名承認 → migrate → deploy → release
   # ========================================
   migrate-production:
-    needs: ci
-    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'main'
+    needs: [ci, changes]
+    if: github.repository != 'einja-inc/einja-management-template' && github.ref_name == 'main' && (needs.changes.outputs.migration_changed == 'true' || needs.changes.outputs.migration_changed == '')
     environment: production
     runs-on: ubuntu-latest
     steps:
@@ -712,7 +722,7 @@ jobs:
               value="${!key}"
               if [ -n "$value" ]; then
                 echo "Syncing $key to Vercel (${{ env.DEPLOY_VERCEL_ENV }})..."
-                echo "$value" | vercel env rm "$key" ${{ env.DEPLOY_VERCEL_ENV }} --yes --token=$VERCEL_TOKEN 2>/dev/null || true
+                echo "$value" | vercel env rm "$key" ${{ env.DEPLOY_VERCEL_ENV }} --yes --token=$VERCEL_TOKEN 2>/dev/null || true # intentional: rm before add (idempotent, var may not exist)
                 echo "$value" | vercel env add "$key" ${{ env.DEPLOY_VERCEL_ENV }} --token=$VERCEL_TOKEN
               fi
             done
@@ -780,7 +790,7 @@ jobs:
       github.repository != 'einja-inc/einja-management-template' &&
       always() && github.ref_name == 'main' &&
       needs.ci.result == 'success' &&
-      needs.migrate-production.result == 'success' &&
+      contains(fromJSON('["success","skipped"]'), needs.migrate-production.result) &&
       contains(fromJSON('["success","skipped"]'), needs.deploy-production.result)
     runs-on: ubuntu-latest
     steps:

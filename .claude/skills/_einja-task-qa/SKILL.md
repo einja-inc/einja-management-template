@@ -56,7 +56,7 @@ BLOCKED時の必須アクション:
 
 **入力形式**: 自然言語でAC指定（task-executerから呼び出される）
 
-**例**: `docs/specs/issues/issue42-magic-link/ のstory1.mdにあるAC1.UI.1.001, AC1.UI.1.002のテストを実行してください`
+**例**: `docs/specs/issues/issue42-magic-link/ のstory1.mdにあるAC1.UI.N.001, AC1.UI.N.002のテストを実行してください`
 
 **タスクリストの作成**: TaskCreateツールで10ステップのタスクリストを作成してください。
 
@@ -115,8 +115,8 @@ AskUserQuestion:
 **前提**: テスト仕様は `qa-generator` が作成済み。task-qaは**実行のみ**を担当。
 
 1. **テスト仕様ファイルの特定**: 自然言語で指定されたAC番号からStoryを判定
-   - 例: 「AC1.UI.1.001, AC1.UI.1.002のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
-   - 例: 「AC2.UI.3.001のテストを実行」→ `qa-tests/story2.md`
+   - 例: 「AC1.UI.N.001, AC1.UI.N.002のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
+   - 例: 「AC2.UI.E.001のテストを実行」→ `qa-tests/story2.md`
 2. **シナリオテストの確認**: `qa-tests/scenarios.md` で該当ACの実施タイミングを確認
 3. **テスト仕様の読み込み**: story{N}.md 内の該当ACセクションからテストシナリオ、確認項目、期待値を把握
 
@@ -427,7 +427,8 @@ AskUserQuestion:
                 └── comparison.md
 ```
 
-**パス規則**: AC番号 "AC2.UI.3.001" → Story番号 2 → `qa-tests/story2.md`（AC2.UI.3.001セクション）
+**パス規則**: AC番号 "AC2.UI.N.001" → Story番号 2 → `qa-tests/story2.md`（AC2.UI.N.001セクション）
+（形式: `AC{Story}.{カテゴリ}.{N=正常系|E=異常系}.{連番3桁}`）
 
 ---
 

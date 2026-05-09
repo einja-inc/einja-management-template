@@ -109,7 +109,7 @@ manifest.json の内容と実装コード・baseline.png を照合する。
 | 判定 | 条件 | 後続処理 |
 |------|------|---------|
 | PASS | FAIL 項目ゼロ・CONDITIONAL ゼロ | task-qa に進む |
-| CONDITIONAL | FAIL 項目ゼロ・CONDITIONAL 1件以上 | task-qa に進む（指摘を outcome.json の riskFlags に記録） |
+| CONDITIONAL | FAIL 項目ゼロ・CONDITIONAL 1件以上 | task-qa に進む（指摘を outcome.json の riskFlags に記録）<br>**永続化責務**: CONDITIONAL の riskFlags 指摘は einja-task-exec が<br>`artifacts/outcomes/{taskId}-outcome.json` の riskFlags に追記する<br>（task-qa への引き渡しと同時に行う） |
 | FAIL | FAIL 項目 1件以上 | task-executer に差し戻し（fix_required） |
 
 ---

@@ -284,11 +284,10 @@ einja-task-execから `baseline_png` と `manifest_json` のパスが渡され�
   "taskId": "1.2.3",
   "acResults": [
     {
-      "acId": "AC1.1",
+      "acId": "AC1.UI.N.001",
       "claim": "実装内容の主張",
-      "candidateVerdict": "implemented",
-      "finalVerdict": "implemented",
-      "evidenceRefs": ["artifacts/evidence/1.2.3-ac1.1.log"],
+      "verdict": "implemented",
+      "evidenceRefs": ["artifacts/evidence/1.2.3-ac1.ui.n.001.log"],
       "evidenceBytes": 12345,
       "toolCallId": "toolu_01ABC..."
     }
@@ -311,6 +310,12 @@ einja-task-execから `baseline_png` と `manifest_json` のパスが渡され�
 
 ※ task-qa がユーザビリティチェック後に type: "ux_finding" エントリを riskFlags に追記する。
 task-qa は artifacts/outcomes/{taskId}-outcome.json を読み込み → マージして更新する。
+
+**verdict ライフサイクル**（task-executer はライフサイクルの第1ステップのみ担当）:
+- task-executer（X.Y.Z 単位）: `verdict = "implemented"`（自己申告）
+- task-reviewer（グループ単位で1回）: `verdict` を `"implemented"` / `"suspect"` / `"missing"` に更新
+- task-qa（グループ単位で1回）: `verdict` を `"verified"` / `"failed"` / `"blocked"` に更新し、各 X.Y.Z の outcome.json に書き戻す
+- einja-task-exec（ゲート確認）: 全 MUST AC の `verdict` が `"verified"` の場合のみコミット可
 
 保存先: `artifacts/outcomes/{taskId}-outcome.json`
 

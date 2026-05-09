@@ -51,11 +51,10 @@ spec: docs/specs/issues/issue123-feature-name/
   "taskId": "1.2.3",
   "acResults": [
     {
-      "acId": "AC2.1",
+      "acId": "AC2.UI.N.001",
       "claim": "実装内容の主張",
-      "candidateVerdict": "implemented",
-      "finalVerdict": "implemented",
-      "evidenceRefs": ["artifacts/evidence/1.2.3-ac2.1.log"],
+      "verdict": "implemented",
+      "evidenceRefs": ["artifacts/evidence/1.2.3-ac2.ui.n.001.log"],
       "evidenceBytes": 12345,
       "toolCallId": "toolu_01ABC..."
     }
@@ -97,7 +96,7 @@ Total Score = AC検証率(40) + required checks通過(20) + reviewセベリテ�
 
 | 項目 | 満点 | 算出方法 |
 |------|------|---------|
-| AC検証率 | 40pt | (finalVerdict = "implemented" の AC数) / (Phase対象AC総数) × 40 |
+| AC検証率 | 40pt | (verdict = "verified" の AC数) / (Phase対象AC総数) × 40 |
 | required checks通過 | 20pt | lint + typecheck + build + test の4項目が全pass → 20pt、1項目失敗 → -5pt（最低0pt） |
 | reviewセベリティペナルティ | -15pt上限 | MAJOR指摘1件あたり -5pt、MINOR指摘1件あたり -1pt（上限-15pt） |
 | QAエビデンス密度 | 10pt | evidenceRefs/evidenceCommandsの充実度（Phase対象ACの80%以上に証跡あり → 10pt、50%以上 → 5pt、未満 → 0pt） |
@@ -190,12 +189,12 @@ Phase対象タスクグループの特定方法:
 
 ### Step 2: AC全件カバレッジ確認
 
-Phase対象の全ACについて、Outcome Manifestの `acResults[].finalVerdict` を集計する:
+Phase対象の全ACについて、Outcome Manifestの `acResults[].verdict` を集計する:
 
 | 状態 | 条件 |
 |------|------|
-| `verified` | finalVerdict = "implemented" かつ evidenceRefs が1件以上 |
-| `suspect` | finalVerdict = "implemented" だが evidenceRefs が空 |
+| `verified` | verdict = "verified" かつ evidenceRefs が1件以上 |
+| `suspect` | verdict = "implemented" だが evidenceRefs が空（task-qa 未処理） |
 | `missing` | 対応するOutcome Manifestが存在しない、またはacResults内に該当ACなし |
 
 カバレッジ一覧を以下の形式で出力:
@@ -205,9 +204,9 @@ Phase対象の全ACについて、Outcome Manifestの `acResults[].finalVerdict`
 
 | AC番号 | 主張 | 状態 | 証跡数 |
 |--------|------|------|--------|
-| AC1.1  | ログイン画面が表示される | verified | 2 |
-| AC1.2  | バリデーションが動作する | suspect  | 0 |
-| AC2.1  | ダッシュボードが表示される | missing | - |
+| AC1.UI.N.001 | ログイン画面が表示される | verified | 2 |
+| AC1.UI.N.002 | バリデーションが動作する | suspect  | 0 |
+| AC2.UI.N.001 | ダッシュボードが表示される | missing | - |
 ```
 
 ---
@@ -442,7 +441,7 @@ Score < 45           → FAIL
       "priority": "P1",
       "taskGroupId": "2.1",
       "type": "MAJOR",
-      "description": "AC1.2のevidenceRefsが空（suspect状態）",
+      "description": "AC1.UI.N.002のevidenceRefsが空（suspect状態）",
       "recommendation": "動作確認コマンドの実行ログをevidenceRefsに追加してください"
     }
   ]

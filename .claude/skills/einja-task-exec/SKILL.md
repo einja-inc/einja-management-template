@@ -201,6 +201,10 @@ UIタスクフラグは Step 2.5・Step 5.5・TaskCreate の description に反�
      - `skippedFrames = frameNames[1:]`（未照合フレーム）
      - **einja-task-exec（親エージェント）が** `skippedFrames` を `riskFlags` に記録する（task-executer や task-qa に記録させない）:
        `{"type": "skipped_frames", "taskId": "{タスクID}", "frames": skippedFrames, "reason": "複数フレーム対応は別Issue"}`
+     - **書き込み先・タイミング**: einja-task-exec（親）が各タスク起動前に
+       `artifacts/outcomes/{taskId}-outcome.json` の root `riskFlags` 配列に書き込む。
+       task-executer の起動より先に書き込むこと（task-executer のセルフレビューが
+       riskFlags を読み込む前に skippedFrames エントリが存在している必要がある）。
    - Step 2.5 の `baseline.png` / `manifest.json` はタスクグループ共通ではなく、各タスクの起動時に必要に応じて生成する（design-engineer が指定されたタスクは Step 2.5 実行後に起動する）
 
 ### Step 2.5: UI design context load（UIタスクの場合のみ）
@@ -211,8 +215,8 @@ UIタスクフラグは Step 2.5・Step 5.5・TaskCreate の description に反�
    - `ui-design.pen` が存在しない場合: **spec defect** として停止し、ユーザーにエラーを報告する（`ui-design.pen が存在しません。einja-issue-spec-create でデザインファイルを生成してください`）
 2. **Pencil MCP `batch_get`** で対象フレームのノード要約を取得する
    - `patterns: ["{フレーム名}"]` または `nodeIds` でフレームを指定
-3. **Pencil MCP `get_screenshot`** で baseline.png を生成し、`artifacts/ui-design/baseline.png` に保存する
-4. 取得情報から **manifest.json** を生成し、`artifacts/ui-design/manifest.json` に保存する:
+3. **Pencil MCP `get_screenshot`** で baseline.png を生成し、`artifacts/ui-design/{taskId}/baseline.png` に保存する（`{taskId}` は各タスクの X.Y.Z 形式のタスクID）
+4. 取得情報から **manifest.json** を生成し、`artifacts/ui-design/{taskId}/manifest.json` に保存する（`{taskId}` は同上）:
    ```json
    {
      "frameName": "{primaryFrameName}",
@@ -225,8 +229,8 @@ UIタスクフラグは Step 2.5・Step 5.5・TaskCreate の description に反�
    }
    ```
 5. Step 4（task-executer への渡し情報）と Step 5.5（task-design-reviewer への渡し情報）のために、以下を保持する:
-   - `baseline_png`: `artifacts/ui-design/baseline.png`（絶対パス）
-   - `manifest_json`: `artifacts/ui-design/manifest.json`（絶対パス）
+   - `baseline_png`: `artifacts/ui-design/{taskId}/baseline.png`（絶対パス。`{taskId}` は各タスクの X.Y.Z 形式のタスクID）
+   - `manifest_json`: `artifacts/ui-design/{taskId}/manifest.json`（絶対パス。`{taskId}` は同上）
 
 **注意**: Pencil MCP の呼び出しは einja-task-exec（親エージェント）が実施する。task-qa・task-executer は Pencil MCP を呼ばない。
 
@@ -240,8 +244,8 @@ TaskCreate:
   subject: "X.Y.Z タスク名"
   description: |
     ## 受け入れ基準（抽出済み）
-    - AC1.2: Given: ... When: ... Then: ...
-    - AC1.3: Given: ... When: ... Then: ...
+    - AC1.UI.N.001: Given: ... When: ... Then: ...
+    - AC1.UI.N.002: Given: ... When: ... Then: ...
     ## 設計参照
     {specパス}/design.md → 「セクション名」セクション
     ## 完了条件
@@ -371,8 +375,8 @@ while (未完了タスクが存在):
 Task ツールで `task-design-reviewer` エージェントを **直列実行** する（並列不可）。
 
 **渡す情報**（promptに含める）:
-- `baseline_png`: Step 2.5 で保存した `artifacts/ui-design/baseline.png` の絶対パス
-- `manifest_json`: Step 2.5 で保存した `artifacts/ui-design/manifest.json` の絶対パス
+- `baseline_png`: Step 2.5 で保存した `artifacts/ui-design/{taskId}/baseline.png` の絶対パス（`{taskId}` は対象タスクの X.Y.Z 形式のタスクID）
+- `manifest_json`: Step 2.5 で保存した `artifacts/ui-design/{taskId}/manifest.json` の絶対パス（`{taskId}` は同上）
 - `changed_files`: Step 5（task-reviewer）完了時点の変更ファイル一覧（`git diff --name-only HEAD` 等で取得）
 
 **判定と後続処理**:
@@ -393,11 +397,24 @@ Task ツールで `task-design-reviewer` エージェントを **直列実行** 
 
 task-qa 完了後、以下のハードゲートを自動でチェックする。**ゲートPASSまでコミット・プッシュフェーズ（Step 7）に進めない。**
 
+#### Outcome Manifest の verdict ライフサイクル
+
+各 AC の `verdict` フィールドは以下の順序で更新される（単一フィールドに統一）:
+
+| 更新者 | 粒度 | verdict 値 | 説明 |
+|--------|------|-----------|------|
+| task-executer | X.Y.Z 単位 | `"implemented"` | 自己申告（実装完了） |
+| task-reviewer | グループ単位で1回 | `"implemented"` / `"suspect"` / `"missing"` | コードレビュー後に更新 |
+| task-qa | グループ単位で1回 | `"verified"` / `"failed"` / `"blocked"` | QA検証後に各 X.Y.Z の outcome.json に書き戻す |
+| einja-task-exec（ゲート） | 全 X.Y.Z 読み込み | — | 全 MUST AC が `"verified"` の場合のみコミット可 |
+
+**`candidate_verified` は廃止。verdict の最終確認値は `"verified"` に統一する。**
+
 #### ハードゲート（1つでもFAILならStep 7不可）
 
 | チェック項目 | PASS条件 |
 |------------|---------|
-| MUST AC全件検証 | task-qa の Outcome Manifest で、全 MUST AC の `candidateVerdict` が `candidate_verified` であること（スコアより優先） |
+| MUST AC全件検証 | task-qa の Outcome Manifest で、全 MUST AC の `verdict` が `"verified"` であること（スコアより優先） |
 | エビデンス記録 | 各 AC の `evidenceRefs` に `bytes > 0` かつ `toolCallId` が記録されていること |
 | UIテスト完全性 | UIタスクの場合、「保護リソースへのアクセス成功」まで確認済みであること（「ログインページ表示」のみで終了しないこと） |
 | Step 0 前提条件 | Step 0（入力解析）の前提条件チェックがPASS |
@@ -529,7 +546,7 @@ task-qa は以下の基準で失敗原因を分類し、適切な戻し先を決
 
 1. **ファイルの新規作成**
    - タスクメタデータの「実装AC」からストーリー番号を特定し、`qa-tests/story{N}.md` を新規作成
-   - 例: 実装AC が AC1.1, AC1.2 → `qa-tests/story1.md`
+   - 例: 実装AC が AC1.UI.N.001, AC1.UI.N.002 → `qa-tests/story1.md`
 
 2. **受け入れ基準の抽出**
    - `requirements.md` の各ユーザーストーリー配下の「受け入れ基準」セクションから各ACを抽出
@@ -542,11 +559,11 @@ task-qa は以下の基準で失敗原因を分類し、適切な戻し先を決
 ```markdown
 ## 機能名: [タスク名]
 - 背景/価値: [requirements.mdから抽出]
-- 関連 AC: AC1.1, AC1.2, AC2.1
+- 関連 AC: AC1.UI.N.001, AC1.UI.N.002, AC2.UI.N.001
 - テスト範囲: Integration / Browser
 
 - シナリオ:
-  1. [AC1.1に対応するシナリオ]
+  1. [AC1.UI.N.001に対応するシナリオ]
      - 前提: [Given]
      - 操作: [When]
      - 期待結果: [Then]

@@ -347,6 +347,18 @@ requirements.md承認後に、以下のエージェントを**並列（同時に
 
 4. **承認を得てから次のステップ（GitHub Issueへのタスク記述）に進む**
 
+#### Phase 2b: design-component-manifest.json の生成（UIコンポーネント検出）
+
+ui-design.pen が生成された場合、続けて以下を実施:
+1. ui-design-generator の「hi-fi ステップ3b」の手順に従ってmanifestを生成する
+2. `{spec_dir}/design-component-manifest.json` として保存する
+3. `missingFromPackage` にコンポーネントが存在する場合:
+   - Phase 3（タスク生成）でtasks-generatorにDS先行タスク生成を指示する
+   - Issue本文のタスク一覧の先頭に「[DS] コンポーネント実装」タスクを含めること
+
+Phase 3への引き継ぎ情報:
+- `design-component-manifest.json` のパスをtasks-generatorに伝える
+
 #### Phase 3: GitHub Issueへのタスク記述
 
 ##### 3.1 タスク生成・検証ループ

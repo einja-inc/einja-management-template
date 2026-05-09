@@ -191,13 +191,23 @@ sequenceDiagram
 
 ```
 docs/specs/issues/{カテゴリ}/issue{番号}-{機能名}/
-├── requirements.md    # 要件定義書（ATDD形式）
-├── ui-design-url.md   # UIモックアップ（Figma URL）
-└── design.md          # 設計書（技術詳細）
+├── requirements.md              # 要件定義書（ATDD形式）
+├── ui-design-url.md             # UIモックアップ（Figma URL）
+├── design.md                    # 設計書（技術詳細）
+└── design-component-manifest.json  # DSコンポーネント一覧・不足リスト
 
 GitHub Issue #{番号}   # タスク一覧（Phase別チェックボックス形式）
 Spec PR                # 仕様書レビュー用
 ```
+
+#### デザインシステムファーストの原則
+
+新規のUIコンポーネントが必要な場合、画面実装の前にDSコンポーネントを先行実装する:
+
+1. spec-create で `design-component-manifest.json` を生成（ui-design-generatorが担当）
+2. tasks-generator が manifest を読み、`missingFromPackage` があれば [DS] タスクを先行生成
+3. [DS] タスクを design-engineer が実装（`packages/ui/` または `packages/admin-ui/`）
+4. feature タスクは [DS] タスク完了後に開始（blockedBy 設定）
 
 ### 仕様書レビューの観点
 

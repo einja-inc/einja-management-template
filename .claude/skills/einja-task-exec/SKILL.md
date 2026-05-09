@@ -42,26 +42,37 @@ $ARGUMENTSから以下を解析：
 ### 通常タスクのフロー（Phase 1〜98）
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    品質保証ループ                        │
-│                                                         │
-│  Issueパース → specパス特定 → TaskCreate登録            │
-│       ↓                                                 │
-│  依存関係ベース並列実行:                                │
-│       task-executer × N（独立タスク並列）               │
-│       ↓ 全タスク完了                                    │
-│  task-reviewer → task-qa                                │
-│       ↑              │                                  │
-│       └──────────────┘                                  │
-│          （MAJOR/テスト失敗時は該当タスクのみ再実行）    │
-│                                                         │
-│  QA合格後 ↓                                             │
-│  ┌─────────────────────────────────────────────┐       │
-│  │ einja-task-commit Skill（コミット・プッシュ） │       │
-│  │ ※ 確認なしで自動実行                         │       │
-│  └─────────────────────────────────────────────┘       │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       品質保証ループ                          │
+│                                                              │
+│  Step 1: Issueパース（UIタスク判定含む）                      │
+│  Step 1.5: 環境前提条件チェック                              │
+│  Step 2: specパス特定 + AC抽出 + UIデザインフィールドパース   │
+│  Step 2.5: UI design context load（UIタスクのみ）            │
+│            Pencil MCP batch_get → get_screenshot             │
+│            → baseline.png + manifest.json 生成               │
+│  Step 3: TaskCreate登録                                      │
+│       ↓                                                      │
+│  Step 4: 依存関係ベース並列実行:                              │
+│       task-executer × N（独立タスク並列）                    │
+│       ↓ 全タスク完了                                         │
+│  Step 5: task-reviewer（コードレビュー）                      │
+│       ↓ PASS/MINOR                                           │
+│  Step 5.5: task-design-reviewer（UIタスクのみ・直列）         │
+│       ↑ FAIL → Step 4 に差し戻し                             │
+│       ↓ PASS/CONDITIONAL                                     │
+│  Step 6: task-qa（品質保証）                                  │
+│       ↑ テスト失敗 → Step 4 に差し戻し                       │
+│       ↓ 全テスト合格                                         │
+│  Step 6.5: 技術的受け入れゲート（自動判定）                   │
+│       ↑ ゲートFAIL → Step 4 に差し戻し                       │
+│       ↓ ゲートPASS                                           │
+│  ┌─────────────────────────────────────────────┐            │
+│  │ Step 7: einja-task-commit Skill              │            │
+│  │ （コミット・プッシュ）                        │            │
+│  └─────────────────────────────────────────────┘            │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
                            │
                            ↓ コミット完了
                    実行モード判定
@@ -132,6 +143,16 @@ $ARGUMENTSからIssue番号とタスクグループ番号を解析する（現�
    - シナリオテスト
    - 実行サブエージェント（任意、タスクグループレベルまたはタスクレベル）
    - 使用Skill（任意、タスクグループレベルまたはタスクレベル）
+   - **対応UIデザイン**（任意、タスクグループレベルまたはタスクレベル）: `ui-design.pen` のパスとフレーム名
+
+**UIタスク判定**（Step 1完了後に実施）:
+
+以下のいずれかに該当する場合、そのタスクグループを **UIタスク** としてフラグを立てる:
+
+- タスクグループまたは配下タスクのメタデータに「対応UIデザイン」フィールドが存在する
+- 変更予定ファイル（タスクの「完了条件」や設計セクションから推定）に `*.tsx` / `*.css` / `*.scss` が含まれる
+
+UIタスクフラグは Step 2.5・Step 5.5・TaskCreate の description に反映する。
 
 **実行サブエージェント・使用Skillの継承ルール**:
 - タスクグループレベルで指定されている場合 → 配下タスクに継承
@@ -150,7 +171,7 @@ $ARGUMENTSからIssue番号とタスクグループ番号を解析する（現�
    - 環境変数スキャン（1〜2）で外部サービス用変数が検出された場合
    - タスク指示またはdesign.mdに「外部API」「サードパーティ」「webhook」「SDK」等のキーワードが含まれる場合
 
-### Step 2: spec読み込み + AC抽出
+### Step 2: spec読み込み + AC抽出（「対応UIデザイン」フィールドのパース含む）
 
 **目的**: task-executerから spec/Issue 読み込み責務を移管し、親が一括で行う。
 
@@ -163,6 +184,35 @@ $ARGUMENTSからIssue番号とタスクグループ番号を解析する（現�
    - ACはGiven/When/Then形式で小さい（~50-100トークン/AC）ので直接保持
 4. **design.md はパスのみ特定**（内容は読み込まない）
    - 各タスクの`**対応設計**: design.md「セクション名」`からセクション名を記録
+5. **「対応UIデザイン」フィールドのパース**（UIタスクの場合）:
+   - `**対応UIデザイン**: ui-design.pen「フレーム名」` 形式で記述されているフィールドをパース（例: `ui-design.pen「dashboard--empty-state」`）
+   - specディレクトリ配下の `ui-design.pen` のパスとフレーム名（`「」`で囲まれた部分）を抽出して保持
+   - この情報は Step 2.5・Step 5.5 および task-executer への渡し情報に使用する
+
+### Step 2.5: UI design context load（UIタスクの場合のみ）
+
+**UIタスクフラグが立っていない場合はこのステップをスキップする。**
+
+1. Step 1〜2 で抽出した「対応UIデザイン」フィールドから `ui-design.pen` のパスとフレーム名を取得する
+   - `ui-design.pen` が存在しない場合: **spec defect** として停止し、ユーザーにエラーを報告する（`ui-design.pen が存在しません。einja-issue-spec-create でデザインファイルを生成してください`）
+2. **Pencil MCP `batch_get`** で対象フレームのノード要約を取得する
+   - `patterns: ["{フレーム名}"]` または `nodeIds` でフレームを指定
+3. **Pencil MCP `get_screenshot`** で baseline.png を生成し、`artifacts/ui-design/baseline.png` に保存する
+4. 取得情報から **manifest.json** を生成し、`artifacts/ui-design/manifest.json` に保存する:
+   ```json
+   {
+     "frameName": "{フレーム名}",
+     "components": ["{Pencil batch_get から抽出したコンポーネント種別一覧}"],
+     "layout_axis": "{vertical | horizontal}",
+     "expected_states": ["{デフォルト状態・インタラクション状態一覧}"],
+     "variables_used": ["{manifest から抽出したデザイントークン一覧}"]
+   }
+   ```
+5. Step 4（task-executer への渡し情報）と Step 5.5（task-design-reviewer への渡し情報）のために、以下を保持する:
+   - `baseline_png`: `artifacts/ui-design/baseline.png`（絶対パス）
+   - `manifest_json`: `artifacts/ui-design/manifest.json`（絶対パス）
+
+**注意**: Pencil MCP の呼び出しは einja-task-exec（親エージェント）が実施する。task-qa・task-executer は Pencil MCP を呼ばない。
 
 ### Step 3: TaskCreate登録
 
@@ -226,17 +276,82 @@ while (未完了タスクが存在):
 - 重複懸念がある場合は直列化する
 - task-executerにはコミットさせない（Step 7でまとめて実行）
 
+#### Phase末尾タスクグループの特殊処理
+
+タスクグループのメタデータ（Step 1で抽出した「実行サブエージェント」フィールド）に `[phase-reviewer]` が含まれる場合、通常の並列実行ループではなく以下の特殊処理を行う:
+
+1. **task-executer の代わりに phase-reviewer エージェントを起動する**
+   - Task ツールで `phase-reviewer` エージェントを直列起動（並列不可）
+   - 入力: 全Outcome Manifest（`artifacts/outcomes/` 配下の `task-*.outcome.json`）、Phase diff範囲（`git diff --name-only origin/issue/{N}...HEAD`）、specパス
+
+2. **判定結果の処理**
+
+   | 判定 | 処理 |
+   |------|------|
+   | PASS | Step 7（einja-task-commit Skill）へ進む |
+   | CONDITIONAL | Step 7（einja-task-commit Skill）へ進む。phase-reviewer が返した改善事項をコミットメッセージに付記する |
+   | FAIL | 指摘リスト（fixRequired）を元に影響タスクグループを特定し、該当タスクグループに `fix_required` を設定して Step 4（task-executer）に差し戻す |
+   | PHASE_ESCALATE | einja-task-exec を即座に終了し、呼び出し元（einja-issue-exec または einja-issue-team-exec）に「Phase全体の再設計が必要」として上位エスカレーションを報告する。ステータスファイル `task-{X.Y}.json` の `status` を `phase_escalated` に更新し、根本原因と推奨アクションを `fixInstructions` に記録する |
+
+3. **FAIL 差し戻し時の注意**:
+   - `fixRequired` の `taskGroupId` フィールドを参照して差し戻し先のタスクグループを特定する
+   - 差し戻し後は Step 4 → Step 5 → Step 5.5（UIタスクの場合）→ Step 6 → Step 6.5 を再実行してから再度 phase-reviewer を起動する
+
 ### Step 5: レビューフェーズ（task-reviewer）
 - 全タスク完了後、グループ全体で1回実行
 - 要件定義・設計との整合性確認
 - MAJOR判定 → 該当タスクのみ再実行（Step 4に戻る）
-- PASS/MINOR判定 → 品質保証フェーズへ
+- PASS/MINOR判定 → デザイン整合性レビューフェーズへ（UIタスクの場合）または品質保証フェーズへ（非UIタスクの場合）
+
+### Step 5.5: デザイン整合性レビュー（UIタスクの場合のみ）
+
+**UIタスクフラグが立っていない場合はこのステップをスキップし、Step 6に進む。**
+
+Task ツールで `task-design-reviewer` エージェントを **直列実行** する（並列不可）。
+
+**渡す情報**（promptに含める）:
+- `baseline_png`: Step 2.5 で保存した `artifacts/ui-design/baseline.png` の絶対パス
+- `manifest_json`: Step 2.5 で保存した `artifacts/ui-design/manifest.json` の絶対パス
+- `changed_files`: Step 5（task-reviewer）完了時点の変更ファイル一覧（`git diff --name-only HEAD` 等で取得）
+
+**判定と後続処理**:
+
+| 判定 | 処理 |
+|------|------|
+| PASS | Step 6（task-qa）に進む |
+| CONDITIONAL | Step 6（task-qa）に進む。task-design-reviewerが返した `riskFlags` を Step 6（task-qa）の呼び出しプロンプトに含めて渡す |
+| FAIL | Step 4（task-executer）に差し戻し。差し戻し時のプロンプトに task-design-reviewer の指摘内容を含めること。修正完了後は Step 5 → Step 5.5 を再度実行する |
 
 ### Step 6: 品質保証フェーズ（task-qa）
 - グループ全体で1回実行
 - 受け入れ条件に基づく動作確認
 - テスト失敗 → 該当タスクのみ再実行（Step 4に戻る）
-- 全テスト合格 → コミット・プッシュフェーズへ
+- 全テスト合格 → L2技術的受け入れゲートへ
+
+### Step 6.5: 技術的受け入れゲート（自動判定）
+
+task-qa 完了後、以下のハードゲートを自動でチェックする。**ゲートPASSまでコミット・プッシュフェーズ（Step 7）に進めない。**
+
+#### ハードゲート（1つでもFAILならStep 7不可）
+
+| チェック項目 | PASS条件 |
+|------------|---------|
+| MUST AC全件検証 | task-qa の Outcome Manifest で、全 MUST AC の `candidateVerdict` が `candidate_verified` であること（スコアより優先） |
+| エビデンス記録 | 各 AC の `evidenceRefs` に `bytes > 0` かつ `toolCallId` が記録されていること |
+| UIテスト完全性 | UIタスクの場合、「保護リソースへのアクセス成功」まで確認済みであること（「ログインページ表示」のみで終了しないこと） |
+| Step 0 前提条件 | Step 0（入力解析）の前提条件チェックがPASS |
+| ハードブロッカーなし | task-qa および task-design-reviewer（UIタスクの場合）でハードブロッカーが検出されていないこと |
+
+**ゲートFAILの場合**: 失敗した項目を明示して task-executer に差し戻し（Step 4 に戻る）。
+
+#### autoAcceptance禁止条件（常に人間確認必須）
+
+以下のいずれかに該当する場合、ハードゲートがPASSであっても自動でコミット・プッシュせず、AskUserQuestion でユーザーの確認を取ること:
+
+- 変更対象が `auth` / `billing` / `migration` / 外部API / UIの主要導線に関わる
+- MUST AC に `blocked` / `blocked_spec` が 1件でも存在する
+
+**ハードゲートPASS かつ autoAcceptance禁止条件に非該当** → Step 7（コミット・プッシュフェーズ）に自動で進む。
 
 ### Step 7: コミット・プッシュフェーズ（einja-task-commit Skill）
 - QA合格後、Skill toolで `einja-task-commit` Skillを直接呼び出し

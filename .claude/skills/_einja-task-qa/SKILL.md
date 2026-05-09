@@ -56,7 +56,7 @@ BLOCKED時の必須アクション:
 
 **入力形式**: 自然言語でAC指定（task-executerから呼び出される）
 
-**例**: `docs/specs/issues/issue42-magic-link/ のstory1.mdにあるAC1.1, AC1.2のテストを実行してください`
+**例**: `docs/specs/issues/issue42-magic-link/ のstory1.mdにあるAC1.UI.1.001, AC1.UI.1.002のテストを実行してください`
 
 **タスクリストの作成**: TaskCreateツールで10ステップのタスクリストを作成してください。
 
@@ -115,10 +115,10 @@ AskUserQuestion:
 **前提**: テスト仕様は `qa-generator` が作成済み。task-qaは**実行のみ**を担当。
 
 1. **テスト仕様ファイルの特定**: 自然言語で指定されたAC番号からStoryを判定
-   - 例: 「AC1.1, AC1.2のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
-   - 例: 「AC2.3のテストを実行」→ `qa-tests/story2.md`
+   - 例: 「AC1.UI.1.001, AC1.UI.1.002のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
+   - 例: 「AC2.UI.3.001のテストを実行」→ `qa-tests/story2.md`
 2. **シナリオテストの確認**: `qa-tests/scenarios.md` で該当ACの実施タイミングを確認
-3. **テスト仕様の読み込み**: story{N}.md内の該当ACセクションからテストシナリオ、確認項目、期待値を把握
+3. **テスト仕様の読み込み**: story{N}.md 内の該当ACセクションからテストシナリオ、確認項目、期待値を把握
 
 **エラー時**: テスト仕様が存在しない場合は失敗分類B（要件齟齬）→ qa-generatorで作成が必要
 
@@ -253,8 +253,10 @@ AskUserQuestion:
 
 ### ユーザビリティチェック（UIタスク時・P1）
 
-baseline_png が提供されたUIタスクの場合、以下の6項目をPlaywright MCPで確認し、
-各項目のPASS/FAILを outcome.json の riskFlags に記録する。
+baseline_png が提供されたUIタスクの場合のみ実施する。
+（ui-design.pen が存在せず tsx 変更のみのタスクは baseline_png が渡されないため、このチェックをスキップする）
+
+以下の6項目をPlaywright MCPで確認し、各項目のPASS/FAILを outcome.json の riskFlags に記録する。
 
 | # | 項目 | チェック方法 | FAIL条件 |
 |---|------|-------------|---------|
@@ -277,7 +279,18 @@ baseline_png が提供されたUIタスクの場合、以下の6項目をPlaywri
   "detail": "..."
 }
 ```
-※ UX-3（操作後フィードバック）のFAILのみ severity: "MAJOR"、それ以外は "MINOR"。
+※ UX-3 のみ severity: "MAJOR"（理由: ユーザーが操作結果を認識できないと二重実行・データ損失が発生するリスクがあるため）
+※ UX-1/2/4/5/6 は severity: "MINOR"（UX品質の問題だが機能的な損失は低い）
+
+**書き込み責務（writer: task-qa）**:
+task-qa がユーザビリティチェック完了後に、各FAILエントリを
+`artifacts/outcomes/{taskId}-outcome.json` の root `riskFlags` 配列に追記する。
+
+追記の際は既存の riskFlags を読み込んでからマージすること（上書き禁止）。
+読み込み先も `artifacts/outcomes/{taskId}-outcome.json` （同一ファイル）。
+
+返却JSONの `uxFindings` 配列は人間可読の完了報告用であり、
+phase-reviewが参照するのは Outcome Manifest の riskFlags（type: "ux_finding"）である。
 
 ---
 
@@ -414,7 +427,7 @@ AskUserQuestion:
                 └── comparison.md
 ```
 
-**パス規則**: AC番号 "AC2.3" → Story番号 2 → `qa-tests/story2.md`（AC2.3セクション）
+**パス規則**: AC番号 "AC2.UI.3.001" → Story番号 2 → `qa-tests/story2.md`（AC2.UI.3.001セクション）
 
 ---
 

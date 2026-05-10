@@ -25,7 +25,7 @@ task-exec（親）からpromptで以下の情報を受け取ります:
 - **baseline_png**（UIタスクの場合のみ）: Step 2.5 で生成した baseline.png の絶対パス
 - **manifest_json**（UIタスクの場合のみ）: Step 2.5 で生成した manifest.json の絶対パス
   - manifest.json には `frameName`（primaryFrameName、単一フレーム名）、`frameNames`（全フレーム配列）、`skippedFrames`（未照合フレーム）が含まれる
-- **対応UIデザイン**（UIタスクの場合のみ）: ui-design.pen の primaryFrameName（参照情報）
+- **対応UIデザイン**（UIタスクの場合のみ）: ui-design-url.md の primaryFrameName（参照情報）
 
 ACはpromptに直接含まれるので即座に参照可能。
 設計情報は指定されたパス+セクションをRead toolで読み込む。

@@ -1,7 +1,7 @@
 ---
 name: design-engineer
 description: Figma **または** Pencil（.pen）デザインとデザインシステムを完璧に理解し、Tailwind CSSで高品質なスタイリングを実装する専門エージェント。Figma MCPまたはPencil MCPを駆使してデザイントークン、コンポーネント仕様、レスポンシブレイアウトを抽出し、デザインに100%忠実な実装を行います。<example>Context: FigmaデザインをTailwind CSSで実装したい場合。user: "Figmaのダッシュボードデザインを実装して" assistant: "design-engineerエージェントを使用して、Figmaからデザイントークンとコンポーネント仕様を抽出し、Tailwind CSSで完璧に再現します" <commentary>Figmaデザインの実装が必要なため、design-engineerエージェントを起動してデザインシステムを分析・実装します。</commentary></example> <example>Context: Pencil（.pen）デザインをTailwind CSSで実装したい場合。user: "Pencilのデザインを実装して" assistant: "design-engineerエージェントを使用して、Pencil MCPでデザイントークンを抽出し、Tailwind CSSで実装します" <commentary>Pencilデザインの実装が必要なため、design-engineerエージェントを起動します。</commentary></example> <example>Context: デザインシステムのトークンを更新したい場合。user: "Figmaのデザイントークンをプロジェクトに反映して" assistant: "design-engineerエージェントを起動して、Figmaからカラー、タイポグラフィ、スペーシングのトークンを抽出し、Tailwind CSS設定に反映します" <commentary>デザインシステムの同期が必要なため、design-engineerエージェントに依頼します。</commentary></example>
-tools: mcp__pencil__batch_get, mcp__pencil__batch_design, mcp__pencil__get_screenshot, mcp__pencil__open_document, mcp__pencil__snapshot_layout, mcp__pencil__get_variables
+tools: mcp__pencil__batch_get, mcp__pencil__batch_design, mcp__pencil__get_screenshot, mcp__pencil__open_document, mcp__pencil__snapshot_layout, mcp__pencil__get_variables, mcp__claude_ai_Figma__whoami, mcp__claude_ai_Figma__authenticate, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_screenshot, mcp__claude_ai_Figma__use_figma, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_variable_defs
 model: sonnet
 color: pink
 skills:
@@ -529,7 +529,7 @@ export const alertVariants = cva(
 `実行サブエージェント: [design-engineer]` かつタスク名が `[DS] {ComponentName} コンポーネント実装` の場合、以下の手順で実装する:
 
 1. `design-component-manifest.json` から対象コンポーネントの `frameName` を取得
-2. `ui-design.pen` の該当フレームをPencil MCPで取得（トークン・バリアント・状態を確認）
+2. `ui-design-url.md` の該当フレームをFigma MCPで取得（トークン・バリアント・状態を確認）
 3. 実装先パッケージを確認:
    - 対象が `apps/web` 系 → `packages/ui/src/components/{ComponentName}/`
    - 対象が `apps/admin` 系 → `packages/admin-ui/src/{ComponentName}/`

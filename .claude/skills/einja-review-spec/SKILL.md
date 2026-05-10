@@ -1,14 +1,14 @@
 ---
 name: einja-review-spec
-description: "仕様書作成フェーズの成果物を多観点・並列でレビューするSkill。requirements.md、design.md、ui-design.pen、qa-test.md、GitHub Issueのタスク一覧を対象に、観点別レビュアーとcodex-agentを並列起動して統合判定する。einja-issue-spec-create から各Phase完了時に呼び出す。Do NOT use for: コードdiffレビュー（→ einja-review-code）、Planレビュー（→ einja-review-plan）"
+description: "仕様書作成フェーズの成果物を多観点・並列でレビューするSkill。requirements.md、design.md、ui-design-url.md（Figma）、qa-test.md、GitHub Issueのタスク一覧を対象に、観点別レビュアーとcodex-agentを並列起動して統合判定する。einja-issue-spec-create から各Phase完了時に呼び出す。Do NOT use for: コードdiffレビュー（→ einja-review-code）、Planレビュー（→ einja-review-plan）"
 allowed-tools:
   - Read
   - Glob
   - Grep
   - Agent
   - ToolSearch
-  - mcp__pencil__batch_get
-  - mcp__pencil__get_screenshot
+  - mcp__claude_ai_Figma__get_screenshot
+  - mcp__claude_ai_Figma__get_design_context
 ---
 
 # einja-review-spec Skill: 仕様書成果物の多観点並列レビュー
@@ -35,8 +35,8 @@ allowed-tools:
 - 未解決事項や残存リスク
 
 `phase2_bundle` の場合は追加で以下も渡す:
-- `ui-design.pen` のパス（存在する場合）
-- `mcp__pencil__get_screenshot` で取得した画面プレビューの要約
+- `ui-design-url.md` のパス（存在する場合）
+- `mcp__claude_ai_Figma__get_screenshot` で取得した画面プレビューの要約（fileKey/nodeIdはui-design-url.mdのYAMLフロントマターから取得）
 
 ## 実行フロー
 
@@ -50,7 +50,7 @@ allowed-tools:
   - `requirements.md`
   - `design.md` または `design/README.md` と各分割ファイル
   - `qa-test.md`
-  - `ui-design.pen` がある場合は `mcp__pencil__get_screenshot` と `mcp__pencil__batch_get` で確認
+  - `ui-design-url.md` がある場合は `mcp__claude_ai_Figma__get_screenshot` で画面確認（YAMLフロントマターのfileKey/nodeIdを使用）
 - `tasks`
   - `requirements.md`
   - `design.md`
@@ -79,7 +79,7 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | ID | 観点名 | 説明 |
 |----|--------|------|
 | A | 設計妥当性 | アーキテクチャ、API、DB、要件トレースの妥当性 |
-| B | UI/UX・画面整合 | `ui-design.pen` と requirements/design の整合、一貫性、主要導線、インタラクション4状態設計（disabled/error/empty/loading）の有無、エラーメッセージの位置と再試行導線の明示、多重送信防止とローディング制御、基本フォーカス管理 |
+| B | UI/UX・画面整合 | `ui-design-url.md`（Figma）と requirements/design の整合、一貫性、主要導線、インタラクション4状態設計（disabled/error/empty/loading）の有無、エラーメッセージの位置と再試行導線の明示、多重送信防止とローディング制御、基本フォーカス管理 |
 | C | QA網羅性・実行可能性 | AC対応、前提条件、手順の明確さ、打鍵確認可能性 |
 | D | 横断整合性 | design / ui / qa の用語、API名、画面名、外部API前提の一致 |
 

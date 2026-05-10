@@ -402,9 +402,9 @@ Manager は以下を監視:
 
    どう対応しますか？
 
-   a) spec-createフェーズに戻って仕様を修正する（ui-design.penも更新）
+   a) spec-createフェーズに戻って仕様を修正する（ui-design-url.mdも更新）
       Note: 仕様レベルの根本問題がある場合。要件定義・設計からやり直す
-   b) Figma/ui-design.penを更新してから当Phaseを再実装する
+   b) Figma（ui-design-url.md）を更新してから当Phaseを再実装する
       Note: UIデザイン・設計は合っているが、デザイン成果物の更新が必要な場合
    c) 前Phaseの成果物を修正してから当Phaseを再実装する
       Note: 前Phaseの実装品質や設計が原因の場合。当Phaseのブランチをリセットして再実装

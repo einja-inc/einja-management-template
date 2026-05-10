@@ -584,7 +584,7 @@ Story単位の構造に対応して、Component Summary 等のセクションも
 ## Related Documents
 
 - requirements.md: （該当requirements.mdへのパス）
-- ui-design.pen: （存在する場合）
+- ui-design-url.md: （存在する場合）
 - 関連spec: （類似Issue/Planのパス）
 - 関連Issue: （Issue番号・リンク）
 

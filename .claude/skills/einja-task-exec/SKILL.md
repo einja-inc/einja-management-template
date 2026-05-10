@@ -49,7 +49,7 @@ $ARGUMENTSから以下を解析：
 │  Step 1.5: 環境前提条件チェック                              │
 │  Step 2: specパス特定 + AC抽出 + UIデザインフィールドパース   │
 │  Step 2.5: UI design context load（UIタスクのみ）            │
-│            Pencil MCP batch_get → get_screenshot             │
+│            Figma MCP get_screenshot + get_design_context     │
 │            → baseline.png + manifest.json 生成               │
 │  Step 3: TaskCreate登録                                      │
 │       ↓                                                      │
@@ -143,7 +143,7 @@ $ARGUMENTSからIssue番号とタスクグループ番号を解析する（現�
    - シナリオテスト
    - 実行サブエージェント（任意、タスクグループレベルまたはタスクレベル）
    - 使用Skill（任意、タスクグループレベルまたはタスクレベル）
-   - **対応UIデザイン**（任意、タスクグループレベルまたはタスクレベル）: `ui-design.pen` のパスとフレーム名
+   - **対応UIデザイン**（任意、タスクグループレベルまたはタスクレベル）: `ui-design-url.md` のパスとフレーム名
 
 **UIタスク判定**（Step 1完了後に実施）:
 
@@ -185,8 +185,9 @@ UIタスクフラグは Step 2.5・Step 5.5・TaskCreate の description に反�
 4. **design.md はパスのみ特定**（内容は読み込まない）
    - 各タスクの`**対応設計**: design.md「セクション名」`からセクション名を記録
 5. **「対応UIデザイン」フィールドのパース**（UIタスクの場合）:
-   - `**対応UIデザイン**: ui-design.pen「フレーム名」` 形式で記述されているフィールドをパース（例: `ui-design.pen「dashboard--empty-state」`）
-   - specディレクトリ配下の `ui-design.pen` のパスとフレーム名（`「」`で囲まれた部分）を抽出して保持
+   - `**対応UIデザイン**: ui-design-url.md「フレーム名」（URL）` 形式で記述されているフィールドをパース（例: `ui-design-url.md「dashboard--empty-state」（https://www.figma.com/design/XXXXX?node-id=123-456）`）
+   - 正規表現 `/ui-design-url\.md「([^」]+)」（([^)]+)）/` でフレーム名と Figma URL を抽出して保持
+   - Figma URL から `file_key`（`/design/{file_key}/` 部分）と `node-id`（`?node-id=` または `node_id=` パラメータ）を抽出する（`-` はそのまま保持し、Figma MCP 呼び出し時にコロン区切りに変換する）
    - この情報は Step 2.5・Step 5.5 および task-executer への渡し情報に使用する
 
    **複数フレーム縮退ルール**（1つのタスクの「対応UIデザイン」フィールドに複数フレームが指定されている場合）:
@@ -211,28 +212,33 @@ UIタスクフラグは Step 2.5・Step 5.5・TaskCreate の description に反�
 
 **UIタスクフラグが立っていない場合はこのステップをスキップする。**
 
-1. Step 1〜2 で抽出した「対応UIデザイン」フィールドから `ui-design.pen` のパスとフレーム名を取得する
-   - `ui-design.pen` が存在しない場合: **spec defect** として停止し、ユーザーにエラーを報告する（`ui-design.pen が存在しません。einja-issue-spec-create でデザインファイルを生成してください`）
-2. **Pencil MCP `batch_get`** で対象フレームのノード要約を取得する
-   - `patterns: ["{フレーム名}"]` または `nodeIds` でフレームを指定
-3. **Pencil MCP `get_screenshot`** で baseline.png を生成し、`artifacts/ui-design/{taskId}/baseline.png` に保存する（`{taskId}` は各タスクの X.Y.Z 形式のタスクID）
-4. 取得情報から **manifest.json** を生成し、`artifacts/ui-design/{taskId}/manifest.json` に保存する（`{taskId}` は同上）:
+1. Step 1〜2 で抽出した「対応UIデザイン」フィールドから `ui-design-url.md` のパスとフレーム名・Figma URL を取得する
+   - `ui-design-url.md` が存在しない場合: **spec defect** として停止し、ユーザーにエラーを報告する（`ui-design-url.md が存在しません。einja-issue-spec-create でデザインファイルを生成してください`）
+2. `ui-design-url.md` の YAML フロントマター（`file_key`, `frames[].node_id`）を読み込み、対象フレーム名（primaryFrameName）の `node_id` を取得する（例: `123:456`）
+3. **Figma MCP `mcp__claude_ai_Figma__get_screenshot`** で baseline.png を生成し、`artifacts/ui-design/{taskId}/baseline.png` に保存する（`{taskId}` は各タスクの X.Y.Z 形式のタスクID）
+   - 引数: `fileKey`（ui-design-url.md の file_key）、`nodeId`（対象フレームの node_id。コロン区切りそのまま）
+   - 返却された imageData を `artifacts/ui-design/{taskId}/baseline.png` に保存する
+4. **Figma MCP `mcp__claude_ai_Figma__get_design_context`** で対象フレームのデザイン情報を取得し、`components`・`layout_axis`・`expected_states`・`variables_used` を抽出する
+5. 取得情報から **manifest.json** を生成し、`artifacts/ui-design/{taskId}/manifest.json` に保存する（`{taskId}` は同上）:
    ```json
    {
      "frameName": "{primaryFrameName}",
      "frameNames": ["{全フレーム名の配列（複数フレーム縮退時に記録）}"],
      "skippedFrames": ["{未照合フレーム名（複数指定時のみ。単一フレームの場合は省略可）}"],
-     "components": ["{Pencil batch_get から抽出したコンポーネント種別一覧}"],
+     "figmaUrl": "{Step 2 で抽出した Figma URL}",
+     "fileKey": "{ui-design-url.md の file_key}",
+     "nodeId": "{対象フレームの node_id}",
+     "components": ["{Figma get_design_context から抽出したコンポーネント種別一覧}"],
      "layout_axis": "{vertical | horizontal}",
      "expected_states": ["{デフォルト状態・インタラクション状態一覧}"],
-     "variables_used": ["{manifest から抽出したデザイントークン一覧}"]
+     "variables_used": ["{デザイントークン一覧}"]
    }
    ```
-5. Step 4（task-executer への渡し情報）と Step 5.5（task-design-reviewer への渡し情報）のために、以下を保持する:
+6. Step 4（task-executer への渡し情報）と Step 5.5（task-design-reviewer への渡し情報）のために、以下を保持する:
    - `baseline_png`: `artifacts/ui-design/{taskId}/baseline.png`（絶対パス。`{taskId}` は各タスクの X.Y.Z 形式のタスクID）
    - `manifest_json`: `artifacts/ui-design/{taskId}/manifest.json`（絶対パス。`{taskId}` は同上）
 
-**注意**: Pencil MCP の呼び出しは einja-task-exec（親エージェント）が実施する。task-qa・task-executer は Pencil MCP を呼ばない。
+**注意**: Figma MCP の呼び出しは einja-task-exec（親エージェント）が実施する。task-qa・task-executer は Figma MCP を直接呼ばない。
 
 ### Step 3: TaskCreate登録
 
@@ -327,8 +333,8 @@ while (未完了タスクが存在):
          i. manifest_json（同上）→ 「UIデザインマニフェスト: {絶対パス}」
          j. 対応UIデザインフレーム名（対応UIデザインフィールドが存在する場合）:
             - 各タスクの「対応UIデザイン」フィールドから独立して解決する（タスクグループ共通の primaryFrameName を使い回さないこと）
-            - 単一フレームの場合: 「対応UIデザイン: ui-design.pen「{frameName}」」
-            - 複数フレームの場合: そのタスクの frameNames[0] を渡す → 「対応UIデザイン: ui-design.pen「{primaryFrameName}」」
+            - 単一フレームの場合: 「対応UIデザイン: ui-design-url.md「{frameName}」（{figmaUrl}）」
+            - 複数フレームの場合: そのタスクの frameNames[0] を渡す → 「対応UIデザイン: ui-design-url.md「{primaryFrameName}」（{figmaUrl}）」
               （残りの skippedFrames は einja-task-exec（親）が riskFlags に記録してから task-executer を起動すること）
      - **必ず `run_in_background: true`** で非同期起動する（1タスクでも同様。親エージェントがメッセージ受信等を並行処理できるようにするため）
   5. 各エージェントの完了を待機（TaskOutput で結果取得）

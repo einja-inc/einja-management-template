@@ -143,7 +143,7 @@ Score < 45   → FAIL
 - 具体的な根本原因（設計変更が必要か、Figmaが誤っているか、仕様が曖昧か）を特定
 - 推奨アクション（以下のいずれかを明示）:
   - a. spec-create フェーズに戻って仕様を修正する
-  - b. Figma / ui-design.pen を更新してから再実装する
+  - b. Figma（ui-design-url.md）を更新してから再実装する
   - c. 前 Phase の成果物を修正してから当 Phase を再実装する
 - 結果レポートの「判定」欄に `🚨 PHASE_ESCALATE` を記載し、根本原因と推奨アクションを詳述する
 - 呼び出し元の `einja-task-exec` に PHASE_ESCALATE 判定を返却する（差し戻しリストは不要）
@@ -273,7 +273,7 @@ APIのみの変更の場合は curl でエンドポイント確認を実施す�
 
 ### Step 7: ユーザビリティ確認（フロントエンド変更時のみ）
 
-Phase diffに `.tsx`, `.jsx`, `.css`, `.pen` ファイルが含まれる場合のみ実施。
+Phase diffに `.tsx`, `.jsx`, `.css`, `ui-design-url.md` の変更が含まれる場合のみ実施。
 
 確認項目:
 - 画面遷移に矛盾がないか（リンク先が存在するか）

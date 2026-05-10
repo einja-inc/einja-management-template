@@ -254,7 +254,7 @@ AskUserQuestion:
 ### ユーザビリティチェック（UIタスク時・P1）
 
 baseline_png が提供されたUIタスクの場合のみ実施する。
-（ui-design.pen が存在せず tsx 変更のみのタスクは baseline_png が渡されないため、このチェックをスキップする）
+（ui-design-url.md が存在せず tsx 変更のみのタスクは baseline_png が渡されないため、このチェックをスキップする）
 
 以下の6項目をPlaywright MCPで確認し、各項目のPASS/FAILを outcome.json の riskFlags に記録する。
 

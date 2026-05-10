@@ -155,7 +155,18 @@ tasks-validator から差し戻された場合（error_feedback が渡された�
    - requirements.mdから実装後の期待状態（TO-BE）を抽出
    - design.mdから技術的アプローチと使用ライブラリ（対応方針）を抽出
 
-3. **タスク一覧の生成**: [タスク管理ガイドライン](../../../docs/einja/steering/task-management.md)の「タスク階層一覧表」に従って分解：
+3. **DS先行タスク生成（デザインシステム不足コンポーネントの確認）**:
+   - 仕様ディレクトリに `design-component-manifest.json` が存在する場合:
+     1. `missingFromPackage` リストを確認する
+     2. 不足コンポーネントごとに「DS実装タスク」を先行タスクとして生成する:
+        - タスク名: 「[DS] {ComponentName} コンポーネント実装」
+        - 実行サブエージェント: `[design-engineer]`
+        - **対応UIデザイン**: 該当フレーム（manifestに記載がある場合）
+     3. `missingFromPackage` に対応する feature タスクに `**依存関係**`: DS実装タスクID を設定する
+   - `missingFromPackage` が空または `design-component-manifest.json` が存在しない場合はこのステップをスキップ
+   - ※ live Pencil MCPは呼ばない（manifestを読むだけ）
+
+4. **タスク一覧の生成**: [タスク管理ガイドライン](../../../docs/einja/steering/task-management.md)の「タスク階層一覧表」に従って分解：
    - ユーザーストーリーや機能単位で要件グループ化
    - 各要件グループ内で、1つまたは一部のACを満たす単位でタスクグループを作成
    - タスクグループごとに明確な完了条件（AC番号を含む）を設定
@@ -272,6 +283,48 @@ einja-issue-spec-create Skillから呼ばれた場合（Issue番号が渡され�
 | タスクグループ | X.Y | `- [ ] 1.1 [名前]` | なし |
 | タスク | X.Y.Z | `  - 1.1.1 [名前]`（2スペースインデント） | **必須** |
 | サブタスク | なし | `    - [内容]`（4スペースインデント） | **任意** |
+
+### Phase末尾タスクグループ（必須・各Phaseに追加）
+
+**各Phaseの最後**に、Phase完了確認タスクグループを配置する。このタスクグループには以下のステップを含める：
+
+1. **phase-reviewer呼び出し**（Weighted Scorecard）: `einja-task-exec` がPhase末尾タスクグループの完了をトリガーとして `phase-reviewer` エージェントを自動起動する。タスク一覧には以下を明記すること:
+   - 実行サブエージェント: `[phase-reviewer]`
+   - 完了条件: Weighted Scorecard PASS（閾値以上）
+
+2. **機能的受け入れ確認**（AskUserQuestionで受け入れパケット提示）: `einja-task-exec` がPhase完了後にユーザーへ受け入れパケット（Phase内で実装したACの一覧・動作確認結果）を提示し、ユーザーが受け入れOKを判定する。タスク一覧には以下を明記すること:
+   - Phase内で実装した全ACをチェックリスト形式で列挙すること
+   - ユーザーの判定（承認 / 差し戻し）を受けてから次Phaseへ進む
+
+```markdown
+- [ ] X.N Phase X完了確認
+  **実行サブエージェント**: [phase-reviewer]
+
+  - X.N.1 Phase X全タスク完了確認
+    - タスクグループX.1〜X.(N-1) の全タスク完了確認
+    - 全シナリオテストの成功確認
+    - コードレビュー完了確認
+    - デプロイ可能な状態であることを確認
+    - **要件**: Story 1, Story 2（Phase X内の全Story）
+    - **実装AC**: なし（完了確認タスク）
+    - **依存関係**: X.(N-1).Z（Phase内の最後のタスク番号）
+    - **完了条件**: Weighted Scorecard PASSかつPhase Xの全ACが確認できること
+    - **対応設計**: design.md 全セクション
+    - **シナリオテスト**: 全シナリオ（リグレッション確認）
+
+  - X.N.2 機能的受け入れ確認
+    - AskUserQuestionでユーザーに受け入れパケットを提示
+    - Phase X内で実装した全ACの動作確認結果を提示
+    - ユーザーの受け入れOKを受けてから次Phaseへ進む
+    - **要件**: Story 1, Story 2（Phase X内の全Story）
+    - **実装AC**: なし（受け入れ確認タスク）
+    - **依存関係**: X.N.1
+    - **完了条件**: ユーザーが受け入れOKを判定したこと
+    - **対応設計**: なし（受け入れ確認タスク）
+    - **シナリオテスト**: なし（受け入れ確認タスク）
+```
+
+**Phase 99（ドキュメント反映専用）には上記Phase完了確認タスクグループを追加しない。**
 
 ### Phase 99: ドキュメント反映（必須・自動追加）
 

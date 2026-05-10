@@ -30,6 +30,21 @@ skills:
 
 結果に基づき重点レビュー領域を特定してから詳細レビューに進む。
 
+**Outcome Manifest検証**:
+
+`artifacts/task-{taskId}.outcome.json` が存在する場合、以下を実施する:
+
+1. ファイルを読み込み、`acResults[]` の各エントリを確認する
+2. 各 `candidateVerdict` の妥当性を静的照合で検証する:
+   - `"implemented"` → 変更ファイル（`changedFiles`）やコードを確認し、実装が実際に存在するか照合する
+   - `"missing"` → 対応するACが未実装であることを確認する
+   - `"suspect"` → 実装は存在するが品質・完全性に疑念がある箇所を記録する
+3. 照合結果に基づき `candidateVerdict` を `"implemented" / "suspect" / "missing"` のいずれかに更新判定する
+4. `evidenceCommands[]` の整合性を確認する:
+   - `exitCode != 0` のエントリ: `suspect` または `failed` への格下げ候補としてフラグを立てる
+   - `artifactPath` が指定されているが実ファイルが存在しない: `evidenceRef不正` フラグを記録する
+5. Outcome Manifestが存在しない場合は警告を記録し、以降のレビューで要件照合を強化する
+
 ### 並列レビューの実行（必須）
 
 **einja-review-code Skill を呼び出してコードレビューを実行する。**
@@ -40,6 +55,45 @@ Skill tool で `einja-review-code` を呼び出す。以下の情報をSkill呼�
 2. Skillが観点ピック・並列サブエージェント起動・Codex並列・統合判定を一括で実行する
 
 **einja-review-code の結果判定をこのレビューの「コードレビュー判定」として採用する。**
+
+### P1チェック（条件付き自動スキャン）
+
+einja-review-code 実行後、変更内容に応じて以下を条件付きで実施する。各チェックは独立して判定し、失敗時は MAJOR 指摘として記録する。
+
+**依存脆弱性スキャン**（`package.json` または `pnpm-lock.yaml` に変更がある場合のみ）:
+```bash
+pnpm audit --prod --audit-level=high
+```
+- 未インストール・ネットワーク問題の場合はスキップし、警告として記録する
+
+**Prismaマイグレーション安全性**（`schema.prisma` に変更がある場合のみ）:
+```bash
+prisma migrate diff
+```
+結果に以下のパターンが含まれる場合は MAJOR 判定:
+```bash
+grep -E 'DROP COLUMN|DROP TABLE|ALTER COLUMN.*TYPE|SET NOT NULL'
+```
+
+**循環依存検出**（依存境界に関わるファイル変更がある場合のみ）:
+```bash
+pnpm dlx madge --circular
+```
+- 未インストール・実行エラーの場合はスキップし、警告として記録する
+
+**A11y確認**（フロントエンド変更が含まれる場合のみ）:
+- Playwright MCP Browserで主要UI要素（ボタン・フォーム・ナビゲーション等）のアクセシビリティを確認する
+- `alt` 属性・`aria-label`・フォーカス順序の基本項目を検証する
+
+**scripts/ lint/typecheck**（`scripts/` 配下のファイルに変更がある場合のみ）:
+- `scripts/` と同じ階層に `tsconfig.json` が存在する場合のみ実行する
+
+**retry anomaly gate**:
+- Outcome Manifestの `fixCount` または `retryCount` が累計5を超える場合、Risk Gate昇格を警告として記録する
+- 修正量が多いタスクは設計再検討が必要な可能性を指摘する
+
+**human-escalation gate**:
+- 仕様解釈が曖昧なACが存在する場合（例: "適切に表示されること" 等の定性的な条件）、PENDING_QUESTIONS形式で質問を返却し作業を停止する
 
 ### 1. 実装内容の確認
 - 修正されたファイルを読み込み
@@ -107,6 +161,23 @@ pnpm test       # すべてのテストが成功すること
 ```
 
 1つでも失敗したらMAJOR判定。
+
+### 5.5. QA結果レビュー（QA完了後に呼ばれる場合）
+
+`qa-tests/phase{N}/{N-M}.md` が存在する場合（QA完了後のレビュー呼び出し時）、以下を実施する:
+
+1. 各ACの `verdict` と `evidenceRef` を読み込む
+2. `evidenceRef` に記載されたファイルが実際に存在し、かつ中身が空でない（bytes > 0）ことを確認する
+3. MUST ACがすべて `verified` 状態になっているかを確認する（完全性スコア基準）
+4. `BLOCKED` と記録されたACについて、その理由の正当性を評価する:
+   - 「ログインできなかったからスキップ」等の曖昧・不十分な理由はMAJOR判定
+   - 正当なBLOCKED理由（環境制約・スコープ外等）は記録して次のレビューサイクルで再確認
+5. QA結果が以下のいずれかを満たす場合、`task-qa` を差し戻す（fix_required）:
+   - MUST ACに `verified` 以外のverdictが1件以上ある
+   - `evidenceRef` に記載のファイルが存在しない（または空）
+   - `BLOCKED` 理由が不十分・不正当と判断された
+
+差し戻し時は具体的な指摘内容（AC番号・不備の内容・修正方法）を明示する。
 
 ## レビュー結果の分類
 

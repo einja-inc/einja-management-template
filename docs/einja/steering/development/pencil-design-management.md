@@ -102,6 +102,36 @@ design-master.pen（アプリごとのSingle Source of Truth）
 - `sync-components {app}`: design-master.penの共通コンポーネントをui-design.penに反映
 - 破壊的操作のため、上書き対象の一覧を表示しユーザー確認を必須とする
 
+## DSコンポーネントファーストフロー
+
+### 概要
+
+UIデザインに新規コンポーネントが含まれる場合、画面実装の前に shared package への実装を優先する。
+
+### フロー
+
+1. ui-design.pen の `_components/` フレームから再利用可能コンポーネントを抽出
+2. `@repo/ui` / `@repo/admin-ui` の exports と突き合わせ
+3. 不足コンポーネントを `design-component-manifest.json` の `missingFromPackage` に記録
+4. tasks-generator が [DS] タスクを先行生成
+5. design-engineer が `packages/ui/` または `packages/admin-ui/` に実装
+6. feature タスクは [DS] タスク完了後に開始
+
+### どのパッケージに実装するか
+
+| 対象アプリ | 実装先パッケージ | 備考 |
+|---|---|---|
+| apps/web | `packages/ui` | base primitives |
+| apps/admin | `packages/admin-ui` | + layout/data-table 等 |
+| 両方で共通 | `packages/ui` を優先 | admin-ui は ui を拡張 |
+
+### 先行実装すべきコンポーネントの判断基準
+
+以下の全条件を満たす場合に shared package への実装を優先:
+- 2画面以上で再利用される
+- design-master の Components ゾーンの抽象度
+- export API として妥当（ページ固有でない）
+
 ## 関連ツール
 
 | Skill/エージェント | 用途 |

@@ -524,6 +524,18 @@ export const alertVariants = cva(
 - **保守性**: 将来の変更に強い構造
 - **コラボレーション**: デザイナーとの密な連携
 
+## DSコンポーネント実装モード
+
+`実行サブエージェント: [design-engineer]` かつタスク名が `[DS] {ComponentName} コンポーネント実装` の場合、以下の手順で実装する:
+
+1. `design-component-manifest.json` から対象コンポーネントの `frameName` を取得
+2. `ui-design.pen` の該当フレームをPencil MCPで取得（トークン・バリアント・状態を確認）
+3. 実装先パッケージを確認:
+   - 対象が `apps/web` 系 → `packages/ui/src/components/{ComponentName}/`
+   - 対象が `apps/admin` 系 → `packages/admin-ui/src/{ComponentName}/`
+4. 実装: Tailwind + CVA + デザイントークン（CSS変数）を使用
+5. エクスポート: `packages/{package}/package.json` の exports に追加
+
 <!-- @einja:project-private:start id="design-engineer-project" -->
 <!-- プロジェクト固有の情報を記入 -->
 <!-- @einja:project-private:end -->

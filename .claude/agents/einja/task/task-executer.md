@@ -22,6 +22,10 @@ task-exec（親）からpromptで以下の情報を受け取ります:
 - **設計参照**: design.mdのファイルパス + セクション名（自分でReadする）
 - **完了条件**: ACを含む具体的な完了条件
 - **フォールバックパス**: requirements.md / design.md のフルパス（追加情報が必要な場合）
+- **baseline_png**（UIタスクの場合のみ）: Step 2.5 で生成した baseline.png の絶対パス
+- **manifest_json**（UIタスクの場合のみ）: Step 2.5 で生成した manifest.json の絶対パス
+  - manifest.json には `frameName`（primaryFrameName、単一フレーム名）、`frameNames`（全フレーム配列）、`skippedFrames`（未照合フレーム）が含まれる
+- **対応UIデザイン**（UIタスクの場合のみ）: ui-design.pen の primaryFrameName（参照情報）
 
 ACはpromptに直接含まれるので即座に参照可能。
 設計情報は指定されたパス+セクションをRead toolで読み込む。
@@ -35,6 +39,13 @@ ACはpromptに直接含まれるので即座に参照可能。
 #### 1.1 promptに埋め込まれた情報の確認
 - task-exec（親）から渡されたACを確認し、実装対象の受け入れ基準を把握
 - タスクの完了条件と実装指示を確認
+
+#### 1.1.5 UIデザイン基準の確認（UIタスクの場合のみ）
+
+`baseline_png` が渡された場合（UIタスク）:
+- `baseline_png`（baseline.png）と `manifest_json`（manifest.json）のパスを確認し、実装前に参照する
+- `manifest.json` の `frameName`（= primaryFrameName）が実装対象のデザイン基準フレームである
+- 複数フレームが存在する場合は `frameNames` で全フレームを把握し、`skippedFrames` は別Issueで対応予定として認識する
 
 #### 1.2 設計情報の読み込み
 - 設計参照パス + セクション名に基づき、design.mdの該当セクションをReadで読み込む
@@ -227,6 +238,86 @@ function slugify(text: string): string {
 - [ ] APIエンドポイントにリクエストを送り、成功レスポンスを取得したか？
 - [ ] レスポンスの実際の構造（フィールド名、型、ネスト）を確認したか？
 - [ ] エラーレスポンスのフォーマットも確認したか？
+
+#### 4.7 タスク自己レビュー + Outcome Manifest生成
+
+実装完了後、以下のP0チェック（必須）・P1チェック（条件付き）を実施し、`artifacts/outcomes/{taskId}-outcome.json` を出力すること。
+
+##### P0チェック（常時必須・1つでもFAILなら fix_required）
+
+| チェック | コマンド/方法 |
+|---------|-------------|
+| Outcome Manifest生成 | `artifacts/outcomes/{taskId}-outcome.json` を出力（acResults[]形式、evidenceRef+toolCallIdで紐付け） |
+| diff限定残骸検出 | `git diff --name-only HEAD~1 2>/dev/null \| head -20` で変更ファイルを取得し、それらに対して `rg 'TODO\|FIXME\|faker\b\|alert(\|debugger'` を実行（tests/docs/example除外） |
+| PII/secret logging（diff限定） | auth/api関連ファイル変更時のみ: 変更ファイルで `console\.\|logger\.` と `email\|password\|token\|session` の近接確認 |
+| unsafe cast（diff限定） | 変更ファイルで `as any\|@ts-ignore\|biome-ignore` を検出（allowlist除外） |
+| typecheck（impacted package） | workspace変更: `turbo run typecheck --filter=...<changed_package>`（dependents向き）。workspace外（scripts/）: `tsc --noEmit -p scripts/tsconfig.json`（存在時のみ）。未対応時はskip |
+| impacted unit tests | `turbo run test --filter=...<changed_package>`（dependents向き）。packages/ui等test script未保持のshared packageはturboが自動スキップ。package.json/pnpm-lock.yaml/turbo.json変更時はfull suite（`pnpm test`）にフォールバック |
+
+##### P1チェック（条件付き・WARNでapproved維持・riskFlagsに記録）
+
+| チェック | 条件 |
+|---------|------|
+| lint（biome） | biome設定あるworkspaceのみ: `pnpm --filter <ws> exec biome check <diff_files>` |
+| テスト同伴チェック | apps/src変更時: 差分ファイル近傍の `*.test.*` 存在確認 |
+| env整合性 | `.env*`/auth/deploy周辺変更時: `.env.example` vs `.env.*` キー名照合 |
+| anti-shortcut | テストのみ変更時: snapshot更新のみ・辞書ハードコード・本体未変更を検出 |
+| scope drift | ファイル変更数 > 設計想定の2倍: task metadataのACと無関係な変更ファイルに警告 |
+
+##### 自己修正ルール
+
+- ループ上限: 最大2回（ローカルカウンター。変数として追跡。Workerの fixCount とは独立）
+- P0失敗 → `fix_required`（既存の directorVerdict 状態機械をそのまま使用）
+- P1 WARN → `directorVerdict = approved` のまま + outcome.json の root `riskFlags` 配列に記録
+
+##### UIタスクの追加処理
+
+einja-task-execから `baseline_png` と `manifest_json` のパスが渡された場合のみ実施:
+
+- 実装したUIが基準デザイン（baseline.png + manifest.json）と意図的に整合しているか確認する
+- 重大な乖離（コンポーネント種別変更・情報階層変更）があれば `riskFlags` に記録する
+
+##### Outcome Manifest出力形式
+
+```json
+{
+  "taskId": "1.2.3",
+  "acResults": [
+    {
+      "acId": "AC1.UI.N.001",
+      "claim": "実装内容の主張",
+      "verdict": "implemented",
+      "evidenceRefs": ["artifacts/evidence/1.2.3-ac1.ui.n.001.log"],
+      "evidenceBytes": 12345,
+      "toolCallId": "toolu_01ABC..."
+    }
+  ],
+  "changedFiles": ["apps/web/src/components/Foo.tsx"],
+  "testsAdded": ["apps/web/src/__tests__/Foo.test.tsx"],
+  "evidenceCommands": [
+    {
+      "cmd": "turbo run test --filter=...@repo/web",
+      "exitCode": 0,
+      "stdoutSummary": "42 tests passed",
+      "artifactPath": "artifacts/logs/1.2.3-test.log",
+      "gitSha": "abc123"
+    }
+  ],
+  "riskFlags": [],
+  "notes": ""
+}
+```
+
+※ task-qa がユーザビリティチェック後に type: "ux_finding" エントリを riskFlags に追記する。
+task-qa は artifacts/outcomes/{taskId}-outcome.json を読み込み → マージして更新する。
+
+**verdict ライフサイクル**（task-executer はライフサイクルの第1ステップのみ担当）:
+- task-executer（X.Y.Z 単位）: `verdict = "implemented"`（自己申告）
+- task-reviewer（グループ単位で1回）: `verdict` を `"implemented"` / `"suspect"` / `"missing"` に更新
+- task-qa（グループ単位で1回）: `verdict` を `"verified"` / `"failed"` / `"blocked"` に更新し、各 X.Y.Z の outcome.json に書き戻す
+- einja-task-exec（ゲート確認）: 全 MUST AC の `verdict` が `"verified"` の場合のみコミット可
+
+保存先: `artifacts/outcomes/{taskId}-outcome.json`
 
 ### 5. 修正記録の作成
 

@@ -387,7 +387,49 @@ Manager は以下を監視:
    - マージモードに応じた処理（manual: 待機、auto: 自動マージ）
    - 他 active Phase への変更伝播通知
 
-5. **Worker 消失検知**（30秒間隔）:
+5. **PHASE_ESCALATE チェック**（Phase完了後の追加チェック）:
+   - Phase内の全 `task-{X.Y}.json` を走査し、`status == "phase_escalated"` のタスクが存在するか確認する
+   - 存在する場合、Worker レベルの fix_required とは独立した Manager レベルのエスカレーション処理を実施する:
+
+   ```
+   // PHASE_ESCALATE: 個別タスク修正では対応できない根本問題
+
+   AskUserQuestion で以下を提示:
+   「Phase {N} でフェーズ全体に影響する根本問題が検出されました。
+
+   根本原因: [phase-reviewerの根本原因レポート（task-{X.Y}.json の escalationReason フィールドから取得）]
+   影響範囲: [phase_escalated となったタスクグループ一覧]
+
+   どう対応しますか？
+
+   a) spec-createフェーズに戻って仕様を修正する（ui-design.penも更新）
+      Note: 仕様レベルの根本問題がある場合。要件定義・設計からやり直す
+   b) Figma/ui-design.penを更新してから当Phaseを再実装する
+      Note: UIデザイン・設計は合っているが、デザイン成果物の更新が必要な場合
+   c) 前Phaseの成果物を修正してから当Phaseを再実装する
+      Note: 前Phaseの実装品質や設計が原因の場合。当Phaseのブランチをリセットして再実装
+   d) この問題を次Phase以降で対応する（リスクあり）
+      Note: 影響が限定的でフェーズを跨いで対処可能な場合。known issueとして記録して進行する
+   e) その他（自由入力）
+      Note: 上記に当てはまらない場合
+   」
+
+   ユーザーの選択に応じた処理:
+   - a/b/c の場合:
+     - PR が未作成ならば当 Phase のブランチを `git reset --hard` でリセット（ブランチごと破棄はしない）
+     - PR が作成済みならばクローズして、ブランチを再起点（Phase の base ブランチ）まで巻き戻し
+     - セッションファイル（`phase-{M}/status.json`, `phase-{M}/task-{X.Y}.json`）を pending 状態にリセット
+     - 指定されたフェーズでの作業をユーザーが完了させ次第、当 Phase を再実行する
+   - d の場合:
+     - `phase-{M}/status.json` に `knownIssues` フィールドを追記してエスカレーション詳細を記録
+     - CONDITIONAL ステータスとして次 Phase に進む
+   - e の場合:
+     - ユーザーの自由入力指示に従って処理する
+   ```
+
+   > **注意**: PHASE_ESCALATE は issue-exec-protocol.md の状態機械（approved / fix_required / rejected）とは独立した Manager レベルの処理である。Worker の fix_required サイクルを超えた根本問題に対応するためのエスカレーションであり、既存のゲートチェックフローを上書きしない。
+
+6. **Worker 消失検知**（30秒間隔）:
    - Worker の tmux pane が消失した場合のリカバリ処理（`tmux display-message -t "$WORKER_PANE" -p '#P' 2>/dev/null` で存在確認）
    - Worker のステータスを確認 → 未完了 Worker のみ再実行
    - リトライポリシー（fixCount / retryCount の上限、エスカレーション条件）は issue-exec-protocol.md を参照

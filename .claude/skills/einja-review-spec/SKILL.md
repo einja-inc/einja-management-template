@@ -1,15 +1,14 @@
 ---
 name: einja-review-spec
-description: "仕様書作成フェーズの成果物を多観点・並列でレビューするSkill。requirements.md、design.md、ui-design-url.md、qa-test.md、GitHub Issueのタスク一覧を対象に、観点別レビュアーとcodex-agentを並列起動して統合判定する。einja-issue-spec-create から各Phase完了時に呼び出す。Do NOT use for: コードdiffレビュー（→ einja-review-code）、Planレビュー（→ einja-review-plan）"
+description: "仕様書作成フェーズの成果物を多観点・並列でレビューするSkill。requirements.md、design.md、ui-design.pen、qa-test.md、GitHub Issueのタスク一覧を対象に、観点別レビュアーとcodex-agentを並列起動して統合判定する。einja-issue-spec-create から各Phase完了時に呼び出す。Do NOT use for: コードdiffレビュー（→ einja-review-code）、Planレビュー（→ einja-review-plan）"
 allowed-tools:
   - Read
   - Glob
   - Grep
   - Agent
   - ToolSearch
-  - mcp__claude_ai_Figma__whoami
-  - mcp__claude_ai_Figma__get_screenshot
-  - mcp__claude_ai_Figma__get_design_context
+  - mcp__pencil__batch_get
+  - mcp__pencil__get_screenshot
 ---
 
 # einja-review-spec Skill: 仕様書成果物の多観点並列レビュー
@@ -36,8 +35,8 @@ allowed-tools:
 - 未解決事項や残存リスク
 
 `phase2_bundle` の場合は追加で以下も渡す:
-- `ui-design-url.md` のパス（存在する場合）。YAMLフロントマターに `file_key` と各フレームの `node_id` を含む
-- `mcp__claude_ai_Figma__get_screenshot` で取得した画面プレビューの要約
+- `ui-design.pen` のパス（存在する場合）
+- `mcp__pencil__get_screenshot` で取得した画面プレビューの要約
 
 ## 実行フロー
 
@@ -51,10 +50,7 @@ allowed-tools:
   - `requirements.md`
   - `design.md` または `design/README.md` と各分割ファイル
   - `qa-test.md`
-  - `ui-design-url.md` がある場合:
-    1. **Figma認証確認**: `mcp__claude_ai_Figma__whoami` を実行する。未認証の場合はFigmaスクリーンショット取得をスキップし、「Figma未認証のためUI画面確認スキップ」と統合サマリーに記載する
-    2. **スクリーンショット取得**: YAMLフロントマターの `file_key` と各フレームの `node_id`（コロン形式）を読み取り、`mcp__claude_ai_Figma__get_screenshot` で各画面のプレビューを取得する
-    3. **観点Bレビュアーへの伝達**: このSkill自身（Skill実行主体）がスクリーンショット内容を観察・要約し、「画面名：観察内容テキスト」形式で観点Bレビュアーのプロンプトに埋め込む。スクリーンショット画像バイナリをサブエージェントに直接渡すのではなく、Skillが視覚確認した内容をテキストとして要約して渡す
+  - `ui-design.pen` がある場合は `mcp__pencil__get_screenshot` と `mcp__pencil__batch_get` で確認
 - `tasks`
   - `requirements.md`
   - `design.md`
@@ -74,7 +70,7 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | ID | 観点名 | 説明 |
 |----|--------|------|
 | A | 要件網羅性・スコープ | ユーザー要求、対象外、前提条件、残存リスクの明確さ |
-| B | ATDD・受け入れ基準品質 | AC一覧、AC詳細、正常系/異常系、検証可能性 |
+| B | ATDD・受け入れ基準品質 | AC一覧、AC詳細、正常系/異常系、検証可能性、UXカテゴリのACにインタラクション4状態・エラーメッセージ導線・多重送信防止・フォーカス管理が含まれているか |
 | C | 実装可能性・既存整合 | 既存アーキテクチャや実装パターンとの整合、非現実的要件の有無 |
 | D | QAトレーサビリティ | 後続の設計・QA・タスク分解に必要な情報が揃っているか |
 
@@ -83,7 +79,7 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | ID | 観点名 | 説明 |
 |----|--------|------|
 | A | 設計妥当性 | アーキテクチャ、API、DB、要件トレースの妥当性 |
-| B | UI/UX・画面整合 | `ui-design-url.md`（Figma）と requirements/design の整合、一貫性、主要導線 |
+| B | UI/UX・画面整合 | `ui-design.pen` と requirements/design の整合、一貫性、主要導線、インタラクション4状態設計（disabled/error/empty/loading）の有無、エラーメッセージの位置と再試行導線の明示、多重送信防止とローディング制御、基本フォーカス管理 |
 | C | QA網羅性・実行可能性 | AC対応、前提条件、手順の明確さ、打鍵確認可能性 |
 | D | 横断整合性 | design / ui / qa の用語、API名、画面名、外部API前提の一致 |
 
@@ -92,7 +88,7 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | ID | 観点名 | 説明 |
 |----|--------|------|
 | A | ATDD粒度 | Phase/タスクグループ/タスクが縦切りで、AC検証可能か |
-| B | 依存関係・並列性 | 並列実行可能性、依存関係記法、Phase分割の妥当性 |
+| B | 依存関係・並列性・UX網羅性 | 並列実行可能性、依存関係記法、Phase分割の妥当性。フロントエンド変更を含むタスクグループにUXカテゴリAC（インタラクション4状態・エラーメッセージ導線・多重送信防止・フォーカス管理）が割り当てられているか |
 | C | トレーサビリティ | requirements / design / qa との対応関係の明確さ |
 | D | 実行準備性 | サブエージェント割当、完了条件、シナリオテスト指定の妥当性 |
 

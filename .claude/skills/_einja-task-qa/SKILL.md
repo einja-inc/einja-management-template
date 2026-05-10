@@ -33,15 +33,32 @@ allowed-tools:
 
 ---
 
-## 実行手順（8ステップ）
+## 実行手順（10ステップ）
+
+### ステップ0-P: 前提条件チェック（P0・1つでも失敗したら全下流テストはBLOCKED）
+
+チェック項目:
+1. アプリ起動確認: `curl -f http://localhost:{PORT}/` → 非200は即BLOCKED
+2. 認証動作確認: ログイン画面が表示されるか確認
+3. DB接続確認: APIエンドポイント（/api/rpc/xxx）が500でないか確認
+4. 外部サービス確認: 必要なAPIキー・環境変数が設定されているか
+5. ログイン完了確認: UIテストの場合、ログイン後ページにアクセス可能か確認
+   ※「ログインページが表示された」だけではPASS不可。保護リソースへのアクセス成功まで確認
+
+BLOCKED時の必須アクション:
+- 原因を特定してAskUserQuestionで即エスカレーション
+- 解決策（例: ローカルDB起動、OAuth credentials設定）を提示
+- ユーザーが解決するまでQAはBLOCKED（完了を宣言しない）
+
+---
 
 ### ステップ0: 引数の解析と初期化
 
 **入力形式**: 自然言語でAC指定（task-executerから呼び出される）
 
-**例**: `docs/specs/issues/issue42-magic-link/ のstory1.mdにあるAC1.1, AC1.2のテストを実行してください`
+**例**: `docs/specs/issues/issue42-magic-link/ のstory1.mdにあるAC1.UI.N.001, AC1.UI.N.002のテストを実行してください`
 
-**タスクリストの作成**: TaskCreateツールで8ステップのタスクリストを作成してください。
+**タスクリストの作成**: TaskCreateツールで10ステップのタスクリストを作成してください。
 
 ---
 
@@ -50,6 +67,8 @@ allowed-tools:
 1. `{spec_dir}/requirements.md` の存在を確認
 2. requirements.md を読み込み、AC（受け入れ条件）を抽出
 3. 各ACから「検証レベル」（Unit/Integration/E2E）を識別
+4. `{spec_dir}/qa-tests/scenarios.md` が存在する場合は読み込み、
+   現在のPhaseに対応するシナリオIDを特定する
 
 **パース目標**: AC番号、タイトル、前提条件、操作、期待結果、**検証レベル**
 
@@ -78,15 +97,16 @@ AskUserQuestion:
 
 **⚠️ 超重要**: 以下5項目は**すべて成功が必須**。1つでも失敗したら即座に**FAILURE**判定。
 
-| 項目 | コマンド | 失敗時の分類 |
-|-----|---------|------------|
-| ユニットテスト | `pnpm test` | A（実装ミス） |
-| E2Eテスト | `pnpm test:e2e` | A（実装ミス） |
-| Lintチェック | `pnpm lint` | A（実装ミス） |
-| ビルド | `pnpm build` | A（実装ミス） |
-| 型チェック | `pnpm typecheck` | A（実装ミス） |
+| 項目 | コマンド | 失敗時の分類 | スクリプト未定義時 |
+|-----|---------|------------|----------------|
+| ユニットテスト | `pnpm test` | A（実装ミス） | SKIP（WARN記録） |
+| E2Eテスト | `pnpm test:e2e` | A（実装ミス） | **SKIP（WARN記録）** ← FAILにしない |
+| Lintチェック | `pnpm lint` | A（実装ミス） | SKIP（WARN記録） |
+| ビルド | `pnpm build` | A（実装ミス） | SKIP（WARN記録） |
+| 型チェック | `pnpm typecheck` | A（実装ミス） | SKIP（WARN記録） |
 
-**重要**: いずれか1つでも失敗した場合、手動確認は実施せず即座にFAILURE判定。PARTIAL判定は禁止。
+**重要**: いずれか1つでも**失敗（スクリプトが存在して実行に失敗）**した場合、手動確認は実施せず即座にFAILURE判定。PARTIAL判定は禁止。
+**スクリプト未定義（`pnpm test:e2e` 等が package.json に存在しない）の場合はSKIPし、WARN記録に留めること。FAILにはしない。**
 
 ---
 
@@ -95,10 +115,10 @@ AskUserQuestion:
 **前提**: テスト仕様は `qa-generator` が作成済み。task-qaは**実行のみ**を担当。
 
 1. **テスト仕様ファイルの特定**: 自然言語で指定されたAC番号からStoryを判定
-   - 例: 「AC1.1, AC1.2のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
-   - 例: 「AC2.3のテストを実行」→ `qa-tests/story2.md`
+   - 例: 「AC1.UI.N.001, AC1.UI.N.002のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
+   - 例: 「AC2.UI.E.001のテストを実行」→ `qa-tests/story2.md`
 2. **シナリオテストの確認**: `qa-tests/scenarios.md` で該当ACの実施タイミングを確認
-3. **テスト仕様の読み込み**: story{N}.md内の該当ACセクションからテストシナリオ、確認項目、期待値を把握
+3. **テスト仕様の読み込み**: story{N}.md 内の該当ACセクションからテストシナリオ、確認項目、期待値を把握
 
 **エラー時**: テスト仕様が存在しない場合は失敗分類B（要件齟齬）→ qa-generatorで作成が必要
 
@@ -220,6 +240,58 @@ AskUserQuestion:
 
 - 外部APIを含むACの打鍵確認が一度もない場合 → **FAILURE（failureCategory=D: 環境問題）**
 
+#### デザイン比較（UIタスクかつbaseline.pngが渡されている場合）
+
+1. baseline と同じ viewport を設定
+2. 実装画面のスクリーンショットを取得
+3. LLMベースの構造的一致判定（intent比較）
+4. evidence保存:
+   ```
+   qa-tests/evidence/design-fidelity/{task-group}/
+     baseline/*.png, actual/*.png, comparison.md
+   ```
+
+### ユーザビリティチェック（UIタスク時・P1）
+
+baseline_png が提供されたUIタスクの場合のみ実施する。
+（ui-design.pen が存在せず tsx 変更のみのタスクは baseline_png が渡されないため、このチェックをスキップする）
+
+以下の6項目をPlaywright MCPで確認し、各項目のPASS/FAILを outcome.json の riskFlags に記録する。
+
+| # | 項目 | チェック方法 | FAIL条件 |
+|---|------|-------------|---------|
+| UX-1 | エラーメッセージ位置 | browser_snapshot でエラー要素の位置を確認 | フィールドから離れた場所に表示される |
+| UX-2 | 再試行導線の存在 | API失敗をシミュレートし、再試行ボタン/リンクの存在を確認 | 再試行手段がない |
+| UX-3 | 操作後フィードバック | 保存/削除等の操作後、toast/snackbar/メッセージの表示を確認 | フィードバックが一切ない |
+| UX-4 | ローディング状態 | API呼び出し中のスピナー/disabled状態を確認 | ローディング表示がない（多重送信防止含む）|
+| UX-5 | empty状態UI | データ0件時の表示をPlaywrightで確認 | 空のリストが表示される（empty state なし）|
+| UX-6 | フォーカス管理 | browser_evaluate でdocument.activeElementを確認 | 初期フォーカスなし or エラー後のフォーカス移動なし |
+
+各FAIL の riskFlags エントリ（artifacts/outcomes/{taskId}-outcome.json に追記）:
+```json
+{
+  "type": "ux_finding",
+  "id": "UX-1",
+  "severity": "MINOR",
+  "source": "task-qa",
+  "taskId": "{taskId}",
+  "result": "FAIL",
+  "detail": "..."
+}
+```
+※ UX-3 のみ severity: "MAJOR"（理由: ユーザーが操作結果を認識できないと二重実行・データ損失が発生するリスクがあるため）
+※ UX-1/2/4/5/6 は severity: "MINOR"（UX品質の問題だが機能的な損失は低い）
+
+**書き込み責務（writer: task-qa）**:
+task-qa がユーザビリティチェック完了後に、各FAILエントリを
+`artifacts/outcomes/{taskId}-outcome.json` の root `riskFlags` 配列に追記する。
+
+追記の際は既存の riskFlags を読み込んでからマージすること（上書き禁止）。
+読み込み先も `artifacts/outcomes/{taskId}-outcome.json` （同一ファイル）。
+
+返却JSONの `uxFindings` 配列は人間可読の完了報告用であり、
+phase-reviewが参照するのは Outcome Manifest の riskFlags（type: "ux_finding"）である。
+
 ---
 
 ### ステップ5: 失敗原因の分類
@@ -263,6 +335,23 @@ AskUserQuestion:
 
 ---
 
+### ステップ6.5: QA完全性チェック
+
+結果を返却する前に、以下の完全性チェックを実施する:
+
+- 全ACに verdict が `"verified"` / `"failed"` / `"blocked"` のいずれかが設定されていること
+- `"verified"` ACには必ず `evidenceRef` があること（なければ `"blocked"` に格下げ）
+- 完全性スコア = verified AC数 / 全AC数
+  - >= 90%: **QA PASS**
+  - 70〜89%: **QA PASS with WARNING**
+  - < 70%: **QA FAIL**
+
+**ハードブロッカー（スコア関係なくFAIL）**:
+- 認証後のUIシナリオが1件もテストされていない
+- ステップ0-Pの前提条件が未解決のままQA完了を宣言しようとしている
+
+---
+
 ### ステップ7: 結果の返却
 
 **JSON形式で返却**:
@@ -280,12 +369,23 @@ AskUserQuestion:
     "partial": 2,
     "passRate": "70%"
   },
+  "completenessScore": {
+    "verifiedAC": 12,
+    "totalAC": 17,
+    "score": "70%",
+    "gate": "QA PASS with WARNING"
+  },
   "requiredTests": {
-    "unitTest": { "status": "PASS", "note": "" },
-    "e2eTest": { "status": "PASS", "note": "" },
+    "unitTest": { "status": "PASS" | "FAIL" | "SKIP", "note": "" },
+    "e2eTest": { "status": "PASS" | "FAIL" | "SKIP", "note": "" },
     "lint": { "status": "FAIL", "note": "10 errors found" },
     "build": { "status": "PASS", "note": "" },
     "typecheck": { "status": "PASS", "note": "" }
+  },
+  "designFidelity": {
+    "baselineProvided": true,
+    "evidencePath": "qa-tests/evidence/design-fidelity/{task-group}/",
+    "verdict": "MATCH" | "MISMATCH" | "SKIP"
   },
   "findings": [
     {
@@ -293,6 +393,14 @@ AskUserQuestion:
       "description": "Lintエラー10件が検出されました",
       "recommendation": "Biomeでコードを修正してください"
     }
+  ],
+  "uxFindings": [
+    {"id": "UX-1", "item": "エラーメッセージ位置", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-2", "item": "再試行導線の存在", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-3", "item": "操作後フィードバック", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-4", "item": "ローディング状態", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-5", "item": "empty状態UI", "result": "PASS/FAIL", "detail": "..."},
+    {"id": "UX-6", "item": "フォーカス管理", "result": "PASS/FAIL", "detail": "..."}
   ]
 }
 ```
@@ -311,10 +419,16 @@ AskUserQuestion:
     └── evidence/
         ├── story1/
         ├── story2/
-        └── story3/
+        ├── story3/
+        └── design-fidelity/
+            └── {task-group}/
+                ├── baseline/*.png
+                ├── actual/*.png
+                └── comparison.md
 ```
 
-**パス規則**: AC番号 "AC2.3" → Story番号 2 → `qa-tests/story2.md`（AC2.3セクション）
+**パス規則**: AC番号 "AC2.UI.N.001" → Story番号 2 → `qa-tests/story2.md`（AC2.UI.N.001セクション）
+（形式: `AC{Story}.{カテゴリ}.{N=正常系|E=異常系}.{連番3桁}`）
 
 ---
 
@@ -354,7 +468,7 @@ AskUserQuestion:
 
 ---
 
-**最終更新**: 2025-12-20
+**最終更新**: 2026-05-02
 
 <!-- @einja:project-private:start id="_einja-task-qa" -->
 <!-- プロジェクト固有の情報を記入 -->

@@ -6,6 +6,7 @@ color: yellow
 skills:
   - _einja-subagent-question-protocol
   - einja-review-code
+permissionMode: bypassPermissions
 ---
 
 あなたはコードレビューの専門家です。実装されたコードを要件定義・設計書と照合し、本番リリース可能な品質を保証します。

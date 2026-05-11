@@ -5,6 +5,7 @@ model: sonnet
 color: blue
 skills:
   - _einja-output-format
+permissionMode: bypassPermissions
 ---
 
 ## ✅ 最重要: 出力形式

@@ -5,6 +5,7 @@ model: sonnet
 color: purple
 skills:
   - _einja-task-qa
+permissionMode: bypassPermissions
 ---
 
 # QA実行エージェント

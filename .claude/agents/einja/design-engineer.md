@@ -6,6 +6,7 @@ model: sonnet
 color: pink
 skills:
   - _einja-output-format
+permissionMode: bypassPermissions
 ---
 
 ## ✅ 最重要: 出力形式
@@ -45,7 +46,7 @@ Figma MCPまたはPencil MCPを活用してデザインファイルからデザ�
 
 #### ファイル構造の理解
 ```markdown
-**使用するMCPツール**: `mcp__figma__get_file_info`
+**使用するMCPツール**: `mcp__claude_ai_Figma__get_design_context` + `mcp__claude_ai_Figma__get_metadata`
 
 1. Figmaファイル全体の構造を取得
 2. ページ一覧とコンポーネント構成を把握
@@ -54,7 +55,7 @@ Figma MCPまたはPencil MCPを活用してデザインファイルからデザ�
 
 #### デザイントークンの抽出
 ```markdown
-**使用するMCPツール**: `mcp__figma__get_styles`
+**使用するMCPツール**: `mcp__claude_ai_Figma__get_variable_defs`
 
 抽出するトークン:
 - **カラーパレット**: Primary, Secondary, Neutral, Semantic colors
@@ -68,8 +69,8 @@ Figma MCPまたはPencil MCPを活用してデザインファイルからデザ�
 #### コンポーネント仕様の取得
 ```markdown
 **使用するMCPツール**:
-- `mcp__figma__get_components`
-- `mcp__figma__get_component_info`
+- `mcp__claude_ai_Figma__get_design_context`（nodeIdを指定してコンポーネント一覧取得）
+- `mcp__claude_ai_Figma__get_design_context`（特定nodeIdでコンポーネント詳細取得）
 
 抽出する情報:
 - バリアント（状態、サイズ、カラー）
@@ -338,18 +339,26 @@ const InteractiveButton = () => {
 
 ## 実装ワークフロー
 
+### ステップ0: Figma認証チェック（Figma URL入力時のみ）
+
+Figma URLが提供された場合、最初に認証を確認する。
+
+1. `mcp__claude_ai_Figma__whoami` で認証状態を確認
+2. 未認証の場合: `mcp__claude_ai_Figma__authenticate` でブラウザ認証フローを開始し、PENDING_QUESTIONS形式でユーザーに認証完了を促す
+3. 認証済みの場合: planKeyを記録して次のステップへ進む
+
 ### ステップ1: Figmaファイルの分析
 ```markdown
-1. **MCPツール使用**: `mcp__figma__get_file_info`
+1. **MCPツール使用**: `mcp__claude_ai_Figma__get_design_context` + `mcp__claude_ai_Figma__get_metadata`
    - ファイル構造を把握
    - ページとコンポーネント一覧を取得
 
-2. **MCPツール使用**: `mcp__figma__get_styles`
+2. **MCPツール使用**: `mcp__claude_ai_Figma__get_variable_defs`
    - カラースタイルを抽出
    - テキストスタイルを抽出
    - エフェクトスタイルを抽出
 
-3. **MCPツール使用**: `mcp__figma__get_components`
+3. **MCPツール使用**: `mcp__claude_ai_Figma__get_design_context`（nodeIdを指定）
    - コンポーネント一覧を取得
    - 各コンポーネントのバリアントを把握
 ```
@@ -363,7 +372,7 @@ const InteractiveButton = () => {
 
 ### ステップ3: cva バリアントの作成
 ```markdown
-1. **MCPツール使用**: `mcp__figma__get_component_info`
+1. **MCPツール使用**: `mcp__claude_ai_Figma__get_design_context`（特定nodeId）
    - 各コンポーネントの詳細プロパティを取得
    - バリアント（variant, size, state）を抽出
 
@@ -402,6 +411,15 @@ const InteractiveButton = () => {
 - globals.cssを更新
 - 型定義ファイル（必要に応じて）を更新
 ```
+
+#### Figmaデザイントークンと既存CSSの差分検出・自動更新手順
+
+1. `mcp__claude_ai_Figma__get_variable_defs` で現在のFigma変数を取得
+2. 既存の `globals.css` の `:root` セクションの CSS 変数一覧を読み取る
+3. Figma変数と既存CSS変数を比較し、差分があるトークンを特定する
+4. 差分があるトークンのみを `globals.css` の該当箇所に更新する（変更不要のトークンはそのまま保持）
+5. `tailwind.config.ts` に独自拡張トークンが定義されている場合は同様に比較・更新する
+6. 更新したファイルと変更点（追加・変更・削除されたトークン名と値）を報告する
 
 ### 2. コンポーネントの同期
 ```markdown
@@ -452,7 +470,7 @@ const InteractiveButton = () => {
 ### カラーパレットの抽出と適用
 ```typescript
 // 1. Figmaからカラースタイルを取得
-// MCPツール: mcp__figma__get_styles (type: "fill")
+// MCPツール: mcp__claude_ai_Figma__get_variable_defs
 
 // 2. globals.css に CSS変数として定義
 /*
@@ -476,7 +494,7 @@ const Component = () => {
 ### コンポーネントバリアントの実装
 ```typescript
 // 1. Figmaコンポーネント情報を取得
-// MCPツール: mcp__figma__get_component_info
+// MCPツール: mcp__claude_ai_Figma__get_design_context（特定nodeId）
 
 // 2. バリアントをcvaとして実装
 import { cva } from "class-variance-authority";

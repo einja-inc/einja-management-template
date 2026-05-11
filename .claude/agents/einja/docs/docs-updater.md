@@ -3,6 +3,7 @@ name: docs-updater
 description: タスク仕様書をfeature/steering仕様書に反映する専用エージェント
 model: sonnet
 color: purple
+permissionMode: bypassPermissions
 ---
 
 # docs-updater エージェント

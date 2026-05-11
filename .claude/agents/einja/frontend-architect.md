@@ -6,6 +6,7 @@ color: purple
 skills:
   - _einja-output-format
   - _einja-subagent-question-protocol
+permissionMode: bypassPermissions
 ---
 
 ## ✅ 最重要: 出力形式

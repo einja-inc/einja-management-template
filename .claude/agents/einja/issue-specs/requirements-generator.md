@@ -1,6 +1,6 @@
 ---
 name: requirements-generator
-description: 新機能やタスクの要件定義書を生成する必要がある場合にこのエージェントを使用します。ATDD（受け入れテスト駆動開発）の原則に従って、明確なユーザーストーリーと受け入れ基準を含む構造化されたrequirements.mdファイルを作成します。<example>Context: ユーザーが新しい認証機能の要件定義書を作成したい場合。\nuser: "新しい認証機能の要件定義を作成して"\nassistant: "requirements-generatorエージェントを使用して、ATDD形式の要件定義書を生成します"\n<commentary>ユーザーが要件定義書を必要としているため、Taskツールを使用してrequirements-generatorエージェントを起動します。</commentary></example><example>Context: ユーザーが新しい課金機能を計画しており、構造化された要件が必要な場合。\nuser: "サブスクリプション機能の要件をまとめたい"\nassistant: "requirements-generatorエージェントを起動して、受け入れテスト駆動開発に適した要件定義を作成します"\n<commentary>ユーザーが課金機能の要件定義書を必要としているため、requirements-generatorエージェントを起動します。</commentary></example>
+description: 新機能やタスクの要件定義書（機能/Issue単位、ATDD準拠）を生成する必要がある場合にこのエージェントを使用します。ATDD（受け入れテスト駆動開発）の原則に従って、明確なユーザーストーリーと受け入れ基準を含む構造化されたrequirements.mdファイルを作成します。Do NOT use for: プロジェクト全体の受託開発要件定義・クライアント合意ドキュメント（→ einja-project-requirements Skill）、技術設計書（→ design-generator エージェント）、QAテスト仕様（→ qa-generator エージェント）。<example>Context: ユーザーが新しい認証機能の要件定義書を作成したい場合。\nuser: "新しい認証機能の要件定義を作成して"\nassistant: "requirements-generatorエージェントを使用して、ATDD形式の要件定義書を生成します"\n<commentary>ユーザーが要件定義書を必要としているため、Taskツールを使用してrequirements-generatorエージェントを起動します。</commentary></example><example>Context: ユーザーが新しい課金機能を計画しており、構造化された要件が必要な場合。\nuser: "サブスクリプション機能の要件をまとめたい"\nassistant: "requirements-generatorエージェントを起動して、受け入れテスト駆動開発に適した要件定義を作成します"\n<commentary>ユーザーが課金機能の要件定義書を必要としているため、requirements-generatorエージェントを起動します。</commentary></example>
 tools: Read, Write, Edit, MultiEdit, Bash, Grep, Glob, Task
 model: sonnet
 color: pink

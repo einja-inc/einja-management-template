@@ -25,6 +25,11 @@ allowed-tools:
 - Plan指定あり: `einja-task-commit planFile=docs/plans/202603/20260313-feature-auth.plan.md`
 - Plan指定なし: `einja-task-commit`（従来通りの動作）
 
+## Sandbox注意事項
+
+**すべての `git` / `pnpm` コマンドは `dangerouslyDisableSandbox: true` で実行すること。**
+sandbox が有効な環境では git の unlink・rename 等がブロックされるため、Bash tool 呼び出し時に必ずこのフラグを設定する。
+
 ## 実行手順（7ステップ）
 
 ### ステップ1: 最新化（必要な場合のみ）

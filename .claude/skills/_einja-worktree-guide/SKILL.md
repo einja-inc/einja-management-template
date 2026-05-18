@@ -12,6 +12,8 @@ user_invocable: false
 
 # Worktree セットアップガイド
 
+> **Sandbox注意事項**: すべての `git` コマンドは `dangerouslyDisableSandbox: true` で実行すること。
+
 ## Planモード実装フェーズでの使い方
 
 1. AskUserQuestionでベースブランチを確認（デフォルトブランチ / main / develop / その他）

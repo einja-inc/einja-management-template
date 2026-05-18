@@ -14,6 +14,10 @@ allowed-tools:
 
 # npm-release Skill: NPM パッケージ統合リリースエンジン
 
+## Sandbox注意事項
+
+**すべての `git` / `pnpm` / `npm` コマンドは `dangerouslyDisableSandbox: true` で実行すること。**
+
 ## 役割
 
 モノレポ内のNPMパッケージ（`@einja-inc/dev-cli`、`@einja-inc/create-app`）の変更を自動検出し、ビルド・テスト・NPM公開を統合的に実行します。

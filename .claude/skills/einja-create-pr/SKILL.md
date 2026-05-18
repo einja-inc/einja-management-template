@@ -12,6 +12,10 @@ PR作成時に以下を一括実行する:
 2. ラベル判定・付与
 3. PR作成（`gh pr create`）
 
+## Sandbox注意事項
+
+**すべての `git` / `gh` コマンドは `dangerouslyDisableSandbox: true` で実行すること。**
+
 ## 動作モード
 
 | モード | トリガー | changeset確認 | ラベル確認 |

@@ -12,6 +12,12 @@ allowed-tools:
 
 # conflict-resolver Skill: コンフリクト解消エンジン
 
+## Sandbox注意事項
+
+**すべての `git` コマンドは `dangerouslyDisableSandbox: true` で実行すること。**
+
+---
+
 ## 役割
 
 gitコンフリクト（rebase/merge/stash/cherry-pick等）を1ファイルずつユーザーに確認しながら安全に解消します。

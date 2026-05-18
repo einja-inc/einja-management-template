@@ -122,6 +122,8 @@ project_name: <kebab-project-name>
 
 ## 4. YAML 最小実例（screens 1件、edges 1件）
 
+**完全実例**: 10画面 + 12エッジを含む完全な manifest 実例は `docs/einja/example/specs/projects/sample-attendance-saas/screen-flow-url.md` を参照。
+
 ```yaml
 ---
 figma_url: https://www.figma.com/design/abc123

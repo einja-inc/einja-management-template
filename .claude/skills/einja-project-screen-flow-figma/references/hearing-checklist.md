@@ -40,6 +40,8 @@ patterns:
 
 `docs/einja/example/specs/projects/sample-attendance-saas/requirements.md` を入力にした場合の推定結果例。各画面に **`(暫定推定)`** マークを付与し、ヒアリングで確定させる。
 
+**完全な出力サンプル（ヒアリング Step 4 確定後の manifest）**: `docs/einja/example/specs/projects/sample-attendance-saas/screen-flow-url.md` を参照（10画面 + 12エッジ規模）。
+
 ### 3.1 §2.1.2 TO-BE フローから抽出（主要シグナル）
 
 | ロール | 画面候補 | フロー上のノード |

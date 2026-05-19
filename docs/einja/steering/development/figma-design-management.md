@@ -46,6 +46,17 @@ Pencilのケバブケースルールに準拠したURLパスベース + BEM風�
 - ネストされたパスはハイフンで結合: `/users/[id]/edit` → `users-edit`
 - 共通コンポーネント: `_components/[name]`（アンダースコアプレフィックス）
 
+### screen-flow-url.md 固有の命名規則（補強）
+
+プロジェクト全体の画面遷移マニフェスト（`screen-flow-url.md`）を生成する場合は、上記の基本ルールに加えて以下の命名規則を適用します。`einja-project-screen-flow-figma` Skill により生成されるFigmaノードに対する規約です。
+
+| 種別 | パターン | 例 |
+|------|---------|-----|
+| 画面ノード（FrameNode） | `screen-{kebab-name}` | `screen-dashboard`, `screen-login` |
+| エッジグループ（矢印+ラベルのgroup） | `edge__{from}__to__{to}` | `edge__dashboard__to__monthly-report` |
+
+冪等性照合のため、各ノードには `setSharedPluginData("einja.screenFlow", "stable_id", ...)` で `stable_id` を付与します（namespace: `einja.screenFlow`）。
+
 ## Git管理方法
 
 Figmaファイル自体はクラウド管理のためgitには含めません。代わりに以下の方法でメタデータをgit管理します。
@@ -100,6 +111,78 @@ frames:
 - **URL形式の区別**:
   - `figma_url`（ファイル全体URL）: `https://www.figma.com/design/{file_key}/{機能名}-ui-design` — ファイル全体への参照。GitHub Issue本文のUIデザインリンクに使用
   - フレーム直リンク（`?node-id=` 付きURL）: `https://www.figma.com/design/{file_key}?node-id={nodeId-hyphenated}` — 個別フレームへの直接リンク。タスクの `**対応UIデザイン**` メタデータに使用
+
+## screen-flow-url.md スキーマ（プロジェクト全体）
+
+プロジェクト全体の画面遷移マニフェストとして、`screen-flow-url.md` を別途管理します。`ui-design-url.md` がIssue単位の画面モックアップを管理するのに対し、`screen-flow-url.md` は**プロジェクト全体**の画面と画面間遷移の関係性を管理します。
+
+### 配置と用途
+
+| 項目 | 値 |
+|------|-----|
+| 配置場所 | `docs/project/screen-flow-url.md`（1リポジトリ1プロジェクト前提） |
+| 用途 | プロジェクト全体の画面遷移マニフェスト（画面一覧 + 遷移グラフ） |
+| 生成元 | `einja-project-screen-flow-figma` Skill |
+
+**`docs/project/` ディレクトリの扱い**: プロジェクト全体の運用ドキュメント（要件定義、画面遷移manifest等）を格納する。`docs/einja/` がCLI管理（読み取り専用）なのに対し、`docs/project/` は**プロジェクト固有で読み書き可能**。配布対象外（生成プロジェクト側で実行時に作成される）。
+
+### 主要フィールド
+
+YAMLフロントマター + `## screens` / `## edges` の2リストセクションで構成されます。
+
+| フィールド | 種別 | 説明 |
+|----------|------|------|
+| `figma_url` / `file_key` / `plan_key` | frontmatter | `figma_url` / `file_key` は ui-design-url.md と共通、`plan_key` は本Skill固有 |
+| `schema_version` | frontmatter | スキーマバージョン（互換性管理用、現行: `1`） |
+| `screens[]` | リスト | プロジェクト全体の画面リスト（`name` / `stable_id` / `node_id` / `role` / `status` / `position`） |
+| `edges[]` | リスト | 画面間遷移（`from` / `to` / `trigger` / `stable_id` / `node_id` / `status`） |
+
+完全スキーマ・冪等性ポリシー（再生成時の `stable_id` 照合、orphan化、AskUserQuestion確認フロー）は `.claude/skills/einja-project-screen-flow-figma/references/manifest-schema.md` を参照してください。
+
+### YAML最小実例
+
+```yaml
+---
+figma_url: https://www.figma.com/design/abc123
+file_key: abc123
+plan_key: team::1152187400294529955
+schema_version: 1
+generated_at: 2026-05-18
+project_name: attendance-saas
+---
+
+## screens
+
+- name: dashboard
+  stable_id: attendance-saas__dashboard
+  node_id: "1:2"
+  role: 人事部
+  status: active
+  position: { x: 0, y: 0 }
+
+## edges
+
+- from: dashboard
+  to: monthly-report
+  trigger: 月次レポートボタンクリック
+  stable_id: dashboard__to__monthly-report
+  node_id: "1:8"
+  status: active
+```
+
+## ui-design-url.md と screen-flow-url.md の関係
+
+両ファイルは粒度と用途が異なり、**同じFigma plan内に別ファイルとして共存可能**です。
+
+| 項目 | ui-design-url.md | screen-flow-url.md |
+|------|------------------|---------------------|
+| 粒度 | Issue単位（画面1枚の詳細モックアップ） | プロジェクト全体（画面の関係性=遷移図） |
+| 配置 | `docs/specs/issues/{cat}/issue{N}-{name}/` | `docs/project/` |
+| 共通フィールド | `figma_url` / `file_key` / `plan_key` | 同左（互換） |
+| 固有フィールド | `frames[]` / `design_target` / `issue_id` | `screens[]` / `edges[]` / `schema_version` |
+| 生成元 | `ui-design-generator`（Issue仕様書フェーズ） | `einja-project-screen-flow-figma`（プロジェクト初期/更新時） |
+
+`figma_url` / `file_key` / `plan_key` が共通フィールドのため、両ファイルは同一のFigma plan配下に別Figmaファイルとして並存できます。
 
 ## スクリーンショット取得方法
 

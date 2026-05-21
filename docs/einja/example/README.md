@@ -4,6 +4,19 @@
 
 ## 収録例
 
+### sample-attendance-saas: プロジェクト全体ドキュメント例
+
+受託開発のSaaSプロジェクトを想定した、プロジェクト全体合意ドキュメントの完全サンプル群。
+
+- [requirements.md](specs/projects/sample-attendance-saas/requirements.md) — プロジェクト要件定義書（einja-project-requirements 出力例）
+- [screen-flow-url.md](specs/projects/sample-attendance-saas/screen-flow-url.md) — 画面遷移図manifest（einja-project-screen-flow-figma 出力例）
+- [function-specs/index.md](specs/projects/sample-attendance-saas/function-specs/index.md) — 業務フロー機能仕様 一覧（einja-project-function-spec 出力例）
+
+**学習ポイント**:
+- 業務フロー単位の機能仕様書の章立て（sequenceDiagram、ステップ別表、機能一覧、関連画面）
+- N対N関係の表現（共通基盤機能 FN-005 通知配信機能を2業務フローで共有）
+- stable_id 経由の業務フロー↔画面の双方向トレーサビリティ
+
 ### issue999-example-task: マジックリンク認証機能
 
 **学習ポイント**:

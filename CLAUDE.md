@@ -318,6 +318,8 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `Skill計画` `Skill仕様策定` `skill-plan-guide` `Skill品質チェック` | `.claude/skills/einja-skill-plan-guide/SKILL.md` |
 | `Planレビュー` `plan review` `計画レビュー` | `.claude/skills/einja-review-plan/SKILL.md` |
 | `マイグレーション修復` `migration fix` `マイグレーション壊れた` `migrate失敗` `migration broken` `prisma migrate エラー` `P3006` `P3009` | `.claude/skills/einja-migration-fix/SKILL.md` |
+| `プロジェクト要件定義書` `受託開発要件` `クライアント合意要件` `project requirements` `RFP応答後の要件確定` `システム化要件` | `.claude/skills/einja-project-requirements/SKILL.md` |
+| `プロジェクト画面遷移図` `画面遷移図 Figma` `画面フロー図` `project screen flow` `screen flow Figma` `画面遷移 Figma 生成` | `.claude/skills/einja-project-screen-flow-figma/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 

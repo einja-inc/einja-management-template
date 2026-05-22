@@ -32,6 +32,7 @@ function_specs:
     file: "./function-spec-attendance-saas__flow__time_punch_approval.md"
     title: "打刻・申請・承認フロー"
     status: "draft"          # draft | review | approved
+    system_flow: included    # 任意（function-spec frontmatter と同期）: included | omitted（既定: included）
     related_screens:
       - "attendance-saas__punch"
       - "attendance-saas__request"
@@ -45,6 +46,7 @@ function_specs:
     file: "./function-spec-attendance-saas__flow__monthly_aggregation.md"
     title: "月次集計フロー"
     status: "review"
+    system_flow: included    # 任意（function-spec frontmatter と同期）
     related_screens:
       - "attendance-saas__dashboard"
       - "attendance-saas__monthly-report"
@@ -74,6 +76,7 @@ function_specs:
 | `file` | ✅ | string | function-spec ファイルへの相対パス（同一ディレクトリ内、`./` プレフィックス） |
 | `title` | ✅ | string | 業務フロー表示名（日本語可、自由形式） |
 | `status` | ✅ | string | `draft`（未完了プレースホルダあり） / `review`（プレースホルダ0件、ユーザーレビュー待ち） / `approved`（合意完了） |
+| `system_flow` | ⚠️ | string | `included`（§2.2 システム観点 sequenceDiagram あり、既定値） / `omitted`（§2.2 を `<!-- SKIPPED: 該当なし -->` で省略）。function-spec frontmatter の `system_flow` と同期する。欠損時は `included` 扱い（後方互換） |
 | `related_screens[]` | ⚠️ | array | 関連画面の `stable_id` ユニーク集合。screen-flow-url.md 未存在時は空配列 |
 | `related_function_ids[]` | ✅ | array | 当該フロー内で採番された `FN-XXX` ユニーク集合 |
 
@@ -86,10 +89,13 @@ frontmatter の後に以下 3 セクションを記述する（順序固定）:
 
 ## 業務フロー一覧
 
-| flow_id | タイトル | ステータス | 詳細 |
-|---------|---------|----------|------|
-| attendance-saas__flow__time_punch_approval | 打刻・申請・承認フロー | draft | [→](./function-spec-attendance-saas__flow__time_punch_approval.md) |
-| attendance-saas__flow__monthly_aggregation | 月次集計フロー | review | [→](./function-spec-attendance-saas__flow__monthly_aggregation.md) |
+| flow_id | タイトル | ステータス | §2.2 包含 | 詳細 |
+|---------|---------|----------|----------|------|
+| attendance-saas__flow__time_punch_approval | 打刻・申請・承認フロー | draft | ◯ | [→](./function-spec-attendance-saas__flow__time_punch_approval.md) |
+| attendance-saas__flow__monthly_aggregation | 月次集計フロー | review | ◯ | [→](./function-spec-attendance-saas__flow__monthly_aggregation.md) |
+| attendance-saas__flow__audit_log | 監査ログフロー | draft | − | [→](./function-spec-attendance-saas__flow__audit_log.md) |
+
+> 注: `§2.2 包含` 列は `function_specs[].system_flow` と同期する（`◯` = included / `−` = omitted）。`omitted` の場合は §2.2 が `<!-- SKIPPED: 該当なし -->` で省略され、システム観点記述は呼び出し元の各業務フロー §2.2 に組み込まれる方針となる。
 
 ## 画面別 関連機能逆引き表
 
@@ -143,6 +149,7 @@ flow_id: "attendance-saas__flow__time_punch_approval"
 project_name: "attendance-saas"
 title: "打刻・申請・承認フロー"
 status: "draft"
+system_flow: included    # 任意フィールド: included | omitted（既定: included）
 generated_at: "2026-05-21T10:30:00Z"
 source:
   requirements: "../requirements.md"
@@ -165,6 +172,7 @@ related_function_ids:
 | `project_name` | ✅ | string | プロジェクト名（kebab-case） |
 | `title` | ✅ | string | 業務フロー表示名 |
 | `status` | ✅ | string | `draft` / `review` / `approved` |
+| `system_flow` | ⚠️ | string | `included`（§2.2 システム観点 sequenceDiagram あり、既定値） / `omitted`（§2.2 を `<!-- SKIPPED: 該当なし -->` で省略）。本フィールドが SSoT であり、index.md の `function_specs[]` 内対応 entry へ同期する。欠損時は `included` 扱い（後方互換） |
 | `generated_at` | ✅ | string (ISO 8601) | 最終生成日時 |
 | `source.requirements` | ✅ | string | requirements.md への相対パス |
 | `source.screen_flow` | ⚠️ | string | screen-flow-url.md への相対パス（未存在時は省略可） |
@@ -265,6 +273,25 @@ function-spec.flow_id ←→ screen-flow-url.screens.stable_id
 | `1` | `1` | 通常実行 |
 | なし（旧形式） | `1` | AskUserQuestion で「自動マイグレーション（フィールド補完） / 中止」を確認 |
 | 未知（例: `2`） | `1` | エラー停止、ユーザーに Skill 更新を促す |
+
+### 5.4 任意フィールド `system_flow` の正本・同期ルール
+
+`system_flow` は §2.2 システム観点 sequenceDiagram の有無を表す任意フィールドである。schema_version の互換ポリシー上は **v1.x で後方互換を維持する** 拡張フィールドとして扱う。
+
+| 項目 | 内容 |
+|------|------|
+| 正本（SSoT） | function-spec frontmatter の `system_flow` |
+| 同期先 | `index.md` の `function_specs[]` 内対応 entry の `system_flow` |
+| 既定値（欠損時） | `included`（後方互換: 既存の v1 manifest に `system_flow` が無くても通常実行可能） |
+| 取りうる値 | `included`（§2.2 あり） / `omitted`（§2.2 を `<!-- SKIPPED: 該当なし -->` で省略） |
+| 生成・更新タイミング | Skill 実行時に function-spec frontmatter を更新したら、同セッション内で Step 3.1 で index.md `function_specs[]` を同期更新する |
+| v1 → v1.x 互換 | `system_flow` は任意フィールドのため欠落しても OK（reader は `included` として扱う） |
+
+#### 同期手順（Skill 内部の責務）
+
+1. function-spec を Write / Edit する際、frontmatter に `system_flow` を必ず明記する（`included` でも省略せず書く）
+2. index.md を Write / Edit する Step 3.1 で、各 function-spec の frontmatter から `system_flow` を Read し、`function_specs[]` 内対応 entry の `system_flow` に転記する
+3. 既存 v1 manifest を読み込む際、`system_flow` フィールドが無い場合は `included` として扱う（migration prompt は出さない）
 
 ---
 

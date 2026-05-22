@@ -1,6 +1,6 @@
 ---
 name: einja-project-function-spec
-description: "Generates project-wide functional specification documents (業務フロー単位の機能仕様書) for contract software development, derived from docs/project/requirements.md §2 (TO-BE業務フロー) / §6 (機能要件サマリ) and docs/project/screen-flow-url.md (stable_id). Outputs hybrid: `docs/project/function-specs/index.md` (manifest + 逆引き表) + `function-spec-{flow_id}.md` per business flow. Maintains bidirectional traceability to screen-flow-url.md via stable_id. Uses AskUserQuestion per-flow hearing (Q1-Q7) with section-level resume detection. Triggers: 'プロジェクト機能仕様', '業務フロー機能仕様', '業務フロー仕様', 'ビジネスフロー仕様', 'business flow function spec', '機能仕様書 生成', '続きから 機能仕様', 'resume function spec'. Do NOT use for: Issue/feature単位要件（→ requirements-generator agent）, 画面単位UI仕様, requirements.md §6への書き戻し（本Skillは独立採番のFN-XXXで運用）."
+description: "Generates project-wide functional specification documents (**業務フロー + 詳細システムフロー単位**の機能仕様書) for contract software development, derived from docs/project/requirements.md §2 (TO-BE業務フロー) / §6 (機能要件サマリ) and docs/project/screen-flow-url.md (stable_id). 業務観点（人系アクター中心）に加え、画面イベント単位のシステム挙動（画面表示時のデータ取得・フォーム送信・バリデーション・業務エラー・非同期反映）を4層 participant（Browser / Backend / DB / Ext（外部システム））で記述する。Outputs hybrid: `docs/project/function-specs/index.md` (manifest + 逆引き表) + `function-spec-{flow_id}.md` per business flow. Maintains bidirectional traceability to screen-flow-url.md via stable_id. Uses AskUserQuestion per-flow hearing (Q1-Q7 + サブ質問 Q3-S1 / Q4-S1 / Q5-S1/S2/S3) with section-level resume detection. Triggers: 'プロジェクト機能仕様', '業務フロー機能仕様', '業務フロー仕様', 'ビジネスフロー仕様', 'business flow function spec', '機能仕様書 生成', '続きから 機能仕様', 'resume function spec', 'システムフロー仕様', 'システム観点 sequenceDiagram', '画面イベント仕様'. Do NOT use for: Issue/feature単位要件（→ requirements-generator agent）, 画面単位UI仕様（ワイヤーフレーム / 項目定義 / メッセージ文言 → einja-project-screen-spec **未実装**, Phase 4）, 具体的APIパス・DBスキーマ・HTTPステータス詳細（→ design.md / Issue仕様）, requirements.md §6への書き戻し（本Skillは独立採番のFN-XXXで運用）."
 user-invocable: true
 ---
 
@@ -9,11 +9,13 @@ user-invocable: true
 <!-- 入力ソース1: docs/project/requirements.md（einja-project-requirements 出力） -->
 <!-- 入力ソース2: docs/project/screen-flow-url.md（einja-project-screen-flow-figma 出力） -->
 
-# einja-project-function-spec: プロジェクト機能仕様書（業務フロー単位）生成 Skill
+# einja-project-function-spec: 業務フロー機能仕様（業務観点 + システム観点）生成 Skill
 
 ## あなたの役割
 
-システム受託開発のシニアITコンサルタント兼業務分析担当として、**業務フロー単位の機能仕様書群**（`docs/project/function-specs/index.md` + `function-spec-{flow_id}.md`）を、`docs/project/requirements.md` と `docs/project/screen-flow-url.md` をベース入力に段階的なヒアリングで作成します。生成物は要件定義と画面遷移の間を埋め、業務フロー横断で機能・画面・データの流れを可視化するためのドキュメントです。
+システム受託開発のシニアITコンサルタント兼業務分析担当として、**業務フロー + 詳細システムフロー単位の機能仕様書群**（`docs/project/function-specs/index.md` + `function-spec-{flow_id}.md`）を、`docs/project/requirements.md` と `docs/project/screen-flow-url.md` をベース入力に段階的なヒアリングで作成します。
+
+業務観点（人系アクター中心のストーリー）に加え、画面イベント単位のシステム挙動（画面表示時のデータ取得・フォーム送信・バリデーション・業務エラー・非同期反映）を4層 participant（Browser / Backend / DB / 外部システム）で記述し、要件定義と design.md / Issue 仕様 / 画面仕様の橋渡しを担います。生成物は業務フロー横断で機能・画面・データの流れを可視化し、クライアント・PM・開発者の共通言語となるドキュメントです。
 
 ## 既存Skillとの違い（重要）
 
@@ -21,7 +23,8 @@ user-invocable: true
 |-------|------|---------|--------|
 | `einja-project-requirements` | プロジェクト全体（クライアント合意用） | 業務要件・システム化方針・スコープ・機能サマリ等の §1〜§16 | `docs/project/requirements.md` |
 | `einja-project-screen-flow-figma` | プロジェクト全体（画面遷移俯瞰） | 画面ノード集合・遷移エッジを Figma 上に生成 | `docs/project/screen-flow-url.md` |
-| **`einja-project-function-spec`（本Skill）** | **プロジェクト全体（業務フロー単位の機能仕様）** | 業務フロー詳細（sequenceDiagram + ステップ表）・機能一覧（FN-XXX）・データの流れ・業務ルール・関連画面 | `docs/project/function-specs/index.md` + `function-spec-{flow_id}.md` |
+| **`einja-project-function-spec`（本Skill）** | **プロジェクト全体（業務フロー + 詳細システムフロー単位の機能仕様）** | 業務フロー詳細（業務観点 + システム観点 sequenceDiagram + ステップ表）・機能一覧（FN-XXX）・機能カード・データの流れ・業務ルール + 主要技術制約・関連画面 | `docs/project/function-specs/index.md` + `function-spec-{flow_id}.md` |
+| `einja-project-screen-spec`（**Phase 4 未実装**） | プロジェクト全体（画面単位 UI 仕様） | ワイヤーフレーム / 項目定義（型・桁・必須・選択肢・初期値）/ メッセージ文言 / 遷移ボタン配置・遷移条件 / UI 状態（ローディング・無効化等） | （未定。Phase 4 で別 Plan 設計） |
 | `einja-issue-spec-create` Phase 1（`requirements-generator` エージェント） | 機能/Issue単位（ATDD要件） | UI/AC/権限/データモデル等の §1-§14 | `docs/specs/issues/{category}/issue{N}-{name}/requirements.md` |
 
 「機能を作りたい」「Issueの仕様を作りたい」場合は本Skillではなく `einja-issue-spec-create` を使用すること。本Skillは**プロジェクト全体の業務フロー横断仕様**専用です。
@@ -42,9 +45,28 @@ user-invocable: true
 2. **§6 への書き戻し禁止**: `requirements.md` §6 機能要件サマリは**参照のみ**。本Skillは独立採番 `FN-XXX` で機能IDを運用し、`requirements.md` を Edit してはいけない（`einja-project-requirements` の独立性保持）
 3. **画面 stable_id への双方向追跡**: `screen-flow-url.md` の `stable_id`（例: `attendance-saas__dashboard`）を関連画面参照キーとして用い、index.md に画面別逆引き表を生成する
 4. **業務フロー単位の独立性**: 1業務フロー = 1ファイル（`function-spec-{flow_id}.md`）。flow_id は `screen-flow-url.md` の `stable_id` 命名規則と整合（`{project_name}__flow__{snake_case_flow_name}`）
-5. **sequenceDiagram新規記述**: `requirements.md §2.1.2` の flowchart からの自動変換は行わない。アクター・メッセージ・分岐をヒアリングで埋めていく（mermaid `sequenceDiagram` 記法を標準とする）
+5. **sequenceDiagram新規記述（§2.1 業務観点 + §2.2 システム観点 の二段構成を必須とする）**: `requirements.md §2.1.2` の flowchart からの自動変換は行わない。アクター・メッセージ・分岐をヒアリングで埋めていく（mermaid `sequenceDiagram` 記法を標準とする）。§2.1 は業務観点（人系アクター中心のメッセージ授受）、§2.2 はシステム観点（4層 participant の画面イベント単位インタラクション）として **両方を必ず生成する**（`system_flow: omitted` 時を除く）
 6. **AskUserQuestion 2層記述**: 各選択肢は `description`（What: 何をするか）と `Note:`（So What: 選ぶとどうなるか、メリット/デメリット/注意点）を必ず含め、最後に **「その他（自由入力）」** を必ず加える
 7. **推測禁止**: 業務フロー範囲・優先度・アクター・例外処理はユーザーにしか決められない。AskUserQuestion で必ず確認する。技術的事実（requirements.md 内容・screen-flow-url.md 内容）は Read/Grep で自力解決可
+8. **内部実装詳細の取り扱い境界**: §2.2 システム観点では「同一TX」「Best-effort」レベルのトランザクション境界宣言までを本Skillで扱う。具体的なロック方式（楽観/悲観）・BEGIN/COMMIT 位置・テーブル名 / カラム名 / 正規表現 / HTTP ステータスコードは §7 申し送りに分離し、design.md / Issue 仕様で確定する
+9. **画面イベント駆動の粒度**: §2.2 システム観点 sequenceDiagram は「画面表示」「フォーム送信」「バリデーションエラー」「業務エラー」「非同期反映」を画面イベント単位で記述する。技術的なミドルウェア層（ロードバランサー・キャッシュサーバー等）の挙動は §7 申し送りに分離する
+
+### §2.2 canonical participant 名（固定）
+
+§2.2 システム観点 sequenceDiagram の `participant` **識別子**は以下の canonical fixed names を使用すること。任意の別名（例: `App`、`Server`、`Database` 等）は禁止する。
+
+| パターン | participant 識別子構成 | 適用フロー例 |
+|---------|----------------|------------|
+| 4層（標準） | `Browser` / `Backend` / `DB` / `Ext`（外部システム用） | 通常の CRUD + 外部連携を含むフロー |
+| 3層（外部連携なし） | `Browser` / `Backend` / `DB` | 単一システム内完結のフロー |
+| 3層（Browser なし・バッチ起動） | `Backend` / `DB` / `Ext` | バッチ実行・スケジューラ起動フロー（Browser を介さない） |
+
+**識別子と表示名の使い分け**:
+
+- **識別子**（`participant` 直後）は canonical 名（`Browser` / `Backend` / `DB` / `Ext`）で固定する
+- **表示名**（`as` 右辺）は当該フローの画面名・通称を併記してよい（例: `participant Browser as 打刻画面`）
+- 外部システムの識別子は `Ext` を使用し、表示名で具体名（通知配信基盤・バッチエンジン・給与SaaS等）を記述する（例: `participant Ext as 通知配信基盤`）
+- 機能仕様書全体で識別子の表記を統一する（表示名は各フローの文脈に合わせて差別化してよい）
 
 ## ワークフロー全体図
 
@@ -90,7 +112,7 @@ TaskCreateツールを使用して全体の進捗を可視化します:
 2. **未存在の場合**: 「未存在 / 新規」状態として扱い、0.3 モード選択をスキップしてそのまま Step 1 へ進む（モード = 新規）
 3. **存在する場合**:
    a. `index.md` の frontmatter から `function_specs[]` を取得し、各 entry の `status`（`draft` / `review` / `approved`）を集計
-   b. 各 `function-spec-{flow_id}.md` を Read して残存プレースホルダ（`\[ [^\]]+? \]` 形式）を検出し、「未完了フロー」を特定
+   b. 各 `function-spec-{flow_id}.md` を Read して残存プレースホルダ（`\[ [^\]]+? \]` 形式）を検出し、「未完了フロー」を特定。**ただし mermaid コードブロック（` ```mermaid` 〜 ` ``` `）内の `[ ... ]` 表記（flowchart ノード記法 `Browser[ 画面名 ]` 等）はプレースホルダ検出対象外とし、判定は mermaid ブロック外に限定する**
    c. 推定結果を 0.3 のモード選択質問文に含める
 
 #### 0.3 モード選択（既存ありの場合のみ）
@@ -191,10 +213,17 @@ multiSelect: true
 4. **「該当なし」回答時**: プレースホルダを `<!-- SKIPPED: 該当なし -->` で置換する
 5. **「スキップ（後回し）」回答時**: Edit を実行しない（プレースホルダをそのまま残す）
 6. `replace_all: false` を厳守する（複数セクションへの誤適用を防ぐ）
-7. **mermaid sequenceDiagram の Edit**: §2 業務フロー詳細の sequenceDiagram は、Q3「アクター」「メッセージ授受」「分岐・例外」回答の組み合わせから組み立てる。詳細記法例は `references/output-template.md` を参照
-8. **Edit 失敗時のフォールバック**:
-   1. Edit が `old_string` 不一致で失敗した場合、対象セクションを Read してアンカー文字列を実体から再構築し、最大2回までリトライする
-   2. それでも失敗する場合は当該質問を「スキップ（後回し）」扱いとして次質問へ進み、Step 3 残存検出に委ねる
+7. **mermaid sequenceDiagram の Edit（§2.1 業務観点 + §2.2 システム観点 の二段構成）**:
+   - §2.1 業務観点 sequenceDiagram: Q3「アクター」「メッセージ授受」「分岐・例外」回答の組み合わせから組み立てる（人系アクター中心）
+   - §2.2 システム観点 sequenceDiagram: `Browser` / `Backend` / `DB` / `外部システム` の 4 層 participant を基本とし、Q3 + Q3-S1（画面イベント単位のデータ取得・送信タイミング）+ Q4-S1（主要バリデーション）+ Q5-S1（業務エラーパターン）+ Q5-S2（非同期処理）+ Q5-S3（トランザクション境界）の回答から構築する
+   - canonical participant 名（固定）は「§2.2 canonical participant 名（固定）」セクション参照
+   - `system_flow: omitted` の場合は §2.2 を `<!-- SKIPPED: 該当なし -->` で置換し、§2.1 のみ生成する
+   - 詳細記法例は `references/output-template.md` の「sequenceDiagram 記述例」（§2.1 用 2 本 + §2.2 用 2 本）を参照
+8. **§3.2 機能カードの Edit**: §3.1 機能サマリ表で MUST 判定された機能のみ §3.2 機能カードを生成する。SHOULD / MAY は §3.1 のサマリ行のみで可。機能カードは `#### FN-XXX [機能名]` 単位で Edit を分割し、複数機能の一括置換は禁止。処理ステップが §2.2 で詳細記述済みの場合は「§2.2 ステップ N 参照」リダイレクトで可
+9. **§5.4 主要技術制約の Edit**: Q4-S1（主要バリデーション）+ Q5-S1（業務エラーパターン）+ Q5-S3（トランザクション境界）の回答から行単位で Edit する。テーブル全体置換は禁止。具体的な桁数値・正規表現・実装方式は §7 申し送りに分離する
+10. **Edit 失敗時のフォールバック**:
+    1. Edit が `old_string` 不一致で失敗した場合、対象セクションを Read してアンカー文字列を実体から再構築し、最大2回までリトライする
+    2. それでも失敗する場合は当該質問を「スキップ（後回し）」扱いとして次質問へ進み、Step 3 残存検出に委ねる
 
 #### 2.4 業務フロー境界の必須確認
 
@@ -224,10 +253,11 @@ multiSelect: true
 
 1. `references/manifest-schema.md` を Read し、index.md frontmatter スキーマと body 構造を取得
 2. 全業務フローを走査して `function_specs[]` の配列を構築:
-   - `flow_id` / `file` / `title` / `status`（残存プレースホルダがあれば `draft`、なければ `review`）
+   - `flow_id` / `file` / `title` / `status`（残存プレースホルダがあれば `draft`、なければ `review`。残存プレースホルダ判定では mermaid ブロック内の `[ ... ]` 記法を対象外とする）
+   - `system_flow`: function-spec frontmatter の `system_flow` を**正本**として同期コピーする。欠損時は `included` で補完する（後方互換）。本フィールドは index.md `function_specs[]` 内対応 entry へ必ず転記する
    - `related_screens[]`: 当該 `function-spec` の §3 機能一覧表・§6 関連画面一覧から抽出した `stable_id` ユニーク集合
    - `related_function_ids[]`: 当該 `function-spec` の §3 機能一覧表の `FN-XXX` ユニーク集合
-   - **§3 機能一覧表が正本**: `related_function_ids[]` の値は各 function-spec の §3 機能一覧表に登場する `FN-XXX` のユニーク集合とする。§2.2 ステップ別表で参照される FN-XXX が §3 に存在しない場合、Step 3.4（重複・参照整合性チェック）で警告を出す。
+   - **§3.1 機能サマリ表が正本**: `related_function_ids[]` の値は各 function-spec の §3.1 機能サマリ表に登場する `FN-XXX` のユニーク集合とする。§2.3 ステップ別表の **`関連機能ID` 列** で参照される FN-XXX が §3.1 に存在しない場合のみ、Step 3.4（重複・参照整合性チェック）で警告を出す。`備考` / `入出力` / `例外` 列等での文字参照（説明文中の FN-XXX 言及）は警告対象外。
 3. `docs/project/function-specs/index.md` を Write（既存があれば上書き前に `index.md.bak` 退避）
 
 #### 3.2 画面別逆引き表の再生成
@@ -240,7 +270,7 @@ multiSelect: true
 #### 3.3 残存プレースホルダ最終チェック
 
 1. 各 `function-spec-{flow_id}.md` を Read
-2. 残存プレースホルダ（`\[ [^\]]+? \]` 形式）を全件スキャン
+2. 残存プレースホルダ（`\[ [^\]]+? \]` 形式）を全件スキャン。**mermaid コードブロック（` ```mermaid` 〜 ` ``` `）内の `[ ... ]` 表記（flowchart ノード記法 `Browser[ 画面名 ]` 等）はプレースホルダ検出対象外とし、スキャンは mermaid ブロック外に限定する**
 3. 残存があれば AskUserQuestion で確認:
 
 ```
@@ -368,7 +398,8 @@ multiSelect: true
 - 本 Skill は親エージェント（オーケストレーター）として動作する
 - AskUserQuestion / Read / Write / Edit / Bash / Grep / Glob / Task / Skill ツールを使用
 - `context: fork` は設定しない（ユーザー対話 + Skill 呼び出しのため、親コンテキストで動作）
-- ファイル生成は `docs/project/function-specs/` 配下のみ（マネージドディレクトリ `docs/einja/` には書き込まない）
+- **function-spec 本体の生成先**は `docs/project/function-specs/` 配下のみ（`function-spec-{flow_id}.md` / `index.md` / `.bak/` をマネージドディレクトリ `docs/einja/` 配下に書き出すことは禁止）
+- **例外: Skill 設計時の運用メモ**は `docs/einja/memory/` 配下への書き込みを許可する。これは Skill 利用者がランタイムで生成する成果物ではなく、Skill メンテナの設計判断・申し送り（例: Phase 4 への責務分離メモ `docs/einja/memory/phase-4-screen-spec-deferred.md`）を記録する用途に限定する。Skill 実行ループ内では `docs/einja/memory/` へ書き込まない
 - `docs/project/requirements.md` および `docs/project/screen-flow-url.md` への **書き戻しは絶対に行わない**（参照のみ）
 
 ### ユーザー中断時の共通ハンドリング
@@ -385,9 +416,23 @@ multiSelect: true
 |------|------|------|
 | 必須入力 | `docs/project/requirements.md` | §2 業務フロー一覧・§3 アクター・§6 機能要件サマリの参照元 |
 | 推奨入力 | `docs/project/screen-flow-url.md` | `stable_id` による画面参照キーの参照元 |
-| サブ参照 1 | `references/hearing-checklist.md` | 業務フロー単位ヒアリング質問テンプレ（Q1〜Q7）+ 質問ID→セクション マッピング + 再開推定ロジック |
-| サブ参照 2 | `references/manifest-schema.md` | index.md frontmatter schema + function-spec frontmatter schema + flow_id 命名規則 |
-| サブ参照 3 | `references/output-template.md` | function-spec-{flow_id}.md のセクション構成テンプレ + プレースホルダ凡例 + sequenceDiagram 記述例 |
+| サブ参照 1 | `references/hearing-checklist.md` | 業務フロー単位ヒアリング質問テンプレ（Q1〜Q7、サブ質問 Q3-S1 / Q4-S1 / Q5-S1/S2/S3 を含む）+ 質問ID→セクション マッピング + 再開推定ロジック |
+| サブ参照 2 | `references/manifest-schema.md` | index.md frontmatter schema + function-spec frontmatter schema（`system_flow` 任意フィールドを含む）+ flow_id 命名規則 |
+| サブ参照 3 | `references/output-template.md` | function-spec-{flow_id}.md のセクション構成テンプレ（§2 二段構成 §2.1 業務観点 / §2.2 システム観点 / §2.3 ステップ別表、§3.1 機能サマリ表 / §3.2 機能カード、§4.1 外部連携 / §4.2 内部データフロー、§5.4 主要技術制約 のテンプレを含む）+ プレースホルダ凡例 + sequenceDiagram 記述例 |
+
+## Phase 4 (einja-project-screen-spec) との責務境界
+
+Phase 3（本 Skill = `einja-project-function-spec`）と Phase 4（**未実装**: `einja-project-screen-spec` 画面単位 UI 仕様）の責務境界を明確化する。Phase 3 は業務フロー横断の機能仕様、Phase 4 は画面単位の UI 仕様を扱う。
+
+| 観点 | Phase 3 機能仕様 (本Skill) | Phase 4 画面仕様 |
+|------|---------------------------|----------------|
+| 画面 | stable_id で参照のみ | ワイヤーフレーム + 項目定義 |
+| フォーム項目 | 業務的に必要な入力概念 | 項目名 / 型 / 桁 / 必須 / 選択肢 / 初期値 |
+| バリデーション | 業務ルール + 主要技術制約（種別） | 入力時の表示位置・メッセージ文言 |
+| 画面遷移 | 業務フロー上の宛先 stable_id | 遷移ボタンの配置・遷移条件 |
+| 画面挙動 | データ取得・送信タイミング | UI 状態（ローディング / 無効化 / ハイライト） |
+
+Phase 4 自体の Skill 設計は別 Plan で扱う。本 Skill の責務境界（Phase 3）を逸脱した画面仕様の要求が来た場合は、Phase 4 への申し送り対象として `docs/einja/memory/phase-4-screen-spec-deferred.md` に記録し、本 Skill では生成しない（参照: [phase-4-screen-spec-deferred.md](../../../docs/einja/memory/phase-4-screen-spec-deferred.md)）。
 
 <!-- @einja:project-private:start id="einja-project-function-spec-project" -->
 <!-- プロジェクト固有の情報を記入 -->

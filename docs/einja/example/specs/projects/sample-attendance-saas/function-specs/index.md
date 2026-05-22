@@ -10,6 +10,7 @@ function_specs:
     file: "./function-spec-sample-attendance-saas__flow__time_punch.md"
     title: "打刻フロー"
     status: "draft"
+    system_flow: "included"
     related_screens:
       - "sample-attendance-saas__login"
       - "sample-attendance-saas__dashboard"
@@ -23,6 +24,7 @@ function_specs:
     file: "./function-spec-sample-attendance-saas__flow__attendance_approval.md"
     title: "勤怠承認フロー（残業・有給申請の承認）"
     status: "draft"
+    system_flow: "included"
     related_screens:
       - "sample-attendance-saas__dashboard"
       - "sample-attendance-saas__request"
@@ -37,6 +39,7 @@ function_specs:
     file: "./function-spec-sample-attendance-saas__flow__monthly_aggregation.md"
     title: "月次集計フロー"
     status: "draft"
+    system_flow: "included"
     related_screens:
       - "sample-attendance-saas__dashboard"
       - "sample-attendance-saas__monthly-report"
@@ -51,6 +54,7 @@ function_specs:
     file: "./function-spec-sample-attendance-saas__flow__missed_punch_alert.md"
     title: "未打刻アラートフロー"
     status: "draft"
+    system_flow: "included"
     related_screens: []
     related_function_ids:
       - "FN-002"
@@ -59,6 +63,7 @@ function_specs:
     file: "./function-spec-sample-attendance-saas__flow__audit_log.md"
     title: "監査ログフロー"
     status: "draft"
+    system_flow: "omitted"
     related_screens: []
     related_function_ids:
       - "FN-013"
@@ -67,6 +72,7 @@ function_specs:
     file: "./function-spec-sample-attendance-saas__flow__shift_management.md"
     title: "シフト管理フロー"
     status: "draft"
+    system_flow: "included"
     related_screens:
       - "sample-attendance-saas__dashboard"
       - "sample-attendance-saas__shift-mgmt"
@@ -77,6 +83,7 @@ function_specs:
     file: "./function-spec-sample-attendance-saas__flow__master_management.md"
     title: "マスタ管理フロー（ユーザー管理）"
     status: "draft"
+    system_flow: "included"
     related_screens:
       - "sample-attendance-saas__dashboard"
       - "sample-attendance-saas__user-mgmt"
@@ -101,6 +108,10 @@ function_specs:
   - FN-013「監査ログ記録機能」は全フロー横断の暗黙呼び出し（§3 機能一覧には監査ログフローのみで列挙）
   （下記「機能ID別 所属フロー逆引き表」「N対N関係の補足」を参照）
 - 双方向トレーサビリティ: 画面 stable_id → function-spec → FN-XXX の双方向逆引きを2表で表現。
+- §2.2 システム観点 sequenceDiagram の有無: 各 function-spec の frontmatter `system_flow`（`included` / `omitted`）と index.md `function_specs[].system_flow` を同期。本サンプルでは `audit_log` のみ `omitted`（§2.2 を SKIPPED マーカーで省略し、各業務フロー §2.2 に Best-effort 監査ログ記録として組み込む方針）、他6フローは `included`。
+
+サンプル簡略化のため省略している項目:
+- §2.2 システム観点 sequenceDiagram の有無（本来は全フローで `included` を基本としつつ、横断暗黙呼び出し型の機能のみ `omitted` を選択する方針。本サンプルでは方針の差異を1ケース（audit_log）で実証）
 -->
 
 # プロジェクト機能仕様書 一覧（sample-attendance-saas）
@@ -117,15 +128,17 @@ requirements.md §2 から導出されるフェーズ1〜3の主要業務フロ�
 
 ## 業務フロー一覧
 
-| flow_id | タイトル | ステータス | 詳細 |
-|---------|---------|----------|------|
-| sample-attendance-saas__flow__time_punch | 打刻フロー | draft | [→](./function-spec-sample-attendance-saas__flow__time_punch.md) |
-| sample-attendance-saas__flow__attendance_approval | 勤怠承認フロー（残業・有給申請の承認） | draft | [→](./function-spec-sample-attendance-saas__flow__attendance_approval.md) |
-| sample-attendance-saas__flow__monthly_aggregation | 月次集計フロー | draft | [→](./function-spec-sample-attendance-saas__flow__monthly_aggregation.md) |
-| sample-attendance-saas__flow__missed_punch_alert | 未打刻アラートフロー | draft | [→](./function-spec-sample-attendance-saas__flow__missed_punch_alert.md) |
-| sample-attendance-saas__flow__audit_log | 監査ログフロー | draft | [→](./function-spec-sample-attendance-saas__flow__audit_log.md) |
-| sample-attendance-saas__flow__shift_management | シフト管理フロー | draft | [→](./function-spec-sample-attendance-saas__flow__shift_management.md) |
-| sample-attendance-saas__flow__master_management | マスタ管理フロー（ユーザー管理） | draft | [→](./function-spec-sample-attendance-saas__flow__master_management.md) |
+| flow_id | タイトル | ステータス | §2.2 包含 | 詳細 |
+|---------|---------|----------|----------|------|
+| sample-attendance-saas__flow__time_punch | 打刻フロー | draft | ◯ | [→](./function-spec-sample-attendance-saas__flow__time_punch.md) |
+| sample-attendance-saas__flow__attendance_approval | 勤怠承認フロー（残業・有給申請の承認） | draft | ◯ | [→](./function-spec-sample-attendance-saas__flow__attendance_approval.md) |
+| sample-attendance-saas__flow__monthly_aggregation | 月次集計フロー | draft | ◯ | [→](./function-spec-sample-attendance-saas__flow__monthly_aggregation.md) |
+| sample-attendance-saas__flow__missed_punch_alert | 未打刻アラートフロー | draft | ◯ | [→](./function-spec-sample-attendance-saas__flow__missed_punch_alert.md) |
+| sample-attendance-saas__flow__audit_log | 監査ログフロー | draft | − | [→](./function-spec-sample-attendance-saas__flow__audit_log.md) |
+| sample-attendance-saas__flow__shift_management | シフト管理フロー | draft | ◯ | [→](./function-spec-sample-attendance-saas__flow__shift_management.md) |
+| sample-attendance-saas__flow__master_management | マスタ管理フロー（ユーザー管理） | draft | ◯ | [→](./function-spec-sample-attendance-saas__flow__master_management.md) |
+
+注: `§2.2 包含` 列は `function_specs[].system_flow` と同期する（`◯` = included / `−` = omitted）。`audit_log` は §2.2 が `<!-- SKIPPED -->` マーカーで省略され、システム観点記述は各業務フロー §2.2 に Best-effort 監査ログ記録として組み込まれる方針。
 
 ## 画面別 関連機能逆引き表
 
@@ -184,6 +197,13 @@ requirements.md §2 から導出されるフェーズ1〜3の主要業務フロ�
 - **設計重複の回避**: 通知配信ロジック・監査ログ記録ロジックを業務フローごとに重複設計せず、共通基盤として一度設計すれば全フローで再利用できる
 - **影響範囲の可視化**: FN-005 / FN-002 / FN-013 の仕様変更が複数フローに波及することが、本逆引き表から即座に判断できる
 - **設計フェーズへの申し送り**: design.md / Issue 仕様では FN-005・FN-013 を独立した共通モジュール（通知サービス / 監査ログサービス）として実装する方針が導きやすくなる
+
+#### §2.2 システム観点での共有 participant
+
+N対N関係は §2.1 業務観点だけでなく §2.2 システム観点 sequenceDiagram 上でも **共通 participant の共有** という形で可視化される。
+
+- **FN-005 通知配信機能 / FN-002 未打刻検知バッチ**: 打刻フロー（time_punch）/ 勤怠承認フロー（attendance_approval）/ 未打刻アラートフロー（missed_punch_alert）の §2.2 で、いずれも **外部システム = 通知配信基盤** を同一 participant として共有する（具体的な participant 別名は各フローで `N` / `Notif` / `Ext` 等の表記揺れがあるが、表示名「通知配信基盤」で意味的に同一）。これにより、通知配信基盤の API インタフェース仕様変更が3フローの §2.2 に同時に波及することが視覚的に追跡可能となる。
+- **FN-013 監査ログ記録機能**: audit_log フロー §2.2 は `<!-- SKIPPED -->` マーカーで本文を省略し、システム観点の記述は各業務フロー（time_punch / attendance_approval / monthly_aggregation / missed_punch_alert / shift_management / master_management）の §2.2 内に **Best-effort 監査ログ記録** として組み込まれている。共通実装方式（Middleware / Server Action ラッパ等）の選定は audit_log フロー §3.2 機能カード + §5.4 で集中管理する。
 
 #### FN-XXX 採番ポリシー
 

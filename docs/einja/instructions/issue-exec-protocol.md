@@ -168,7 +168,7 @@ fi
 
 | PR種別 | base | head | 作成者 |
 |--------|------|------|--------|
-| タスクPR | `issue/{N}-phase{M}` | `task/{N}-{X.Y}` | Worker(einja-task-exec) / Teammate（Agent Teams版） |
+| タスクPR | `issue/{N}-phase{M}` | `task/{N}-{X.Y}` | Worker(einja-task-exec Step 7.5) / Director Teammate（Agent Teams版 director-prompt Step 7）。einja-create-pr Skill 経由で作成 |
 | Phase PR | `issue/{N}` | `issue/{N}-phase{M}` | Manager/Lead |
 | 最終PR | IssueBranchBase | `issue/{N}` | Manager/Lead |
 

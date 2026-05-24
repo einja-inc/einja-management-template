@@ -374,7 +374,7 @@ Manager は以下を監視:
    - 質問ファイルの pending 状態も同様にシグナルファイルで通知（`question-{UUID}.signal`）
    - **シグナルファイルはあくまで「起床トリガー」**。完了の判定はステータスファイルで行う
 
-2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
+2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたタスクPRマージ処理（タスクPRはWorker側のeinja-task-exec Step 7.5で作成済み。ManagerはタスクPRを自ら作成しない） → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
 
 3. **質問エスカレーション処理**:
    - `~/.einja/sessions/issue-{N}/questions/` の pending 質問を検知

@@ -481,8 +481,11 @@ while true:
   3. directorVerdict = "fix_required" → fixInstructions を読み、修正実行:
      - fixInstructions の内容に基づいて task-executer で修正
      - 修正後、再度 task-reviewer → task-qa → einja-task-commit
-     - status を再度 "awaiting_review" に更新
      - directorVerdict をクリア（null に戻す）
+     - fixInstructions をクリア
+     - status を再度 "awaiting_review" に更新
+     - シグナルファイルを再作成: `touch ~/.einja/sessions/issue-{N}/signals/worker-{X.Y}.signal`
+     - **順序厳守**: 上記 a〜d の4ステップ（a: directorVerdictクリア → b: fixInstructionsクリア → c: status更新 → d: シグナル作成）の順序を厳守すること。シグナルはManagerの起床トリガーであり、状態更新完了前にシグナルを作成するとManagerが stale な directorVerdict を読み取る競合が発生する
   4. directorVerdict = "rejected" → 失敗終了（status="failed"、tmux window終了）
   sleep 15
 ```

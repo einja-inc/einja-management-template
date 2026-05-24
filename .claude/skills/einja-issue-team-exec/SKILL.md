@@ -305,6 +305,13 @@ Lead の監視ループ:
 > - DirectorはSendMessage送信**後に** `touch ~/.einja/sessions/issue-{N}/signals/director-{ID}.signal` を実行する
 > - Leadはシグナル受信後、ステータスファイルとSendMessageキューを両方チェックして処理する
 > - `processed_pr_numbers` セットにより同一イベントの二重処理を防止
+>
+> **タイムアウト時のフォールバック**: 120秒経過してもシグナルが検出されなかった場合、Leadは以下を実行する:
+> 1. 全DirectorからのSendMessageキューに未読メッセージがないか確認する。`[pr-ready]`・`[error]`・`[idle]` 等のメッセージが届いていればシグナル受信時と同様に処理する
+> 2. 未読メッセージがなければ、全Directorの最終応答時刻を確認し、長時間（10分以上）応答がないDirectorを検出する
+> 3. 応答停止Directorがなければ監視ループの先頭に戻り、再度120秒のシグナル待機に入る
+> 4. **最大待機上限**: 応答停止Director検出時、または連続15回（約30分間）未読メッセージも応答停止もない場合、全Directorの状態をユーザーに報告し手動介入を促す。正常に実装中のDirectorを誤検知しないよう、応答停止（SendMessage/TaskOutput が一定時間ない）を条件とする
+> これはシグナルファイルの作成漏れ、Directorのハングに対する防御策である
 
 ### 5-1. Director からの SendMessage 受信
 

@@ -28,22 +28,48 @@ PR作成時に以下を一括実行する:
 ## 入力
 
 ```
-$ARGUMENTS: [--auto] [--base <branch>] [--title <title>]
+$ARGUMENTS: [--auto] [--base <branch>] [--head <branch>] [--title <title>]
 ```
 
 - `--auto`: 自動モード（確認なしで実行）
 - `--base`: PRのベースブランチ（デフォルト: 現在のブランチの上流を推測）
+- `--head`: PRのヘッドブランチ（デフォルト: 現在のブランチ）
 - `--title`: PRタイトル（指定なしの場合はコミットメッセージから生成）
 
 ## 処理フロー
 
-### Step 1: 差分分析
+### Step 1: 引数解析・重複チェック・差分分析
+
+#### Step 1a: BASE/HEAD決定
 
 ```bash
 # ベースブランチの決定
 BASE=$(git rev-parse --abbrev-ref HEAD@{upstream} 2>/dev/null | sed 's|origin/||' || echo "main")
 # --base指定があればそちらを優先
 
+# ヘッドブランチの決定
+HEAD_BRANCH="${HEAD:-$(git rev-parse --abbrev-ref HEAD)}"
+```
+
+#### Step 1b: 既存PR重複チェック
+
+```bash
+EXISTING_PR=$(gh pr list --head "$HEAD_BRANCH" --base "$BASE" --state open --json number,url --jq '.[0]')
+if [ -n "$EXISTING_PR" ]; then
+  PR_NUMBER=$(echo "$EXISTING_PR" | jq -r '.number')
+  PR_URL=$(echo "$EXISTING_PR" | jq -r '.url')
+  # [既存PR検出] PR #${PR_NUMBER} が既に存在するため作成をスキップ
+  # Step 2〜6をすべてスキップし、既存PRのURL・番号を出力セクションの形式で返却する
+fi
+```
+
+- `--head` + `--base` 両方でexact match（同一headでbase違いの誤検知を防止）
+- 既存OPENあり → changeset生成もスキップして即座にPR情報を返却
+- closed/merged PRは検出対象外（新規PR作成を許可）
+
+#### Step 1c: 差分分析
+
+```bash
 # コミット履歴
 git log --format="%s%n%b" origin/${BASE}..HEAD
 
@@ -117,6 +143,7 @@ PRタイトル（または最初のコミットメッセージ）のプレフィ
 ```bash
 gh pr create \
   --base "${BASE}" \
+  --head "${HEAD_BRANCH}" \
   --title "${TITLE}" \
   --body "$(cat <<'EOF'
 ## Summary
@@ -131,6 +158,13 @@ EOF
 )" \
   --label "${LABEL}"
 ```
+
+#### レースコンディション対策
+
+`gh pr create` が既存PRエラー（"A pull request already exists"）で失敗した場合:
+1. `gh pr list --head "$HEAD_BRANCH" --base "$BASE" --state open --json number,url --jq '.[0]'` で再検索
+2. 既存PRが見つかれば、そのPR情報を成功として返却（冪等）
+3. 見つからなければエラーとして報告
 
 ### Step 6: CI確認（条件付き）
 
@@ -152,11 +186,15 @@ PR作成後、CIの結果を確認する。`_einja-ci-check` インナーSkill�
 | リモートにpushされていない | `git push -u origin HEAD` を先に実行 |
 | changeset生成でパッケージ不明 | ルートパッケージ（`einja-management-monorepo`）を使用 |
 | gh CLIが未認証 | エラーメッセージを表示して停止 |
+| 同一ブランチペアのOPEN PRが既に存在 | PR作成をスキップ、既存PR情報を返却（冪等） |
+| `gh pr create` 既存PRエラー（422） | 再検索して既存PR情報を返却（レースコンディション対策） |
 
 ## 出力
 
-PR作成後、以下を出力:
+PR作成後（または既存PR検出時）、以下を出力:
 - PR URL
-- 付与したラベル
-- changeset情報（生成した場合）
-- CI確認結果（実行した場合）
+- PR番号
+- 付与したラベル（新規作成時のみ）
+- changeset情報（生成した場合のみ）
+- CI確認結果（実行した場合のみ）
+- `[既存PR検出]` ラベル（既存PR返却時のみ）

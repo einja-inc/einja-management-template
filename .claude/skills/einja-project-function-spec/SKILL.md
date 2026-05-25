@@ -1,6 +1,6 @@
 ---
 name: einja-project-function-spec
-description: "Generates project-wide functional specification documents (**業務フロー + 詳細システムフロー単位**の機能仕様書) for contract software development, derived from docs/project/requirements.md §2 (TO-BE業務フロー) / §6 (機能要件サマリ) and docs/project/screen-flow-url.md (stable_id). 業務観点（人系アクター中心）に加え、画面イベント単位のシステム挙動（画面表示時のデータ取得・フォーム送信・バリデーション・業務エラー・非同期反映）を4層 participant（Browser / Backend / DB / Ext（外部システム））で記述する。Outputs hybrid: `docs/project/function-specs/index.md` (manifest + 逆引き表) + `function-spec-{flow_id}.md` per business flow. Maintains bidirectional traceability to screen-flow-url.md via stable_id. Uses AskUserQuestion per-flow hearing (Q1-Q7 + サブ質問 Q3-S1 / Q4-S1 / Q5-S1/S2/S3) with section-level resume detection. Triggers: 'プロジェクト機能仕様', '業務フロー機能仕様', '業務フロー仕様', 'ビジネスフロー仕様', 'business flow function spec', '機能仕様書 生成', '続きから 機能仕様', 'resume function spec', 'システムフロー仕様', 'システム観点 sequenceDiagram', '画面イベント仕様'. Do NOT use for: Issue/feature単位要件（→ requirements-generator agent）, 画面単位UI仕様（ワイヤーフレーム / 項目定義 / メッセージ文言 → einja-project-screen-spec **未実装**, Phase 4）, 具体的APIパス・DBスキーマ・HTTPステータス詳細（→ design.md / Issue仕様）, requirements.md §6への書き戻し（本Skillは独立採番のFN-XXXで運用）."
+description: "Generates project-wide functional specification documents (**業務フロー + 詳細システムフロー単位**の機能仕様書) for contract software development, derived from docs/project/requirements.md §2 (TO-BE業務フロー) / §6 (機能要件サマリ) and docs/project/screen-flow-url.md (stable_id). 業務観点（人系アクター中心）に加え、画面イベント単位のシステム挙動（画面表示時のデータ取得・フォーム送信・バリデーション・業務エラー・非同期反映）を4層 participant（Browser / Backend / DB / Ext（外部システム））で記述する。Outputs hybrid: `docs/project/function-specs/index.md` (manifest + 逆引き表) + `function-spec-{flow_id}.md` per business flow. Maintains bidirectional traceability to screen-flow-url.md via stable_id. Uses AskUserQuestion per-flow hearing (Q1-Q7 + サブ質問 Q3-S1 / Q4-S1 / Q5-S1/S2/S3) with section-level resume detection. Triggers: 'プロジェクト機能仕様', '業務フロー機能仕様', '業務フロー仕様', 'ビジネスフロー仕様', 'business flow function spec', '機能仕様書 生成', '続きから 機能仕様', 'resume function spec', 'システムフロー仕様', 'システム観点 sequenceDiagram', '画面イベント仕様'. Do NOT use for: Issue/feature単位要件（→ requirements-generator agent）, 画面単位UI仕様（ワイヤーフレーム → einja-project-screen-spec、項目定義 / メッセージ文言 / UI状態 → 後続別Skillで対応予定）, 具体的APIパス・DBスキーマ・HTTPステータス詳細（→ design.md / Issue仕様）, requirements.md §6への書き戻し（本Skillは独立採番のFN-XXXで運用）."
 user-invocable: true
 ---
 
@@ -24,7 +24,7 @@ user-invocable: true
 | `einja-project-requirements` | プロジェクト全体（クライアント合意用） | 業務要件・システム化方針・スコープ・機能サマリ等の §1〜§16 | `docs/project/requirements.md` |
 | `einja-project-screen-flow-figma` | プロジェクト全体（画面遷移俯瞰） | 画面ノード集合・遷移エッジを Figma 上に生成 | `docs/project/screen-flow-url.md` |
 | **`einja-project-function-spec`（本Skill）** | **プロジェクト全体（業務フロー + 詳細システムフロー単位の機能仕様）** | 業務フロー詳細（業務観点 + システム観点 sequenceDiagram + ステップ表）・機能一覧（FN-XXX）・機能カード・データの流れ・業務ルール + 主要技術制約・関連画面 | `docs/project/function-specs/index.md` + `function-spec-{flow_id}.md` |
-| `einja-project-screen-spec`（**Phase 4 未実装**） | プロジェクト全体（画面単位 UI 仕様） | ワイヤーフレーム / 項目定義（型・桁・必須・選択肢・初期値）/ メッセージ文言 / 遷移ボタン配置・遷移条件 / UI 状態（ローディング・無効化等） | （未定。Phase 4 で別 Plan 設計） |
+| `einja-project-screen-spec`（ワイヤーフレーム実装済み・mid-fi） | プロジェクト全体（画面単位 UI 仕様） | ワイヤーフレーム / 項目定義（型・桁・必須・選択肢・初期値）/ メッセージ文言 / 遷移ボタン配置・遷移条件 / UI 状態（ローディング・無効化等） | `docs/project/wireframe-url.md`（ワイヤーフレーム部分。項目定義/メッセージ文言は後続別Skill予定） |
 | `einja-issue-spec-create` Phase 1（`requirements-generator` エージェント） | 機能/Issue単位（ATDD要件） | UI/AC/権限/データモデル等の §1-§14 | `docs/specs/issues/{category}/issue{N}-{name}/requirements.md` |
 
 「機能を作りたい」「Issueの仕様を作りたい」場合は本Skillではなく `einja-issue-spec-create` を使用すること。本Skillは**プロジェクト全体の業務フロー横断仕様**専用です。
@@ -422,7 +422,7 @@ multiSelect: true
 
 ## Phase 4 (einja-project-screen-spec) との責務境界
 
-Phase 3（本 Skill = `einja-project-function-spec`）と Phase 4（**未実装**: `einja-project-screen-spec` 画面単位 UI 仕様）の責務境界を明確化する。Phase 3 は業務フロー横断の機能仕様、Phase 4 は画面単位の UI 仕様を扱う。
+Phase 3（本 Skill = `einja-project-function-spec`）と Phase 4（ワイヤーフレーム部分: `einja-project-screen-spec` で実装済み。項目定義 / メッセージ文言 / UI 状態は後続別 Skill 予定）の責務境界を明確化する。Phase 3 は業務フロー横断の機能仕様、Phase 4 は画面単位の UI 仕様を扱う。
 
 | 観点 | Phase 3 機能仕様 (本Skill) | Phase 4 画面仕様 |
 |------|---------------------------|----------------|
@@ -432,7 +432,7 @@ Phase 3（本 Skill = `einja-project-function-spec`）と Phase 4（**未実装*
 | 画面遷移 | 業務フロー上の宛先 stable_id | 遷移ボタンの配置・遷移条件 |
 | 画面挙動 | データ取得・送信タイミング | UI 状態（ローディング / 無効化 / ハイライト） |
 
-Phase 4 自体の Skill 設計は別 Plan で扱う。本 Skill の責務境界（Phase 3）を逸脱した画面仕様の要求が来た場合は、Phase 4 への申し送り対象として `docs/einja/memory/phase-4-screen-spec-deferred.md` に記録し、本 Skill では生成しない（参照: [phase-4-screen-spec-deferred.md](../../../docs/einja/memory/phase-4-screen-spec-deferred.md)）。
+Phase 4 のうちワイヤーフレーム部分は `einja-project-screen-spec` Skill として実装完了。項目定義 / メッセージ文言 / UI 状態の .md 仕様書化は別 Skill として後続予定。本 Skill の責務境界（Phase 3）を逸脱した画面仕様の要求が来た場合は、ワイヤーフレーム以外の Phase 4 範囲（項目定義 / メッセージ文言 / UI 状態）への申し送り対象として `docs/einja/memory/phase-4-screen-spec-deferred.md` に記録し、本 Skill では生成しない（参照: [phase-4-screen-spec-deferred.md](../../../docs/einja/memory/phase-4-screen-spec-deferred.md)）。
 
 <!-- @einja:project-private:start id="einja-project-function-spec-project" -->
 <!-- プロジェクト固有の情報を記入 -->

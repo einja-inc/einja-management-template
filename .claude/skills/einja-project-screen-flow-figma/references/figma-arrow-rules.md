@@ -1,16 +1,17 @@
 # Figma 矢印描画ルール
 
-SKILL.md ワークフロー **Step 7（パス1 FrameNode 配置）/ Step 8（パス2 エッジ描画）/ §5 エラー処理** から参照される、画面遷移図の矢印・ノード描画パターン集。Figma Plugin API 上で「片方向矢印 + ラベル + グルーピング」を冪等に生成するための実装パターン・StrokeCap 仕様・バッチ分割戦略をまとめる。
+SKILL.md ワークフロー **Step 7（パス1 FrameNode 配置）/ Step 8（パス2 エッジ描画）/ §8 エラー処理** から参照される、画面遷移図の矢印・ノード描画パターン集。Figma Plugin API 上で「片方向矢印 + ラベル + グルーピング」を冪等に生成するための実装パターン・StrokeCap 仕様・バッチ分割戦略をまとめる。
 
 ## 目次
 
 1. [設計判断の根拠（PoC 結果）](#1-設計判断の根拠poc-結果)
 2. [VectorNode + setVectorNetworkAsync の実装パターン](#2-vectornode--setvectornetworkasync-の実装パターン)
 3. [2 パス生成戦略](#3-2-パス生成戦略)
-4. [setSharedPluginData による nodeId 再解決](#4-setsharedplugindata-による-nodeid-再解決)
-5. [use_figma の入出力制限と動的バッチ分割](#5-use_figma-の入出力制限と動的バッチ分割)
-6. [LineNode 代替経路（フォールバック・将来用）](#6-linenode-代替経路フォールバック将来用)
-7. [エラー処理パターン](#7-エラー処理パターン)
+4. [Plugin Data Key 移行](#4-plugin-data-key-移行)
+5. [setSharedPluginData による nodeId 再解決](#5-setsharedplugindata-による-nodeid-再解決)
+6. [use_figma の入出力制限と動的バッチ分割](#6-use_figma-の入出力制限と動的バッチ分割)
+7. [LineNode 代替経路（フォールバック・将来用）](#7-linenode-代替経路フォールバック将来用)
+8. [エラー処理パターン](#8-エラー処理パターン)
 
 ---
 
@@ -23,7 +24,7 @@ SKILL.md ワークフロー **Step 7（パス1 FrameNode 配置）/ Step 8（パ
 - PoC #2（実機検証済み）で、`VectorNode` を作って `setVectorNetworkAsync` の `vertices[].strokeCap` を `"NONE"`（始点）/ `"ARROW_LINES"`（終点）に個別指定することで **片方向矢印** が描画できることを確認した。
 - 採用方針: 矢印描画は VectorNode を主軸とし、LineNode は採用しない（PoC 検証済み。社内 Figma 環境で実施、PoC 結果は plan v0.5.2 変更履歴を参照）。
 
-将来 Figma Plugin API が `LineNode` でも頂点別 `strokeCap` を直接サポートした場合の差し替え方法は §6 を参照。
+将来 Figma Plugin API が `LineNode` でも頂点別 `strokeCap` を直接サポートした場合の差し替え方法は §7 を参照。
 
 ---
 
@@ -75,34 +76,370 @@ figma.currentPage.appendChild(arrow);
 
 ---
 
+### 2.0 Edge 描画の処理順序（cycle 対応）
+
+エッジ単位の座標計算（§2.1 以降）に先立ち、**全 edges を一括スキャンして primary/back を確定**してから topological sort で `x_order` を決める。これは cycle（A→B→A 等）が存在しても落ちないようにするための前処理であり、座標計算前に edge_kind が確定している必要がある。
+
+```
+1. 全 edges について「暫定 back 判定」を先行実施
+   - trigger テキストに「差し戻し」「キャンセル」「戻る」「エラー」「失敗」含む → back
+   - その他は primary 候補
+2. primary 候補のみで topological sort
+   - cycle 検出時は Tarjan's SCC 分解、各 SCC 内は「入力順 = manifest edges 配列の記載順（YAML 出現順）」で fallback
+   - sort 結果で x_order を確定
+3. 確定後、追加判定: x_order[to] < x_order[from] → back（同一 lane 内のみ適用、lane 跨ぎは除外）
+4. final edge_kind 決定後、座標計算（§2.1〜§2.4）へ
+```
+
+**完了系自動遷移の扱い**: trigger に「完了」「自動遷移」を含む lane 跨ぎ edge（例: `punch → dashboard`, `request → dashboard`）は `primary` を維持する（§2.5 と整合）。
+
+---
+
+### 2.1 辺判定（最近辺マッチング）
+
+始点 FrameNode / 終点 FrameNode のどの辺（上下左右）にアンカーを置くかは、**両者の中心点の dx / dy の絶対値比較**で決定する。`|dx| >= |dy|` なら水平接続（右辺↔左辺）、そうでなければ垂直接続（下辺↔上辺）。
+
+```javascript
+function pickAnchor(fromBB, toBB) {
+  const fc = { x: fromBB.x + fromBB.w/2, y: fromBB.y + fromBB.h/2 };
+  const tc = { x: toBB.x + toBB.w/2, y: toBB.y + toBB.h/2 };
+  const dx = tc.x - fc.x, dy = tc.y - fc.y;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return {
+      fromAnchor: dx >= 0 ? { x: fromBB.x + fromBB.w, y: fc.y } : { x: fromBB.x, y: fc.y },
+      toAnchor: dx >= 0 ? { x: toBB.x, y: tc.y } : { x: toBB.x + toBB.w, y: tc.y },
+      axis: "H",
+    };
+  }
+  return {
+    fromAnchor: dy >= 0 ? { x: fc.x, y: fromBB.y + fromBB.h } : { x: fc.x, y: fromBB.y },
+    toAnchor: dy >= 0 ? { x: tc.x, y: toBB.y } : { x: tc.x, y: toBB.y + toBB.h },
+    axis: "V",
+  };
+}
+```
+
+`axis` 戻り値は §2.3 の折れ点計算で利用する。
+
+---
+
+### 2.2 往復オフセット（L字往復フォールバック含む）
+
+同一ペア間の往復（`A__to__B` と `B__to__A` が共存）はラベルや線が重ならないよう **`EDGE_OFFSET = 16px`（canonical-enums §9）で平行シフト**する。
+
+- **直線 edge（`routing: straight`、canonical-enums §3）のみ対応**:
+  - 法線方向に 16px シフト
+  - 方向符号は stable_id の辞書順で固定（`e.from < e.to` なら +1、逆なら -1）
+  - これにより 2 回目以降の再生成でも同じ方向にずれて idempotent
+- **L字 edge（`routing: l-shape`）の往復**:
+  - 当面は **片方を `routing: straight` にフォールバック** + 警告ログ + 警告フラグ書き込み
+  - L字往復の正規対応（折れ点シフト + 中央セグメント分離）は Phase 2 の別 Issue として計画
+
+> **警告フラグ書き込み先（明示）**: L字往復の片方を `routing: straight` にフォールバックする場合、対応する **edge group ノード**に `setSharedPluginData("einja.screenFlow", "label_collision_warning", "true")` を書き込む（manifest `edges[].label_collision_warning: true` と同期）。manifest を SSoT としつつ、Figma 側のフラグも併記して再生成時の冪等性を確保する。書き込み対象は VectorNode 単独ではなく、§3.3 で生成する edge group ノードに統一する。
+
+```javascript
+// 直線往復シフトの擬似コード
+function applyRoundTripOffset(edge, fromAnchor, toAnchor) {
+  const sign = edge.from < edge.to ? +1 : -1;
+  const dx = toAnchor.x - fromAnchor.x;
+  const dy = toAnchor.y - fromAnchor.y;
+  const len = Math.hypot(dx, dy) || 1;
+  // 線の法線（90度回転）
+  const nx = -dy / len;
+  const ny = dx / len;
+  const shift = 16 * sign;
+  return {
+    fromAnchor: { x: fromAnchor.x + nx * shift, y: fromAnchor.y + ny * shift },
+    toAnchor: { x: toAnchor.x + nx * shift, y: toAnchor.y + ny * shift },
+  };
+}
+```
+
+---
+
+### 2.3 L字ルーティング（座標原点正規化）
+
+L字 edge は **3 頂点（始点 + 折れ点 + 終点）** の VectorNode で描画する。`setVectorNetworkAsync` の `vertices` は VectorNode 自身の `(x, y)` を原点とした **相対座標** なので、絶対座標で計算してから origin 正規化する必要がある。
+
+```javascript
+const points = [fromAnchor, elbow, toAnchor];  // 絶対座標
+const origin = {
+  x: Math.min(...points.map(p => p.x)),
+  y: Math.min(...points.map(p => p.y)),
+};
+const arrow = figma.createVector();
+arrow.x = origin.x;
+arrow.y = origin.y;
+await arrow.setVectorNetworkAsync({
+  vertices: points.map((p, i) => ({
+    x: p.x - origin.x,
+    y: p.y - origin.y,
+    strokeCap: i === points.length - 1 ? "ARROW_LINES" : "NONE",
+  })),
+  segments: [{ start: 0, end: 1 }, { start: 1, end: 2 }],
+  regions: [],
+});
+```
+
+**L字判定**（canonical-enums §3 `routing` enum 参照）:
+- lane を跨ぐ場合: `l-shape` 必須
+- 同一 lane 内: 標準 320px 隣接でも `straight`（**L字判定を `|dy| > 0` に変更**）
+- 同一 lane 内非隣接（飛び越え）: `|dx| > 2 * (FRAME_W + FRAME_SPACING_X)` で `l-shape` 許容
+
+> **判定基準の SSoT**: 上記の L字判定条件は `canonical-enums.md §3 routing enum` を参照。本セクションの条件は SSoT の言い換えであり、矛盾時は canonical-enums.md を優先する。
+
+**折れ点の計算**: §2.1 で得た `axis` に応じて以下を採用する。
+
+| axis | elbow（折れ点） | 意味 |
+|------|----------------|------|
+| `"H"`（水平接続） | `{ x: toAnchor.x, y: fromAnchor.y }` | 始点の高さを維持して横移動 → 終点へ縦移動 |
+| `"V"`（垂直接続） | `{ x: fromAnchor.x, y: toAnchor.y }` | 始点の横位置を維持して縦移動 → 終点へ横移動 |
+
+---
+
+### 2.4 ラベル衝突回避（6段階探索）
+
+エッジラベル（TextNode）は **最長セグメントの中点をラベル基準点**とし、`LABEL_OFFSET = 8px`（canonical-enums §9）で線の **法線方向** にオフセットする。既存ラベルと bounding box が衝突する場合は **6段階の候補オフセット** を順に試す。
+
+```javascript
+const OFFSET_CANDIDATES = [+8, -8, +24, -24, +40, -40];  // 6段階
+let placed = false;
+for (const offset of OFFSET_CANDIDATES) {
+  // bounding box 衝突チェック
+  if (!hasCollision(labelBBox, existingLabels)) {
+    label.x = baseX + offset * normalX;
+    label.y = baseY + offset * normalY;
+    placed = true;
+    break;
+  }
+}
+if (!placed) {
+  // 不可時は警告フラグを edge group ノードに書き込む
+  // （manifest-schema.md §1.3 edges[].label_collision_warning と key 名を完全一致させる）
+  // findAll で node_kind === "edge" の group をスキャンして読めるようにするため、
+  // VectorNode 単独ではなく group ノードを対象とする。
+  group.setSharedPluginData("einja.screenFlow", "label_collision_warning", "true");
+  console.warn(`Label collision unresolved: ${edge.stable_id}`);
+}
+```
+
+- 直線 edge: セグメントが 1 本しかないので、そのまま中点を採用
+- L字 edge: `|p0→p1|` と `|p1→p2|` を比較し、長い方の中点を採用
+- `normalX, normalY` は採用セグメントの法線単位ベクトル
+
+---
+
+### 2.5 後方フロー検出
+
+`edge_kind: back`（canonical-enums §2）の主判定条件:
+
+1. **trigger テキストに以下のキーワードを含む**: `差し戻し` / `キャンセル` / `戻る` / `エラー` / `失敗`
+2. **`x_order[to] < x_order[from]`**（§2.0 の topological sort 結果で判定）
+   - **同一 lane 内のみ適用**、lane 跨ぎ業務遷移は除外
+
+**完了系自動遷移の扱い**: trigger に「完了」「自動遷移」を含む lane 跨ぎ edge（例: `punch → dashboard`, `request → dashboard`）は `primary` を維持する。
+
+#### dashPattern と stroke color の適用
+
+dashPattern と strokes は **VectorNode に直接設定**する（GroupNode には dashPattern プロパティが存在しない）。
+
+```javascript
+// VectorNode に直接設定（GroupNode ではなく VectorNode）
+arrow.dashPattern = edge.edge_kind === "back" ? [4, 4] : [];
+arrow.strokes = [{
+  type: "SOLID",
+  color: edge.edge_kind === "back"
+    ? { r: 0.6, g: 0.6, b: 0.6 }   // back: 薄グレー
+    : { r: 0.3, g: 0.3, b: 0.3 },  // primary: 濃グレー
+}];
+arrow.strokeWeight = 2;
+```
+
+色値は canonical-enums §2 `edge_kind` enum の「視覚表現」列と一致させること。
+
+---
+
 ## 3. 2 パス生成戦略
 
 50000 字制限・出力 20kb 制限の双方を満たすため、**1 回の `use_figma` で全部描かず、パス 1（画面配置）/ パス 2（エッジ描画）に分離する**。
 
-### パス 1: FrameNode 配置（画面ノード生成）
+### 3.0 layout_strategy 分岐ロジック
+
+パス 1 の冒頭で manifest の `layout_strategy`（canonical-enums §1）に応じて配置戦略を分岐する。未指定（v1 manifest）の場合は `grid` を暗黙適用し、後方互換を維持する。
+
+```javascript
+// パス1 の冒頭で layout_strategy に応じて分岐
+const layoutStrategy = manifest.layout_strategy ?? "grid";
+if (layoutStrategy === "swim-lane") {
+  // §3.1 swim-lane 配置へ
+} else {
+  // §3.2 grid 配置（後方互換）へ
+}
+```
+
+- `swim-lane`: §3.1 へ。role 別 lane を縦方向に並べ、画面は `lane_id` に応じて該当 lane 内に配置。x_order は §2.0 の topological sort 結果。
+- `grid`: §3.2 へ。`cols = ceil(sqrt(N))` の格子配置（v1 後方互換）。
+
+### 3.1 swim-lane レイアウト（推奨デフォルト）
+
+`layout_strategy: swim-lane` で動作する新規生成のデフォルト戦略。role 別 lane を縦方向に積み上げ、画面 FrameNode を該当 lane 内に左から `x_order` 順で配置する。
+
+#### lane 配置パラメータ
+
+canonical-enums §9 を引用:
+
+| 定数 | 値 | 用途 |
+|------|-----|------|
+| `LANE_HEIGHT` | 240px | 1 lane の縦方向占有 |
+| `LANE_HEADER_W` | 160px | lane 左端のラベル領域 |
+| `FRAME_W` | 240px | 画面 FrameNode 幅 |
+| `FRAME_H` | 160px | 画面 FrameNode 高さ |
+| `FRAME_SPACING_X` | 80px | 同一 lane 内の画面間隔 |
+| `FRAME_SPACING_Y` | 40px | lane top と frame top のオフセット |
+
+#### lane 順序
+
+canonical-enums §5 引用、デフォルト固定: **`Common → Employee → Manager → HR → Admin → Ext`**
+
+#### lane 描画コード
+
+lane ラベル表示用に、manifest の `role_canonical_map`（`{ 表示名: canonical }` 形式）を転置した逆引きマップ `role_canonical_map_inverse`（`{ canonical: 表示名 }` 形式）を lane 描画直前に生成する。
+
+```javascript
+// canonical 識別子 → 表示名 の逆引きマップを生成
+// role_canonical_map は { 表示名: canonical } 形式なので転置する
+const role_canonical_map_inverse = Object.fromEntries(
+  Object.entries(manifest.role_canonical_map ?? {}).map(([k, v]) => [v, k])
+);
+
+const LANE_DEFAULTS = [
+  { id: "Common",   label: "共通",         color: { r: 0.95, g: 0.95, b: 0.95 } },
+  { id: "Employee", label: "従業員",       color: { r: 0.92, g: 0.96, b: 0.99 } },
+  { id: "Manager",  label: "上長/管理者",  color: { r: 0.98, g: 0.95, b: 0.90 } },
+  { id: "HR",       label: "人事部",       color: { r: 0.94, g: 0.98, b: 0.92 } },
+  { id: "Admin",    label: "システム管理者", color: { r: 0.97, g: 0.92, b: 0.97 } },
+  { id: "Ext",      label: "外部利用者",   color: { r: 0.95, g: 0.95, b: 0.90 } },
+];
+
+// 使われている lane だけ描画（screens[].lane_id から集合算出）
+const usedLanes = LANE_DEFAULTS.filter(l => screens.some(s => s.lane_id === l.id));
+const totalW = Math.max(1600, screens.length * (240 + 80) + 160);
+
+await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+for (let i = 0; i < usedLanes.length; i++) {
+  const lane = usedLanes[i];
+  const bg = figma.createFrame();
+  bg.name = `lane-${lane.id}`;
+  bg.resize(totalW, 240);
+  bg.x = 0;
+  bg.y = i * 240;
+  bg.fills = [{ type: "SOLID", color: lane.color }];
+  bg.locked = true;  // ユーザー誤操作防止
+  writeNodeKind(bg, "lane");  // §4 ユーティリティ
+  bg.setSharedPluginData("einja.screenFlow", "stable_id", `lane__${lane.id}`);
+  bg.setSharedPluginData("einja.screenFlow", "business_role", lane.id);
+
+  const label = figma.createText();
+  label.fontName = { family: "Inter", style: "Regular" };
+  label.characters = role_canonical_map_inverse[lane.id] ?? lane.label;
+  label.fontSize = 14;
+  label.x = 16;
+  label.y = i * 240 + 16;
+  figma.currentPage.appendChild(bg);
+  figma.currentPage.appendChild(label);
+  bg.sendToBack();  // z-order: lane → screen → edge の順
+}
+```
+
+#### screen frame 配置（lane 内 x_order に従う）
+
+`x_order` は §2.0 topological sort 結果から取得。同一 lane 内では x_order の昇順、lane 間では canonical-enums §5 のデフォルト辞書順を維持する。
+
+```javascript
+// x_order は §2.0 topological sort 結果から取得
+for (const screen of screens) {
+  const laneIdx = usedLanes.findIndex(l => l.id === screen.lane_id);
+  const frame = figma.createFrame();
+  frame.name = `screen-${screen.name}`;
+  frame.resize(240, 160);
+  frame.x = LANE_HEADER_W + screen.x_order * (FRAME_W + FRAME_SPACING_X);
+  frame.y = laneIdx * LANE_HEIGHT + FRAME_SPACING_Y;
+  // ... fills/strokes/title 設定
+  writeNodeKind(frame, "screen");
+  frame.setSharedPluginData("einja.screenFlow", "stable_id", screen.stable_id);
+  writeBusinessRole(frame, screen.lane_id);
+  figma.currentPage.appendChild(frame);
+}
+```
+
+#### multi-role 主 lane 判定
+
+canonical-enums §5 を引用。複数 role を持つ画面の主 lane は次の順で決定する:
+
+1. **manifest の明示 `lane_id` を最優先**: ヒアリング項目 A 等で確定済みの場合はそのまま採用
+2. **Common 優先の特例画面のみ Common に寄せる**: `login` / `error` / `not-found-404` / `session-expired` / `forbidden-403` / `maintenance`
+3. **それ以外の Common 含む multi-role 画面**: `in-degree + out-degree` 最多の業務ロール（Common 以外）を採用
+4. 上記で決まらない場合は canonical-enums §5 のデフォルト辞書順で最も先のロールを採用
+
+#### `inferLane` ヘルパー（v1 後方互換）
+
+manifest に明示 `lane_id` がない v1 manifest や、role 文字列のみ提供された場合の fallback。
+
+```javascript
+function inferLane(roleDisplay, roleCanonicalMap) {
+  if (!roleDisplay) return "Common";
+  // 1. role_canonical_map ヒット
+  if (roleCanonicalMap[roleDisplay]) return roleCanonicalMap[roleDisplay];
+  // 2. canonical-enums §5 デフォルト辞書ヒット
+  const defaultMap = {
+    "共通": "Common",
+    "従業員": "Employee", "一般従業員": "Employee", "利用者": "Employee",
+    "上長": "Manager", "管理者": "Manager", "部門長": "Manager",
+    "人事部": "HR", "人事担当": "HR",
+    "システム管理者": "Admin", "情シス": "Admin", "管理": "Admin",
+    "外部利用者": "Ext",
+  };
+  if (defaultMap[roleDisplay]) return defaultMap[roleDisplay];
+  // 3. 辞書外: hash 動的生成
+  return `Role_${simpleHash(roleDisplay).slice(0, 8)}`;
+}
+```
+
+### 3.2 grid レイアウト（後方互換）
+
+`layout_strategy: grid`（または未指定 v1 manifest）の場合の動作。**既存 v1 manifest を壊さないための後方互換経路** として維持する。新規生成では §3.1 swim-lane を推奨。
 
 - 全画面候補を `FrameNode` で配置する。名前は kebab-case（例: `"screen-dashboard"`, `"screen-login"`）。
 - 格子レイアウト: 列数 `cols = ceil(sqrt(N))`、画面間隔 `200`〜`400px`（FrameNode サイズに応じて調整）。
 - 各 FrameNode に **`setSharedPluginData` で識別情報を付与**:
 
 ```javascript
-const frame = figma.createFrame();
-frame.name = "screen-dashboard";
-frame.resize(240, 160);
-frame.x = col * 320;
-frame.y = row * 220;
-frame.setSharedPluginData("einja.screenFlow", "role", "screen");
-frame.setSharedPluginData(
-  "einja.screenFlow",
-  "stable_id",
-  `${projectName}__screen-dashboard`,
-);
-figma.currentPage.appendChild(frame);
+const cols = Math.ceil(Math.sqrt(screens.length));
+for (let i = 0; i < screens.length; i++) {
+  const screen = screens[i];
+  const col = i % cols;
+  const row = Math.floor(i / cols);
+  const frame = figma.createFrame();
+  frame.name = `screen-${screen.name}`;
+  frame.resize(240, 160);
+  frame.x = col * 320;
+  frame.y = row * 220;
+  writeNodeKind(frame, "screen");  // §4 ユーティリティ（旧 key `role` も自動で互換書き込み不要、新 key のみ）
+  frame.setSharedPluginData(
+    "einja.screenFlow",
+    "stable_id",
+    `${projectName}__screen-${screen.name}`,
+  );
+  figma.currentPage.appendChild(frame);
+}
 ```
 
 - パス 1 のレスポンスでは、オーケストレーター側で `{ stable_id: nodeId }` の Map を保持する（次バッチでの再解決に備える）。
+- grid 経路では `lane_id` / `business_role` を書き込まない（v1 互換のため）。読み込み時に `business_role` が空ノードは `Common` 扱い。
 
-### パス 2: エッジ描画（矢印 + ラベル + グルーピング）
+### 3.3 パス 2: エッジ描画（矢印 + ラベル + グルーピング）
+
+`layout_strategy` に依存しない共通処理。§3.1 / §3.2 で配置済みの FrameNode を `stable_id` で再解決し（§5）、各エッジを VectorNode + TextNode + Group で描画する。
 
 各エッジを 3 要素グループで構成する:
 
@@ -125,11 +462,12 @@ label.y = fromY + dy / 2 - label.height / 2;
 
 const group = figma.group([arrow, label], figma.currentPage);
 group.name = `edge__${fromName}__to__${toName}`;
-group.setSharedPluginData("einja.screenFlow", "role", "edge");
+writeNodeKind(group, "edge");  // §4 ユーティリティ（新 key `node_kind`）
+// stable_id は manifest-schema.md §1.3 の edges[].stable_id 形式（`{from}__to__{to}`）に揃える
 group.setSharedPluginData(
   "einja.screenFlow",
   "stable_id",
-  `${projectName}__${fromName}__to__${toName}`,
+  `${fromName}__to__${toName}`,
 );
 ```
 
@@ -146,11 +484,12 @@ group.setSharedPluginData(
 if (!labelText) {
   const group = figma.group([arrow], figma.currentPage);
   group.name = `edge__${fromName}__to__${toName}`;
-  group.setSharedPluginData("einja.screenFlow", "role", "edge");
+  writeNodeKind(group, "edge");  // §4 ユーティリティ（新 key `node_kind`）
+  // stable_id は manifest-schema.md §1.3 の edges[].stable_id 形式（`{from}__to__{to}`）に揃える
   group.setSharedPluginData(
     "einja.screenFlow",
     "stable_id",
-    `${projectName}__${fromName}__to__${toName}`,
+    `${fromName}__to__${toName}`,
   );
   // ... 以下省略（ラベルあり経路と同じ後処理）
 }
@@ -158,7 +497,74 @@ if (!labelText) {
 
 ---
 
-## 4. setSharedPluginData による nodeId 再解決
+## 4. Plugin Data Key 移行
+
+旧 v1 manifest 由来の Figma ファイルとの互換性確保のため、Plugin Data key を旧 → 新へ移行する。**書き込みは新 key のみ、読み込みは旧 key への fallback を許容**する。`manifest-schema.md §4` と同内容を Plugin API 視点で明記する。
+
+### Key の対応
+
+| 旧 key | 新 key | 値 | 意味 |
+|-------|-------|----|------|
+| `role` | `node_kind` | `screen` / `edge` / `lane` | ノード種別 |
+| (なし) | `business_role` | `Common` / `Employee` / `Manager` / `HR` / `Admin` / `Ext` / `Role_xxxxxxxx` | 業務ロール canonical（canonical-enums §5） |
+
+- 旧 key `role` は `screen` / `edge` の 2 値のみだったが、新 key `node_kind` では `lane` を追加した。
+- `business_role` は v2 で新規追加（v1 manifest には存在しない）。
+
+### 読み込み互換性ユーティリティ
+
+新規実装ではこれらヘルパーを必ず経由すること（旧 key の直接参照は禁止）。
+
+```javascript
+function readNodeKind(node) {
+  return node.getSharedPluginData("einja.screenFlow", "node_kind")
+    || node.getSharedPluginData("einja.screenFlow", "role")  // 旧 key fallback
+    || null;
+}
+function writeNodeKind(node, kind) {
+  node.setSharedPluginData("einja.screenFlow", "node_kind", kind);
+}
+function readBusinessRole(node) {
+  return node.getSharedPluginData("einja.screenFlow", "business_role") || null;
+}
+function writeBusinessRole(node, canonicalRole) {
+  node.setSharedPluginData("einja.screenFlow", "business_role", canonicalRole);
+}
+```
+
+- `readNodeKind`: 新 key 優先、なければ旧 key で fallback、両方なければ `null`
+- `writeNodeKind`: **新 key のみ書き込み**（旧 key への二重書き込みは行わない）
+- `readBusinessRole`: 新 key のみ参照（v1 manifest には存在しないため fallback 不要）。null の場合は呼び出し側で `Common` 扱い等のデフォルトを適用
+- `writeBusinessRole`: 新 key に canonical role を書き込む
+
+### findAll フィルタ条件
+
+旧実装と新実装でフィルタ式を以下のように差し替える:
+
+- **旧**: `node.getSharedPluginData("einja.screenFlow", "role") === "screen"`
+- **新**: `readNodeKind(node) === "screen"` （旧 key も自動 fallback）
+
+```javascript
+// 例: screen ノードを全列挙
+const screens = figma.currentPage.findAll(n => readNodeKind(n) === "screen");
+
+// 例: lane ノードを全列挙
+const lanes = figma.currentPage.findAll(n => readNodeKind(n) === "lane");
+
+// 例: 特定 lane に属する screen を列挙
+const employeeScreens = figma.currentPage.findAll(n =>
+  readNodeKind(n) === "screen" && readBusinessRole(n) === "Employee"
+);
+```
+
+### 移行時の注意
+
+- 旧 v1 manifest 由来の既存ノードは `role` のみ持つ。再生成時、新 key `node_kind` を追加書き込みすれば次回以降は新 key が優先される（旧 key 削除は不要、無視される）。
+- `business_role` 未設定の screen は §3.2 grid レイアウトの後方互換経路で生成されたものとみなし、再描画時に `inferLane`（§3.1）で補完する。
+
+---
+
+## 5. setSharedPluginData による nodeId 再解決
 
 ### なぜ `setSharedPluginData` か（`setPluginData` ではない理由）
 
@@ -194,17 +600,19 @@ const targets = new Set(
     .concat(currentBatch.map((e) => `${projectName}__${e.to}`)),
 );
 const idMap = new Map();
-figma.currentPage.findAll((n) => {
+// Figma Plugin API 公式仕様: findAll はコールバックが true を返したノードの配列を返す。
+// 副作用で idMap に集約しつつ、戻り値で対象ノードの配列も取得する正攻法。
+const found = figma.currentPage.findAll((n) => {
   const sid = n.getSharedPluginData("einja.screenFlow", "stable_id");
   if (targets.has(sid)) idMap.set(sid, n);
-  return false;  // findAll が走査するため戻り値は無視されてOK、副作用で集約
+  return targets.has(sid);  // 仕様準拠、戻り値も活用
 });
 // 各エッジで idMap.get(stable_id) を使用
 ```
 
 ---
 
-## 5. use_figma の入出力制限と動的バッチ分割
+## 6. use_figma の入出力制限と動的バッチ分割
 
 `use_figma` には **二重の制約** がある:
 
@@ -222,7 +630,7 @@ figma.currentPage.findAll((n) => {
 
 ### バッチ間連携
 
-- パス 1 完了後に得た `{stable_id, nodeId}` Map は **JS 側にも保持するが、パス 2 では `findAll` で再解決**（§4）。
+- パス 1 完了後に得た `{stable_id, nodeId}` Map は **JS 側にも保持するが、パス 2 では `findAll` で再解決**（§5）。
 - バッチ間で参照したい付加情報は `setSharedPluginData` に書き込み、次バッチで `getSharedPluginData` で読み出す。
 
 ### 各バッチ先頭で `loadFontAsync` を必ず呼ぶ
@@ -254,9 +662,9 @@ if (buf) batches.push(buf);
 
 ---
 
-## 6. LineNode 代替経路（フォールバック・将来用）
+## 7. LineNode 代替経路（フォールバック・将来用）
 
-### 6-1. 将来 LineNode が頂点別 strokeCap をサポートした場合
+### 7-1. 将来 LineNode が頂点別 strokeCap をサポートした場合
 
 現状の `LineNode.strokeCap` は単一プロパティで vectorNetwork 全体に適用される。将来 API が「個別頂点 strokeCap」を `LineNode` で直接公開した場合、§2 を以下のように差し替えれば矢印 1 本あたりのコード量が削減できる:
 
@@ -275,7 +683,7 @@ line.rotation = Math.atan2(dy, dx) * (180 / Math.PI);
 
 差し替え判定は SKILL.md の PoC ゲート（0-2.5 / 0-2.6 と同等の再評価）で行うこと。
 
-### 6-2. 矢印を諦めて双方向で代用する場合
+### 7-2. 矢印を諦めて双方向で代用する場合
 
 レビュー観点で「片方向必須要件を緩めても良い」と合意できた場合のみ、LineNode の標準矢印で双方向表現する:
 
@@ -293,13 +701,13 @@ line.strokeWeight = 2;
 
 ---
 
-## 7. エラー処理パターン
+## 8. エラー処理パターン
 
 | 事象 | 原因 | 対処 |
 |------|------|------|
 | `loadFontAsync` 失敗 | フォントがファイルに含まれない | `Inter Regular` → `Roboto Regular` → `figma.listAvailableFontsAsync()` 先頭 の順でフォールバック |
 | `planKey` 不明 | 認証直後で context 未取得 | `mcp__claude_ai_Figma__whoami` を呼び直し planKey を取得し直す |
-| `code` 文字列が 50000 字超 | エッジが多い / ラベルが長い | §5 の動的分割で 40000 字閾値を 30000 字まで下げて再試行 |
+| `code` 文字列が 50000 字超 | エッジが多い / ラベルが長い | §6 の動的分割で 40000 字閾値を 30000 字まで下げて再試行 |
 | 出力 20kb 超 | 戻り値で大量配列を返している | バッチ末尾で件数・最後の `stable_id` のみ返す形に整形 |
 | `setVectorNetworkAsync` で頂点座標エラー | 始点と終点が同一座標 | 構築前に `dx === 0 && dy === 0` を弾く（同一画面遷移は無効） |
 | `findAll` で `stable_id` 0 件 | パス 1 の書き込み失敗 / namespace 不一致 | namespace が `"einja.screenFlow"` か確認、必要なら名前ベース fallback（同名衝突警告付き） |

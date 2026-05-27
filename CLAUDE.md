@@ -322,6 +322,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `プロジェクト画面遷移図` `画面遷移図 Figma` `画面フロー図` `project screen flow` `screen flow Figma` `画面遷移 Figma 生成` | `.claude/skills/einja-project-screen-flow-figma/SKILL.md` |
 | `プロジェクト機能仕様` `業務フロー機能仕様` `業務フロー仕様` `ビジネスフロー仕様` `business flow function spec` `機能仕様書 生成` `続きから 機能仕様` `resume function spec` `システムフロー仕様` `システム観点 sequenceDiagram` `画面イベント仕様` | `.claude/skills/einja-project-function-spec/SKILL.md` |
 | `プロジェクトワイヤーフレーム` `ワイヤーフレーム生成` `project screen spec` `mid-fi wireframe` `画面ワイヤーフレーム Figma` | `.claude/skills/einja-project-screen-spec/SKILL.md` |
+| `5段階モデル` `5 planes` `デザインの5段階` `goodpatch 5段階` `プロジェクトデザイン俯瞰` `段階別ヒアリング` `デザイン5段階` `design-5-planes` | `.claude/skills/einja-design-5-planes/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 

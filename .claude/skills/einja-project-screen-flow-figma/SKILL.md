@@ -1,6 +1,6 @@
 ---
 name: einja-project-screen-flow-figma
-description: "docs/project/requirements.md（einja-project-requirements 出力）をベース入力に、Figma Design 上でプロジェクト全体の画面遷移図を生成するスタンドアロン Skill。要件定義書の §2 業務フロー（主要シグナル）と §3/§5/§6（補助シグナル）から画面候補を推定し、AskUserQuestion で不足情報をヒアリング補完した上で、矩形ノード配置・VectorNode + setVectorNetworkAsync による片方向矢印描画・TextNode によるトリガーラベル付与を自動化し、Figma URL を docs/project/screen-flow-url.md に記録する。「プロジェクト画面遷移図」「project screen flow」「画面遷移図 Figma」「画面フロー図」等で呼び出す。Do NOT use for: Issue単位の画面モックアップ生成（→ ui-design-generator）、Issue単位の requirements.md §8.2 mermaid 生成（→ requirements-generator）、状態遷移図（→ design.md State Transitions）、FigJam ファイル生成（本Skillは Design ファイル専用）"
+description: "docs/project/requirements.md（einja-project-requirements 出力）をベース入力に、Figma Design 上でプロジェクト全体の画面遷移図を生成するスタンドアロン Skill。要件定義書の §2 業務フロー（主要シグナル）と §3/§5/§6（補助シグナル）から画面候補を推定し、AskUserQuestion で不足情報をヒアリング補完した上で、エントリポイント基準の BFS 深さ階層レイアウト（user-flow、v3 デフォルト）でフロー方向を可視化し、矩形ノード配置・VectorNode + setVectorNetworkAsync による片方向矢印描画・TextNode によるトリガーラベル付与を自動化し、Figma URL を docs/project/screen-flow-url.md に記録する。「プロジェクト画面遷移図」「project screen flow」「画面遷移図 Figma」「画面フロー図」等で呼び出す。Do NOT use for: Issue単位の画面モックアップ生成（→ ui-design-generator）、Issue単位の requirements.md §8.2 mermaid 生成（→ requirements-generator）、状態遷移図（→ design.md State Transitions）、FigJam ファイル生成（本Skillは Design ファイル専用）"
 user-invocable: true
 ---
 
@@ -42,7 +42,7 @@ flowchart TB
   S3 --> S4[Step 4: AskUserQuestion ヒアリング補完<br/>項目A→B→C→D→E]
   S4 --> S5[Step 5: 保存先設定取得<br/>figma-design-management.md]
   S5 --> S6[Step 6: Figma ファイル作成 or 既存接続<br/>setCurrentPageAsync + assert]
-  S6 --> S7[Step 7: パス1<br/>layout_strategy 分岐<br/>swim-lane / grid]
+  S6 --> S7[Step 7: パス1<br/>layout_strategy 分岐<br/>user-flow / swim-lane / grid]
   S7 --> S8[Step 8: パス2<br/>edge 処理順序 v2<br/>back先行 → primary DAG sort → 座標計算]
   S8 --> S9[Step 9: スクリーンショット確認<br/>get_screenshot]
   S9 --> S10[Step 10: manifest 記録<br/>screen-flow-url.md + 新フィールド]
@@ -101,8 +101,9 @@ flowchart TB
 | A | 画面リスト確定（追加・削除・名称修正）。クロスチェック由来 `source_confidence != "high"` は明示確認 | - |
 | B | 画面間遷移（エッジの追加・削除・方向） | - |
 | C | 遷移トリガー（クリック / 自動 / 条件分岐 / ラベルなし） | - |
-| D | ロール別グルーピング（権限マトリクスがある場合）。辞書外ロール検出時は `role_canonical_map` への明示マッピング追加をサブ質問で促す | **デフォルト ON: `layout_strategy: swim-lane`** 採用（`references/canonical-enums.md §1` 参照）。視認性とロール責務明確化のため |
+| D | ロール別グルーピング（権限マトリクスがある場合）。辞書外ロール検出時は `role_canonical_map` への明示マッピング追加をサブ質問で促す | **デフォルト ON: `layout_strategy: user-flow`** 採用（`references/canonical-enums.md §1` 参照）。視認性とエントリポイント基準階層化のため。`swim-lane` は role 軸明示時のみ採用 |
 | E | 共通画面の追加（`references/hearing-checklist.md §3.3` 共通画面リスト） | 既定 ON の `error` / `not-found-404` / `session-expired` / `forbidden-403` 等を一括採用。詳細選択肢は `references/hearing-checklist.md §4 項目E` 参照 |
+| F | エントリポイント確認（`references/figma-arrow-rules.md §3.3.1` 3-method priority chain による自動検出が全 0 件の場合のみ escalation 起動）。質問例: 「業務フローの開始画面を選択してください」 | 自動検出成功時は質問を skip（OFF 相当）。自動検出 0 件時のみ AskUserQuestion で表示 |
 
 各選択肢は **description（What）+ Note（So What）** の2層構成とし、必ず **「その他（自由入力）」** を最後の選択肢として含める（推測で進めない原則）。
 
@@ -138,7 +139,8 @@ flowchart TB
 
 1. `create_new_file` は呼ばない。既存 `file_key` を使う（Step 11 参照）。
 2. 既存 Page をリネームする場合は `references/figma-arrow-rules.md §4` の `writeNodeKind` 互換 API（および `readNodeKind` / `writeBusinessRole`）を経由し、旧 key (`role`) への書き込みは行わない。
-3. **v1 Page スコープ制限**: 過去 v1 grid 実装で `Screen-Flow-v1-grid` 等の名称で生成された旧 Page は読み取り対象外とする。新 Page `Screen-Flow-v2-swimlane-poc` を SSoT として扱い、`figma.setCurrentPageAsync(...)` で必ずこちらを active 化する。
+3. **v1 Page スコープ制限**: 過去 v1 grid 実装で `Screen-Flow-v1-grid` 等の名称で生成された旧 Page は読み取り対象外とする。新 Page **`Screen-Flow-v3-userflow`** を SSoT として扱い、`figma.setCurrentPageAsync(...)` で必ずこちらを active 化する。
+4. **v2 PoC Page アーカイブ手順**: 既存 Figma 接続時に Page 名 `Screen-Flow-v2-swimlane-poc` が検出された場合は、Plugin API で `figma.currentPage.name = "Archive-Screen-Flow-v2-swimlane-poc"` にリネームする（v2 PoC を v3 着地後にダッシュボード上で archive 扱いにするため）。
 
 ### Step 7: パス 1 - FrameNode 配置（layout_strategy 分岐）
 
@@ -146,10 +148,11 @@ flowchart TB
 
 #### layout_strategy 分岐
 
-manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`）に応じて配置経路を分岐する。未指定（v1 manifest）は `grid` を暗黙適用。
+manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`）に応じて配置経路を分岐する。未指定時は `user-flow` を暗黙適用（v1 grid signature 検出時のみ `grid` 強制、詳細は `references/manifest-schema.md §5`）。
 
+- `layout_strategy === "user-flow"` → `references/figma-arrow-rules.md §3.3 user-flow レイアウト` へ（v3 推奨デフォルト）
 - `layout_strategy === "swim-lane"` → `references/figma-arrow-rules.md §3.1 swim-lane レイアウト` へ
-- `layout_strategy === "grid"` → `references/figma-arrow-rules.md §3.2 grid レイアウト（後方互換）` へ
+- `layout_strategy === "grid"` → `references/figma-arrow-rules.md §3.2 grid レイアウト（v1 legacy / fallback）` へ
 
 #### 共通要点
 
@@ -164,9 +167,16 @@ manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`
 - lane に使用する canonical role 識別子は `references/canonical-enums.md §5` の 6 種（`Common` / `Employee` / `Manager` / `HR` / `Admin` / `Ext`）を SSoT とする。辞書外の表示名は `Role_${hash}` で動的生成。
 - multi-role 画面の **主 lane 判定ルール** は `references/figma-arrow-rules.md §3.1 multi-role 主 lane 判定` を参照（manifest 明示 `lane_id` 最優先 → Common 特例画面 → in/out-degree 最多ロール → デフォルト辞書順）。
 
+#### user-flow 経路の追加注意
+
+- **エントリ検出 3-method priority chain**: `references/figma-arrow-rules.md §3.3.1` の方式（manifest 明示 (`is_entry_point: true`) → 名前 heuristics (`/^(login|signin|sign-in|entry|top|landing|splash)(-|$)/i`) → primary in-degree 0）を優先順で適用。全 0 件の場合は項目 F へ escalation し、AskUserQuestion で開始画面を確認する（`references/canonical-enums.md §10` `entry-detection-method` enum 参照）。
+- **親 set の一意定義**: 各ノードの「親」は `self.depth - 1` の predecessor 全件（shortcut edge は除外）。これにより親-中央値クラスタリングの入力集合を一意に定める（`references/figma-arrow-rules.md §3.3.3`）。
+- **`is_entry` Plugin Data 規約**: エントリポイント screen FrameNode には `setSharedPluginData("einja.screenFlow", "is_entry", "true")` を付与する（`references/manifest-schema.md §1` `screens[].is_entry_point` と一致）。
+- **reachable 不能ノードの可視化**: entry から BFS reachable でないノードは `unreachable` グループ帯として最下段に配置し、ユーザーへ確認 UI を提示する（Phase 2 で本格対応予定）。
+
 ### Step 8: パス 2 - エッジ描画（処理順序 v2）
 
-→ 実装詳細・コード例は `references/figma-arrow-rules.md` の §2「VectorNode + setVectorNetworkAsync の実装パターン」「§2.0〜§2.5 edge アルゴリズム」と §3.3「パス 2: エッジ描画」を参照。
+→ 実装詳細・コード例は `references/figma-arrow-rules.md` の §2「VectorNode + setVectorNetworkAsync の実装パターン」「§2.0〜§2.5 edge アルゴリズム」と §3.4「パス 2: エッジ描画」を参照。
 
 #### 処理順序 v2（cycle 対応）
 
@@ -182,7 +192,7 @@ manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`
 - **LineNode は不採用**。`LineNode.strokeCap` は vectorNetwork 全体に適用されて両端矢印固定になるため画面遷移図には不適切（2026-05-18 PoC で確認済み、根拠は `references/figma-arrow-rules.md §1`）。
 - 主軸は `figma.createVector()` + `await arrow.setVectorNetworkAsync({ vertices: [{strokeCap:"NONE"}, {strokeCap:"ARROW_LINES"}], segments: [{start:0,end:1}], regions: [] })` による **片方向矢印**。L字は 3 頂点 + 2 セグメント（`references/figma-arrow-rules.md §2.3`）。
 - `edge_kind: back` の dashPattern / stroke color は **VectorNode に直接設定**（GroupNode には dashPattern プロパティが存在しない、`references/figma-arrow-rules.md §2.5`）。色値は `references/canonical-enums.md §2` に準拠。
-- 各エッジは **3 要素グループ**（VectorNode + TextNode + `figma.group(...)`）で構成し、Undo 単位を 1 つにまとめる。「ラベルなし」エッジは TextNode を作らず VectorNode 単体で group 化する（`references/figma-arrow-rules.md §3.3` 参照）。
+- 各エッジは **3 要素グループ**（VectorNode + TextNode + `figma.group(...)`）で構成し、Undo 単位を 1 つにまとめる。「ラベルなし」エッジは TextNode を作らず VectorNode 単体で group 化する（`references/figma-arrow-rules.md §3.4` 参照）。
 - TextNode は **各バッチ先頭で必ず** `await figma.loadFontAsync({ family: "Inter", style: "Regular" })` を呼んでから作成（`references/figma-arrow-rules.md §6` バッチ間フォントキャッシュ非保証）。配置は最長セグメント中点を基準に法線方向へ `LABEL_OFFSET = 8px`（`references/canonical-enums.md §9`）。
 - group / VectorNode への plugin data 書き込みは `references/figma-arrow-rules.md §4` の互換 API（`writeNodeKind(group, "edge")` 等）を経由。`setSharedPluginData("einja.screenFlow", "stable_id", "{from}__to__{to}")` も併せて付与。
 - **動的バッチ分割**: コード文字列を構築しながら **40000 字** を超える前に次バッチへ分割（`use_figma` 入力上限 50000 字に対する余裕）。10 エッジ前後が目安だが日本語ラベル長で変動。**バッチ送信時に 50000 字超エラーが返った場合は、閾値を 40000 → 30000 字に下げて再試行する**（詳細は `references/figma-arrow-rules.md §6` + §5 エラー処理パターン参照）。
@@ -211,7 +221,7 @@ manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`
 `references/manifest-schema.md §1` 参照。詳細スキーマ・デフォルト値は同ファイルに集約。
 
 **frontmatter**:
-- `layout_strategy` — `swim-lane` / `grid`（`references/canonical-enums.md §1`）。未指定時は `grid` として読み込まれる
+- `layout_strategy` — `user-flow` / `swim-lane` / `grid`（`references/canonical-enums.md §1`）。未指定時は v3 default の `user-flow` として読み込まれる。ただし v1 grid signature（`schema_version: 1` + `lane_id` 全件 undefined + `position` あり）検出時のみ `grid` 強制（後方互換、詳細は `references/manifest-schema.md §5`）
 - `role_canonical_map` — 表示名 → canonical 識別子（`references/canonical-enums.md §5`）のマップ。例: `{ 上長: Manager, 人事部: HR }`
 
 **screens[]**:
@@ -242,7 +252,7 @@ manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`
 #### v1 Page スコープ制限
 
 - 過去 v1 grid 実装で生成された旧 Page（例: **`Screen-Flow-v1-grid`**）は **読み取り対象外**。`findAll` のスコープからも除外する。
-- 新 Page **`Screen-Flow-v2-swimlane-poc`** を SSoT として扱い、Step 6 の `figma.setCurrentPageAsync(...)` + assert で必ずこちらを active 化する。
+- 新 Page **`Screen-Flow-v3-userflow`** を SSoT として扱い、Step 6 の `figma.setCurrentPageAsync(...)` + assert で必ずこちらを active 化する。
 
 #### 照合フロー
 
@@ -299,8 +309,8 @@ manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`
 | 関連 Skill（用途別） | `ui-design-generator` (Agent) | Issue 単位の画面モックアップ生成。本 Skill とは用途が異なる（プロジェクト俯瞰 vs Issue 詳細） |
 | 参照 steering | `docs/einja/steering/development/figma-design-management.md` | `planKey` 既定値・命名規則・`screen-flow-url.md` スキーマ |
 | サブ参照 0 | `references/canonical-enums.md` | **enum SSoT**: `layout_strategy` / `edge_kind` / `routing` / `node_kind` / `business_role` / `source_confidence` / `status` / lane 配置定数 |
-| サブ参照 1 | `references/hearing-checklist.md` | 章識別 + 画面候補推定ルール + クロスチェック (§3.4) + AskUserQuestion 項目テンプレ (項目 A〜E) |
-| サブ参照 2 | `references/figma-arrow-rules.md` | VectorNode 主軸の矢印描画パターン・edge 処理順序 v2 (§2.0)・swim-lane / grid layout 分岐 (§3.0〜§3.2)・Plugin Data Key 移行 (§4)・動的バッチ分割・nodeId 再解決 |
+| サブ参照 1 | `references/hearing-checklist.md` | 章識別 + 画面候補推定ルール + クロスチェック (§3.4) + AskUserQuestion 項目テンプレ (項目 A〜F) |
+| サブ参照 2 | `references/figma-arrow-rules.md` | VectorNode 主軸の矢印描画パターン・edge 処理順序 v2 (§2.0)・user-flow / swim-lane / grid layout 分岐 (§3.0〜§3.3)・エッジ描画 (§3.4)・Plugin Data Key 移行 (§4)・動的バッチ分割・nodeId 再解決 |
 | サブ参照 3 | `references/manifest-schema.md` | `screen-flow-url.md` 完全スキーマ + 新フィールド (§1) + 冪等性ポリシー (§3) + Plugin Data Key 移行 (§4) + `normalizeManifestV1` (§5) + ui-design-url.md との差分表 |
 | Figma MCP リソース | `file://figma/docs/write-to-canvas.md` | 必要時 `ReadMcpResourceTool` で取得（20kb 出力上限の根拠） |
 | Plugin API ドキュメント | `developers.figma.com` / `VectorNetwork` / `nodes-strokecap` | `references/figma-arrow-rules.md` 末尾参照 |

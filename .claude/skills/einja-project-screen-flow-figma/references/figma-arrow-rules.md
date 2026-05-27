@@ -135,7 +135,7 @@ function pickAnchor(fromBB, toBB) {
   - 当面は **片方を `routing: straight` にフォールバック** + 警告ログ + 警告フラグ書き込み
   - L字往復の正規対応（折れ点シフト + 中央セグメント分離）は Phase 2 の別 Issue として計画
 
-> **警告フラグ書き込み先（明示）**: L字往復の片方を `routing: straight` にフォールバックする場合、対応する **edge group ノード**に `setSharedPluginData("einja.screenFlow", "label_collision_warning", "true")` を書き込む（manifest `edges[].label_collision_warning: true` と同期）。manifest を SSoT としつつ、Figma 側のフラグも併記して再生成時の冪等性を確保する。書き込み対象は VectorNode 単独ではなく、§3.3 で生成する edge group ノードに統一する。
+> **警告フラグ書き込み先（明示）**: L字往復の片方を `routing: straight` にフォールバックする場合、対応する **edge group ノード**に `setSharedPluginData("einja.screenFlow", "label_collision_warning", "true")` を書き込む（manifest `edges[].label_collision_warning: true` と同期）。manifest を SSoT としつつ、Figma 側のフラグも併記して再生成時の冪等性を確保する。書き込み対象は VectorNode 単独ではなく、§3.4 で生成する edge group ノードに統一する。
 
 ```javascript
 // 直線往復シフトの擬似コード
@@ -269,20 +269,23 @@ arrow.strokeWeight = 2;
 
 ```javascript
 // パス1 の冒頭で layout_strategy に応じて分岐
-const layoutStrategy = manifest.layout_strategy ?? "grid";
-if (layoutStrategy === "swim-lane") {
+const layoutStrategy = manifest.layout_strategy ?? "user-flow"; // v3 default
+if (layoutStrategy === "user-flow") {
+  // §3.3 user-flow 配置（v3 推奨デフォルト）へ
+} else if (layoutStrategy === "swim-lane") {
   // §3.1 swim-lane 配置へ
 } else {
-  // §3.2 grid 配置（後方互換）へ
+  // §3.2 grid 配置（v1 legacy / fallback）へ
 }
 ```
 
+- `user-flow`: §3.3 へ。エントリ検出 + BFS 深さ算出 + 親中央値クラスタリングで自動配置（v3 推奨デフォルト）。
 - `swim-lane`: §3.1 へ。role 別 lane を縦方向に並べ、画面は `lane_id` に応じて該当 lane 内に配置。x_order は §2.0 の topological sort 結果。
 - `grid`: §3.2 へ。`cols = ceil(sqrt(N))` の格子配置（v1 後方互換）。
 
-### 3.1 swim-lane レイアウト（推奨デフォルト）
+### 3.1 swim-lane レイアウト（role 軸明示時に採用）
 
-`layout_strategy: swim-lane` で動作する新規生成のデフォルト戦略。role 別 lane を縦方向に積み上げ、画面 FrameNode を該当 lane 内に左から `x_order` 順で配置する。
+`layout_strategy: swim-lane` で動作する戦略（role 軸を明示したい場合に採用）。role 別 lane を縦方向に積み上げ、画面 FrameNode を該当 lane 内に左から `x_order` 順で配置する。
 
 #### lane 配置パラメータ
 
@@ -407,7 +410,7 @@ function inferLane(roleDisplay, roleCanonicalMap) {
 
 ### 3.2 grid レイアウト（後方互換）
 
-`layout_strategy: grid`（または未指定 v1 manifest）の場合の動作。**既存 v1 manifest を壊さないための後方互換経路** として維持する。新規生成では §3.1 swim-lane を推奨。
+`layout_strategy: grid`（または未指定 v1 manifest）の場合の動作。**既存 v1 manifest を壊さないための後方互換経路** として維持する。新規生成では §3.3 user-flow を推奨（role 軸明示時は §3.1 swim-lane）。
 
 - 全画面候補を `FrameNode` で配置する。名前は kebab-case（例: `"screen-dashboard"`, `"screen-login"`）。
 - 格子レイアウト: 列数 `cols = ceil(sqrt(N))`、画面間隔 `200`〜`400px`（FrameNode サイズに応じて調整）。
@@ -437,9 +440,236 @@ for (let i = 0; i < screens.length; i++) {
 - パス 1 のレスポンスでは、オーケストレーター側で `{ stable_id: nodeId }` の Map を保持する（次バッチでの再解決に備える）。
 - grid 経路では `lane_id` / `business_role` を書き込まない（v1 互換のため）。読み込み時に `business_role` が空ノードは `Common` 扱い。
 
-### 3.3 パス 2: エッジ描画（矢印 + ラベル + グルーピング）
+### 3.3 user-flow レイアウト（v3 推奨デフォルト）
 
-`layout_strategy` に依存しない共通処理。§3.1 / §3.2 で配置済みの FrameNode を `stable_id` で再解決し（§5）、各エッジを VectorNode + TextNode + Group で描画する。
+`layout_strategy: user-flow`（v3 デフォルト）で動作するレイアウト戦略。エントリ画面を自動検出し、BFS で各画面の深さを算出、親の y 中央値でクラスタリングすることで、フロー構造を直感的に可視化する。
+
+canonical-enums §9 / §10 参照（定数・enum はそちらを SSoT とする）:
+
+| 参照定数 | 値 | 用途 |
+|----------|-----|------|
+| `LEFT_MARGIN` (§9) | 80px | ページ左端からの余白 |
+| `HORIZONTAL_GAP` (§9) | 160px | depth 間の水平ギャップ |
+| `DEPTH_SPACING_X` (§9) | 400px | `FRAME_W + HORIZONTAL_GAP` に相当する depth 単位幅 |
+| `VERTICAL_GAP` (§9) | 80px | 同 depth 内の縦間隔 |
+| `ENTRY_STROKE_WEIGHT` (§9) | 4px | エントリ画面の枠線太さ |
+| `ENTRY_FILL_COLOR` (§9) | `{r:0.96, g:0.98, b:1.0}` | エントリ画面の背景色 |
+| `ENTRY_BADGE_W` (§9) | 56px | Entry バッジ幅 |
+| `ENTRY_BADGE_H` (§9) | 20px | Entry バッジ高さ |
+| `entry-detection-method` (§10) | 5 値 enum | エントリ検出手法の記録 |
+
+#### 3.3.1 エントリ検出（3-method priority chain）
+
+3 段階の優先度チェーンで最高位の結果のみを採用する（union 不要）。
+
+```javascript
+// method 1: manifest 明示（最優先）
+const m1 = screens.filter(s => s.is_entry_point === true);
+if (m1.length > 0) return { entries: m1, method: "manifest" };
+
+// method 2: 名前 heuristics
+const ENTRY_NAME_RE = /^(login|signin|sign-in|entry|top|landing|splash)(-|$)/i;
+const m2 = screens.filter(s => ENTRY_NAME_RE.test(s.name));
+if (m2.length > 0) return { entries: m2, method: "heuristics-name" };
+
+// method 3: primary in-degree 0
+const primaryEdges = edges.filter(e => e.edge_kind !== "back");
+const inDegree = new Map(screens.map(s => [s.id, 0]));
+primaryEdges.forEach(e => inDegree.set(e.to, (inDegree.get(e.to) ?? 0) + 1));
+const m3 = screens.filter(s => inDegree.get(s.id) === 0);
+if (m3.length > 0) return { entries: m3, method: "topology-indegree-zero" };
+
+// 全 0 件 → 項目F escalation
+// AskUserQuestion でユーザー選択 → user-confirmed
+// 拒否 → fallback-grid（manifest.layout_strategy = "grid" に書き換えて §3.2 へ）
+```
+
+method ごとの `entry-detection-method` enum 値（canonical-enums §10）:
+- `manifest`: is_entry_point 明示
+- `heuristics-name`: 名前パターン一致
+- `topology-indegree-zero`: primary in-degree 0
+- `user-confirmed`: ユーザー手動選択
+- `fallback-grid`: grid にフォールバック
+
+#### 3.3.2 BFS 深さ算出
+
+- 入力: primary edges（`edge_kind !== "back"` フィルタ後）、**`status === "orphan"` 画面は BFS 対象から完全除外**（depth 計算・unreachable 配置の両方とも対象外）
+- BFS でエントリ画面から各画面の `depth` を計算
+- 同深さ tie-break: YAML `edges[]` 出現順
+- cycle 対処: **BFS の `depthMap.has(e.to)` 訪問済みチェックがサイクルを防止する**。primary-DAG-only フィルタは back edge による無意味な深さ計算を除外する役割。残存 primary cycle は §2.0 既存ロジック（Tarjan SCC 結果の YAML 順 fallback）で SCC 内順序が決定される
+- **reachable 不能ノード**: orphan 以外で primary edges から到達できない画面を `depth = maxDepth + 1` の集約グループに配置。グループ内 screen は y 軸に `VERTICAL_GAP=80px` で縦積み。ラベル「unreachable」付きの薄グレー帯として可視化（Phase 2 で確認 UI 追加予定）
+
+```javascript
+function calcDepths(entries, primaryEdges, screens) {
+  // orphan status の画面は BFS 対象から完全除外（depth 計算・unreachable 配置の両方とも対象外）
+  const activeScreens = screens.filter(s => s.status !== "orphan");
+
+  const depthMap = new Map();
+  const queue = [];
+  entries.forEach(s => { depthMap.set(s.id, 0); queue.push(s.id); });
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    const currentDepth = depthMap.get(current);
+    primaryEdges
+      .filter(e => e.from === current && !depthMap.has(e.to))
+      .forEach(e => {
+        depthMap.set(e.to, currentDepth + 1);
+        queue.push(e.to);
+      });
+  }
+
+  // reachable 不能ノードを maxDepth + 1 に配置（orphan は activeScreens から除外済みのため対象外）
+  const maxDepth = Math.max(0, ...depthMap.values());
+  activeScreens.forEach(s => {
+    if (!depthMap.has(s.id)) depthMap.set(s.id, maxDepth + 1);
+  });
+
+  return depthMap;
+}
+```
+
+#### 3.3.3 親-中央値クラスタリング
+
+**処理順序**: ① 各 screen の `tentativeY = clusterY(parent median)` を計算 → ② 同 depth グループの中央 y を parent median に合わせる **center-align ステップ**（`centerAlignAroundMedian`）→ ③ `resolveCollisions` で VERTICAL_GAP 下方シフトによる衝突回避（保険）。
+
+center-align ステップにより、同 depth グループは parent median を中心とした **左右対称配置（上下対称）** になる（例: depth=2 の 5 screen で parent median y=240 の場合、各 screen は y = 80, 160, 240, 320, 400 に配置される）。
+
+```javascript
+// 親 set 定義（一意化）
+// 親 = 「self.depth - 1」に位置する primary edge の入力ノード全件
+// shortcut edge（複数 depth スキップ）は depth - 1 に該当しないため除外
+// 引数化（テスト容易性・実装可読性向上のためクロージャ外参照を廃止）
+function getParents(screen, primaryEdges, depthMap, screens) {
+  return primaryEdges
+    .filter(e => e.to === screen.id && depthMap.get(e.from) === depthMap.get(screen.id) - 1)
+    .map(e => screens.find(s => s.id === e.from));
+}
+
+// y = median(parents.y)
+// root（親なし）= 中央集合（root 群の y を画面領域中央に配置）
+function clusterY(screen, primaryEdges, depthMap, placedY, screens) {
+  const parents = getParents(screen, primaryEdges, depthMap, screens).filter(Boolean);
+  if (parents.length === 0) {
+    // root: 後で root 群全体を中央揃えするため 0 で仮置き
+    return 0;
+  }
+  const ys = parents.map(p => placedY.get(p.id) ?? 0).sort((a, b) => a - b);
+  const mid = Math.floor(ys.length / 2);
+  return ys.length % 2 === 1 ? ys[mid] : (ys[mid - 1] + ys[mid]) / 2;
+}
+
+// center-align: 同 depth グループ内で、parent median = 中央 y となるよう各 screen の y を再分配
+// 出現順は §3.3.2 で確定した tie-break（YAML edges[] 出現順、screens[] 配列の元 index で stable）に従う
+function centerAlignAroundMedian(group, parentMedianY, VERTICAL_GAP) {
+  const n = group.length;
+  if (n === 0) return;
+  const totalHeight = (n - 1) * VERTICAL_GAP;
+  const startY = parentMedianY - totalHeight / 2;
+  group.forEach((s, i) => { s.y = startY + i * VERTICAL_GAP; });
+}
+
+// 衝突回避（保険）: 同 depth 内で y が VERTICAL_GAP=80px 未満で重なる場合は stable sort で下方向シフト
+// center-align で位置が確定するため理論的に衝突は発生しないが、shortcut edge による親-子間 depth スキップや
+// parent median の重複等のエッジケースに備えた保険。VERTICAL_GAP のみで判定（FRAME_H は canonical-enums §9 を参照）。
+function resolveCollisions(depthGroups, VERTICAL_GAP) {
+  for (const [, group] of depthGroups) {
+    // 出現順を維持した stable sort
+    group.sort((a, b) => (a.tentativeY - b.tentativeY) || (a.order - b.order));
+    for (let i = 1; i < group.length; i++) {
+      const minY = group[i - 1].tentativeY + FRAME_H + VERTICAL_GAP;
+      if (group[i].tentativeY < minY) group[i].tentativeY = minY;
+    }
+  }
+}
+```
+
+**shortcut edge の扱い**: 複数 depth をスキップする shortcut edge（例: depth=0 → depth=3）の入力側ノードは parent set に含めない（`self.depth - 1` に該当しないため自動除外）。y 座標が視覚的に離れる副作用が生じうるが、Phase 1 では許容（force-directed post-processing は Phase 2 送り）。
+
+#### 3.3.4 座標式
+
+```
+x = LEFT_MARGIN + depth * DEPTH_SPACING_X
+  = 80 + depth * 400
+
+y = clusterY（3.3.3 で計算。root 群は画面領域中央に事後補正）
+```
+
+```javascript
+for (const screen of screens) {
+  const depth = depthMap.get(screen.id);
+  const frame = figma.createFrame();
+  frame.name = `screen-${screen.name}`;
+  frame.resize(FRAME_W, FRAME_H);
+  frame.x = LEFT_MARGIN + depth * DEPTH_SPACING_X;  // 80 + depth * 400
+  frame.y = placedY.get(screen.id);
+  writeNodeKind(frame, "screen");
+  frame.setSharedPluginData("einja.screenFlow", "stable_id", screen.stable_id);
+  figma.currentPage.appendChild(frame);
+}
+```
+
+#### 3.3.5 エントリビジュアル強調
+
+エントリ画面の Frame に枠線・背景色・Entry バッジを付与する。
+
+```javascript
+// エントリ画面の Frame に対して
+frame.strokes = [{ type: "SOLID", color: { r: 0.2, g: 0.4, b: 0.8 } }];
+frame.strokeWeight = ENTRY_STROKE_WEIGHT; // 4px（canonical-enums §9）
+frame.fills = [{ type: "SOLID", color: ENTRY_FILL_COLOR }]; // {r:0.96, g:0.98, b:1.0}（canonical-enums §9）
+frame.setSharedPluginData("einja.screenFlow", "is_entry", "true");
+
+// Entry バッジ TextNode を Frame 左上に配置
+// badge.characters 設定前に await figma.loadFontAsync(badge.fontName) が必要（既存パターン踏襲）。
+// エントリ強調バッチの先頭で一括 loadFontAsync を呼ぶこと
+// （use_figma バッチ単位でフォントキャッシュ非保証のため、各バッチで再ロードが必要 §6 参照）。
+await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+const badge = figma.createText();
+badge.fontName = { family: "Inter", style: "Regular" };
+badge.characters = "Entry";
+badge.fontSize = 11;
+badge.fills = [{ type: "SOLID", color: { r: 0.2, g: 0.4, b: 0.8 } }];
+badge.resize(ENTRY_BADGE_W, ENTRY_BADGE_H); // 56 x 20（canonical-enums §9）
+badge.x = frame.x + 8;
+badge.y = frame.y + 8;
+figma.currentPage.appendChild(badge);
+```
+
+#### 3.3.6 ヘルパー再利用
+
+以下は §3.3 専用の変更不要で既存実装を流用する:
+
+| ヘルパー | 定義場所 | 再利用内容 |
+|---------|---------|----------|
+| `pickAnchor(fromBB, toBB)` | §2.1 | 辺判定（最近辺マッチング） |
+| `applyRoundTripOffset()` | §2.2 | 往復エッジの平行シフト |
+| `writeNodeKind() / readNodeKind()` | §4 | Plugin Data Key の読み書き |
+
+座標渡しのみ §3.3 で決定した値（`frame.x`, `frame.y`）に差し替えること。エッジ描画処理自体は §3.4 を再利用する（§3.3.8 参照）。
+
+#### 3.3.7 Page 命名
+
+- v3 SSoT page: `Screen-Flow-v3-userflow`
+- v1/v2 旧 Page（`Screen-Flow-v1-grid`, `Screen-Flow-v2-swimlane` 等）は読取対象外（既存ロジック踏襲）
+
+#### 3.3.8 エッジ描画は §3.4 を再利用
+
+§3.4（旧 §3.3）の VectorNode + TextNode + Group 描画ロジックをそのまま再利用する。座標決定は §3.3.1〜3.3.5 で完結しており、エッジ描画時には FrameNode の `absoluteBoundingBox` を `pickAnchor` に渡すだけでよい。
+
+#### 3.3.9 Phase 2 送り項目（v3 user-flow 関連）
+
+以下は Phase 2 で追加予定の改善項目（本 Phase 1 では未実装）:
+
+- **Tarjan SCC の明示的可視化**: SCC グループ描画 / バッジ表示 / 循環フロー通知 UI（§2.0 で内部利用済、ユーザー向け可視化は Phase 2）
+- **force-directed post-processing**: edge-length 最適化（§3.3.3 shortcut edge による y 座標離散の緩和）
+- **reachable 不能ノード確認 UI**: §3.3.2 の `unreachable` グループ帯に対する削除/承認確認 UI
+
+---
+
+### 3.4 パス 2: エッジ描画（矢印 + ラベル + グルーピング）
+
+`layout_strategy` に依存しない共通処理。§3.1 / §3.2 / §3.3 で配置済みの FrameNode を `stable_id` で再解決し（§5）、各エッジを VectorNode + TextNode + Group で描画する。
 
 各エッジを 3 要素グループで構成する:
 

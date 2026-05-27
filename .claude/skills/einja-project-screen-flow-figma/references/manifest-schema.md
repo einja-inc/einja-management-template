@@ -61,7 +61,8 @@ role_canonical_map:                   # 任意。表示名 → canonical 識別�
 | `schema_version` | ✅ | number | スキーマバージョン（互換性管理用、現行: `1`） |
 | `generated_at` | ✅ | date | 最終生成日（`YYYY-MM-DD`） |
 | `project_name` | ✅ | string | プロジェクト名（kebab-case、`stable_id` プレフィックスに使用） |
-| `layout_strategy` | ⚠️ | string | レイアウト戦略。canonical-enums §1 の enum 値。未指定 = `grid`（v1 後方互換） |
+| `layout_strategy` | ⚠️ | string | レイアウト戦略。canonical-enums §1 の enum 値。未指定時のデフォルトは `user-flow`（v3 default）。ただし v1 manifest signature（`schema_version: 1` + `lane_id` 全件 undefined + `position` あり）が検出された場合のみ `grid` 強制（後方互換） |
+| `entry_detection_method` | ⚠️（任意） | string | エントリポイント確定方法の識別子。値は `canonical-enums §10 entry-detection-method` enum（`manifest` / `heuristics-name` / `topology-indegree-zero` / `user-confirmed` / `fallback-grid`）。Skill 実行時に自動記録（手動編集不要）。トレーサビリティ用 |
 | `role_canonical_map` | ⚠️ | object | 表示名 → canonical 識別子（canonical-enums §5）のマップ。未指定 = `{}` でデフォルト辞書のみ使用 |
 
 ### 1.2 screens[] フィールド
@@ -76,6 +77,7 @@ role_canonical_map:                   # 任意。表示名 → canonical 識別�
 | `source_confidence` | ⚠️ | string | クロスチェック由来時の信頼度。canonical-enums §6。未指定 = `high`（§2 業務フロー由来として扱う） |
 | `status` | ✅ | string | `active`（要件にあり） / `orphan`（要件から削除済み） |
 | `position` | ⚠️ | object | `{x, y}` 座標。ユーザー手動編集を尊重して保持 |
+| `is_entry_point` | ⚠️ | boolean | エントリポイント明示フラグ。デフォルト `false`。manifest 明示が最優先（heuristics より優先）。user-flow レイアウト時に BFS の起点判定で使用 |
 
 ### 1.3 edges[] フィールド
 
@@ -184,7 +186,7 @@ function writeBusinessRole(node, canonicalRole) {
 
 | フィールド | 未指定時 |
 |----------|--------|
-| `layout_strategy` | `grid` として読む |
+| `layout_strategy` | `user-flow`（v1 grid signature 検出時のみ `grid`）として読む |
 | `role_canonical_map` | `{}` 空オブジェクト + canonical-enums §5 デフォルト辞書のみ使用 |
 | `screens[].lane_id` | `inferLane(role, role_canonical_map)` で逆引き推定 |
 | `screens[].source_confidence` | `high`（§2 業務フロー由来として扱う） |
@@ -198,10 +200,18 @@ function writeBusinessRole(node, canonicalRole) {
 function normalizeManifestV1(raw) {
   return {
     ...raw,
-    layout_strategy: raw.layout_strategy ?? "grid",
+    layout_strategy: (
+      // ① 明示指定があればそれを採用（user-flow / swim-lane / grid のいずれか）
+      raw.layout_strategy
+      // ② 未指定かつ v1 grid signature を持つ manifest は grid 強制（後方互換）
+      ?? (hasV1Signature(raw) ? "grid"
+      // ③ それ以外は v3 default
+      : "user-flow")
+    ),
     role_canonical_map: raw.role_canonical_map ?? {},
     screens: (raw.screens ?? []).map(s => ({
       ...s,
+      is_entry_point: s.is_entry_point ?? false,
       lane_id: s.lane_id ?? inferLane(s.role, raw.role_canonical_map ?? {}),
       source_confidence: s.source_confidence ?? "high",
     })),
@@ -213,7 +223,23 @@ function normalizeManifestV1(raw) {
     })),
   };
 }
+
+/**
+ * v1 grid manifest signature を判定。
+ *
+ * 前提: v1 grid emitter は screens[] に `position` を必ず emit する（PR #148 時点）。
+ * もし position が未 emit のケースが将来発生した場合は、`raw.screens.some(s => s.position !== undefined)`
+ * 条件を削除して `lane_id` 全件 undefined のみで判定する形に変更が必要。
+ */
+function hasV1Signature(raw) {
+  return raw.layout_strategy === undefined
+    && raw.schema_version === 1
+    && (raw.screens ?? []).every(s => s.lane_id === undefined)
+    && (raw.screens ?? []).some(s => s.position !== undefined);
+}
 ```
+
+**注釈**: 明示 swim-lane manifest は ① で早期 return されるため `hasV1Signature` 判定に到達しない（誤判定なし）。
 
 `schema_version` 未知（≠1）の場合は Skill 読み込みを停止し、ユーザーに Skill 更新を促す。
 
@@ -228,10 +254,13 @@ function normalizeManifestV1(raw) {
 
 ### v1 fixture 命名推奨
 
-v1 互換 fixture を残す場合、`{original-name}-v1-{strategy}.md` 命名を推奨。例:
-- `screen-flow-url.md`（v2 swim-lane 版） + `screen-flow-url-v1-grid.md`（v1 grid 互換 fixture）
+v1 → v2 → v3 と fixture が増えるため、以下の 3 層命名規則を推奨:
 
-これにより v2 出力ファイルとの差別化が明確になり、`normalizeManifestV1` の動作確認用 fixture として継続的に活用できる。他 Skill でも同パターンの採用を推奨。
+- `screen-flow-url-v1-grid.md` — v1 grid manifest fixture（既存）
+- `screen-flow-url-v2-swimlane.md` — v2 swim-lane manifest fixture（任意）
+- `screen-flow-url.md` — 最新版（v3 user-flow、default）
+
+これにより各バージョンの出力ファイルとの差別化が明確になり、`normalizeManifestV1` および `hasV1Signature` の動作確認用 fixture として継続的に活用できる。他 Skill でも同パターンの採用を推奨。
 
 ## 6. YAML 最小実例（screens 1件、edges 1件）
 
@@ -277,6 +306,8 @@ role_canonical_map:
 ## 7. 拡張性（schema_version 互換性管理）
 
 `schema_version: 1` 時の必須フィールドは §1.1〜§1.3 のテーブルで✅マーク付き全項目。任意フィールド（⚠️）は v1 範囲で追加されたものであり、未指定時は §5 の `normalizeManifestV1` がデフォルト値を補完する。
+
+**`schema_version` 据置ルール（v3 user-flow 対応）**: `is_entry_point` フィールド追加に伴う `schema_version` バンプは不要。理由: `is_entry_point` は optional フィールドであり、YAML unknown field は無視されるルールに従うため、既存 v1 manifest を v3 reader が読み取っても互換性が保たれる（§5 `normalizeManifestV1` が `false` をデフォルト補完）。
 
 将来スキーマ変更時のマイグレーションパス:
 

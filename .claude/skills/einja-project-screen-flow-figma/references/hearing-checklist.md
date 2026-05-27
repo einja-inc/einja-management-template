@@ -80,16 +80,16 @@ patterns:
 
 要件定義書の記述シグナルを検知して、以下の共通画面を画面候補に追加するか判定する。既定 ON のものは項目E のデフォルトで採用、既定 OFF のものはユーザーの明示指定がある場合のみ追加する。
 
-| 画面名 | 出現条件 | 既定 | 配置 lane_id |
-|--------|--------|----|--------|
-| `login` | §3.3 権限マトリクス存在 / §4 採用方針に「認証」記載 | ON | `Common` |
-| `home` | §2 TO-BE 業務フローに「メニュー」「ダッシュボード」相当のハブ画面なし | ON | `Common` |
-| `settings` | §6 機能一覧に「設定」「プロフィール」等の記載 | OFF | `Common` |
-| `error` | §4.x 非機能 / §6 機能一覧に「エラー画面」記載 | ON | `Common` |
-| `not-found-404` | §5 スコープに「公開機能」 | ON | `Common` |
-| `session-expired` | §4 採用方針に「認証」 | ON | `Common` |
-| `forbidden-403` | §3.3 権限マトリクス存在 | ON | `Common` |
-| `maintenance` | §7 運用要件・SLA記載 | OFF | `Common` |
+| 画面名 | 出現条件 | 既定 | 配置 lane_id | Note |
+|--------|--------|----|--------|------|
+| `login` | §3.3 権限マトリクス存在 / §4 採用方針に「認証」記載 | ON | `Common` | **user-flow レイアウト時はエントリポイント候補（既定 ON で `is_entry_point: true` 補完、`references/figma-arrow-rules.md §3.3.1` 3-method priority chain method 2 (heuristics-name) でマッチ）** |
+| `home` | §2 TO-BE 業務フローに「メニュー」「ダッシュボード」相当のハブ画面なし | ON | `Common` | - |
+| `settings` | §6 機能一覧に「設定」「プロフィール」等の記載 | OFF | `Common` | - |
+| `error` | §4.x 非機能 / §6 機能一覧に「エラー画面」記載 | ON | `Common` | - |
+| `not-found-404` | §5 スコープに「公開機能」 | ON | `Common` | - |
+| `session-expired` | §4 採用方針に「認証」 | ON | `Common` | - |
+| `forbidden-403` | §3.3 権限マトリクス存在 | ON | `Common` | - |
+| `maintenance` | §7 運用要件・SLA記載 | OFF | `Common` | - |
 
 共通画面は canonical role `Common`（`canonical-enums.md §5`）に配置する。
 
@@ -179,11 +179,12 @@ function normalizeToScreenName(label) {
 
 **質問例**: §3.3 の権限マトリクスを参考に、各画面のアクセス可能ロールを確認。
 
-**デフォルト**: 「ロールごとにグルーピング」（`layout_strategy: swim-lane`、`canonical-enums.md §1` 参照）を **既定 ON** とする。視認性とロール別の責務明確化を優先するため。
+**デフォルト**: 「エントリポイント基準で階層化」（`layout_strategy: user-flow`、`canonical-enums.md §1` 参照）を **既定 ON** とする。視認性とエントリポイント基準階層化を優先するため。`swim-lane` は role 軸明示時のみ採用。
 
 | 選択肢 | description | Note |
 |--------|------------|------|
-| ロールごとにグルーピング（デフォルト） | `layout_strategy: swim-lane` で Common / Employee / Manager / HR / Admin / Ext の lane に画面を配置 | Note: `canonical-enums.md §5` の canonical role 辞書順で lane を生成。視認性向上・ロール責務明確化 |
+| エントリポイント基準で階層化（デフォルト） | `layout_strategy: user-flow` でエントリ画面から BFS 深さ順に階層配置 | Note: `references/figma-arrow-rules.md §3.3` 参照。視認性・操作フロー追従性向上。role 軸明示が不要な一般的ケースで推奨 |
+| ロールごとにグルーピング | `layout_strategy: swim-lane` で Common / Employee / Manager / HR / Admin / Ext の lane に画面を配置 | Note: `canonical-enums.md §5` の canonical role 辞書順で lane を生成。role 責務軸を明示したい場合に有用 |
 | 権限マトリクス準拠（ロール情報のみ付与） | swim-lane 配置はせず、各画面に `business_role` プラグインデータのみ付与 | Note: 後工程の Issue 仕様書生成等で再利用される。レイアウトは `grid` |
 | ロール情報なしで進める | アクセス制御は別途検討、画面のみ生成 | Note: 後から `setSharedPluginData("einja.screenFlow", "business_role", ...)` で追加可能 |
 | その他（自由入力） | - | - |
@@ -198,6 +199,19 @@ function normalizeToScreenName(label) {
 | (b) 個別選択 | 表形式で画面ごとに ON/OFF を選択する | 1画面ずつ確認できるが、所要時間 +2分。出現条件が borderline の画面（`maintenance` 等）を慎重に判断したい場合に有用 |
 | (c) すべて除外 | 共通画面は今回スコープ外とし、manifest に追加しない | manifest に追加せず、後で別 Issue で追加可能。プロトタイプ段階等で業務フロー画面のみに集中したい場合 |
 | (d) その他（自由入力） | カスタム判断 | 自由入力で具体的指示（例: 「error と forbidden-403 だけ採用」「maintenance も追加」等） |
+
+### 項目F: エントリポイント確認（`user-flow` 経路で自動検出 0 件時のみ表示）
+
+**表示条件**: `references/figma-arrow-rules.md §3.3.1` の 3-method priority chain（manifest 明示 (`is_entry_point: true`) → 名前 heuristics (`/^(login|signin|sign-in|entry|top|landing|splash)(-|$)/i`) → primary in-degree 0）が全 0 件の場合のみ表示する。自動検出が成功した場合は本項目を skip する（デフォルト OFF）。
+
+**質問例**: 「業務フローの開始画面を選択してください。自動検出ではエントリポイントを特定できませんでした。」
+
+| 選択肢 | description | Note |
+|--------|------------|------|
+| 既存 screens から選択 | 確定済み画面リスト（項目 A で確定）から開始画面 1 つを選択 | Note: 選択した画面に `is_entry_point: true` を付与し、`references/canonical-enums.md §10` `entry-detection-method: user-confirmed` を記録 |
+| `grid` fallback で進める | `user-flow` レイアウトを諦め、`layout_strategy: grid` にフォールバック | Note: エントリ階層化を放棄し v1 grid 配置を採用。後で manifest 編集 + 再生成でエントリ指定可能 |
+| 中止 | Skill 実行を中止し、要件定義書 / manifest を見直す | Note: エントリ画面候補が業務フロー上に存在しない場合は要件定義書の見直しが必要 |
+| その他（自由入力） | カスタム判断 | 自由入力（例: 「新規エントリ画面を追加して entry-screen として採用」等） |
 
 ## 5. ヒアリングのアンチパターン
 

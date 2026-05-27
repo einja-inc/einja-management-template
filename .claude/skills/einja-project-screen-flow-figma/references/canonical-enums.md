@@ -10,7 +10,8 @@ manifest frontmatter `layout_strategy` フィールドに記録するレイア�
 
 | value | 用途 |
 |-------|------|
-| `swim-lane` | role 別 swim lane レイアウト（推奨、新規生成のデフォルト） |
+| `user-flow` | role 不問・エントリポイント基準の BFS 深さ階層レイアウト（**Phase 1 新規デフォルト**） |
+| `swim-lane` | role 別 swim lane レイアウト（v2 swim-lane、明示指定時に採用） |
 | `grid` | 単純格子レイアウト（v1 後方互換、`layout_strategy` 未指定時の暗黙値） |
 
 ## §2. edge_kind enum
@@ -108,3 +109,25 @@ manifest 内のライフサイクル状態。再生成時の冪等性管理に�
 | `FRAME_SPACING_Y` | 40px | lane top と frame top のオフセット |
 | `EDGE_OFFSET` | 16px | 往復 edge の平行シフト量 |
 | `LABEL_OFFSET` | 8px | edge ラベルの線からの法線方向オフセット（初期値） |
+| `LEFT_MARGIN` | `80px` | user-flow レイアウト左端マージン |
+| `HORIZONTAL_GAP` | `160px` | user-flow depth 間ギャップ |
+| `DEPTH_SPACING_X` | `400px` | depth ごとの x 増分（`FRAME_W + HORIZONTAL_GAP` = 240 + 160）。depth d の x 座標 = `LEFT_MARGIN + d * DEPTH_SPACING_X` |
+| `VERTICAL_GAP` | `80px` | user-flow 同 depth 内 screen 間ギャップ |
+| `ENTRY_STROKE_WEIGHT` | `4px` | エントリ画面の強調 stroke 幅（通常 2px） |
+| `ENTRY_FILL_COLOR` | `{r:0.96, g:0.98, b:1.0}` | エントリ画面 fill 色（薄青、可読性優先） |
+| `ENTRY_BADGE_W` | `56px` | エントリバッジ幅 |
+| `ENTRY_BADGE_H` | `20px` | エントリバッジ高さ |
+
+## §10. entry-detection-method enum
+
+エントリポイント確定方法の識別子。manifest frontmatter `entry_detection_method` フィールドに記録し、どの method でエントリが確定したかをトレース可能にする。
+
+**書き込み先**: manifest frontmatter `entry_detection_method` フィールド（`manifest-schema.md §1.1` 参照、任意フィールド）。Skill 実行時に Skill が自動記録するため、手動編集は不要。
+
+| value | 説明 |
+|-------|------|
+| `manifest` | manifest 明示 `is_entry_point: true`（最優先） |
+| `heuristics-name` | 画面名 heuristics 正規表現マッチ |
+| `topology-indegree-zero` | primary edge in-degree 0 |
+| `user-confirmed` | 自動検出 0 件時にヒアリング項目F で AskUserQuestion により選択 |
+| `fallback-grid` | エントリ検出全 0 件 + ユーザー拒否時の `grid` フォールバック記録 |

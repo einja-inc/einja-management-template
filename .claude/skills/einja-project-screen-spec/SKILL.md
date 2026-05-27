@@ -4,6 +4,13 @@ description: "docs/project/screen-flow-url.md（必須）/ function-specs/（推
 user-invocable: true
 ---
 
+<!--
+**上流 Skill**: `einja-design-5-planes`（goodpatch 5 段階モデル横断オーケストレーター）から呼び出される下流 Skill のひとつ。
+- 担当 Plane: **Plane 4 Skeleton（mid-fi ワイヤーフレーム）**
+- 単独起動も可能。`einja-design-5-planes` 経由起動時は manifest を介した進捗管理が伴う
+- マッピング詳細: `.claude/skills/einja-design-5-planes/references/skill-mapping.md` §1 / §4 参照
+-->
+
 <!-- 参考: https://developers.figma.com/docs/plugins/api/PageNode -->
 <!-- 参考: https://developers.figma.com/docs/plugins/api/FrameNode (layoutMode/auto-layout) -->
 <!-- 参考: Figma MCP setCurrentPageAsync ガイダンス -->

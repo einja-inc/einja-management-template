@@ -4,6 +4,13 @@ description: "Generates project-wide functional specification documents (**業�
 user-invocable: true
 ---
 
+<!--
+**上流 Skill**: `einja-design-5-planes`（goodpatch 5 段階モデル横断オーケストレーター）から呼び出される下流 Skill のひとつ。
+- 担当 Plane: **Plane 2 Scope（機能仕様）+ Plane 3 Structure（業務フロー / システムフロー）**
+- 単独起動も可能。`einja-design-5-planes` 経由起動時は manifest を介した進捗管理が伴う
+- マッピング詳細: `.claude/skills/einja-design-5-planes/references/skill-mapping.md` §1 / §4 参照
+-->
+
 <!-- 参考: .claude/skills/einja-project-requirements/SKILL.md (AskUserQuestion 質問単位ヒアリング・再開検出・Edit ループ) -->
 <!-- 参考: .claude/skills/einja-project-screen-flow-figma/SKILL.md (manifest schema・stable_id・冪等性ポリシー) -->
 <!-- 入力ソース1: docs/project/requirements.md（einja-project-requirements 出力） -->

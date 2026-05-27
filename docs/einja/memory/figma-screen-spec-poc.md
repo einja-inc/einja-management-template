@@ -128,3 +128,88 @@ PoC 結果を踏まえ、以下のように反映:
 - R1（auto-layout 未検証）リスクは完全に潰れ、`wireframe-primitives.md §2` で auto-layout を主軸として記述可能
 - R6（dynamic-page read-only）リスクは MCP server ガイダンス + PoC ②で完全解消
 - 後続 T2/T5 は本 PoC 結果を**前提条件**として進行可能
+
+---
+
+# 2026-05-27 追記: sample-attendance-saas 画面遷移図 + ワイヤーフレーム 再生成
+
+`einja-project-screen-flow-figma` Skill v3 user-flow layout strategy 実装完了後、sample-attendance-saas の画面遷移図とワイヤーフレームを上記 PoC file（同一 `WSLSjypdBV2UYJEiHbSbIv`）に追記する形で実生成した記録。
+
+Plan: `/Users/t-hiroyoshi/.claude/plans/worktree-synthetic-hinton.md`（sample 再生成 Plan）
+
+## 実行環境
+
+- 日時: 2026-05-27
+- worktree: `.claude/worktrees/feat-einja-project-screen-spec`
+- branch: `worktree-feat-einja-project-screen-spec`（main マージ保留）
+- 親 commit: `d80b6d4`（docs: sample manifest を v3 user-flow 化）
+
+## ユーザー決定（Plan より）
+
+| # | 論点 | 決定 |
+|---|---|---|
+| Q1 | 生成スコープ | 既存 PoC file に追記、画面遷移図 + ワイヤーフレーム両方 |
+| Q2 | URL コミット | 実 URL は書き戻さず PLACEHOLDER のまま（sample manifest 不変） |
+| Q3 | wireframe 対象 | 全 11 画面（status: active 全件） |
+| Q4 | 実行ブランチ | worktree 上、main マージ保留 |
+
+## 生成結果
+
+### Phase A: 画面遷移図
+
+- Page: `Screen-Flow-v3-userflow`（id: `28:2`）
+- Frame: 11 件配置（depth 0〜4 + unreachable depth 5）
+- Edges: 12 件（VectorNode + setVectorNetworkAsync、primary 11 / back 1 = `approval→request`）
+- エントリ強調: `login` Frame に stroke 4px、薄青 fill (`r:0.96/g:0.98/b:1.0`)、Entry バッジ TextNode (56×20)
+- Plugin Data namespace: `einja.screenFlow`
+  - Frame: `stable_id` / `node_kind` / `business_role` / `is_entry`
+  - Edge: `stable_id` / `node_kind` / `edge_kind` / `from` / `to`
+  - Page: `layout_strategy=user-flow` / `schema_version=1` / `project_name=sample-attendance-saas`
+- レイアウト: Y_SCALE=2.0（視認性のため manifest の y 値を 2 倍にスケール、X_SCALE=1.0 維持）
+
+### Phase B: ワイヤーフレーム
+
+- Page: `Wireframes`（id: `31:2`）
+- 構成: 11 mid-fi wireframe を 4 列 × 3 行のグリッド配置（screen 328×560px）
+- 各 wireframe 構造: ヘッダー (タイトル + role バッジ) + body (auto-layout VERTICAL, padding 16, gap 10)
+- Primitive: `field` (label + input), `button` (primary/secondary), `placeholder` (label + 矩形), `text`
+- Plugin Data namespace: `einja.screenSpec`
+  - Screen Frame: `screen_id` / `stable_id` / `screen_name` / `business_role`
+  - Page: `schema_version=1` / `project_name=sample-attendance-saas` / `source_screen_flow_page_id=28:2`
+
+## 検証結果
+
+| 検証 | 結果 |
+|---|---|
+| Phase A スクリーンショット目視 | ✅ 11 Frame、Entry 強調、back edge 点線、role バッジ全件 |
+| Phase A Plugin Data round-trip | ✅ login / back edge / dashboard / page メタデータ全件一致 |
+| Phase B スクリーンショット目視 | ✅ 11 wireframe、ヘッダー + フォーム/ボタン/プレースホルダー要素 |
+| Phase B Plugin Data round-trip | ✅ 11/11 screen で `screen_id` / `stable_id` / `screen_name` / `business_role` 完全一致 |
+| sample manifest 不変確認 | ✅ `git diff docs/einja/example/specs/projects/sample-attendance-saas/` 出力空 |
+
+## 次セッション（Skill 改善 Plan）へのフィードバック
+
+実体験から得た改善ポイント（次 Plan で「manifest 確定確認フェーズ」を新設する根拠）:
+
+1. **dashboard / monthly-report のメニュー要素・サマリーカード推定が曖昧** — 機械的に「メニューボタン群」「サマリーカード」と placeholder 化したが、実際のメニュー項目数や項目名は要件に依存し推測不可
+2. **各画面のフォーム項目数・ラベル文言は推測の余地が大きい** — request 画面の「申請種別」選択肢、approval 画面のコメント欄等
+3. **forbidden-403 のメッセージ文言など微細な文言** — 「アクセス権限がありません」「この機能はあなたのロールでは利用できません」は推定値
+4. **function-spec から推定できない UI 詳細** — プレースホルダーテキスト、サンプル値（日付・時刻）、ボタンの primary/secondary 区別
+
+→ 次 Skill 改善 Plan で `screen-flow-url.md` / `wireframe-url.md` を「未確定ドラフト」として出力 → Figma 描画前に AskUserQuestion で確認・修正フェーズを挟む設計を検討予定。
+
+## バッチ実行統計（Skill 改善の参考データ）
+
+| バッチ | コード長 | 用途 |
+|---|---|---|
+| Phase A Pass 1 | 約 4,800字 | 新規 Page + 11 Frame + Plugin Data |
+| Phase A Pass 2 | 約 4,200字 | 12 edges (VectorNode + setVectorNetworkAsync) |
+| Phase B 一括 | 約 6,800字 | Wireframes Page + 11 wireframe (primitive 関数 + 各画面定義) |
+
+いずれも use_figma の 50000字制限内、動的バッチ分割不要（v3 Skill 仕様の 40000字閾値も下回る）。
+
+## 関連リソース
+
+- Plan: `/Users/t-hiroyoshi/.claude/plans/worktree-synthetic-hinton.md`（sample 再生成 Plan、Next Session セクションに Skill 改善方針を記載）
+- sample manifest: `docs/einja/example/specs/projects/sample-attendance-saas/screen-flow-url.md` / `wireframe-url.md`（PLACEHOLDER 維持）
+- Figma file: 上記 PoC file と同一（追記方式）

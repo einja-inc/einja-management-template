@@ -1,6 +1,6 @@
 ---
 name: einja-project-screen-flow-figma
-description: "docs/project/requirements.md（einja-project-requirements 出力）をベース入力に、Figma Design 上でプロジェクト全体の画面遷移図を生成するスタンドアロン Skill。要件定義書の §2 業務フロー（主要シグナル）と §3/§5/§6（補助シグナル）から画面候補を推定し、AskUserQuestion で不足情報をヒアリング補完した上で、エントリポイント基準の BFS 深さ階層レイアウト（user-flow、v3 デフォルト）でフロー方向を可視化し、矩形ノード配置・VectorNode + setVectorNetworkAsync による片方向矢印描画・TextNode によるトリガーラベル付与を自動化し、Figma URL を docs/project/screen-flow-url.md に記録する。「プロジェクト画面遷移図」「project screen flow」「画面遷移図 Figma」「画面フロー図」等で呼び出す。Do NOT use for: Issue単位の画面モックアップ生成（→ ui-design-generator）、Issue単位の requirements.md §8.2 mermaid 生成（→ requirements-generator）、状態遷移図（→ design.md State Transitions）、FigJam ファイル生成（本Skillは Design ファイル専用）"
+description: "docs/project/requirements.md（einja-project-requirements 出力）をベース入力に、Figma Design 上でプロジェクト全体の画面遷移図を生成するスタンドアロン Skill。要件定義書の §2 業務フロー（主要シグナル）と §3/§5/§6（補助シグナル）から画面候補を推定し、AskUserQuestion で不足情報をヒアリング補完した上で、エントリポイント基準の BFS 深さ階層レイアウト（user-flow、v3 デフォルト）でフロー方向を可視化し、矩形ノード配置・VectorNode + setVectorNetworkAsync による片方向矢印描画・TextNode によるトリガーラベル付与を自動化し、Figma URL を docs/project/screen-flow-url.md に記録する。Figma 書き込み前に manifest ドラフト（`screen-flow-url.draft.md`）を生成し AskUserQuestion で承認を取る Step 4.5 ゲートを内蔵する。「プロジェクト画面遷移図」「project screen flow」「画面遷移図 Figma」「画面フロー図」等で呼び出す。Do NOT use for: Issue単位の画面モックアップ生成（→ ui-design-generator）、Issue単位の requirements.md §8.2 mermaid 生成（→ requirements-generator）、状態遷移図（→ design.md State Transitions）、FigJam ファイル生成（本Skillは Design ファイル専用）"
 user-invocable: true
 ---
 
@@ -39,8 +39,11 @@ Do NOT use for: Issue 単位の画面モックアップ（→ `ui-design-generat
 flowchart TB
   S1[Step 1: 入力確定<br/>requirements.md パス + project_name] --> S2[Step 2: Figma 認証確認<br/>whoami → planKey 取得]
   S2 --> S3[Step 3: 画面候補推定<br/>章識別 + 抽出 + クロスチェック]
-  S3 --> S4[Step 4: AskUserQuestion ヒアリング補完<br/>項目A→B→C→D→E]
-  S4 --> S5[Step 5: 保存先設定取得<br/>figma-design-management.md]
+  S3 --> S4[Step 4: AskUserQuestion ヒアリング補完<br/>項目A→B→C→D→E→F]
+  S4 --> S45[Step 4.5: manifest ドラフト確認<br/>draft note 生成 → AskUserQuestion 承認ゲート]
+  S45 -->|承認| S5[Step 5: 保存先設定取得<br/>figma-design-management.md]
+  S45 -->|項目戻り / フィールド直接修正後再確認| S45
+  S45 -->|中止| END([終了])
   S5 --> S6[Step 6: Figma ファイル作成 or 既存接続<br/>setCurrentPageAsync + assert]
   S6 --> S7[Step 7: パス1<br/>layout_strategy 分岐<br/>user-flow / swim-lane / grid]
   S7 --> S8[Step 8: パス2<br/>edge 処理順序 v2<br/>back先行 → primary DAG sort → 座標計算]
@@ -109,6 +112,110 @@ flowchart TB
 
 **項目 D 辞書外ロール検出時の追加対応**: 辞書外ロールが検出された場合（`Role_${hash}` 動的生成対象）、ユーザーに「`role_canonical_map` への明示マッピング追加」を促すサブ質問を表示する。これによりデフォルト `Role_a1b2c3d4` のような hash ID が Figma 上に表示されることを防ぐ。マッピング先候補は `references/canonical-enums.md §5` の canonical 識別子（`Common` / `Employee` / `Manager` / `HR` / `Admin` / `Ext`）から選択させる（+ 自由入力）。
 
+### Step 4.5: manifest ドラフト確認フェーズ（Figma 書き込み前のゲート）
+
+Step 4 ヒアリング完了後、Figma 接続（Step 6 以降）の前に、manifest ドラフトをユーザー承認する関門ステップ。draft note を生成してサマリを提示し、問題があればヒアリング項目への差し戻しまたはフィールド直接修正を受け付ける。承認が得られて初めて Step 5 へ進む。
+
+#### 処理
+
+**処理 1: draft note 生成**
+
+`docs/project/screen-flow-url.draft.md` を `Write` で生成する。内容は以下の構造に従う（詳細フォーマット仕様は `references/manifest-schema.md §8` を参照）。
+
+- frontmatter: `project_name` / `layout_strategy` / `role_canonical_map` / `schema_version`
+- `## screens` セクション: 各画面の `name` / `role` / `lane_id` / `source_confidence` / `is_entry_point`（`node_id` / `figma_url` / `file_key` は全件 `PLACEHOLDER`）
+- `## edges` セクション: 各エッジの `from` / `to` / `trigger` / `edge_kind` / `routing`（同様に Figma 接続情報は `PLACEHOLDER`）
+- 末尾コメントブロック（ヒアリング応答ログのテンプレ仕様は `references/hearing-checklist.md §7.3` 参照、ライフサイクル仕様は `references/manifest-schema.md §8.2` 参照）:
+
+  ```
+  <!--
+  status: draft
+  generated_at: <ISO8601>
+  hearing_responses:
+    A: <応答サマリ>
+    B: <応答サマリ>
+    C: <応答サマリ>
+    D: <応答サマリ>
+    E: <応答サマリ>
+    F: <応答サマリ or "skip（自動検出）">
+  ユーザー承認待ち — Figma 未書き込み
+  -->
+  ```
+
+**処理 1.5: `.gitignore` 確認・追記**
+
+`Bash` で `.gitignore` に以下の 2 パターンが含まれているかを確認し、未登録の場合は追記する（既存パターンと重複する場合はスキップ）。
+
+```
+docs/project/*.draft.md
+docs/project/*.draft.aborted*.md
+```
+
+**処理 2: 既存 manifest 差分算出（再生成時のみ）**
+
+`docs/project/screen-flow-url.md`（status: confirmed）が存在する場合に実施する（初回生成時はスキップ）。アルゴリズム詳細は `references/manifest-schema.md §8.5` を参照。
+
+概要:
+1. `Read` で既存 confirmed manifest を読む
+2. 既存 `## screens` の `name` / `stable_id` 一覧を Set X として抽出
+3. draft note の `## screens` の `name` / `stable_id` 一覧を Set Y として抽出
+4. 差分算出: 追加（Y − X）→ ✅ / 削除（X − Y）→ ❌ / 共通（X ∩ Y でフィールド値比較）→ 変更あり 🔄
+5. `## edges` も同様に diff
+6. 件数をサマリ表の「差分」列に集計
+
+**処理 3: AskUserQuestion 提示**
+
+description にサマリ表（`references/manifest-schema.md §8.4` サマリ表テンプレの screen-flow 列を使用）と draft note ファイルパス（`docs/project/screen-flow-url.draft.md`）を表示する。再生成時は差分件数（✅ N 件 / ❌ M 件 / 🔄 K 件）もサマリ表に含める。
+
+選択肢は以下の 10 件（必ず全件提示する）:
+
+| # | 選択肢 | 動作 |
+|---|--------|------|
+| 1 | 承認 → Figma 描画開始 | 処理 4 へ |
+| 2 | 画面リスト修正 → 項目 A に戻る | 処理 5 へ（項目 A 再実行） |
+| 3 | エッジ修正 → 項目 B に戻る | 処理 5 へ（項目 B 再実行） |
+| 4 | トリガー文言修正 → 項目 C に戻る | 処理 5 へ（項目 C 再実行） |
+| 5 | layout_strategy 修正 → 項目 D に戻る | 処理 5 へ（項目 D 再実行） |
+| 6 | 共通画面修正 → 項目 E に戻る | 処理 5 へ（項目 E 再実行） |
+| 7 | エントリ指定修正 → 項目 F に戻る | 処理 5 へ（項目 F 再実行） |
+| 8 | フィールド直接修正（自由入力で `screens[<screen-name>].xxx = yyy` 形式、例: `screens[login].is_entry_point = true`） | 処理 6 へ |
+| 9 | 中止 → `.draft.aborted.md` 退避して終了 | 処理 7 へ |
+| 10 | その他（自由入力） | 処理 8 へ |
+
+識別子記法の完全仕様（`screens[<screen-name>]` / `edges[N]`）は `references/hearing-checklist.md §7.4` を参照。
+
+**処理 4: 承認時**
+
+draft note は**保持したまま**（即削除しない）Step 5 へ進む。Step 10 で manifest 出力が成功した後に draft note を削除する（Figma 書き込み途中で中断した場合に再開ソースとして使用できるようにするため）。
+
+**処理 5: 項目戻り時**
+
+該当ヒアリング項目（A〜F）を再実行する。再実行結果を draft note に `Edit` で反映した後、Step 4.5 の冒頭（処理 3 の AskUserQuestion 提示）に戻り再確認する。
+
+**処理 6: フィールド直接修正時**
+
+自由入力で指定された修正指示（`screens[<name>].xxx = yyy` / `edges[N].xxx = yyy` 形式）を `references/hearing-checklist.md §7.4` の識別子規約に従って解釈し、draft note を `Edit` で更新する。更新後に YAML 構文を簡易 validate する（構文エラー時は AskUserQuestion で再入力を依頼、識別子規約違反の入力には明示エラーメッセージで案内する）。更新成功後は処理 3 に戻り承認確認を再度行う。
+
+**処理 7: 中止時**
+
+draft note を `.draft.aborted.md` にリネームする（`Bash` で `mv`）。既存の `.draft.aborted.md` が存在する場合は `<manifest-name>.draft.aborted-YYYYMMDD-HHMMSS.md` の timestamp サフィックス付き名にフォールバックする（上書き禁止）。その後 Skill を終了する。
+
+**処理 8: その他（自由入力）**
+
+自由入力の内容を受けて、修正内容が項目戻りまたはフィールド直接修正の範囲に収まる場合は処理 5 / 処理 6 に分岐する。それ以外の場合は中止（処理 7）に誘導する。
+
+#### 再生成時の差分強調
+
+既存 `screen-flow-url.md`（status: confirmed）がある場合、draft note との差分を AskUserQuestion description に以下の形式で表示する:
+
+- 追加: ✅ `screens[settings] (新規)`
+- 削除: ❌ `screens[old-page] (orphan 化予定)`
+- 変更: 🔄 `screens[login].is_entry_point: false → true`
+
+変更なし再生成の場合も auto-pass せず、明示確認を必ず実施する。
+
+> 共通仕様（draft note フォーマット / 識別子規約 / サマリ表テンプレ / 差分算出アルゴリズム）の正式定義は `references/manifest-schema.md §8` および `references/hearing-checklist.md §7`（特に §7.4 識別子規約 / §7.7 AskUserQuestion 文言テンプレ）を参照。
+
 ### Step 5: 保存先設定取得
 
 1. `docs/einja/steering/development/figma-design-management.md` を `Read`。
@@ -143,6 +250,8 @@ flowchart TB
 4. **v2 PoC Page アーカイブ手順**: 既存 Figma 接続時に Page 名 `Screen-Flow-v2-swimlane-poc` が検出された場合は、Plugin API で `figma.currentPage.name = "Archive-Screen-Flow-v2-swimlane-poc"` にリネームする（v2 PoC を v3 着地後にダッシュボード上で archive 扱いにするため）。
 
 ### Step 7: パス 1 - FrameNode 配置（layout_strategy 分岐）
+
+> **前提**: Step 4.5 で承認済みの draft note（`docs/project/screen-flow-url.draft.md`）をベースに描画を開始する。manifest 内容はこの時点でユーザー承認済みである。
 
 → 実装詳細は `references/figma-arrow-rules.md` の §3「2 パス生成戦略」を参照。
 
@@ -201,6 +310,8 @@ manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`
 
 ### Step 9: スクリーンショット確認
 
+> **役割の区別**: Step 4.5 は **Figma 書き込み前**の manifest 内容確認（構造・要素の正確性チェック）。Step 9 は **Figma 書き込み後**のビジュアル確認（レイアウト・矢印・ラベルの見た目チェック）。両者は独立した関門であり、Step 9 は Step 4.5 の代替にならない。
+
 1. `mcp__claude_ai_Figma__get_screenshot` をページルートまたは全画面包含 FrameNode を対象に呼び出す（`maxDimension` は既定 1024 を基本、密集時は 2048 に引き上げ）。
 2. 返却されたスクリーンショット URL をユーザーに提示する。
 3. AskUserQuestion で「OK / 一部修正（自由入力で具体的指示）/ 中止」を確認。
@@ -215,6 +326,7 @@ manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`
 3. frontmatter（必須 + 新規）+ `## screens` セクション + `## edges` セクションを書き込む。
 4. 各 entry には `stable_id`、`node_id`、`status: active`（再生成で消えた要素は `status: orphan`）を記録する。
 5. `.bak` 生成後、`.gitignore` に `docs/project/screen-flow-url.md.bak` が未登録なら Bash で追記する（重複コミット防止）。
+6. **draft note 削除（Step 4.5 で生成されている場合）**: `docs/project/screen-flow-url.draft.md` が存在するなら削除する（本番 manifest と draft note の二重存在を回避）。
 
 #### 新フィールド（v2 追加、`schema_version: 1` 据置で任意扱い）
 
@@ -320,4 +432,4 @@ manifest frontmatter の `layout_strategy`（`references/canonical-enums.md §1`
 - 本 Skill は親エージェント（オーケストレーター）として動作する。`context: fork` は設定しない（AskUserQuestion を多用するため）。
 - 使用ツール: `mcp__claude_ai_Figma__*`（`whoami` / `create_new_file` / `use_figma` / `get_screenshot` ほか）、`Read` / `Write` / `Edit` / `Bash` / `Grep` / `Glob` / `AskUserQuestion` / `ReadMcpResourceTool` / `Skill`。
 - 出力先は `docs/project/` 配下のみ（`docs/einja/` マネージドディレクトリには書き込まない）。
-- Figma ファイル作成・編集は Step 6 以降。Step 1〜4 の段階では一切書き込まない（ヒアリング中の誤書き込み防止）。
+- Figma ファイル作成・編集は Step 6 以降。Step 1〜4.5 では Figma 上での編集は一切行わない（draft note ファイルへの Write は Step 4.5 で発生するが Figma 書き込みではない）。

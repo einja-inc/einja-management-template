@@ -230,3 +230,102 @@ function normalizeToScreenName(label) {
 - [`manifest-schema.md`](./manifest-schema.md) - `docs/project/screen-flow-url.md` の frontmatter / manifest スキーマ定義
 - [`figma-arrow-rules.md`](./figma-arrow-rules.md) - Figma 上の矢印・swim-lane レイアウト描画ルール、`readNodeKind()` 等のユーティリティ
 - [`../SKILL.md`](../SKILL.md) - Skill 本体（ワークフロー Step 3 / Step 4 から本ファイルを参照）
+
+## 7. ドラフト確認フェーズ（Step 4.5）
+
+SKILL.md ワークフロー **Step 4.5** から参照される。Step 4 ヒアリング完了後、Figma 描画（Step 6 以降）前に manifest ドラフトをユーザー承認する関門ステップの仕様を定義する。
+
+### 7.1 目的
+
+Step 4 ヒアリング完了直後、Figma 書き込みコストを払う前に manifest ドラフトを提示してユーザー承認を取るためのゲート。Figma 描画後の手戻り（再生成・orphan 量産）を抑止し、精度を高める。本フェーズは **読み取り専用 + draft note 編集のみ**で Figma 書き込みは発生しない。詳細経緯は worktree-synthetic-hinton.md Plan「Skill 1 の Step 4.5 新設」参照。
+
+### 7.2 draft note フォーマット
+
+- **パス**: `docs/project/screen-flow-url.draft.md`（本番 manifest と同階層、`.draft.md` 拡張子で区別）
+- **構造**:
+  - YAML frontmatter（`project_name` / `layout_strategy` / `role_canonical_map` / `schema_version`）
+  - `## screens` セクション（各画面の name / role / lane_id / source_confidence / is_entry_point）
+  - `## edges` セクション（各エッジの from / to / trigger / edge_kind / routing）
+  - **`node_id` / `figma_url` / `file_key` 等の Figma 接続情報は全件 PLACEHOLDER**（Figma 未書き込みのため）
+- **末尾コメントブロック**:
+  - `<!-- status: draft -->`
+  - 生成日時（ISO8601）
+  - ヒアリング応答ログ（A〜F）
+  - 「ユーザー承認待ち — Figma 未書き込み」
+
+### 7.3 ヒアリング応答ログ テンプレ
+
+draft note 末尾コメント内にヒアリング項目 A〜F の応答サマリを記載する。
+
+```
+<!--
+status: draft
+generated_at: 2026-05-27T11:30:00+09:00
+hearing_responses:
+  A: 11 screens 全件採用
+  B: edges 12件、approval→request を back に確定
+  C: trigger 文言は推定値そのまま
+  D: layout_strategy: user-flow（推奨デフォルト）
+  E: 共通画面 login のみ
+  F: skip（自動検出で login 確定）
+-->
+```
+
+### 7.4 識別子規約（フィールド直接修正で使うパス記法）
+
+「フィールド直接修正」モードでユーザーが自由入力する際の YAML パス記法を定義する。
+
+- `screens[<screen-name>].xxx` — screen は **name キー**（例: `screens[login].is_entry_point = true`）
+- `edges[N].xxx` — edge は **配列インデックス**（例: `edges[3].edge_kind = back`）
+- **配列インデックス指定（`screens[3]` のような name キー以外の指定）は明示エラー**、name キーのみ受付
+
+### 7.5 差分絵文字規約
+
+再生成時の既存 confirmed manifest との差分を AskUserQuestion description に表示する際の絵文字規約。
+
+- ✅ **追加**: 既存 manifest になく draft note にある entry
+- ❌ **削除**: 既存 manifest にあって draft note にない entry（orphan 化予定）
+- 🔄 **変更**: 共通 entry のフィールド値差分
+
+### 7.6 項目記号 ↔ ヒアリング名マッピング表
+
+ヒアリング項目（A〜F）と manifest フィールドの対応。Step 4 のヒアリング項目名（`項目A` / `項目B` …）と Step 4.5 の「項目戻り」選択肢の対応を明示する。
+
+| 項目 | 内容 | 確定する manifest フィールド |
+|---|---|---|
+| A | 画面リスト | `screens[]` |
+| B | エッジ | `edges[]` |
+| C | トリガー文言 | `edges[].trigger` |
+| D | layout_strategy 選択 | `layout_strategy` |
+| E | 共通画面 | `screens[]` (login/error 等) |
+| F | エントリポイント | `screens[].is_entry_point` |
+
+### 7.7 AskUserQuestion 文言テンプレ
+
+Step 4.5 の AskUserQuestion 提示時の文言テンプレ:
+
+- **description**: サマリ表（`manifest-schema.md §8.4 サマリ表テンプレ` 参照、screen-flow 列を使用、再生成時は差分件数も）+ draft note ファイルパス（`docs/project/screen-flow-url.draft.md`）案内
+- **選択肢**（必ず「中止」と「その他（自由入力）」を末尾に含める。詳細は SKILL.md Step 4.5 処理 3 参照）:
+  1. 承認 → Figma 描画開始
+  2. 画面リスト修正 → 項目A に戻る
+  3. エッジ修正 → 項目B に戻る
+  4. トリガー文言修正 → 項目C に戻る
+  5. layout_strategy 修正 → 項目D に戻る
+  6. 共通画面修正 → 項目E に戻る
+  7. エントリ指定修正 → 項目F に戻る
+  8. フィールド直接修正（自由入力で `screens[<screen-name>].xxx = yyy` 形式、例: `screens[login].is_entry_point = true`）
+  9. 中止 → `.draft.aborted.md` 退避して終了
+  10. その他（自由入力）
+
+### 7.8 修正フロー
+
+ユーザー選択別の処理フロー:
+
+- **項目戻り**: 該当ヒアリング項目（A〜F）を Step 4 から再実行 → 結果を draft note に Edit で反映 → Step 4.5 再表示
+- **フィールド直接修正**: 自由入力指示を §7.4 識別子規約に従って解釈 → draft note を Edit で更新 → YAML 構文簡易 validate → Step 4.5 再表示（承認確認）
+  - YAML 構文エラー時は AskUserQuestion で再入力依頼
+  - 識別子規約違反（`screens[3]` のような index 指定）は明示エラーメッセージで案内
+- **中止**: draft note を `<manifest-name>.draft.aborted.md` にリネーム（既存衝突時は `<manifest-name>.draft.aborted-YYYYMMDD-HHMMSS.md` の timestamp サフィックス付き名にフォールバック）→ Skill 終了
+- **承認**: draft note は保持したまま Step 5 へ進む（Step 10 manifest 出力成功後に削除）
+
+draft note ライフサイクル全体は `manifest-schema.md §8.2 ライフサイクル` 参照。

@@ -313,3 +313,90 @@ role_canonical_map:
 
 - **v1 → v2**: 新フィールド追加は後方互換（v1 manifest は v2 reader が読み取り可）。必須フィールド追加・既存フィールド削除は破壊的変更となるため、Skill 側で `schema_version` 判定し、未満バージョンは AskUserQuestion で「自動マイグレーション / 中止」を確認する
 - **未知の schema_version 検出時**: Skill は読み込みを停止し、ユーザーに Skill バージョン更新を促す
+
+## 8. status フィールドと draft ライフサイクル
+
+SKILL.md ワークフロー **Step 4.5（ドラフト確認フェーズ）** および **Step 10（manifest 出力）** から参照される。manifest の確定状態を示す `status` フィールドの仕様と、draft note のライフサイクル（生成 → 修正 → 承認 → 削除 or 中止退避）を定義する。
+
+### 8.1 status フィールド
+
+manifest frontmatter に追加可能な `status` フィールド。
+
+- **値**: `draft` / `confirmed` の enum
+- **配置**: frontmatter 末尾（任意フィールド）
+- **未指定時のデフォルト**: `confirmed`（既存 sample 等で未指定の manifest は confirmed として解釈、後方互換維持）
+
+| 値 | 意味 | 対応ファイル |
+|---|---|---|
+| `draft` | ユーザー承認待ち、Figma 未書き込み | `docs/project/screen-flow-url.draft.md` |
+| `confirmed` | 承認済み、Figma 描画 + 本番 manifest 出力完了 | `docs/project/screen-flow-url.md` |
+
+**配置ルール**:
+- **draft note**（`<manifest-name>.draft.md`）の場合: 末尾の HTML コメントブロック内に `status: draft` を記載
+  - 理由: draft note は未確定 manifest であり、frontmatter は本番 manifest と同形式を保つ（status 以外のフィールドが parser で正しく読まれる）
+  - コメント内 status は人間レビュー用、機械的読み取りは不要
+- **本番 manifest**（`<manifest-name>.md`）の場合: frontmatter に `status: confirmed` を **任意**で追加可能
+  - 既存 sample 等は未指定（デフォルト = confirmed と解釈、§8.1 デフォルト規約参照）
+  - 明示的にライフサイクル状態を残したい場合のみ追加
+
+### 8.2 ライフサイクル
+
+draft note と本番 manifest の状態遷移:
+
+1. **Step 4.5 開始時**: `docs/project/screen-flow-url.draft.md`（`status: draft`）を Write で生成
+2. **修正フェーズ**: ユーザー選択（項目戻り / フィールド直接修正）に応じて draft note を Edit で更新 → Step 4.5 再表示
+3. **承認後**: draft note は **保持したまま** Step 5 へ進む（即削除しない）。Figma 描画中断時の再開ソースとして残す
+4. **Step 10 manifest 出力成功後**: draft note を削除し、本番 `screen-flow-url.md`（`status: confirmed`）に確定
+5. **中止時**: draft note を `<manifest-name>.draft.aborted.md` にリネーム（既存衝突時は `<manifest-name>.draft.aborted-YYYYMMDD-HHMMSS.md` の timestamp サフィックス付き名にフォールバック、上書き禁止）→ Skill 終了
+
+### 8.3 拡張子の予約
+
+`docs/project/` 配下で予約される拡張子パターン:
+
+| 拡張子 | 意味 | git 管理 |
+|---|---|---|
+| `.draft.md` | 未確定ドラフト（Step 4.5 提示用） | ignore（§8.6） |
+| `.draft.aborted.md` | 中止時退避（再開可能性のため保持） | ignore（§8.6） |
+| `.draft.aborted-<timestamp>.md` | aborted 衝突時のフォールバック（`YYYYMMDD-HHMMSS` サフィックス） | ignore（§8.6） |
+| `.bak` | 上書き前のバックアップ（既存 §3.2 / Step 10/11 で使用） | ignore 推奨 |
+
+### 8.4 サマリ表テンプレ（AskUserQuestion description 表示用）
+
+Step 4.5 の AskUserQuestion description に表示するサマリ表テンプレ。`hearing-checklist.md §7.7` から参照される。
+
+| 項目 | screen-flow 例 |
+|---|---|
+| 全体件数 | screens: 11、edges: 12 |
+| 主要構造 | layout_strategy: user-flow / entry: login |
+| 推定信頼度 | source_confidence 別件数（high: 11） |
+| 注目項目 | back edge: 1（approval→request） |
+| 差分（再生成時） | ✅ 追加 N 件 / ❌ 削除 M 件 / 🔄 変更 K 件 |
+
+description は最大 8〜10 行に収め、詳細は draft note ファイルパス（`docs/project/screen-flow-url.draft.md`）を案内する設計とする。差分絵文字（✅/❌/🔄）の意味は `hearing-checklist.md §7.5` 参照。
+
+### 8.5 既存 manifest 読み込み + 差分算出アルゴリズム
+
+Step 4.5 冒頭で、既存 confirmed manifest が存在する場合の差分算出疑似アルゴリズム:
+
+```
+1. Read で `docs/project/<manifest-name>.md` を読む（存在しなければ初回扱い、差分強調なし）
+2. 既存 manifest の `## screens` から name / stable_id 一覧を抽出（Set X）
+3. draft note の `## screens` から name / stable_id 一覧を抽出（Set Y）
+4. Set 差分:
+   - 追加: Y - X → ✅ で表示
+   - 削除: X - Y → ❌ で表示（orphan 化予定として明示）
+   - 共通: X ∩ Y → 各 entry のフィールド値比較 → 差分ありなら 🔄 で表示
+5. edges / elements も同様に diff
+6. サマリ表の「差分」列に件数を集計、description には先頭 10 行程度を表示
+```
+
+これは **Step 4.5 内の読み取り専用処理**であり、Step 10/11/12 の冪等性照合（Figma 書き込み後の node_id 突合）とは独立。冪等性照合は従来通り §3 / Step 10/11 直前で実施する（役割の違い: Step 4.5 = 承認前の差分プレビュー、Step 10/11 = Figma 書き込み後の node_id 突合）。
+
+### 8.6 `.gitignore` 整備
+
+draft note は一時ファイルのため git 管理対象外とする。
+
+- **推奨パターン**:
+  - `docs/project/*.draft.md`
+  - `docs/project/*.draft.aborted*.md`
+- Skill 実行時に Step 4.5 内で `.gitignore` 確認・未登録なら追記する（SKILL.md Step 4.5 処理 1.5 参照）

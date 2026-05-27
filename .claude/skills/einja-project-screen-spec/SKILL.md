@@ -1,6 +1,6 @@
 ---
 name: einja-project-screen-spec
-description: "docs/project/screen-flow-url.md（必須）/ function-specs/（推奨）/ requirements.md（任意）をベース入力に、screen-flow-url.md の file_key で示される既存 Figma Design ファイル内に新規 Page『Wireframes』を追加し、各画面の mid-fi ワイヤーフレーム（uncolored / mono の矩形＋ラベル）を自動生成する Skill。function-spec の機能カードと主要技術制約から要素候補を推定し、AskUserQuestion で確定。生成結果は docs/project/wireframe-url.md に冪等な manifest として記録する。「プロジェクトワイヤーフレーム」「ワイヤーフレーム生成」「project screen spec」「mid-fi wireframe」「画面ワイヤーフレーム Figma」等で呼び出す。Do NOT use for: Issue単位の画面モックアップ（→ ui-design-generator）、画面遷移図（→ einja-project-screen-flow-figma）、項目定義表/メッセージ文言の .md 仕様書（→ 後続別Skillで対応予定）、hi-fi デザイン（→ einja-pencil-design-manager）"
+description: "docs/project/screen-flow-url.md（必須）/ function-specs/（推奨）/ requirements.md（任意）をベース入力に、screen-flow-url.md の file_key で示される既存 Figma Design ファイル内に新規 Page『Wireframes』を追加し、各画面の mid-fi ワイヤーフレーム（uncolored / mono の矩形＋ラベル）を自動生成する Skill。function-spec の機能カードと主要技術制約から要素候補を推定し、AskUserQuestion で確定。生成結果は docs/project/wireframe-url.md に冪等な manifest として記録する。Figma 書き込み前に wireframe-url.md ドラフトを生成し AskUserQuestion で承認を取る Step 7.5 ゲートを内蔵する。「プロジェクトワイヤーフレーム」「ワイヤーフレーム生成」「project screen spec」「mid-fi wireframe」「画面ワイヤーフレーム Figma」等で呼び出す。Do NOT use for: Issue単位の画面モックアップ（→ ui-design-generator）、画面遷移図（→ einja-project-screen-flow-figma）、項目定義表/メッセージ文言の .md 仕様書（→ 後続別Skillで対応予定）、hi-fi デザイン（→ einja-pencil-design-manager）"
 user-invocable: true
 ---
 
@@ -54,7 +54,10 @@ flowchart TB
   S4 --> S5[Step 5: 画面候補抽出<br/>screen-flow-url.md screens active のみ]
   S5 --> S6[Step 6: 要素候補推定<br/>function-spec §2/§3.2/§4.2/§5.3/§5.4/§6/§7]
   S6 --> S7[Step 7: AskUserQuestion ヒアリング<br/>A→B→C→D→E 差分のみ自由入力]
-  S7 --> S8[Step 8: パス1<br/>画面 FrameNode 配置 二層 auto-layout]
+  S7 --> S75[Step 7.5: manifest ドラフト確認<br/>draft note 生成 → AskUserQuestion 承認]
+  S75 --> S8[Step 8: パス1<br/>画面 FrameNode 配置 二層 auto-layout]
+  S75 -->|項目戻り / フィールド直接修正後再確認| S75
+  S75 -->|中止| END[終了]
   S8 --> S9[Step 9: パス2<br/>子要素 Core15 + Optional9 placeholder]
   S9 --> S10[Step 10: スクリーンショット確認<br/>get_screenshot]
   S10 --> S11[Step 11: manifest 記録<br/>wireframe-url.md]
@@ -154,7 +157,92 @@ flowchart TB
 
 各選択肢は **description（What）+ Note（So What）** の 2 層構成とし、必ず **「その他（自由入力）」** を最後の選択肢として含める（推測で進めない原則）。
 
+### Step 7.5: manifest ドラフト確認フェーズ（Pass 1 画面 FrameNode 配置（Step 8）と Pass 2 子要素配置（Step 9）の前のゲート）
+
+Step 7 ヒアリング完了後、Pass 1（Step 8 画面 FrameNode 配置）/ Pass 2（Step 9 子要素配置）の本格的な Figma 描画の前に、wireframe-url.md ドラフトをユーザー承認する関門ステップ。**このステップを通過するまで画面 Frame・子要素の Figma 書き込みは一切行わない**（Step 4 の Wireframes Page 単体の scaffolding 作成は例外）。
+
+#### 処理
+
+1. **draft note 生成**: `docs/project/wireframe-url.draft.md` を `Write` で生成
+   - frontmatter（project_name / source_screen_flow_file_key / schema_version）
+   - `## screens`（各画面の screen_id / stable_id / layout / states — node_id は全件 `PLACEHOLDER`）
+   - `## elements`（各 element の screen_id / element_id / element_kind / source — node_id は全件 `PLACEHOLDER`）
+   - 末尾コメントブロック（共通仕様参照）:
+     ```
+     <!--
+     status: draft
+     generated_at: <ISO8601>
+     hearing_responses:
+       A: <対象画面リスト確定内容>
+       B: <layout / state バリエーション確定内容>
+       C: <要素一覧確定内容>
+       D: <要素粒度確定内容>
+       E: <primitive 種別確定内容>
+     ユーザー承認待ち — Figma 未書き込み
+     -->
+     ```
+
+1.5. **`.gitignore` 確認・追記**: `Bash` で `.gitignore` に `docs/project/*.draft.md` および `docs/project/*.draft.aborted*.md` パターンが含まれているか確認。未登録なら追記（既存パターンとの重複時はスキップ）。
+
+2. **既存 manifest 差分算出**（再生成時のみ）: 既存 `docs/project/wireframe-url.md` が存在する場合、以下のアルゴリズムで差分を算出する:
+   1. `Read` で `docs/project/wireframe-url.md` を読む（存在しなければ初回扱い、差分強調なし）
+   2. 既存 manifest の `## screens` から stable_id 一覧を抽出（Set X）
+   3. draft note の `## screens` から stable_id 一覧を抽出（Set Y）
+   4. Set 差分:
+      - 追加: Y - X → ✅ で表示
+      - 削除: X - Y → ❌ で表示（orphan 化予定として明示）
+      - 共通: X ∩ Y → 各 entry のフィールド値比較 → 差分ありなら 🔄 で表示
+   5. `## elements` も同様に diff
+   6. サマリ表の「差分」列に件数を集計、AskUserQuestion description に先頭 10 行程度を表示
+
+3. **AskUserQuestion 提示**:
+   - description: サマリ表（下記テンプレ）+ draft note ファイルパス（`docs/project/wireframe-url.draft.md`）+ 再生成時は差分件数
+     ```
+     | 項目 | 件数 / 値 |
+     |------|----------|
+     | 画面数 | N 件 |
+     | states 合計 | M 件 |
+     | elements 合計 | K 件 |
+     | source_screen_flow_file_key | <file_key> |
+     | state バリエーション | normal / error / loading 等 |
+     | source 別件数 | function-spec: X / 推定: Y |
+     | placeholder 含む要素 | Z 件 |
+     | 差分（再生成時） | ✅ 追加 N / ❌ 削除 M / 🔄 変更 K |
+     ```
+     詳細は `docs/project/wireframe-url.draft.md` を参照。
+   - 選択肢（識別子規約の詳細は `references/hearing-checklist.md §7.4` 参照）:
+     1. **承認 → Figma 描画開始**（draft note を保持したまま Step 8 へ）
+     2. **画面リスト/対象画面修正 → 項目 A に戻る**（該当ヒアリング項目を再実行 → draft note 更新 → 再度 Step 7.5）
+     3. **layout/state バリエーション修正 → 項目 B に戻る**（同上）
+     4. **要素一覧修正 → 項目 C に戻る**（同上）
+     5. **要素粒度修正 → 項目 D に戻る**（同上）
+     6. **primitive 種別修正 → 項目 E に戻る**（同上）
+     7. **フィールド直接修正**（自由入力で `elements[<element-id>].xxx = yyy` 形式、例: `elements[login__email-field].placeholder = "name@company.com"`）: 識別子規約に従い draft note を `Edit` で更新し YAML 構文を簡易 validate → 再度 Step 7.5
+     8. **中止 → `.draft.aborted.md` 退避して終了**（既存衝突時は `wireframe-url.draft.aborted-YYYYMMDD-HHMMSS.md` の timestamp サフィックス付き名にフォールバック）
+     9. **その他（自由入力）**（自由入力指示を受けて再計画 or 中止に分岐）
+
+4. **承認時**: draft note は**保持したまま** Step 8 へ進む。draft note の削除は **Step 11 manifest 出力成功後**に行う（Figma 書き込み中断時に draft note を再開ソースとして残すため）。
+
+5. **項目戻り / フィールド直接修正 / 中止 / その他**:
+   - **項目戻り時**: 該当ヒアリング項目（A〜E）を再実行 → 結果を draft note に `Edit` で反映 → 再度 Step 7.5（AskUserQuestion 再提示）
+   - **フィールド直接修正時**: 自由入力指示を `elements[<element-id>]` 識別子規約（`references/hearing-checklist.md §7.4`）に従って解釈し、draft note を `Edit` で更新。YAML 構文が壊れる入力の場合は構文 validate エラーを AskUserQuestion で再入力依頼。識別子規約に違反する入力（例: `elements[3]` のような index 指定）は明示エラーメッセージで案内。更新後は再度 Step 7.5
+   - **中止時**: draft note を `wireframe-url.draft.aborted.md` にリネーム（既存衝突時は `wireframe-url.draft.aborted-YYYYMMDD-HHMMSS.md`）→ Skill 終了
+   - **その他**: 自由入力指示を受けて再計画 or 中止に分岐
+
+#### 再生成時の差分強調
+
+既存 `wireframe-url.md`（status: confirmed）がある場合、draft note との差分を AskUserQuestion description に表示:
+- 追加: ✅ `screens[settings-mobile] (新規)`
+- 削除: ❌ `screens[old-page] (orphan 化予定)`
+- 変更: 🔄 `elements[login__email-field].placeholder: "" → "name@company.com"`
+
+変更なし再生成でも明示確認（auto-pass しない）。
+
+> 注意: Step 7.5 は**描画前の承認ゲート**。Step 10（スクリーンショット確認）は**描画後の確認**であり、役割が異なる。
+
 ### Step 8: パス 1 - 画面 FrameNode 配置
+
+> Step 7.5 で承認済みの manifest ドラフト（`docs/project/wireframe-url.draft.md`）をベースに描画を開始する。
 
 → 実装詳細・コードテンプレは `references/wireframe-primitives.md §2 二層 auto-layout` を参照。
 
@@ -167,11 +255,13 @@ flowchart TB
 - 各 outer に `setSharedPluginData("einja.screenSpec", "role", "screen-frame")` と `setSharedPluginData("einja.screenSpec", "stable_id", "{project_name}__wf__{screen_name}__{layout}__{state}")`、`setSharedPluginData("einja.screenSpec", "screen_stable_id", "{project_name}__wf__{screen_name}")` を付与（**`setPluginData` ではなく必ず `setSharedPluginData`**、ファイル横断読取と冪等性のため。wireframe-primitives.md §2.1 と整合）。
 - inner（content frame）にも `setSharedPluginData("einja.screenSpec", "role", "screen-inner")` を付与（パス 2 の子要素 append 先を一意特定するため）。
 - レスポンスでは `{stable_id: nodeId}` Map を JS 側で保持するが、パス 2 では `findAll` で再解決する（E15 対策）。
-- **Step 8 までは Figma 書き込みあり、ただしこの段階は枠のみ**（誤書き込み防止のため Step 1〜7 では一切編集しない）。
+- **Step 8 以降が画面 Frame・要素の Figma 書き込み開始**（Step 4 で Wireframes Page を scaffolding 作成するのは例外（Page 単体のみ、画面・要素は未配置）。Step 8 時点では枠のみ配置）。
 
 namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`（screen-flow-figma）は厳密に分離する。詳細は `references/canonical-enums.md §7 namespace`。
 
 ### Step 9: パス 2 - 子要素配置（Core 15 + Optional 9）
+
+> Step 7.5 で承認済みの elements リストをベースに子要素を配置する。
 
 → 実装詳細・各プリミティブのコードテンプレは `references/wireframe-primitives.md §3 Core 15 関数テンプレ` および `§5 動的バッチ` を参照。
 
@@ -193,6 +283,8 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 
 ### Step 10: スクリーンショット確認
 
+> このステップは**描画後**の確認フェーズ。Step 7.5（描画前の manifest 承認）とは独立した役割を持つ。Step 10 で「修正」を選んだ場合は Step 7（要素リスト変更）または Step 9（描画調整）に戻る。
+
 1. `mcp__claude_ai_Figma__get_screenshot` を Wireframes Page ルートまたは全画面包含 FrameNode を対象に呼び出す（`maxDimension` は既定 1024、画面数が多い場合は 2048）。
 2. 取得失敗時は **E18**（URL 取得省略、ユーザーに Figma 直接確認を依頼）。
 3. 返却されたスクリーンショット URL をユーザーに提示。
@@ -212,6 +304,7 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 4. screens 各 entry には `stable_id` / `screen_stable_id` / `linked_screen_stable_id` / `node_id` / `layout` / `state` / `size` / `position` / `status` を、elements 各 entry には `screen_frame_stable_id` / `element_stable_id` / `kind` / `node_id` / `status` / `source` および kind 別フィールド（manifest-schema.md §2 参照）を記録する。再生成で消えた要素は `status: orphan` とする。
 5. `.bak` 生成後、`.gitignore` に `docs/project/wireframe-url.md.bak` が未登録なら `Bash` で追記する（重複コミット防止）。
 6. manifest parse 失敗時は **E17**（`.bak` から復元提案 / 新規生成 / 中止）。
+7. **draft note 削除**: `docs/project/wireframe-url.md` の書き込み成功後、`docs/project/wireframe-url.draft.md` を削除する（本番 manifest と draft note が二重存在しないよう）。Figma 書き込み途中で中断した場合は draft note が残り、再開時に参照可能。
 
 ### Step 12: 冪等性照合（再生成時のみ）
 
@@ -281,14 +374,14 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 ## 9. 実行制約
 
 - 本 Skill は親エージェント（オーケストレーター）として動作する。`context: fork` は設定しない（AskUserQuestion を多用するため）。
-- 使用ツール: `mcp__claude_ai_Figma__whoami` / `mcp__claude_ai_Figma__use_figma` / `mcp__claude_ai_Figma__get_screenshot`（**`create_new_file` は不使用**、既存ファイルに Page 追加のみ）、`Read` / `Write` / `Edit`（`docs/project/wireframe-url.md` のみ）/ `Bash`（`.gitignore` 追記のみ）/ `Grep` / `Glob` / `AskUserQuestion` / `ReadMcpResourceTool` / `Skill`。
+- 使用ツール: `mcp__claude_ai_Figma__whoami` / `mcp__claude_ai_Figma__use_figma` / `mcp__claude_ai_Figma__get_screenshot`（**`create_new_file` は不使用**、既存ファイルに Page 追加のみ）、`Read` / `Write` / `Edit`（manifest / draft note のみ）/ `Bash`（`.gitignore` 追記のみ）/ `Grep` / `Glob` / `AskUserQuestion` / `ReadMcpResourceTool` / `Skill`。
 - **書き込み禁止**:
   - `docs/project/screen-flow-url.md`（上流出力、screens の SSoT）
   - `docs/project/requirements.md`（上流出力）
   - `docs/project/function-specs/`（上流出力）
   - `docs/einja/` 配下（`memory/` と `example/` を除く、マネージドディレクトリ）
-- **書き込み先**: `docs/project/wireframe-url.md` のみ（および `.bak` 退避ファイル）。
-- Figma 書き込みは Step 8 以降。Step 1〜7 では Figma 上で一切編集しない（誤書き込み防止）。
+- **書き込み先**: `docs/project/wireframe-url.md` / `docs/project/wireframe-url.draft.md`（および `.bak` / `.draft.aborted*.md` 退避ファイル）。
+- 画面 Frame・子要素の Figma 書き込みは Step 8 以降。Step 4 の Wireframes Page 単体 scaffolding 作成（`figma.createPage()` + `setSharedPluginData`）は例外。Step 1〜3 / Step 5〜7.5 では Figma 上で一切編集しない（誤書き込み防止）。
 - **Page スコープ厳守**: 各 `use_figma` バッチ先頭で `await figma.setCurrentPageAsync(wireframesPage);` を必ず実行（T1 PoC 実証済み、MCP server を介すると Page スコープが消失する事例を確認）。
 - **namespace 完全分離**: `einja.screenSpec`（本 Skill）と `einja.screenFlow`（`einja-project-screen-flow-figma`）は厳密に分離する。混在禁止。
 - **lowercase + ハイフン形式厳守**: `kind` / `layout` / `state` / Page 名等の識別子は小文字 + ハイフン区切り（snake_case / camelCase は不可。canonical-enums.md §1〜§5 の enum 値）。

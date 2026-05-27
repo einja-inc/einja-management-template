@@ -244,3 +244,112 @@ screen-flow-url.md の `screens[]` から `layout: desktop | mobile | modal` を
 - `../../einja-project-function-spec/references/output-template.md` — function-spec の §2/§3.2/§4.2/§5.3/§5.4/§6/§7 章構造（推定マッピングの根拠）
 - `../../einja-project-screen-flow-figma/references/hearing-checklist.md` — 前 Phase（screen-flow）のヒアリング構造（本ファイルの参考実装）
 - `../../_einja-subagent-question-protocol/SKILL.md` — PENDING_QUESTIONS 返却プロトコル
+
+---
+
+## §7. ドラフト確認フェーズ（Step 7.5）
+
+本セクションは `einja-project-screen-spec` Skill の **Step 7.5 manifest ドラフト確認フェーズ** から参照される（Skill 1 = `einja-project-screen-flow-figma` の §5 ドラフト確認フェーズと同等構成）。Step 7 ヒアリング完了後、Figma 書き込み（Step 8 以降）の前に wireframe-url.md ドラフトをユーザー承認するゲートとして動作する。
+
+### 7.1 目的
+
+Step 7 ヒアリング完了後、Figma 描画前に `wireframe-url.md` ドラフトをユーザー承認する関門ステップ。Figma 書き込みコストを払う前に画面リスト・要素一覧・primitive 種別等の推定精度を確認・修正できるようにする。
+
+### 7.2 draft note フォーマット
+
+- **パス**: `docs/project/wireframe-url.draft.md`（本番 manifest と同階層、`.draft.md` 拡張子で物理分離）
+- **構造**:
+  - YAML frontmatter: `project_name` / `source_screen_flow_file_key` / `schema_version`
+  - `## screens` セクション（各画面の name / linked_screen_stable_id / screen_stable_id / stable_id / layout / state / status、ただし `node_id` / `figma_url` / `file_key` / `wireframes_page_id` は **全件 PLACEHOLDER**）
+  - `## elements` セクション（各 element の screen_frame_stable_id / element_stable_id / kind / status / source、ただし `node_id` は PLACEHOLDER）
+- **末尾コメントブロック** に以下を明示:
+  - `<!-- status: draft -->`
+  - 生成日時（ISO8601）
+  - ヒアリング項目応答ログ（§7.3 テンプレ参照）
+  - 「ユーザー承認待ち — Figma 未書き込み」
+
+### 7.3 ヒアリング応答ログテンプレ（Skill 2 用 / 項目 A〜E）
+
+draft note 末尾コメント内に記述。Skill 1 の §5 テンプレを Skill 2 用に項目 A〜E に変更したもの：
+
+```
+<!--
+status: draft
+generated_at: 2026-05-27T11:30:00+09:00
+hearing_responses:
+  A: 11 screens 全件採用（対象画面）
+  B: layout: desktop 既定 / state: 一覧画面のみ4 state 生成
+  C: 要素一覧は推定値そのまま採用、placeholder-block 含む要素 12 件
+  D: 要素粒度は kind 推定値そのまま採用
+  E: primitive 種別は function-spec §3.2 / §5.4 由来 45 件 / 推定 15 件
+-->
+```
+
+### 7.4 識別子規約（フィールド直接修正で使うパス記法）
+
+draft note を「フィールド直接修正」モードで Edit する際の YAML パス記法。Skill 1 と同パターンだが、screen-spec では `screens[]` と `elements[]` の 2 セクションを対象とする。
+
+- `screens[<screen-name>].xxx` — screen は **`name` キー**で指定
+  - 例: `screens[login].layout = mobile`
+  - 例: `screens[approval-list].status = orphan`
+- `elements[<element-id>].xxx` — element は **`element_id` キー**（実体は `element_stable_id` の末尾 slug 部分、または canonical-enums.md §6.4 形式の slug）で指定
+  - 例: `elements[login__email-field].placeholder = "name@company.com"`
+  - 例: `elements[dashboard__punch-button].text = "打刻へ"`
+- **配列インデックス指定（例: `screens[3]` / `elements[2]`）は明示エラー**、`name` / `element_id` キーのみ受付
+  - エラー時は AskUserQuestion で「キー指定形式で再入力してください」と案内する
+
+### 7.5 差分絵文字規約（再生成時の差分強調表示）
+
+既存 confirmed `wireframe-url.md` がある場合、draft note との差分を AskUserQuestion description に以下の絵文字で表示する（Skill 1 と同規約）：
+
+- ✅ **追加** — draft note 側にのみ存在するエントリ（screens / elements）
+- ❌ **削除** — 既存 manifest 側にのみ存在し、draft note 側にない（orphan 化予定として明示）
+- 🔄 **変更** — 両側に存在し、フィールド値に差分あり
+
+変更なし再生成でも明示確認（auto-pass しない）。
+
+### 7.6 項目記号 ↔ ヒアリング名マッピング表（Skill 2 用、A〜E）
+
+Step 7.5 の「項目戻り」モードで使用する項目記号と、確定する manifest フィールドの対応表。
+
+| 項目 | 内容 | 確定する manifest フィールド |
+|---|---|---|
+| A | 対象画面 | `screens[]`（採用画面リスト） |
+| B | layout / state バリエーション | `screens[].layout` / `screens[].state` |
+| C | 要素一覧 | `elements[]`（kind / source / 紐付け） |
+| D | 要素粒度 | `elements[].kind`（Core 15 / Optional 9 / placeholder-block の分類） |
+| E | primitive 種別 | `elements[].kind`（具体 kind 名 + state バリエーション文言） |
+
+**注**: 項目 D と E はともに `elements[].kind` を確定するが、D は「要素粒度（どのレベルで分解するか）」、E は「primitive 種別（具体的にどの kind enum を当てるか）」の観点で分けて確認する。
+
+### 7.7 AskUserQuestion 文言テンプレ
+
+Step 7.5 の AskUserQuestion 提示形式：
+
+- **description**:
+  - サマリ表テンプレ（`manifest-schema.md §6.4` に詳細仕様、screen-spec 列を使用）
+  - 再生成時は差分件数（✅ N 件 / ❌ M 件 / 🔄 K 件）を追記
+  - draft note ファイルパス（`docs/project/wireframe-url.draft.md`）を案内
+  - description は最大 8〜10 行に収め、詳細は draft note ファイルを参照させる設計
+
+- **選択肢**（SKILL.md Step 7.5 処理 3 の 9 件、必ず「中止」と「その他（自由入力）」を末尾に含める）:
+  1. 「承認 → Figma 描画開始」
+  2. 「画面リスト/対象画面修正 → 項目A に戻る」
+  3. 「layout/state バリエーション修正 → 項目B に戻る」
+  4. 「要素一覧修正 → 項目C に戻る」
+  5. 「要素粒度修正 → 項目D に戻る」
+  6. 「primitive 種別修正 → 項目E に戻る」
+  7. 「フィールド直接修正（自由入力で `elements[<element-id>].xxx = yyy` 形式、例: `elements[login__email-field].placeholder = "name@company.com"`）」
+  8. 「中止 → `.draft.aborted.md` 退避して終了」
+  9. 「その他（自由入力）」
+
+### 7.8 修正フロー（Skill 1 と同パターン）
+
+Step 7.5 で承認以外の選択肢が選ばれた場合の処理パターン。Skill 1 の §5 と同等：
+
+| モード | 処理 |
+|---|---|
+| **項目戻り**（選択肢 2〜6） | 該当ヒアリング項目（A〜E）を再実行 → 結果を draft note に Edit 反映 → 再度 Step 7.5（AskUserQuestion 再提示） |
+| **フィールド直接修正**（選択肢 7） | 自由入力指示を §7.4 識別子規約に従って解釈 → draft note を Edit で更新 → YAML 構文簡易 validate → エラー時は AskUserQuestion で再入力依頼 → 成功時は再度 Step 7.5（承認確認） |
+| **中止**（選択肢 8） | draft note を `wireframe-url.draft.aborted.md` にリネーム（既存衝突時は `wireframe-url.draft.aborted-YYYYMMDD-HHMMSS.md` の timestamp サフィックス付き名にフォールバック）→ Skill 終了 |
+| **その他**（選択肢 9） | 自由入力指示を受けて再計画 or 中止に分岐。判断不能時は PENDING_QUESTIONS でユーザーに確認 |

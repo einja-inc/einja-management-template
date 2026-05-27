@@ -326,3 +326,102 @@ v2 リリース時に本ファイル（manifest-schema.md §5）でマイグレ�
 - `frontmatter.file_key` ≠ `frontmatter.source_screen_flow_file_key`
 - `frontmatter.file_key` ≠ 現行 `screen-flow-url.md` の `file_key`
 - `screens[].linked_screen_stable_id` が `screen-flow-url.md` の `screens[].stable_id` に存在しない
+
+---
+
+## §6. status フィールドと draft ライフサイクル
+
+本セクションは `einja-project-screen-spec` Skill の **Step 7.5 manifest ドラフト確認フェーズ** から参照される（Skill 1 = `einja-project-screen-flow-figma` の同等セクションと同パターン）。manifest が「ドラフト（ユーザー承認待ち）」か「確定（Figma 書き込み済み）」かを区別する `status` フィールドと、draft note のライフサイクル・拡張子の予約・サマリ表テンプレ・差分算出アルゴリズムを定義する。
+
+### 6.1 status フィールド
+
+manifest のドラフト/確定状態を区別する frontmatter フィールド（任意、後方互換のため optional）。
+
+| 値 | 意味 | 用途 |
+|---|---|---|
+| `draft` | ユーザー承認待ち、Figma 未書き込み | `wireframe-url.draft.md`（一時 note）に記録される |
+| `confirmed` | ユーザー承認済み、Figma 書き込み完了 | `wireframe-url.md`（本番 manifest）に記録される |
+
+**デフォルト**: 未指定時は `confirmed` として解釈（既存 sample manifest との後方互換確保）。
+
+**配置ルール**:
+- **draft note**（`<manifest-name>.draft.md`）の場合: 末尾の HTML コメントブロック内に `status: draft` を記載
+  - 理由: draft note は未確定 manifest であり、frontmatter は本番 manifest と同形式を保つ（status 以外のフィールドが parser で正しく読まれる）
+  - コメント内 status は人間レビュー用、機械的読み取りは不要
+- **本番 manifest**（`<manifest-name>.md`）の場合: frontmatter に `status: confirmed` を **任意**で追加可能
+  - 既存 sample 等は未指定（デフォルト = confirmed と解釈、§6.1 デフォルト規約参照）
+  - 明示的にライフサイクル状態を残したい場合のみ追加
+
+### 6.2 ライフサイクル
+
+`wireframe-url.draft.md` の生成から削除までの状態遷移：
+
+1. **Step 7.5 開始時**: ヒアリング結果から `docs/project/wireframe-url.draft.md` を Write で生成（status: draft）
+2. **修正フェーズ**: ユーザー指示（項目戻り / フィールド直接修正）に応じて draft note を Edit で更新 → 再度 Step 7.5 で承認確認
+3. **承認後**: draft note は**そのまま保持** → Step 8 以降の Figma 書き込みフェーズへ進む（Figma 書き込み中断時に draft note を再開ソースとして残せるよう、即削除しない）
+4. **Step 11 manifest 出力成功後**: 本番 `wireframe-url.md`（status: confirmed）が出力された時点で draft note を削除（本番 manifest と二重存在しないよう）
+5. **中止時**: draft note を `wireframe-url.draft.aborted.md` にリネーム（既存衝突時は §6.3 のフォールバック規則を適用）→ Skill 終了
+
+### 6.3 拡張子の予約
+
+draft フェーズで使用する拡張子と用途：
+
+| 拡張子 | 用途 |
+|---|---|
+| `.draft.md` | Step 7.5 で生成される未承認 manifest（一時 note、`.gitignore` 対象） |
+| `.draft.aborted.md` | 中止選択時にリネームされる退避ファイル（`.gitignore` 対象） |
+| `.draft.aborted-<timestamp>.md` | `.draft.aborted.md` がすでに存在する場合のフォールバック名（`<timestamp>` は `YYYYMMDD-HHMMSS` 形式、上書き禁止） |
+| `.bak` | §3.3 既存規約のとおり、本番 manifest 上書き前の直前バージョン退避（`.gitignore` 対象） |
+
+### 6.4 サマリ表テンプレ（AskUserQuestion description 用、Skill 2 列）
+
+Step 7.5 の AskUserQuestion description に表示するサマリ表テンプレ。Plan「共通仕様 サマリ表テンプレ」の screen-spec 列を引用。
+
+| 項目 | screen-spec 例 |
+|---|---|
+| 全体件数 | screens: 11、states 合計: 13、elements 合計: 60 |
+| 主要構造 | source_screen_flow: `<file_key>` / state バリエーション: normal/error/loading |
+| 推定信頼度 | source 別件数（function-spec: 45 / 推定: 15） |
+| 注目項目 | placeholder 含む要素: 12 |
+| 差分（再生成時） | ✅ 追加 N 件 / ❌ 削除 M 件 / 🔄 変更 K 件 |
+
+**運用ルール**:
+- description は最大 8〜10 行に収め、詳細は draft note ファイルパスを案内する設計
+- 「差分（再生成時）」行は初回生成時は省略、再生成時のみ表示
+- 件数の集計は §6.5 の差分算出アルゴリズムで算出した結果を使用
+
+### 6.5 既存 manifest 読み込み + 差分算出アルゴリズム（再生成時のみ）
+
+Step 7.5 冒頭で、既存 confirmed `wireframe-url.md` が存在する場合に実行する差分算出疑似アルゴリズム。**screens / elements の両方を対象とする**（screen-flow の screens / edges 対比とは異なる）：
+
+```
+1. Read で `docs/project/wireframe-url.md` を読む（存在しなければ初回扱い、差分強調なし）
+2. 既存 manifest の `## screens` から name / stable_id 一覧を抽出（Set X_screens）
+3. draft note の `## screens` から name / stable_id 一覧を抽出（Set Y_screens）
+4. screens Set 差分:
+   - 追加: Y_screens - X_screens → ✅ で表示
+   - 削除: X_screens - Y_screens → ❌ で表示（orphan 化予定として明示）
+   - 共通: X_screens ∩ Y_screens → 各 entry のフィールド値比較 → 差分ありなら 🔄 で表示
+5. 既存 manifest の `## elements` から element_stable_id 一覧を抽出（Set X_elements）
+6. draft note の `## elements` から element_stable_id 一覧を抽出（Set Y_elements）
+7. elements Set 差分:
+   - 追加: Y_elements - X_elements → ✅ で表示
+   - 削除: X_elements - Y_elements → ❌ で表示（orphan 化予定として明示）
+   - 共通: X_elements ∩ Y_elements → 各 entry のフィールド値比較 → 差分ありなら 🔄 で表示
+8. サマリ表「差分」列に screens / elements の合算件数を集計
+9. description には先頭 10 行程度を表示（残りは draft note ファイル参照）
+```
+
+**Step 11 / Step 12 冪等性照合との関係**: 本アルゴリズムは **Step 7.5 内の読み取り専用処理**であり、Figma 書き込み後の `node_id` 突合（§3 冪等性ポリシー）とは独立。Step 7.5 では承認前の差分提示が目的、Step 11/12 では書き込み後の node_id 整合性確認が目的。
+
+### 6.6 `.gitignore` 整備
+
+Skill 1 と同パターンで、draft note を git 管理対象外とするための `.gitignore` 整備。
+
+- Step 7.5 内で `.gitignore` を確認し、以下のパターンが未登録なら追記する:
+  - `docs/project/*.draft.md`
+  - `docs/project/*.draft.aborted*.md`
+- 既存パターンとの重複時はスキップ（idempotent な追記）
+- テンプレートリポジトリの `.gitignore` 原本を更新、下流リポジトリは sync で反映される（Skill 1 と同等の運用）
+
+**注**: `.bak` ファイルは §3.3 の既存規約により別途 `.gitignore` 除外推奨。本セクションでは draft 系拡張子のみを対象とする。

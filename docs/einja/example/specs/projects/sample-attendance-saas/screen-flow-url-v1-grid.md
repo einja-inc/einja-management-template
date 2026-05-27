@@ -2,6 +2,7 @@
 本ファイルはサンプル用の screen-flow-url.md です。
 本来の出力先は docs/project/screen-flow-url.md（1リポジトリ1プロジェクト前提）。
 einja-project-screen-flow-figma Skill により生成されるマニフェストの実例として配置しています。
+3 層 fixture 構造（v1 grid / v2 swim-lane / v3 user-flow）の v1 grid 側として、`normalizeManifestV1` + `hasV1Signature` 自動判定の動作確認用 fixture を兼ねる。
 
 - 入力サンプル: ./requirements.md
 - Skill 定義: .claude/skills/einja-project-screen-flow-figma/

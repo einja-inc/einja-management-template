@@ -1,5 +1,5 @@
 <!--
-本ファイルはサンプル用の screen-flow-url.md です（Plan v3: user-flow レイアウト前提のサンプル）。
+本ファイルはサンプル用の screen-flow-url.md です（Plan v2.1: swim-lane レイアウト前提）。
 本来の出力先は docs/project/screen-flow-url.md（1リポジトリ1プロジェクト前提）。
 einja-project-screen-flow-figma Skill により生成されるマニフェストの実例として配置しています。
 
@@ -9,10 +9,10 @@ einja-project-screen-flow-figma Skill により生成されるマニフェスト
 - レーン enum / 同義語: .claude/skills/einja-project-screen-flow-figma/references/canonical-enums.md
 - 矢印ルーティング規約: .claude/skills/einja-project-screen-flow-figma/references/figma-arrow-rules.md
 
-本ファイルは v3 user-flow レイアウト前提のサンプル成果物です。
+本ファイルは swim-lane レイアウト前提のサンプル成果物です。
+v3 user-flow（現行 default、`screen-flow-url.md`）と v1 grid（`screen-flow-url-v1-grid.md`）に対する、**明示 swim-lane 指定時の参考 fixture** として保持する。3 層 fixture 構造（v1 grid / v2 swim-lane / v3 user-flow）の v2 swim-lane 側。
 v1 後方互換 fixture（schema_version: 1 のままの旧格子レイアウト）は
 同ディレクトリの screen-flow-url-v1-grid.md を参照してください。
-v2 swim-lane fixture は `screen-flow-url-v2-swimlane.md` として別途保存（v2 swim-lane PoC の固定版 fixture、layout_strategy 明示指定時の参照用）。
 
 サンプル簡略化のため省略している画面（ヒアリング Step 4 項目A での確定経緯を含む）:
 - MFA 入力画面（§4.2 Auth.js + 多要素認証由来）→ login 画面に統合
@@ -26,14 +26,13 @@ v2 swim-lane fixture は `screen-flow-url-v2-swimlane.md` として別途保存�
 - forbidden-403: 認可エラー（403）共通画面。権限マトリクス（Manager/HR/Admin 限定機能への
   Employee アクセス時など）から補完。Common lane に配置。
 
-position 算出ルール (v3 user-flow / figma-arrow-rules.md §3.3、座標式 §3.3.4、クラスタリング §3.3.3):
-- `x = LEFT_MARGIN(80) + depth * (FRAME_W(240) + HORIZONTAL_GAP(160)) = 80 + depth * 400`
-- `y = median(parents.map(p => p.y))`（衝突回避は VERTICAL_GAP=80px の下方向 stable sort）
-- `depth` はエントリ画面（`is_entry_point: true`）から primary edge のみで BFS した最短到達深さ。
-  back エッジ（`edge_kind: back`）は BFS から除外、shortcut（既到達ノードへの再エッジ）は深さ変更なし
-- root（depth=0）の y は基準値 160px、以降は親 y の中央値を継承
-- 同一 depth で y が重複する場合は YAML screens[] 出現順 stable sort で VERTICAL_GAP=80px ずつ下方シフト
-- 未到達ノード（unreachable）は `depth = maxDepth + 1` として末尾に配置、y は基準値 160 を割り当て
+position 算出ルール (figma-arrow-rules.md §3.1):
+- `x = LANE_HEADER_W (160) + x_order * (FRAME_W (240) + FRAME_SPACING_X (80)) = 160 + x_order * 320`
+- `y = lane_index * LANE_HEIGHT (240) + FRAME_SPACING_Y (40)`
+- `lane_index` は role_canonical_map 適用後の **usedLanes**（実利用 lane のみ）における canonical 出現順
+  （canonical-enums §5 のデフォルト辞書順 `Common→Employee→Manager→HR→Admin→Ext` を維持）
+- 本サンプルでは Ext 未使用のため Common=0, Employee=1, Manager=2, HR=3, Admin=4
+- x_order は業務フロー順の topological sort 結果（同一 lane 内で 0 始まり）
 - Skill 再生成時もユーザー手動レイアウトを保持する設計（manifest-schema.md §3.1）
 
 注意: 下記 figma_url / file_key / plan_key / node_id はサンプル用プレースホルダーであり、
@@ -47,7 +46,7 @@ plan_key: PLACEHOLDER_PLAN_KEY
 schema_version: 1
 generated_at: 2026-05-25
 project_name: sample-attendance-saas
-layout_strategy: user-flow
+layout_strategy: swim-lane
 role_canonical_map:
   共通: Common
   従業員: Employee
@@ -64,10 +63,9 @@ role_canonical_map:
   node_id: "PLACEHOLDER_NODE_ID_login"
   role: 共通
   lane_id: Common
-  is_entry_point: true
   source_confidence: high
   status: active
-  position: { x: 80, y: 160 }
+  position: { x: 160, y: 40 }
 
 - name: forbidden-403
   stable_id: sample-attendance-saas__forbidden-403
@@ -76,9 +74,8 @@ role_canonical_map:
   lane_id: Common
   source_confidence: high
   status: active
-  position: { x: 2080, y: 160 }  # unreachable（primary edge の入辺なし）
-                                 # depth = maxDepth(4) + 1 = 5、y は基準値 160 を割り当て
-                                 # unreachable サンプル（figma-arrow-rules.md §3.3.2 reachable 不能ノード扱い、Phase 2 で確認 UI 追加予定）
+  position: { x: 480, y: 40 }  # Common lane の x_order=1 として配置
+                               # ※ edges を持たない共通画面は lane 内出現順で詰める（topological sort 対象外）
 
 - name: punch
   stable_id: sample-attendance-saas__punch
@@ -87,7 +84,7 @@ role_canonical_map:
   lane_id: Employee
   source_confidence: high
   status: active
-  position: { x: 880, y: 0 }
+  position: { x: 480, y: 280 }
 
 - name: request
   stable_id: sample-attendance-saas__request
@@ -96,7 +93,7 @@ role_canonical_map:
   lane_id: Employee
   source_confidence: high
   status: active
-  position: { x: 880, y: 80 }
+  position: { x: 800, y: 280 }
 
 - name: approval-list
   stable_id: sample-attendance-saas__approval-list
@@ -105,7 +102,7 @@ role_canonical_map:
   lane_id: Manager
   source_confidence: high
   status: active
-  position: { x: 1280, y: 80 }
+  position: { x: 1120, y: 520 }
 
 - name: approval
   stable_id: sample-attendance-saas__approval
@@ -114,7 +111,7 @@ role_canonical_map:
   lane_id: Manager
   source_confidence: high
   status: active
-  position: { x: 1680, y: 80 }
+  position: { x: 1440, y: 520 }
 
 - name: dashboard
   stable_id: sample-attendance-saas__dashboard
@@ -123,10 +120,9 @@ role_canonical_map:
   lane_id: HR
   # dashboard は全ロール (Common/Employee/Manager/HR/Admin) からアクセスされる multi-role ハブ画面。
   # figma-arrow-rules.md §3.1 multi-role 主 lane 判定ルール 1（manifest 明示 lane_id 最優先）により HR に配置。
-  # v3 user-flow では lane_id は表示には使われないが、参考情報として残置。
   source_confidence: high
   status: active
-  position: { x: 480, y: 160 }
+  position: { x: 160, y: 760 }
 
 - name: monthly-report
   stable_id: sample-attendance-saas__monthly-report
@@ -135,7 +131,7 @@ role_canonical_map:
   lane_id: HR
   source_confidence: high
   status: active
-  position: { x: 880, y: 160 }
+  position: { x: 480, y: 760 }
 
 - name: export
   stable_id: sample-attendance-saas__export
@@ -144,7 +140,7 @@ role_canonical_map:
   lane_id: HR
   source_confidence: high
   status: active
-  position: { x: 1280, y: 160 }
+  position: { x: 800, y: 760 }
 
 - name: shift-mgmt
   stable_id: sample-attendance-saas__shift-mgmt
@@ -153,7 +149,7 @@ role_canonical_map:
   lane_id: HR
   source_confidence: high
   status: active
-  position: { x: 880, y: 240 }
+  position: { x: 1120, y: 760 }
 
 - name: user-mgmt
   stable_id: sample-attendance-saas__user-mgmt
@@ -162,7 +158,7 @@ role_canonical_map:
   lane_id: Admin
   source_confidence: high
   status: active
-  position: { x: 880, y: 320 }
+  position: { x: 160, y: 1000 }
 
 ## edges
 

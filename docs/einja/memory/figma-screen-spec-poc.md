@@ -210,6 +210,22 @@ Plan: `/Users/t-hiroyoshi/.claude/plans/worktree-synthetic-hinton.md`（sample �
 
 ## 関連リソース
 
-- Plan: `/Users/t-hiroyoshi/.claude/plans/worktree-synthetic-hinton.md`（sample 再生成 Plan、Next Session セクションに Skill 改善方針を記載）
+- Plan: sample 再生成 Plan（Next Session セクションに Skill 改善方針を記載）。詳細は本リポジトリのローカル `.claude/plans/` 配下、または当該 PR の commit 履歴を参照
 - sample manifest: `docs/einja/example/specs/projects/sample-attendance-saas/screen-flow-url.md` / `wireframe-url.md`（PLACEHOLDER 維持）
 - Figma file: 上記 PoC file と同一（追記方式）
+
+## 2026-05-27 追補: draft 確認フェーズの Skill 仕様化完了
+
+本 memo で「次 Skill 改善 Plan で … 検討予定」と予告していた **manifest ドラフト確認フェーズ** が、両 Skill に新ステップとして実装された。
+
+### 実装結果
+- `einja-project-screen-flow-figma`: **Step 4.5** (ヒアリング後・Figma 接続前のゲート)
+- `einja-project-screen-spec`: **Step 7.5** (ヒアリング後・Pass 1 描画前のゲート)
+- 両 Skill 共通: draft note (`docs/project/<manifest-name>.draft.md`) を生成 → サマリ表 + draft note ファイル参照を AskUserQuestion で提示 → 承認 / 項目戻り / フィールド直接修正 / 中止 / その他 の選択肢
+- references 拡張:
+  - `hearing-checklist.md §7`: ドラフト確認フェーズ仕様（識別子規約 / 差分絵文字 / 修正フロー / マッピング表）
+  - `manifest-schema.md §6 (screen-spec) / §8 (screen-flow)`: status フィールド / ライフサイクル / 差分算出アルゴリズム
+- `.gitignore`: `docs/project/*.draft.md` / `docs/project/*.draft.aborted*.md` 追加
+
+### 実機 Figma 検証は Phase 2 送り
+本 PR のスコープは Skill 仕様の追加のみ。実機 Figma での Step 4.5 / Step 7.5 動作確認は次セッションで sample-attendance-saas 等を再々生成して検証予定。

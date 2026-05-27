@@ -109,3 +109,9 @@ modifications/
 
 # einja-md-export 出力先（PDF/HTML/PPTX）
 docs/exports/
+
+# einja-project-screen-flow-figma / einja-project-screen-spec の draft note
+# Step 4.5 / Step 7.5 のドラフト確認フェーズで生成される一時 manifest
+# 承認後に Step 10/11 で削除、または中止時は .draft.aborted.md にリネーム保持
+docs/project/*.draft.md
+docs/project/*.draft.aborted*.md

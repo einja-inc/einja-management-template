@@ -135,7 +135,7 @@ screen-flow-url.md 未存在時は「画面別逆引き表」セクションを�
 ```markdown
 ## 画面別 関連機能逆引き表
 
-<!-- screen-flow-url.md が未生成です。/einja-project-screen-flow-figma を実行後、本Skillをモード D（逆引き再生成モード）で再実行してください。 -->
+<!-- screen-flow-url.md が未生成です。/einja-project-screen-flow-drawio を実行後、本Skillをモード D（逆引き再生成モード）で再実行してください。 -->
 ```
 
 ---
@@ -230,9 +230,12 @@ related_function_ids:
 
 | ID種別 | 形式 | 採番元 | 用途 |
 |--------|------|--------|------|
-| `stable_id`（screen-flow-url.md） | `{project_name}__{name}` | einja-project-screen-flow-figma | 画面参照キー |
+| `stable_id`（screen-flow-url.md） | `{project_name}__{name}` | einja-project-screen-flow-drawio | 画面参照キー |
+| `cell_id`（screen-flow-url.md / `.drawio` 内部） | `screen__{...}` / `edge__{...}` （`stable_id` の不正文字 `:` / `/` 等を `__` に置換した drawio mxCell ID） | einja-project-screen-flow-drawio | drawio mxCell の冪等性照合キー（参照のみ） |
 | `flow_id`（本Skill） | `{project_name}__flow__{snake_case_flow_name}` | einja-project-function-spec | 業務フロー参照キー |
 | `FN-XXX`（本Skill） | `FN-{3桁数字}` | einja-project-function-spec | 機能参照キー |
+
+> 注: `cell_id` は `einja-project-screen-flow-drawio` Skill が `.drawio` XML の `mxCell` 単位での冪等再生成のために使う内部識別子。本 Skill (`einja-project-function-spec`) は **`stable_id` のみを参照する**（`cell_id` への直接参照は行わない）。
 
 ### 4.3 双方向トレーサビリティ
 
@@ -249,7 +252,7 @@ function-spec.flow_id ←→ screen-flow-url.screens.stable_id
 ```
 
 - requirements.md §6 機能要件サマリへの**書き戻しは絶対に禁止**（einja-project-requirements の独立性保持）
-- screen-flow-url.md への**書き戻しも禁止**（einja-project-screen-flow-figma の冪等性保持）
+- screen-flow-url.md への**書き戻しも禁止**（einja-project-screen-flow-drawio の冪等性保持）
 - 本Skillは `stable_id` を**読み取り専用**で利用し、`related_screens[]` 配列に列挙するのみ
 
 ---

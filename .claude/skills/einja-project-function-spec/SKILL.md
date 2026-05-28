@@ -12,9 +12,9 @@ user-invocable: true
 -->
 
 <!-- 参考: .claude/skills/einja-project-requirements/SKILL.md (AskUserQuestion 質問単位ヒアリング・再開検出・Edit ループ) -->
-<!-- 参考: .claude/skills/einja-project-screen-flow-figma/SKILL.md (manifest schema・stable_id・冪等性ポリシー) -->
+<!-- 参考: .claude/skills/einja-project-screen-flow-drawio/SKILL.md (manifest schema・stable_id・冪等性ポリシー) -->
 <!-- 入力ソース1: docs/project/requirements.md（einja-project-requirements 出力） -->
-<!-- 入力ソース2: docs/project/screen-flow-url.md（einja-project-screen-flow-figma 出力） -->
+<!-- 入力ソース2: docs/project/screen-flow-url.md（einja-project-screen-flow-drawio 出力） -->
 
 # einja-project-function-spec: 業務フロー機能仕様（業務観点 + システム観点）生成 Skill
 
@@ -29,7 +29,7 @@ user-invocable: true
 | Skill | 対象 | スコープ | 配置先 |
 |-------|------|---------|--------|
 | `einja-project-requirements` | プロジェクト全体（クライアント合意用） | 業務要件・システム化方針・スコープ・機能サマリ等の §1〜§16 | `docs/project/requirements.md` |
-| `einja-project-screen-flow-figma` | プロジェクト全体（画面遷移俯瞰） | 画面ノード集合・遷移エッジを Figma 上に生成 | `docs/project/screen-flow-url.md` |
+| `einja-project-screen-flow-drawio` | プロジェクト全体（画面遷移俯瞰） | 画面ノード集合・遷移エッジを drawio (`.drawio` XML) 上に生成 | `docs/project/screen-flow-url.md` |
 | **`einja-project-function-spec`（本Skill）** | **プロジェクト全体（業務フロー + 詳細システムフロー単位の機能仕様）** | 業務フロー詳細（業務観点 + システム観点 sequenceDiagram + ステップ表）・機能一覧（FN-XXX）・機能カード・データの流れ・業務ルール + 主要技術制約・関連画面 | `docs/project/function-specs/index.md` + `function-spec-{flow_id}.md` |
 | `einja-project-screen-spec`（ワイヤーフレーム実装済み・mid-fi） | プロジェクト全体（画面単位 UI 仕様） | ワイヤーフレーム / 項目定義（型・桁・必須・選択肢・初期値）/ メッセージ文言 / 遷移ボタン配置・遷移条件 / UI 状態（ローディング・無効化等） | `docs/project/wireframe-url.md`（ワイヤーフレーム部分。項目定義/メッセージ文言は後続別Skill予定） |
 | `einja-issue-spec-create` Phase 1（`requirements-generator` エージェント） | 機能/Issue単位（ATDD要件） | UI/AC/権限/データモデル等の §1-§14 | `docs/specs/issues/{category}/issue{N}-{name}/requirements.md` |
@@ -111,7 +111,7 @@ TaskCreateツールを使用して全体の進捗を可視化します:
    > 「`docs/project/requirements.md` が存在しません。本Skillは要件定義書をベース入力としています。先に `/einja-project-requirements` を実行してください。」
 3. `docs/project/screen-flow-url.md` の存在を Read で確認する
 4. **未存在の場合**: 警告のみで生成継続:
-   > 「`docs/project/screen-flow-url.md` が存在しません。画面別逆引き表は空、各 function-spec の `related_screens` も空配列で出力されます。後から `/einja-project-screen-flow-figma` を実行後、本Skillを再実行（『逆引き再生成モード』）すると、画面参照を追記できます。」
+   > 「`docs/project/screen-flow-url.md` が存在しません。画面別逆引き表は空、各 function-spec の `related_screens` も空配列で出力されます。後から `/einja-project-screen-flow-drawio` を実行後、本Skillを再実行（『逆引き再生成モード』）すると、画面参照を追記できます。」
 
 #### 0.2 既存 function-specs/ 検出 + モード推定
 
@@ -389,7 +389,7 @@ multiSelect: true
   - `einja-task-commit` - 承認後のコミット・プッシュ
 - **入力Skill**:
   - `einja-project-requirements` - `docs/project/requirements.md` 生成元（**必須入力**）
-  - `einja-project-screen-flow-figma` - `docs/project/screen-flow-url.md` 生成元（推奨入力。未存在時は警告継続）
+  - `einja-project-screen-flow-drawio` - `docs/project/screen-flow-url.md` 生成元（推奨入力。未存在時は警告継続）
 - **連携可能Skill（オプション）**: `einja-review-spec` でドラフトのレビュー実施可能（ユーザー希望時）
 
 ## サブエージェント呼び出しポリシー

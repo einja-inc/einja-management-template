@@ -1,6 +1,6 @@
 ---
 name: einja-design-5-planes
-description: "Orchestrates project-level design planning across Garrett/goodpatch 5 planes (Strategy / Scope / Structure / Skeleton / Surface). 方法論 SSoT としてヒアリング項目と既存 Skill 対応マップを保持し、要請に応じて einja-project-requirements / function-spec / screen-flow-figma / screen-spec を順次呼び出して各段階を埋める。Strategy〜Skeleton の 4 plane を実機オーケストレーション、Surface は Phase 2 送り（hi-fi 系は einja-pencil-design-manager 等へ案内のみ）。「5 段階で進めたい」「Strategy から Skeleton まで通しで」「特定段階だけやり直し」のような俯瞰起動に使う。Triggers: '5段階モデル', '5 planes', 'デザインの5段階', 'goodpatch 5段階', 'プロジェクトデザイン俯瞰', '段階別ヒアリング', 'デザイン5段階', 'design-5-planes'. Do NOT use for: Issue 単位の要件/UI 仕様（→ einja-issue-spec-create / ui-design-generator）、Surface 段階の hi-fi デザイン（→ einja-pencil-design-manager）、Skill 設計計画（→ einja-skill-plan-guide）."
+description: "Orchestrates project-level design planning across Garrett/goodpatch 5 planes (Strategy / Scope / Structure / Skeleton / Surface). 方法論 SSoT としてヒアリング項目と既存 Skill 対応マップを保持し、要請に応じて einja-project-requirements / function-spec / screen-flow-drawio / screen-spec を順次呼び出して各段階を埋める。Strategy〜Skeleton の 4 plane を実機オーケストレーション、Surface は Phase 2 送り（hi-fi 系は einja-pencil-design-manager 等へ案内のみ）。「5 段階で進めたい」「Strategy から Skeleton まで通しで」「特定段階だけやり直し」のような俯瞰起動に使う。Triggers: '5段階モデル', '5 planes', 'デザインの5段階', 'goodpatch 5段階', 'プロジェクトデザイン俯瞰', '段階別ヒアリング', 'デザイン5段階', 'design-5-planes'. Do NOT use for: Issue 単位の要件/UI 仕様（→ einja-issue-spec-create / ui-design-generator）、Surface 段階の hi-fi デザイン（→ einja-pencil-design-manager）、Skill 設計計画（→ einja-skill-plan-guide）."
 allowed-tools: Read, Edit, Write, Glob, Grep
 user-invocable: true
 ---
@@ -38,7 +38,7 @@ Do NOT use for: Issue 単位の要件/UI 仕様（→ `einja-issue-spec-create` 
 |------|------|
 | 入力ファイル 1 | `docs/project/requirements.md`（`einja-project-requirements` の出力） |
 | 入力ファイル 2 | `docs/project/function-specs/`（`einja-project-function-spec` の出力） |
-| 入力ファイル 3 | `docs/project/screen-flow-url.md`（`einja-project-screen-flow-figma` の出力） |
+| 入力ファイル 3 | `docs/project/screen-flow-url.md`（`einja-project-screen-flow-drawio` の出力） |
 | 入力ファイル 4 | `docs/project/wireframe-url.md`（`einja-project-screen-spec` の出力） |
 | 入力ファイル 5 | `docs/project/design-5-planes-manifest.md`（本 Skill が生成・更新する manifest） |
 | 方法論 SSoT | `references/5-planes-overview.md` — 5 段階モデル定義・goodpatch 拡張・用語統一表 |
@@ -57,8 +57,8 @@ flowchart TB
   S3[Step 3: 段階別ゲート<br/>未完了/stale plane を特定<br/>revisit 選択肢も常時提示]
   S3 -->|Strategy 未完了/stale| P1[Plane 1: Strategy<br/>einja-project-requirements §1〜§4 起動]
   S3 -->|Scope 未完了/stale| P2[Plane 2: Scope<br/>requirements §5〜§6 + function-spec 起動]
-  S3 -->|Structure 未完了/stale| P3[Plane 3: Structure<br/>function-spec + screen-flow-figma 起動]
-  S3 -->|Skeleton 未完了/stale| P4[Plane 4: Skeleton<br/>screen-flow-figma + screen-spec 起動]
+  S3 -->|Structure 未完了/stale| P3[Plane 3: Structure<br/>function-spec + screen-flow-drawio 起動]
+  S3 -->|Skeleton 未完了/stale| P4[Plane 4: Skeleton<br/>screen-flow-drawio + screen-spec 起動]
   S3 -->|Surface 未完了| P5[Plane 5: Surface<br/>Phase 2 案内テンプレ表示]
   S3 -->|revisit 指定| RV[Revisit: 該当 plane を in_progress に巻戻し<br/>下流 plane を stale に降格<br/>cascading invalidation]
   RV --> S3
@@ -154,8 +154,8 @@ manifest の各 plane `status` を評価し、実行すべき plane を特定す
 |-------|---------|
 | Plane 1 (Strategy) | 「Skill tool で `einja-project-requirements` をロードし、§1〜§4（プロジェクト概要 / 対象業務 / 対象ユーザー・ステークホルダー / システム化方針）の範囲で実行してください。完了後、本 Skill に戻り manifest を更新します。」詳細指示プロンプトは `references/skill-mapping.md §Plane1` 参照 |
 | Plane 2 (Scope) | 「Skill tool で `einja-project-requirements` を §5（スコープ境界）と §6（機能要件サマリ）、続いて `einja-project-function-spec` をロードして実行してください。完了後、本 Skill に戻り manifest を更新します。」詳細は `references/skill-mapping.md §Plane2` 参照 |
-| Plane 3 (Structure) | 「Skill tool で `einja-project-function-spec` を確認後、`einja-project-screen-flow-figma` をロードして実行してください。完了後、本 Skill に戻り manifest を更新します。」詳細は `references/skill-mapping.md §Plane3` 参照 |
-| Plane 4 (Skeleton) | 「Skill tool で `einja-project-screen-flow-figma` の出力を確認後、`einja-project-screen-spec` をロードして実行してください。完了後、本 Skill に戻り manifest を更新します。」詳細は `references/skill-mapping.md §Plane4` 参照 |
+| Plane 3 (Structure) | 「Skill tool で `einja-project-function-spec` を確認後、`einja-project-screen-flow-drawio` をロードして実行してください。完了後、本 Skill に戻り manifest を更新します。」詳細は `references/skill-mapping.md §Plane3` 参照 |
+| Plane 4 (Skeleton) | 「Skill tool で `einja-project-screen-flow-drawio` の出力を確認後、`einja-project-screen-spec` をロードして実行してください。完了後、本 Skill に戻り manifest を更新します。」詳細は `references/skill-mapping.md §Plane4` 参照 |
 | Plane 5 (Surface) | Phase 2 案内テンプレを表示する（`references/skill-mapping.md §Plane5` 参照）。既存 Skill 呼出は行わない |
 
 **Orchestrator モード時**: Step 0 で取得した一括承認に基づき、各 Plane 開始時は確認メッセージのみ表示する（AskUserQuestion は呼ばない）。
@@ -378,8 +378,8 @@ hearing_supplement:
 |-------|------|---------|-----------|
 | Plane 1 | Strategy / 戦略 | なぜ作るか（プロジェクト概要 / 対象業務 / 対象ユーザー / システム化方針） | `einja-project-requirements §1〜§4` |
 | Plane 2 | Scope / 要件 | 何を作るか（スコープ境界 / 機能要件サマリ / 優先順位） | `einja-project-requirements §5〜§6` + `einja-project-function-spec` |
-| Plane 3 | Structure / 構造 | どう繋ぐか（IA / OOUI / ナビ） | `einja-project-function-spec` + `einja-project-screen-flow-figma` |
-| Plane 4 | Skeleton / 骨格 | どこに置くか（WF / レイアウト） | `einja-project-screen-flow-figma` + `einja-project-screen-spec` |
+| Plane 3 | Structure / 構造 | どう繋ぐか（IA / OOUI / ナビ） | `einja-project-function-spec` + `einja-project-screen-flow-drawio` |
+| Plane 4 | Skeleton / 骨格 | どこに置くか（WF / レイアウト） | `einja-project-screen-flow-drawio` + `einja-project-screen-spec` |
 | Plane 5 | Surface / 表層 | どう見せるか（VI / 色 / タイポ） | 未対応（Phase 2 送り） |
 
 各 plane の詳細な指示プロンプトテンプレは `references/skill-mapping.md` を参照。既存 Skill の SKILL.md に記載された挙動の範囲を超える指示プロンプトは禁止する（既存 Skill の挙動保証のため）。
@@ -427,8 +427,8 @@ hearing_supplement:
 |-------|------|--------|-----------|
 | Plane 1 | Strategy | [completed / skipped / pending] | einja-project-requirements §1〜§4 |
 | Plane 2 | Scope | [completed / skipped / pending] | requirements §5〜§6 + function-spec |
-| Plane 3 | Structure | [completed / skipped / pending] | function-spec + screen-flow-figma |
-| Plane 4 | Skeleton | [completed / skipped / pending] | screen-flow-figma + screen-spec |
+| Plane 3 | Structure | [completed / skipped / pending] | function-spec + screen-flow-drawio |
+| Plane 4 | Skeleton | [completed / skipped / pending] | screen-flow-drawio + screen-spec |
 | Plane 5 | Surface | [skipped (Phase 2)] | — |
 
 ### 補完ヒアリング結果
@@ -468,7 +468,7 @@ hearing_supplement:
 |-------|-----------|--------------|
 | `einja-project-requirements` | Strategy / Scope | `.claude/skills/einja-project-requirements/SKILL.md` |
 | `einja-project-function-spec` | Scope / Structure | `.claude/skills/einja-project-function-spec/SKILL.md` |
-| `einja-project-screen-flow-figma` | Structure / Skeleton | `.claude/skills/einja-project-screen-flow-figma/SKILL.md` |
+| `einja-project-screen-flow-drawio` | Structure / Skeleton | `.claude/skills/einja-project-screen-flow-drawio/SKILL.md` |
 | `einja-project-screen-spec` | Skeleton | `.claude/skills/einja-project-screen-spec/SKILL.md` |
 
 ### 参照 steering docs

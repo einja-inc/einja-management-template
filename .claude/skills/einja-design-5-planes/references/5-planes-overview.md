@@ -189,7 +189,7 @@ Structure で定めた構造を「どこに置くか」に落とし込む段階�
 **注意点**:
 - 視覚装飾（色 / タイポ）は Plane 5 で扱う。本 plane では構造的レイアウトのみ
 - モバイル / アクセシビリティ制約は Plane 1 Strategy で前提化されていることを確認
-- 既存 einja Skill では `screen-flow-figma` + `screen-spec` がここに該当する
+- 既存 einja Skill では `screen-flow-drawio` + `screen-spec` がここに該当する
 
 ### §3.5 Plane 5: Surface / 表層
 

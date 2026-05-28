@@ -1,6 +1,6 @@
 # 既存 Skill 連結マッピング（einja-design-5-planes）
 
-本ドキュメントは、`einja-design-5-planes` Skill が既存のプロジェクト全体スコープ Skill 群（einja-project-requirements / einja-project-function-spec / einja-project-screen-flow-figma / einja-project-screen-spec）を 5 段階モデルの各 Plane に対応づけて呼び出すためのマッピング規約・連結図・指示プロンプトテンプレート・軽量モード手順・接続規約を集約する。
+本ドキュメントは、`einja-design-5-planes` Skill が既存のプロジェクト全体スコープ Skill 群（einja-project-requirements / einja-project-function-spec / einja-project-screen-flow-drawio / einja-project-screen-spec）を 5 段階モデルの各 Plane に対応づけて呼び出すためのマッピング規約・連結図・指示プロンプトテンプレート・軽量モード手順・接続規約を集約する。
 
 本 Skill は既存 Skill を **読むだけ・呼ぶだけ**で編集しない（非破壊性最優先）。
 
@@ -12,14 +12,14 @@
 |---|---|---|---|
 | 1 | Strategy | `einja-project-requirements` | `requirements.md §1〜§4`（プロジェクト概要 / 対象業務 / 対象ユーザー・ステークホルダー / システム化方針） |
 | 2 | Scope | `einja-project-requirements` + `einja-project-function-spec` | `requirements.md §5 スコープ境界 + §6 機能要件サマリ`（MUST/SHOULD/COULD/WON'T ラベル） + 機能仕様（業務フロー単位） |
-| 3 | Structure | `einja-project-function-spec` + `einja-project-screen-flow-figma` | 業務フロー詳細（system sequenceDiagram）+ プロジェクト全体画面遷移図（Figma） |
-| 4 | Skeleton | `einja-project-screen-flow-figma` + `einja-project-screen-spec` | 画面配置・遷移確定 + 画面単位ワイヤーフレーム（項目定義・メッセージ文言） |
+| 3 | Structure | `einja-project-function-spec` + `einja-project-screen-flow-drawio` | 業務フロー詳細（system sequenceDiagram）+ プロジェクト全体画面遷移図（drawio） |
+| 4 | Skeleton | `einja-project-screen-flow-drawio` + `einja-project-screen-spec` | 画面配置・遷移確定 + 画面単位ワイヤーフレーム（項目定義・メッセージ文言） |
 | 5 | Surface | （未カバー、Phase 2 送り） | — |
 
 ### 補足
 
 - **Plane 2 / Plane 3 で `einja-project-function-spec` が重複** している。これは「機能要件サマリの確定（Scope）」と「業務フロー詳細化（Structure）」の段階間で同 Skill が異なるセクションを担当するため。Plane 2 では `requirements.md §6` のラベル付与に重点、Plane 3 では `function-specs/function-spec-{flow_id}.md` の業務フロー詳細 + system sequenceDiagram に重点を置く。
-- **Plane 3 / Plane 4 で `einja-project-screen-flow-figma` が重複** している。Plane 3 では「画面間遷移の構造化」、Plane 4 では「個別画面ワイヤーフレーム作成の前提となる画面リスト確定」が役割。
+- **Plane 3 / Plane 4 で `einja-project-screen-flow-drawio` が重複** している。Plane 3 では「画面間遷移の構造化」、Plane 4 では「個別画面ワイヤーフレーム作成の前提となる画面リスト確定」が役割。
 - Plane 5 (Surface) は本 Skill 範囲外（後述 §6 参照）。
 
 ---
@@ -43,15 +43,15 @@
 | `docs/project/requirements.md §5` スコープ境界 + `§6` 機能要件サマリの骨子 | Read | 同 Skill 内で §5〜§6 を生成 |
 | `docs/project/function-specs/index.md` 既存 manifest | Read | 不在なら新規生成 |
 
-### Plane 3: einja-project-function-spec + einja-project-screen-flow-figma
+### Plane 3: einja-project-function-spec + einja-project-screen-flow-drawio
 
 | 前提 | 確認方法 | 不在時の動作 |
 |---|---|---|
 | `requirements.md §6` の MUST/SHOULD/COULD/WON'T ラベル全件付与済 | Grep `MUST\|SHOULD\|COULD\|WON'T` | Plane 2 へ戻す |
 | `function-specs/index.md` 業務フロー一覧確定 | Read | function-spec Skill 内で生成 |
-| Figma アクセストークン（screen-flow-figma 用） | 環境変数 or 設定 | `einja-infra-maintenance` 案内 |
+| drawio 保存先（`docs/project/diagrams/` 等）の確認 | Read or ユーザー確認 | `einja-project-screen-flow-drawio` のデフォルト保存先案内 |
 
-### Plane 4: einja-project-screen-flow-figma + einja-project-screen-spec
+### Plane 4: einja-project-screen-flow-drawio + einja-project-screen-spec
 
 | 前提 | 確認方法 | 不在時の動作 |
 |---|---|---|
@@ -84,11 +84,11 @@ flowchart LR
   subgraph P3[Plane 3: Structure]
     F3 --> FS2[einja-project-function-spec<br/>業務フロー詳細]
     FS2 --> F4[(function-spec-flow_id.md)]
-    F4 --> SF1[einja-project-screen-flow-figma]
+    F4 --> SF1[einja-project-screen-flow-drawio]
     SF1 --> F5[(screen-flow-url.md)]
   end
   subgraph P4[Plane 4: Skeleton]
-    F5 --> SF2[einja-project-screen-flow-figma<br/>画面リスト確定]
+    F5 --> SF2[einja-project-screen-flow-drawio<br/>画面リスト確定]
     SF2 --> SS[einja-project-screen-spec]
     SS --> F6[(wireframe-url.md)]
   end
@@ -136,13 +136,13 @@ einja-project-requirements §5（スコープ境界）+ §6（機能要件サマ
 ### Plane 3 (Structure) 起動時の指示プロンプト
 
 ```
-einja-project-function-spec と einja-project-screen-flow-figma を順次実行してください。
-業務フロー詳細（system sequenceDiagram）とプロジェクト全体画面遷移図（Figma）を確定させます。
+einja-project-function-spec と einja-project-screen-flow-drawio を順次実行してください。
+業務フロー詳細（system sequenceDiagram）とプロジェクト全体画面遷移図（drawio）を確定させます。
 完了後、本 Skill に戻り manifest を更新します。
 
 【実行順序】
 1. einja-project-function-spec で各業務フロー単位の function-spec-{flow_id}.md を生成
-2. function-spec の業務フロー出力を入力として einja-project-screen-flow-figma を起動
+2. function-spec の業務フロー出力を入力として einja-project-screen-flow-drawio を起動（drawio 保存先確認 → drawio 書き出し開始）
 3. screen-flow-url.md の stable_id 採番が完了したことを確認
 
 【補完ヒアリング由来の追記事項】（hearing_supplement で propagate_to が指定されている場合のみ）
@@ -153,12 +153,12 @@ einja-project-function-spec と einja-project-screen-flow-figma を順次実行�
 ### Plane 4 (Skeleton) 起動時の指示プロンプト
 
 ```
-einja-project-screen-flow-figma の画面リスト確定後、einja-project-screen-spec を実行してください。
+einja-project-screen-flow-drawio の画面リスト確定後、einja-project-screen-spec を実行してください。
 各画面のワイヤーフレーム・項目定義・メッセージ文言を確定させます。
 完了後、本 Skill に戻り manifest を更新します。
 
 【実行順序】
-1. einja-project-screen-flow-figma で stable_id × 画面名の対応表を最終確定
+1. einja-project-screen-flow-drawio で stable_id × 画面名の対応表を最終確定（drawio 書き出し完了確認）
 2. einja-project-screen-spec を起動し、wireframe-url.md / 画面単位仕様を生成
 3. ユーザー手動確認フェーズ（Step 4.5/7.5 ドラフト確認）を経て確定
 
@@ -294,5 +294,5 @@ completion_criteria:
 - 既存 Skill 群:
   - `.claude/skills/einja-project-requirements/SKILL.md`
   - `.claude/skills/einja-project-function-spec/SKILL.md`
-  - `.claude/skills/einja-project-screen-flow-figma/SKILL.md`
+  - `.claude/skills/einja-project-screen-flow-drawio/SKILL.md`
   - `.claude/skills/einja-project-screen-spec/SKILL.md`（Phase 4 で実装予定）

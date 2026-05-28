@@ -131,13 +131,13 @@ options:
 | 補完項目 | 既存 Skill 出力 | 確認 section | 充足判定 | 充足時挙動 |
 |---|---|---|---|---|
 | ユーザーフロー | function-specs/function-spec-{flow_id}.md | 各 sequenceDiagram | participant 4 層（Browser/Backend/DB/Ext）描画完了 | スキップ |
-| 画面遷移構造 | screen-flow-url.md | Figma URL + stable_id | 全画面ノード配置 + 矢印接続 | スキップ |
+| 画面遷移構造 | screen-flow-url.md | drawio ファイルパス + stable_id | 全画面ノード配置 + 矢印接続 | スキップ |
 | オブジェクト定義 | function-specs/ | 各 spec の入出力データ | データ項目記載 | スキップ |
-| ナビゲーション | screen-flow-url.md | Figma 内 グローバルナビ | グローバルナビノード存在 | スキップ |
+| ナビゲーション | screen-flow-url.md | drawio 内 グローバルナビ | グローバルナビノード存在 | スキップ |
 
 #### 抜け落ち補完項目
 
-- **ペルソナ詳細**（screen-flow-figma 起動前に「誰の動線か」が曖昧な場合） → `propagate_to: "docs/project/requirements.md §3.1"`
+- **ペルソナ詳細**（screen-flow-drawio 起動前に「誰の動線か」が曖昧な場合） → `propagate_to: "docs/project/requirements.md §3.1"`
 - **OOUI クラス図**（オブジェクト関係の俯瞰） → `propagate_to:` manifest 内のみ（Phase 2 で要否判定）
 - **モードレス前提の明示** → `propagate_to:` manifest 内のみ（Surface 段階の制約として継承）
 
@@ -145,10 +145,10 @@ options:
 
 ```yaml
 question: "Structure 段階の補完ヒアリング: ペルソナ視点でのユーザーフロー確認"
-description: "screen-flow-figma 起動前に、画面遷移を「誰のどの動線か」で明確化する。requirements.md §3.1 エンドユーザーにペルソナ詳細が薄い場合、本 Skill で補完して画面遷移図のラベリングに反映する。"
+description: "screen-flow-drawio 起動前に、画面遷移を「誰のどの動線か」で明確化する。requirements.md §3.1 エンドユーザーにペルソナ詳細が薄い場合、本 Skill で補完して画面遷移図のラベリングに反映する。"
 options:
   - label: "ペルソナ別フローを描き分ける"
-    Note: "ペルソナ A / B 別に screen-flow-figma で異なるフローを描画。Plane 4 の Skeleton にも引き継がれる。複雑度高。"
+    Note: "ペルソナ A / B 別に screen-flow-drawio で異なるフローを描画。Plane 4 の Skeleton にも引き継がれる。複雑度高。"
   - label: "主要ペルソナ 1 件のフローに集約"
     Note: "MVP として最重要ペルソナのフローのみ描画。サブペルソナは Phase 2 送り。シンプル運用向け。"
   - label: "ペルソナ非依存の機能起点フロー"
@@ -279,7 +279,7 @@ options:
 | `manifest 内のみ` | 既存 Skill 出力に書き戻し不要。manifest の `hearing_supplement` で保持 | 書き戻し promote なし |
 | `requirements.md §X.Y` | 既存 Skill 出力の特定 section へ書き戻し | 親エージェントへ Edit タスクを提示 |
 | `function-specs/index.md` | manifest 逆引き表へ反映 | 親エージェントへ Edit タスクを提示 |
-| `screen-flow-url.md` | Figma URL ドキュメントへ追記 | 親エージェントへ Edit タスクを提示 |
+| `screen-flow-url.md` | drawio ファイルパス/URL ドキュメントへ追記 | 親エージェントへ Edit タスクを提示 |
 
 ### 既存 Skill 出力ファイルへの書き戻し promote 規約
 

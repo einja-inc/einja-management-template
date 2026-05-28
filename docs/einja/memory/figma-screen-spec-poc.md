@@ -1,3 +1,9 @@
+<!--
+**2026-05-28 注釈**: einja-project-screen-flow Skill は drawio 化された（einja-project-screen-flow-drawio にリネーム）。
+本 PoC は Figma 時代の screen-flow 記録であり、現行 screen-flow 実装の参照ではない。
+screen-spec（ワイヤーフレーム）側は引き続き Figma を使用しているため、本 PoC は screen-spec 用途で参照価値あり。
+-->
+
 # einja-project-screen-spec Skill 設計時 PoC 結果（2026-05-25）
 
 `einja-project-screen-spec` Skill 実装計画（Plan v2.1）の T1 タスクとして、Figma Plugin API の未検証要素を実機検証した記録。本Plan の R1 / R6 リスクを物理的に潰すための PoC。
@@ -118,7 +124,7 @@ PoC 結果を踏まえ、以下のように反映:
 
 - Plan: ローカル `.claude/plans/` 配下に保存（git 管理対象外、Claude Code 自動生成パス）
 - Skill: `.claude/skills/einja-project-screen-spec/SKILL.md`（実装予定）
-- 参考実装: `.claude/skills/einja-project-screen-flow-figma/references/figma-arrow-rules.md`
+- 参考実装: `.claude/skills/einja-project-screen-flow-drawio/references/drawio-style-rules.md` （旧 `.claude/skills/einja-project-screen-flow-figma/references/figma-arrow-rules.md`、2026-05-28 drawio 化で物理削除済み）
 - MCP server instructions: `claude.ai Figma` connector（`figma.currentPage = page` 非サポート、`setCurrentPageAsync` 必須を明示）
 
 ## 結論

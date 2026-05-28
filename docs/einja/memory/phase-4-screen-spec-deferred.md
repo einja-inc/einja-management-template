@@ -1,3 +1,9 @@
+<!--
+**2026-05-28 注釈**: einja-project-screen-flow Skill は drawio 化された（einja-project-screen-flow-drawio にリネーム）。
+本メモ内で screen-flow に関する記述は Figma 時代の経緯記録であり、現行実装の参照ではない。
+screen-spec（ワイヤーフレーム）側は引き続き Figma を使用しているため、Phase 4 の中心テーマである screen-spec 関連の記述は現行有効。
+-->
+
 # Phase 4 (einja-project-screen-spec) 責務再設計の別Plan化メモ
 
 ## 実装ステータス（2026-05-25 更新）
@@ -35,7 +41,7 @@ Phase 4 Skill 設計に着手する際は、以下を起点とすること:
 1. **Phase 3 SKILL.md の「Phase 4 との責務境界」セクション** （`.claude/skills/einja-project-function-spec/SKILL.md`）を読み、責務境界マトリックスを Phase 4 Skill の出発点として活用する
 2. **Phase 3 サンプル7本** (`docs/einja/example/specs/projects/sample-attendance-saas/function-specs/function-spec-*.md`) の §2.2 システムフロー / §3.2 機能カードで参照されている stable_id 一覧を Phase 4 のヒアリング対象画面候補として利用する
 3. **screen-flow-url.md** (`docs/einja/example/specs/projects/sample-attendance-saas/screen-flow-url.md`) の screens[] が Phase 4 ヒアリングの起点となる
-4. 既存パイプライン Skill (`einja-project-requirements` / `einja-project-screen-flow-figma` / `einja-project-function-spec`) の構造を参考に Phase 4 を設計する
+4. 既存パイプライン Skill (`einja-project-requirements` / `einja-project-screen-flow-drawio` / `einja-project-function-spec`) の構造を参考に Phase 4 を設計する
 
 ## Phase 4 で扱う内容（想定スコープ）
 

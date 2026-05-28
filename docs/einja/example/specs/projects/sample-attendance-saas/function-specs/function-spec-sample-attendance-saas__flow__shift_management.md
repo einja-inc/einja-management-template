@@ -350,10 +350,10 @@ flowchart LR
 
 `screen-flow-url.md` の `stable_id` を参照キーとして、本業務フローで利用する画面を列挙する。
 
-| stable_id | 画面名 | Figma リンク | 役割（この業務フロー内） |
-|-----------|--------|-------------|--------------------|
-| sample-attendance-saas__dashboard | ダッシュボード | （screen-flow-url.md / file_key: PLACEHOLDER_FILE_KEY / node_id: 1:3） | シフト管理画面への導線（人事担当）/ 自分のシフト確認の入口（従業員） |
-| sample-attendance-saas__shift-mgmt | シフト管理画面 | （node_id: 1:10） | シフトテンプレート登録・従業員割当・公開操作・公開後の再編集・競合時の再取得 |
+| stable_id | 画面名 | cell_id | 役割（この業務フロー内） |
+|-----------|--------|---------|--------------------|
+| sample-attendance-saas__dashboard | ダッシュボード | screen__dashboard | シフト管理画面への導線（人事担当）/ 自分のシフト確認の入口（従業員） |
+| sample-attendance-saas__shift-mgmt | シフト管理画面 | screen__shift_mgmt | シフトテンプレート登録・従業員割当・公開操作・公開後の再編集・競合時の再取得 |
 
 > 補足: screen-flow-url.md 上の `dashboard` の `role` は「人事部」と記載されているが、本フローでは従業員のシフト確認画面としても役割推測で利用している（dashboard を全ロール共通のホーム画面として解釈）。確定情報は §7 未確定事項に申し送る。
 

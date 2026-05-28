@@ -1,13 +1,16 @@
 <!--
 本ファイルはサンプル用の screen-flow-url.md です（Plan v2.1: swim-lane レイアウト前提）。
 本来の出力先は docs/project/screen-flow-url.md（1リポジトリ1プロジェクト前提）。
-einja-project-screen-flow-figma Skill により生成されるマニフェストの実例として配置しています。
+einja-project-screen-flow-drawio Skill により生成されるマニフェストの実例として配置しています。
+
+**本 fixture は einja-project-screen-flow-drawio Skill の `normalizeManifestV1or2` 関数の動作確認用です。schema_version: 1 を保持しており、v2 reader（drawio Skill 現行版）が読むと「再生成して drawio 化 / 中止 / その他（自由入力）」の AskUserQuestion 警告が出るのが期待動作です。詳細: references/manifest-schema.md §5。**
+schema_version: 1 のまま据置し、旧 Figma 時代のフィールド構造（figma_url / file_key / plan_key / node_id）を保持する。
 
 - 入力サンプル: ./requirements.md
-- Skill 定義: .claude/skills/einja-project-screen-flow-figma/
-- スキーマ定義: .claude/skills/einja-project-screen-flow-figma/references/manifest-schema.md
-- レーン enum / 同義語: .claude/skills/einja-project-screen-flow-figma/references/canonical-enums.md
-- 矢印ルーティング規約: .claude/skills/einja-project-screen-flow-figma/references/figma-arrow-rules.md
+- Skill 定義: .claude/skills/einja-project-screen-flow-drawio/
+- スキーマ定義: .claude/skills/einja-project-screen-flow-drawio/references/manifest-schema.md
+- レーン enum / 同義語: .claude/skills/einja-project-screen-flow-drawio/references/canonical-enums.md
+- 矢印ルーティング規約: .claude/skills/einja-project-screen-flow-drawio/references/drawio-style-rules.md
 
 本ファイルは swim-lane レイアウト前提のサンプル成果物です。
 v3 user-flow（現行 default、`screen-flow-url.md`）と v1 grid（`screen-flow-url-v1-grid.md`）に対する、**明示 swim-lane 指定時の参考 fixture** として保持する。3 層 fixture 構造（v1 grid / v2 swim-lane / v3 user-flow）の v2 swim-lane 側。
@@ -26,7 +29,7 @@ v1 後方互換 fixture（schema_version: 1 のままの旧格子レイアウト
 - forbidden-403: 認可エラー（403）共通画面。権限マトリクス（Manager/HR/Admin 限定機能への
   Employee アクセス時など）から補完。Common lane に配置。
 
-position 算出ルール (figma-arrow-rules.md §3.1):
+position 算出ルール (drawio-style-rules.md §3.1):
 - `x = LANE_HEADER_W (160) + x_order * (FRAME_W (240) + FRAME_SPACING_X (80)) = 160 + x_order * 320`
 - `y = lane_index * LANE_HEIGHT (240) + FRAME_SPACING_Y (40)`
 - `lane_index` は role_canonical_map 適用後の **usedLanes**（実利用 lane のみ）における canonical 出現順
@@ -119,7 +122,7 @@ role_canonical_map:
   role: 人事部
   lane_id: HR
   # dashboard は全ロール (Common/Employee/Manager/HR/Admin) からアクセスされる multi-role ハブ画面。
-  # figma-arrow-rules.md §3.1 multi-role 主 lane 判定ルール 1（manifest 明示 lane_id 最優先）により HR に配置。
+  # drawio-style-rules.md §3.1 multi-role 主 lane 判定ルール 1（manifest 明示 lane_id 最優先）により HR に配置。
   source_confidence: high
   status: active
   position: { x: 160, y: 760 }

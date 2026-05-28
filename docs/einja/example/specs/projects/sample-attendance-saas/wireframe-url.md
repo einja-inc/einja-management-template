@@ -25,8 +25,8 @@ figma_url: https://www.figma.com/design/PLACEHOLDER_FILE_KEY/sample-attendance-s
 file_key: PLACEHOLDER_FILE_KEY
 project_name: sample-attendance-saas
 generated_at: 2026-05-25
-source_screen_flow_file_key: PLACEHOLDER_FILE_KEY
-source_screen_flow_schema_version: 1
+source_screen_flow_drawio_path: docs/project/screen-flow.drawio
+source_screen_flow_schema_version: 2
 plan_key: PLACEHOLDER_PLAN_KEY
 linked_screen_flow: docs/project/screen-flow-url.md
 wireframes_page_id: "PLACEHOLDER_PAGE_ID"

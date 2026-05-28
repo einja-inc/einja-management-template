@@ -97,7 +97,7 @@ function_specs:
 本来の出力先は docs/project/function-specs/index.md（1リポジトリ1プロジェクト前提）。
 
 - 入力サンプル1: ../requirements.md（einja-project-requirements 出力）
-- 入力サンプル2: ../screen-flow-url.md（einja-project-screen-flow-figma 出力）
+- 入力サンプル2: ../screen-flow-url.md（einja-project-screen-flow-drawio 出力）
 - Skill 定義: .claude/skills/einja-project-function-spec/
 - スキーマ定義: .claude/skills/einja-project-function-spec/references/manifest-schema.md
 

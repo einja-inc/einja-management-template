@@ -381,11 +381,11 @@ flowchart LR
 
 `screen-flow-url.md` の `stable_id` を参照キーとして、本業務フローで利用する画面を列挙する。
 
-| stable_id | 画面名 | Figma リンク | 役割（この業務フロー内） |
-|-----------|--------|-------------|--------------------|
-| sample-attendance-saas__login | ログイン画面 | （screen-flow-url.md / file_key: PLACEHOLDER_FILE_KEY / node_id: 1:2） | 認証エントリポイント（MFA含む） |
-| sample-attendance-saas__dashboard | ダッシュボード | （node_id: 1:3） | 打刻ボタン・当日勤怠サマリの導線 / 未打刻リマインドバナー表示先 |
-| sample-attendance-saas__punch | 打刻画面 | （node_id: 1:4） | 出勤・退勤・休憩・代行打刻の実行画面 |
+| stable_id | 画面名 | cell_id | 役割（この業務フロー内） |
+|-----------|--------|---------|--------------------|
+| sample-attendance-saas__login | ログイン画面 | screen__login | 認証エントリポイント（MFA含む） |
+| sample-attendance-saas__dashboard | ダッシュボード | screen__dashboard | 打刻ボタン・当日勤怠サマリの導線 / 未打刻リマインドバナー表示先 |
+| sample-attendance-saas__punch | 打刻画面 | screen__punch | 出勤・退勤・休憩・代行打刻の実行画面 |
 
 ---
 

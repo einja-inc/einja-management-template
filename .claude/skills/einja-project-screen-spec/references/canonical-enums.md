@@ -154,4 +154,4 @@ function truncateStableId(rawId) {
 
 ## §7. Skill 内 namespace
 
-Figma `setSharedPluginData` の namespace は `einja.screenSpec` 固定。`einja.screenFlow`（screen-flow-figma）とは厳密に分離。`findAll` のスコープも `figma.currentPage = wireframesPage` 切替後に限定。
+Figma `setSharedPluginData` の namespace は `einja.screenSpec` 固定。`einja.screenFlow`（旧 `einja-project-screen-flow-figma` の遺物。screen-flow は `einja-project-screen-flow-drawio` へ移行済）とは厳密に分離する。`findAll` のスコープも `figma.currentPage = wireframesPage` 切替後に限定。

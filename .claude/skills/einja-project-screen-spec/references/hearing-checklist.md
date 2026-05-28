@@ -242,14 +242,14 @@ screen-flow-url.md の `screens[]` から `layout: desktop | mobile | modal` を
 - `./manifest-schema.md` — wireframe-url.md 完全スキーマ + 冪等性ポリシー + screen-flow-url.md 差分 + v1→v2 マイグレーション
 - `./wireframe-primitives.md` — Core 15 プリミティブ JS 関数テンプレ + 二層 auto-layout 方針 + 動的バッチ分割
 - `../../einja-project-function-spec/references/output-template.md` — function-spec の §2/§3.2/§4.2/§5.3/§5.4/§6/§7 章構造（推定マッピングの根拠）
-- `../../einja-project-screen-flow-figma/references/hearing-checklist.md` — 前 Phase（screen-flow）のヒアリング構造（本ファイルの参考実装）
+- `../../einja-project-screen-flow-drawio/references/hearing-checklist.md` — 前 Phase（screen-flow）のヒアリング構造（本ファイルの参考実装）
 - `../../_einja-subagent-question-protocol/SKILL.md` — PENDING_QUESTIONS 返却プロトコル
 
 ---
 
 ## §7. ドラフト確認フェーズ（Step 7.5）
 
-本セクションは `einja-project-screen-spec` Skill の **Step 7.5 manifest ドラフト確認フェーズ** から参照される（Skill 1 = `einja-project-screen-flow-figma` の §5 ドラフト確認フェーズと同等構成）。Step 7 ヒアリング完了後、Figma 書き込み（Step 8 以降）の前に wireframe-url.md ドラフトをユーザー承認するゲートとして動作する。
+本セクションは `einja-project-screen-spec` Skill の **Step 7.5 manifest ドラフト確認フェーズ** から参照される（Skill 1 = `einja-project-screen-flow-drawio` の §5 ドラフト確認フェーズと同等構成）。Step 7 ヒアリング完了後、Figma 書き込み（Step 8 以降）の前に wireframe-url.md ドラフトをユーザー承認するゲートとして動作する。
 
 ### 7.1 目的
 
@@ -259,7 +259,7 @@ Step 7 ヒアリング完了後、Figma 描画前に `wireframe-url.md` ドラ�
 
 - **パス**: `docs/project/wireframe-url.draft.md`（本番 manifest と同階層、`.draft.md` 拡張子で物理分離）
 - **構造**:
-  - YAML frontmatter: `project_name` / `source_screen_flow_file_key` / `schema_version`
+  - YAML frontmatter: `project_name` / `source_screen_flow_drawio_path` / `source_screen_flow_schema_version` / `schema_version`
   - `## screens` セクション（各画面の name / linked_screen_stable_id / screen_stable_id / stable_id / layout / state / status、ただし `node_id` / `figma_url` / `file_key` / `wireframes_page_id` は **全件 PLACEHOLDER**）
   - `## elements` セクション（各 element の screen_frame_stable_id / element_stable_id / kind / status / source、ただし `node_id` は PLACEHOLDER）
 - **末尾コメントブロック** に以下を明示:

@@ -19,20 +19,20 @@ figma_url: https://www.figma.com/design/<file_key>/<file_name>?node-id=<wirefram
 file_key: <fileKey>
 project_name: <kebab-project-name>
 generated_at: 2026-05-25
-source_screen_flow_file_key: <fileKey>
-source_screen_flow_schema_version: 1
+source_screen_flow_drawio_path: docs/project/screen-flow.drawio
+source_screen_flow_schema_version: 2
 ---
 ```
 
 | フィールド | 型 | 用途 / 制約 |
 |----------|---|------------|
 | `schema_version` | number | スキーマバージョン。本Skill v1 スコープでは固定値 `1`。未知バージョン検出時は §5 のエラー処理に従う |
-| `figma_url` | string | Figma ファイルの完全URL（`?node-id=` 付き）。`screen-flow-url.md` と同一の Figma file を指す |
-| `file_key` | string | URL から抽出した fileKey。**`screen-flow-url.md` の `file_key` と同一値**（同一 Figma ファイル内に wireframes Page を追加する設計） |
+| `figma_url` | string | 本Skill が**新規作成**した Figma Wireframes ファイルの完全URL（`?node-id=` 付き）。screen-flow（drawio）とは**別ファイル** |
+| `file_key` | string | URL から抽出した fileKey。**本Skill が `create_new_file` で新規作成した Figma file の key**（screen-flow とは別ファイルのため、突合不要） |
 | `project_name` | string | プロジェクト名。**`screen-flow-url.md` の `project_name` と同一値**。ASCII 英数ハイフン32字以内（`setSharedPluginData` key 100字制限予防のため、canonical-enums.md §6.5 truncate ロジックと整合させる必要あり） |
 | `generated_at` | date | 最終生成日（`YYYY-MM-DD` または ISO 8601）。再生成時に毎回更新 |
-| `source_screen_flow_file_key` | string | 入力 `screen-flow-url.md` の `file_key`。整合性検証用（`file_key` と同値であることを Step 3 / Step 12 で確認） |
-| `source_screen_flow_schema_version` | number | 入力 `screen-flow-url.md` の `schema_version`。整合性検証用。v1 Skill は `1` のみ受理。不一致時はエラー E9 |
+| `source_screen_flow_drawio_path` | string | 入力 `screen-flow-url.md`（drawio 化版）の参照パス（既定: `docs/project/screen-flow.drawio` または `docs/project/screen-flow-url.md` の `drawio_file_path` フィールド値）。trace 性の記録用 |
+| `source_screen_flow_schema_version` | number | 入力 `screen-flow-url.md` の `schema_version`。drawio 化後は `>= 2` を受理。検証ロジックは §5.5 参照。不一致時はエラー E9 |
 
 ### 1.2 frontmatter 任意フィールド
 
@@ -172,10 +172,10 @@ kind 別の追加必須/任意フィールドは §2 で定義する。
 ### 3.1 再生成フロー
 
 1. 既存 `docs/project/wireframe-url.md` を Read（存在しなければ新規生成モード）
-2. `frontmatter.file_key` から Figma ファイルを開き、`wireframes_page_id` で wireframes Page にスコープ切替（`figma.currentPage = wireframesPage`）
-3. **整合性検証**（Step 3 / Step 12 相当）:
-   - `source_screen_flow_file_key` と現行 `screen-flow-url.md` の `file_key` が一致するか
-   - `source_screen_flow_schema_version` が現行 Skill の受理範囲内か
+2. `frontmatter.file_key` から Figma ファイル（本Skillで新規作成済みの Wireframes ファイル）を開き、`wireframes_page_id` で wireframes Page にスコープ切替（`figma.currentPage = wireframesPage`）
+3. **整合性検証**（Step 12 相当）:
+   - `source_screen_flow_drawio_path` の指す drawio ファイルが現存するか
+   - `source_screen_flow_schema_version` が現行 Skill の受理範囲内か（`>= 2`）
    - 不一致時はエラー E9（§5 参照）
 4. **screens[] 突合**: 新規生成リスト vs 既存 `screens[]` を **物理 stable_id**（`{project}__wf__{name}__{layout}__{state}`）で完全一致照合
    - 一致 → 既存 `node_id` / `position` / `size` を流用（手動レイアウト変更を尊重）
@@ -233,25 +233,26 @@ function truncateStableId(rawId) {
 
 ## §4. `screen-flow-url.md` との差分表
 
-両 manifest は同一 Figma file を共有するが、目的・スキーマ・冪等性キーが異なる。
+screen-flow は drawio（ローカル `.drawio` ファイル）、wireframe-url は Figma Wireframes ファイルと、**別ストレージ・別ファイル**で管理する。
 
-| 項目 | `screen-flow-url.md` | `wireframe-url.md` |
+| 項目 | `screen-flow-url.md`（drawio 化後） | `wireframe-url.md` |
 |------|---------------------|--------------------|
 | **目的** | 画面遷移俯瞰（プロジェクト全体の画面リスト + 遷移エッジ） | 画面単位ワイヤーフレーム（mid-fi、要素プリミティブ配置） |
-| **Figma 操作** | 新規ファイル作成 | 既存ファイル内に wireframes Page を追加（**新規ファイル作成しない**） |
+| **ストレージ** | drawio（ローカル `.drawio` ファイル） | Figma Design ファイル |
+| **Figma 操作** | なし（drawio で完結） | **新規 Figma Design ファイル作成**（`create_new_file`）、Wireframes Page 追加 |
 | **stable_id 形式（screen）** | `{project}__{name}` | `{project}__wf__{name}__{layout}__{state}`（物理）／ `{project}__wf__{name}`（論理） |
 | **主要セクション** | `## screens` + `## edges` | `## screens` + `## elements` |
-| **Figma namespace（`setSharedPluginData`）** | `einja.screenFlow` | `einja.screenSpec` |
-| **`findAll` スコープ** | `figma.currentPage`（新規ファイル直下のデフォルト Page） | `figma.currentPage = wireframesPage`（setCurrentPageAsync で切替） |
-| **上流入力** | `requirements.md` のみ | `requirements.md` + `screen-flow-url.md` + `docs/project/function-specs/` |
+| **Figma namespace（`setSharedPluginData`）** | n/a（drawio のため Figma namespace なし） | `einja.screenSpec` |
+| **`findAll` スコープ** | n/a | `figma.currentPage = wireframesPage`（setCurrentPageAsync で切替） |
+| **上流入力** | `requirements.md` のみ | `requirements.md` + `screen-flow-url.md`（drawio） + `docs/project/function-specs/` |
 | **冪等性キー** | `screens[].stable_id`（論理ID = 物理ID） | `screens[].stable_id`（物理ID、layout/state 含む） + `elements[].element_stable_id` |
-| **整合性検証** | なし（自己完結） | `source_screen_flow_file_key` / `source_screen_flow_schema_version` で `screen-flow-url.md` との整合性を検証 |
-| **schema_version 受理範囲** | v1 単独 | v1 単独（v2 マイグレーションは §5） |
+| **整合性検証** | なし（自己完結） | `source_screen_flow_drawio_path` / `source_screen_flow_schema_version` で `screen-flow-url.md` との整合性を検証 |
+| **schema_version 受理範囲** | v2 以上（drawio 化後） | v1 単独（v2 マイグレーションは §5） |
 | **追加任意フィールド** | `position`, `role` | `size`, `layout`, `state`, `linked_screen_stable_id`, `screen_stable_id`, `wireframes_page_id`, `fidelity`, `color_mode` 等 |
 | **orphan ライフサイクル** | screens / edges 単位 | screens（物理 Frame）/ elements 単位（より細粒度） |
 
 **運用上の制約**:
-- `wireframe-url.md` の `file_key` は `screen-flow-url.md` と必ず一致（同一 Figma file 共有）。不一致時は §5 エラー E9
+- `wireframe-url.md` の `file_key` は**本Skillが新規作成した Figma file** を指す（screen-flow は drawio のためファイルの突合は不要）
 - `wireframe-url.md` の `screens[].linked_screen_stable_id` は `screen-flow-url.md` の `screens[].stable_id` と必ず一致（上流参照の整合性）。不一致時は §5 エラー E9
 - `screen-flow-url.md` 側で screen が orphan 化された場合、`wireframe-url.md` 側の該当 screens[] / elements[] も連動して orphan 化する（手動削除はしない）
 
@@ -311,27 +312,38 @@ v2 リリース時に本ファイル（manifest-schema.md §5）でマイグレ�
 
 ### 5.5 未知の schema_version 検出（エラー E9）
 
-`frontmatter.schema_version` が現行 Skill の受理範囲外（v1 Skill が v2 / v3 等を読み込んだ場合、または `source_screen_flow_schema_version` が不一致の場合）:
+`frontmatter.schema_version` が現行 Skill の受理範囲外（本Skill v1 が wireframe `schema_version: 1` 以外を読み込んだ場合、または `source_screen_flow_schema_version` が drawio 化後の受理範囲（`>= 2`）外の場合）:
 
 1. Skill 読み込みを **停止**
 2. ユーザーにエラー報告:
    - 検出した `schema_version` 値
-   - 現行 Skill の受理範囲（v1 Skill は `1` のみ）
+   - 現行 Skill の受理範囲（wireframe: `1` のみ、source_screen_flow: `>= 2`）
    - Skill バージョン更新の促し（`@einja-inc/dev-cli` の sync コマンド案内）
 3. 後続処理に進まず終了
 
+**検証ロジック擬似コード**:
+
+```javascript
+// wireframe-url.md 自身の schema_version
+if (frontmatter.schema_version !== 1) throw E9;
+
+// 上流 screen-flow の schema_version（drawio 化後は >= 2）
+if (typeof frontmatter.source_screen_flow_schema_version !== "number"
+    || frontmatter.source_screen_flow_schema_version < 2) {
+  throw E9;
+}
+```
+
 **エラー E9 の発火条件まとめ**:
-- `frontmatter.schema_version` が受理範囲外
-- `frontmatter.source_screen_flow_schema_version` が受理範囲外
-- `frontmatter.file_key` ≠ `frontmatter.source_screen_flow_file_key`
-- `frontmatter.file_key` ≠ 現行 `screen-flow-url.md` の `file_key`
+- `frontmatter.schema_version` が受理範囲外（wireframe v1 では `1` 以外）
+- `frontmatter.source_screen_flow_schema_version` が受理範囲外（drawio 化後は `>= 2` 必須、未数値 / `< 2` は不可）
 - `screens[].linked_screen_stable_id` が `screen-flow-url.md` の `screens[].stable_id` に存在しない
 
 ---
 
 ## §6. status フィールドと draft ライフサイクル
 
-本セクションは `einja-project-screen-spec` Skill の **Step 7.5 manifest ドラフト確認フェーズ** から参照される（Skill 1 = `einja-project-screen-flow-figma` の同等セクションと同パターン）。manifest が「ドラフト（ユーザー承認待ち）」か「確定（Figma 書き込み済み）」かを区別する `status` フィールドと、draft note のライフサイクル・拡張子の予約・サマリ表テンプレ・差分算出アルゴリズムを定義する。
+本セクションは `einja-project-screen-spec` Skill の **Step 7.5 manifest ドラフト確認フェーズ** から参照される（Skill 1 = `einja-project-screen-flow-drawio` の同等セクションと同パターン）。manifest が「ドラフト（ユーザー承認待ち）」か「確定（Figma 書き込み済み）」かを区別する `status` フィールドと、draft note のライフサイクル・拡張子の予約・サマリ表テンプレ・差分算出アルゴリズムを定義する。
 
 ### 6.1 status フィールド
 

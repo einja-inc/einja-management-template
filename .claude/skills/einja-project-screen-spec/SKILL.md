@@ -1,6 +1,6 @@
 ---
 name: einja-project-screen-spec
-description: "docs/project/screen-flow-url.md（必須）/ function-specs/（推奨）/ requirements.md（任意）をベース入力に、screen-flow-url.md の file_key で示される既存 Figma Design ファイル内に新規 Page『Wireframes』を追加し、各画面の mid-fi ワイヤーフレーム（uncolored / mono の矩形＋ラベル）を自動生成する Skill。function-spec の機能カードと主要技術制約から要素候補を推定し、AskUserQuestion で確定。生成結果は docs/project/wireframe-url.md に冪等な manifest として記録する。Figma 書き込み前に wireframe-url.md ドラフトを生成し AskUserQuestion で承認を取る Step 7.5 ゲートを内蔵する。「プロジェクトワイヤーフレーム」「ワイヤーフレーム生成」「project screen spec」「mid-fi wireframe」「画面ワイヤーフレーム Figma」等で呼び出す。Do NOT use for: Issue単位の画面モックアップ（→ ui-design-generator）、画面遷移図（→ einja-project-screen-flow-figma）、項目定義表/メッセージ文言の .md 仕様書（→ 後続別Skillで対応予定）、hi-fi デザイン（→ einja-pencil-design-manager）"
+description: "docs/project/screen-flow-url.md（必須、drawio 化後）/ function-specs/（推奨）/ requirements.md（任意）をベース入力に、**新規 Figma Design ファイルを作成し、Page『Wireframes』を追加し**、各画面の mid-fi ワイヤーフレーム（uncolored / mono の矩形＋ラベル）を自動生成する Skill。function-spec の機能カードと主要技術制約から要素候補を推定し、AskUserQuestion で確定。生成結果は docs/project/wireframe-url.md に冪等な manifest として記録する。Figma 書き込み前に wireframe-url.md ドラフトを生成し AskUserQuestion で承認を取る Step 7.5 ゲートを内蔵する。「プロジェクトワイヤーフレーム」「ワイヤーフレーム生成」「project screen spec」「mid-fi wireframe」「画面ワイヤーフレーム Figma」等で呼び出す。Do NOT use for: Issue単位の画面モックアップ（→ ui-design-generator）、画面遷移図（→ einja-project-screen-flow-drawio）、項目定義表/メッセージ文言の .md 仕様書（→ 後続別Skillで対応予定）、hi-fi デザイン（→ einja-pencil-design-manager）"
 user-invocable: true
 ---
 
@@ -14,18 +14,18 @@ user-invocable: true
 <!-- 参考: https://developers.figma.com/docs/plugins/api/PageNode -->
 <!-- 参考: https://developers.figma.com/docs/plugins/api/FrameNode (layoutMode/auto-layout) -->
 <!-- 参考: Figma MCP setCurrentPageAsync ガイダンス -->
-<!-- ベース: .claude/skills/einja-project-screen-flow-figma/SKILL.md (Plugin API 編集パターン) -->
-<!-- 入力ソース: .claude/skills/einja-project-screen-flow-figma/SKILL.md (screen-flow-url.md), .claude/skills/einja-project-function-spec/SKILL.md (function-specs/) -->
+<!-- ベース: .claude/skills/einja-project-screen-flow-drawio/SKILL.md (drawio 化後の screen-flow Skill) / 旧 einja-project-screen-flow-figma の Plugin API 編集パターンは wireframe-primitives.md §5 に内包 -->
+<!-- 入力ソース: .claude/skills/einja-project-screen-flow-drawio/SKILL.md (screen-flow-url.md), .claude/skills/einja-project-function-spec/SKILL.md (function-specs/) -->
 <!-- T1 PoC: docs/einja/memory/figma-screen-spec-poc.md (auto-layout 主軸採用根拠) -->
 
 # einja-project-screen-spec: プロジェクトワイヤーフレーム Figma 生成 Skill
 
 ## 1. このSkillはいつ起動するか
 
-`docs/project/screen-flow-url.md`（einja-project-screen-flow-figma の出力）と `docs/project/function-specs/`（einja-project-function-spec の出力）を入力に **プロジェクト全体の mid-fi ワイヤーフレームを既存 Figma Design ファイル内の新規 Page『Wireframes』に自動生成・再生成** したい場面で起動する。
+`docs/project/screen-flow-url.md`（einja-project-screen-flow-drawio の出力、drawio 化後）と `docs/project/function-specs/`（einja-project-function-spec の出力）を入力に **プロジェクト全体の mid-fi ワイヤーフレームを新規 Figma Design ファイル内の Page『Wireframes』に自動生成・再生成** したい場面で起動する。
 
 典型ユースケース:
-- 受託案件で画面遷移図と機能仕様書が確定し、クライアント合意用の mid-fi ワイヤーフレームを画面遷移と同じ Figma ファイル内で残したい
+- 受託案件で画面遷移図（drawio）と機能仕様書が確定し、クライアント合意用の mid-fi ワイヤーフレームを Figma 上で残したい
 - function-spec を更新したのでワイヤーフレームを再生成し、既存ユーザー編集（手動配置・命名）を保持しつつ差分のみ反映したい
 - function-spec の機能カードから入力欄・ボタン・テーブル等の要素候補を機械的に抽出し、AskUserQuestion で確定させたい
 
@@ -33,16 +33,16 @@ user-invocable: true
 
 Do NOT use for:
 - Issue 単位の hi-fi 画面モックアップ生成（→ `ui-design-generator` Agent）
-- 画面遷移図そのものの生成（→ `einja-project-screen-flow-figma`）
+- 画面遷移図そのものの生成（→ `einja-project-screen-flow-drawio`）
 - 項目定義表 / メッセージ文言 / バリデーション仕様などの `.md` 仕様書生成（→ 後続別 Skill で対応予定、本 Skill は Figma 上のワイヤーフレームのみ）
 - 色・タイポグラフィを確定する hi-fi デザイン（→ `einja-pencil-design-manager`）
-- FigJam ファイル生成（本 Skill は Design ファイル専用、既存 Design ファイル内 Page 追加のみ）
+- FigJam ファイル生成（本 Skill は Design ファイル専用、新規 Design ファイル作成 + Wireframes Page 追加のみ）
 
 ## 2. 前提・事前準備
 
 | 項目 | 内容 |
 |------|------|
-| 入力ファイル（必須） | `docs/project/screen-flow-url.md`（`einja-project-screen-flow-figma` で生成済み。`file_key` と `screens[]` を取得する SSoT） |
+| 入力ファイル（必須） | `docs/project/screen-flow-url.md`（`einja-project-screen-flow-drawio` で生成済み。drawio 化後は `file_key` を持たないため、`project_name` / `screens[]` / `schema_version (>= 2)` を取得する SSoT） |
 | 入力ファイル（推奨） | `docs/project/function-specs/index.md` + `function-spec-*.md`（要素候補推定の主入力） |
 | 入力ファイル（任意） | `docs/project/requirements.md`（要素候補推定の補助、§3.2 / §5.4 を参照） |
 | Figma 認証 | claude.ai 側で Figma コネクタが認証済みであること（Step 2 で `whoami` 検証） |
@@ -56,7 +56,7 @@ Do NOT use for:
 ```mermaid
 flowchart TB
   S1[Step 1: 入力確定<br/>3 入力ファイル検出 + project_name 正規化] --> S2[Step 2: Figma 認証確認<br/>whoami → planKey]
-  S2 --> S3[Step 3: 既存ファイル接続<br/>file_key 使用、create_new_file 不可]
+  S2 --> S3[Step 3: 新規 Figma ファイル作成<br/>create_new_file で新規作成]
   S3 --> S4[Step 4: Wireframes Page 作成<br/>setCurrentPageAsync 主軸 / 重複対処]
   S4 --> S5[Step 5: 画面候補抽出<br/>screen-flow-url.md screens active のみ]
   S5 --> S6[Step 6: 要素候補推定<br/>function-spec §2/§3.2/§4.2/§5.3/§5.4/§6/§7]
@@ -78,11 +78,11 @@ flowchart TB
 
 ### Step 1: 入力確定
 
-1. `docs/project/screen-flow-url.md` を `Read`。**存在しなければ E1**（AskUserQuestion で `einja-project-screen-flow-figma` 先行実行を促す）。frontmatter から `file_key` / `plan_key` / `project_name` / `schema_version` を取得。
+1. `docs/project/screen-flow-url.md` を `Read`。**存在しなければ E1**（AskUserQuestion で `einja-project-screen-flow-drawio` 先行実行を促す）。frontmatter から `project_name` / `schema_version` のみ取得（drawio 化後は `file_key` / `plan_key` は存在しないため取得対象外）。
 2. `docs/project/function-specs/index.md` と `function-spec-*.md` を `Glob`。**存在しなければ E4**（警告のみ、推定スキップ → Step 6 で全要素 AskUserQuestion 手動入力）。
 3. `docs/project/requirements.md` を `Read`（任意。存在すれば §3.2 機能カード / §5.4 主要技術制約を補助シグナルとして保持）。
 4. `project_name` は **`screen-flow-url.md` から取得した値を SSoT として採用**（ASCII 英数ハイフン 32 字以内、不正なら正規化）。本 Skill 側で再導出しない（食い違い防止）。
-5. `schema_version` が未知なら **E9**（Skill 停止）。
+5. `schema_version` が drawio 化後の受理範囲（`>= 2`）外なら **E9**（Skill 停止）。
 
 詳細: `references/canonical-enums.md §6 stable_id 命名規約` / `references/manifest-schema.md §1 完全スキーマ`。
 
@@ -91,16 +91,22 @@ flowchart TB
 1. `mcp__claude_ai_Figma__whoami` を呼び出し、`plans[]` を取得。
 2. 成功時:
    - 単一 plan → その `key` を `planKey` として採用。
-   - 複数 plan → `screen-flow-url.md` の `plan_key` と突合し合致するものを採用。突合不能なら AskUserQuestion で選択。
+   - 複数 plan → `docs/einja/steering/development/figma-design-management.md` の `planKey` 既定値と突合。突合不能なら AskUserQuestion で選択。
 3. 失敗（`token expired` 等）時はユーザーに claude.ai 側 Figma コネクタの再認証を依頼し AskUserQuestion で「認証完了したら続行 / 中止」を提示。**連続 2 回失敗時は停止**（無限ループ防止）。
-4. `screen-flow-url.md` の `plan_key` と Step 2 で取得した `planKey` が一致しない場合は警告ログを出し、AskUserQuestion で「screen-flow 側の `plan_key` を採用 / whoami 側を採用 / 中止」を確認。
 
-### Step 3: 既存 Figma ファイル接続
+### Step 3: 新規 Figma Design ファイル作成
 
-1. `screen-flow-url.md` の `file_key` を使い、対象 Figma ファイルにアクセスする。**`create_new_file` は呼ばない**（既存ファイルに Page を追加するのみ、新規ファイルは作成しない）。
-2. `mcp__claude_ai_Figma__use_figma` で軽量な `figma.root.children` 列挙コードを実行し、現在の Page 一覧を取得。Page 名と id を JS 側で保持。
-3. ファイルが read-only（権限不足）の場合は **E2**（AskUserQuestion で「権限取得後再実行 / 中止」）。
-4. `screen-flow-url.md` の `file_key` と過去の `wireframe-url.md` の `file_key` が異なる場合は **E10**（AskUserQuestion で「旧 wireframe-url.md 破棄 / 中止」）。
+> **drawio 化後の新規ファイル作成モード**: screen-flow は drawio 側で管理されるため、本 Skill は wireframe 専用の新規 Figma Design ファイルを作成する。過去 PoC（`WSLSjypdBV2UYJEiHbSbIv` 等）に既存ファイルが存在しても、本番運用では毎回新規作成する設計。
+
+1. **再生成判定**: 既存 `docs/project/wireframe-url.md` を `Read`:
+   - 存在する場合: 既存 `file_key` を取得し、`mcp__claude_ai_Figma__use_figma` で当該ファイルにアクセス → 以降は冪等照合モード（Step 4 で既存 Wireframes Page を検出）
+   - 存在しない場合: 下記 2 へ進み新規作成
+2. **新規 Figma Design ファイル作成**: `mcp__claude_ai_Figma__create_new_file` を呼び出す:
+   - `fileName`: `{project_name}-wireframes`（例: `sample-attendance-saas-wireframes`）
+   - `planKey`: Step 2 で確定した `planKey`（または `docs/einja/steering/development/figma-design-management.md` の既定値、または `whoami` 取得値）
+   - レスポンスから新規 `file_key` と `figma_url` を取得し、JS 側で保持（manifest 出力 Step 11 で使用）
+3. `mcp__claude_ai_Figma__use_figma` で軽量な `figma.root.children` 列挙コードを実行し、現在の Page 一覧を取得（新規作成直後は通常デフォルト Page のみ）。
+4. ファイルが read-only（権限不足）の場合は **E2**（AskUserQuestion で「権限取得後再実行 / 中止」）。
 
 ### Step 4: Wireframes Page の作成 or 既存検出
 
@@ -126,7 +132,7 @@ flowchart TB
    - 物理 Frame ID: `{project_name}__wf__{screen_name}__{layout}__{state}` （`stable_id`、Frame 識別子）
    - 子要素 ID: `{screen_frame_stable_id}__el__{kind}__{slug_or_index}` （`element_stable_id`）
    - 例: `sample-attendance-saas__wf__dashboard__desktop__normal__el__button-primary__submit`
-4. screens が 0 件 または全 orphan の場合は **E5**（Skill 停止、`einja-project-screen-flow-figma` の再生成を促す）。
+4. screens が 0 件 または全 orphan の場合は **E5**（Skill 停止、`einja-project-screen-flow-drawio` の再生成を促す）。
 
 詳細: `references/canonical-enums.md §6 stable_id 命名規約`、`references/manifest-schema.md §3 冪等性ポリシー`。
 
@@ -171,7 +177,7 @@ Step 7 ヒアリング完了後、Pass 1（Step 8 画面 FrameNode 配置）/ Pa
 #### 処理
 
 1. **draft note 生成**: `docs/project/wireframe-url.draft.md` を `Write` で生成
-   - frontmatter（project_name / source_screen_flow_file_key / schema_version）
+   - frontmatter（project_name / source_screen_flow_drawio_path / source_screen_flow_schema_version / schema_version）
    - `## screens`（各画面の screen_id / stable_id / layout / states — node_id は全件 `PLACEHOLDER`）
    - `## elements`（各 element の screen_id / element_id / element_kind / source — node_id は全件 `PLACEHOLDER`）
    - 末尾コメントブロック（共通仕様参照）:
@@ -210,7 +216,7 @@ Step 7 ヒアリング完了後、Pass 1（Step 8 画面 FrameNode 配置）/ Pa
      | 画面数 | N 件 |
      | states 合計 | M 件 |
      | elements 合計 | K 件 |
-     | source_screen_flow_file_key | <file_key> |
+     | source_screen_flow_drawio_path | <drawio_path> |
      | state バリエーション | normal / error / loading 等 |
      | source 別件数 | function-spec: X / 推定: Y |
      | placeholder 含む要素 | Z 件 |
@@ -264,7 +270,7 @@ Step 7 ヒアリング完了後、Pass 1（Step 8 画面 FrameNode 配置）/ Pa
 - レスポンスでは `{stable_id: nodeId}` Map を JS 側で保持するが、パス 2 では `findAll` で再解決する（E15 対策）。
 - **Step 8 以降が画面 Frame・要素の Figma 書き込み開始**（Step 4 で Wireframes Page を scaffolding 作成するのは例外（Page 単体のみ、画面・要素は未配置）。Step 8 時点では枠のみ配置）。
 
-namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`（screen-flow-figma）は厳密に分離する。詳細は `references/canonical-enums.md §7 namespace`。
+namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`（旧 figma 版 screen-flow Skill の遺物。screen-flow は drawio 化後 Figma を使わない）は厳密に分離する。drawio 化後は `einja.screenFlow` namespace の混入は基本的に想定されないが、旧 Figma manifest 由来の遺物が混入した場合に備えて分離を維持する。詳細は `references/canonical-enums.md §7 namespace`。
 
 ### Step 9: パス 2 - 子要素配置（Core 15 + Optional 9）
 
@@ -306,7 +312,7 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 1. `docs/project/wireframe-url.md` を作成（新規）または上書き（再生成）。**`docs/project/screen-flow-url.md` には触れない**（screens の SSoT は screen-flow 側のため）。
 2. 既存ファイルがある場合は上書き前に `docs/project/wireframe-url.md.bak` として退避。
 3. frontmatter + `## screens` + `## elements` セクションを書き込む。フィールド構成は **`references/manifest-schema.md §1` の定義に厳密に従う**:
-   - **必須**: `schema_version`（固定値 `1`）, `figma_url`, `file_key`, `project_name`, `generated_at`, `source_screen_flow_file_key`, `source_screen_flow_schema_version`
+   - **必須**: `schema_version`（固定値 `1`）, `figma_url`, `file_key`（Step 3 で新規作成した Wireframes ファイルの key）, `project_name`, `generated_at`, `source_screen_flow_drawio_path`, `source_screen_flow_schema_version`（`>= 2`）
    - **任意**: `plan_key`, `linked_screen_flow`（既定: `docs/project/screen-flow-url.md`）, `wireframes_page_id`, `fidelity`（既定: `mid-fi`）, `color_mode`（既定: `mono`）
 4. screens 各 entry には `stable_id` / `screen_stable_id` / `linked_screen_stable_id` / `node_id` / `layout` / `state` / `size` / `position` / `status` を、elements 各 entry には `screen_frame_stable_id` / `element_stable_id` / `kind` / `node_id` / `status` / `source` および kind 別フィールド（manifest-schema.md §2 参照）を記録する。再生成で消えた要素は `status: orphan` とする。
 5. `.bak` 生成後、`.gitignore` に `docs/project/wireframe-url.md.bak` が未登録なら `Bash` で追記する（重複コミット防止）。
@@ -317,7 +323,7 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 
 → 詳細フローは `references/manifest-schema.md §3 冪等性ポリシー` を参照。
 
-1. 既存 `docs/project/wireframe-url.md` を `Read`。`file_key` を取得し、Step 3 で接続したファイルと一致することを確認（不一致は E10）。
+1. 既存 `docs/project/wireframe-url.md` を `Read`。再生成時の整合性検証として、`source_screen_flow_drawio_path` の参照先 drawio が現存することと `source_screen_flow_schema_version >= 2` を確認（違反は E9）。`file_key` は wireframe-url.md 自身が保持する Wireframes ファイル key（Step 3 でその key を使い既存ファイルに接続済み）であり、screen-flow 側との突合は drawio 化後不要。
 2. 既存 `Wireframes` Page を `figma.root.children` から検索（**新規作成しない**）し、`setCurrentPageAsync` で切り替え。
 3. screens 照合: `stable_id` 多層 namespace で突合し、一致 → `node_id` を流用、既存 `position` を保持（手動レイアウト変更を尊重）。未知 → 新規 outer 作成。既存にあって今回ない → `status: orphan`（**自動削除はしない**）。
 4. elements も同様に照合（`parent_stable_id` で screen 配下を絞り込み）。
@@ -328,7 +334,7 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 
 | ID | 事象 | 一次対処 | 詳細参照 |
 |----|------|---------|---------|
-| E1 | `screen-flow-url.md` 欠落 | AskUserQuestion で `screen-flow-figma` 先行実行 / 中止 | Step 1 |
+| E1 | `screen-flow-url.md` 欠落 | AskUserQuestion で `einja-project-screen-flow-drawio` 先行実行 / 中止 | Step 1 |
 | E2 | Figma ファイル read-only | AskUserQuestion で権限取得後再実行 / 中止 | Step 3 |
 | E3 | `Wireframes` Page 既存 | AskUserQuestion で マージ / `Wireframes-v\d+` 連番 / 中止 | Step 4 |
 | E4 | `function-specs/` 欠落 | 警告のみ、推定スキップで項目 C 全手動入力 | Step 1 / `references/hearing-checklist.md §3` |
@@ -336,8 +342,7 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 | E6 | `loadFontAsync` 失敗 | `Inter Regular` → `Inter Semi Bold` → `Roboto Regular` → `listAvailableFontsAsync()` 先頭 | `references/wireframe-primitives.md §3` |
 | E7 | `use_figma` 50000 字超 | Step 9 の動的バッチを 40000 → 30000 字に縮小 | `references/wireframe-primitives.md §5` |
 | E8 | `findAll` で nodeId 0 件 | `setCurrentPageAsync` 再設定 → 再走査 → skip + log | Step 9 |
-| E9 | `schema_version` 未知 | Skill 読み込み停止、Skill 更新促す | `references/manifest-schema.md §5` |
-| E10 | screen-flow と wireframe の `file_key` 不一致 | AskUserQuestion で `wireframe-url.md` 破棄 / 中止 | Step 3 / Step 12 |
+| E9 | `schema_version` 未知（wireframe または source_screen_flow） | Skill 読み込み停止、Skill 更新促す | `references/manifest-schema.md §5` |
 | E11 | Page 作成上限超過 | AskUserQuestion で 既存 Page 利用 / マージ / 中止 | Step 4 |
 | E12 | Figma API レートリミット | exponential backoff（1s / 2s / 4s）3 回再試行 | Step 8 / Step 9 |
 | E13 | ネットワーク timeout | 3 回再試行（10s / 20s / 40s） | Step 8 / Step 9 |
@@ -364,7 +369,7 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 
 | 区分 | 名称 | 役割 |
 |------|------|------|
-| 上流入力（必須） | `einja-project-screen-flow-figma` | `docs/project/screen-flow-url.md` の生成元（`file_key` と `screens[]` の SSoT） |
+| 上流入力（必須） | `einja-project-screen-flow-drawio` | `docs/project/screen-flow-url.md` の生成元（drawio 化後は `screens[]` の SSoT。`file_key` は持たない） |
 | 上流入力（推奨） | `einja-project-function-spec` | `docs/project/function-specs/` の生成元（要素候補推定の主入力） |
 | 上流入力（推奨） | `einja-project-requirements` | `docs/project/requirements.md` の生成元（§3.2 / §5.4 を補助シグナルとして参照） |
 | 関連 Skill（用途別） | `ui-design-generator` (Agent) | Issue 単位の hi-fi 画面モックアップ生成。本 Skill とは粒度が異なる（プロジェクト俯瞰 mid-fi vs Issue 詳細 hi-fi） |
@@ -381,7 +386,7 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 ## 9. 実行制約
 
 - 本 Skill は親エージェント（オーケストレーター）として動作する。`context: fork` は設定しない（AskUserQuestion を多用するため）。
-- 使用ツール: `mcp__claude_ai_Figma__whoami` / `mcp__claude_ai_Figma__use_figma` / `mcp__claude_ai_Figma__get_screenshot`（**`create_new_file` は不使用**、既存ファイルに Page 追加のみ）、`Read` / `Write` / `Edit`（manifest / draft note のみ）/ `Bash`（`.gitignore` 追記のみ）/ `Grep` / `Glob` / `AskUserQuestion` / `ReadMcpResourceTool` / `Skill`。
+- 使用ツール: `mcp__claude_ai_Figma__whoami` / `mcp__claude_ai_Figma__create_new_file`（**Step 3 で新規 Wireframes ファイル作成に使用**） / `mcp__claude_ai_Figma__use_figma` / `mcp__claude_ai_Figma__get_screenshot`、`Read` / `Write` / `Edit`（manifest / draft note のみ）/ `Bash`（`.gitignore` 追記のみ）/ `Grep` / `Glob` / `AskUserQuestion` / `ReadMcpResourceTool` / `Skill`。
 - **書き込み禁止**:
   - `docs/project/screen-flow-url.md`（上流出力、screens の SSoT）
   - `docs/project/requirements.md`（上流出力）
@@ -390,6 +395,6 @@ namespace 完全分離: `einja.screenSpec`（本 Skill）と `einja.screenFlow`�
 - **書き込み先**: `docs/project/wireframe-url.md` / `docs/project/wireframe-url.draft.md`（および `.bak` / `.draft.aborted*.md` 退避ファイル）。
 - 画面 Frame・子要素の Figma 書き込みは Step 8 以降。Step 4 の Wireframes Page 単体 scaffolding 作成（`figma.createPage()` + `setSharedPluginData`）は例外。Step 1〜3 / Step 5〜7.5 では Figma 上で一切編集しない（誤書き込み防止）。
 - **Page スコープ厳守**: 各 `use_figma` バッチ先頭で `await figma.setCurrentPageAsync(wireframesPage);` を必ず実行（T1 PoC 実証済み、MCP server を介すると Page スコープが消失する事例を確認）。
-- **namespace 完全分離**: `einja.screenSpec`（本 Skill）と `einja.screenFlow`（`einja-project-screen-flow-figma`）は厳密に分離する。混在禁止。
+- **namespace 完全分離**: `einja.screenSpec`（本 Skill）は wireframe 専用 Figma file 内で完結する。screen-flow は drawio 化後 Figma を使わないため、本 Skill 側で namespace 衝突の心配はないが、旧 `einja.screenFlow`（旧 figma 版 screen-flow Skill の遺物）が混入した場合は警告ログ。
 - **lowercase + ハイフン形式厳守**: `kind` / `layout` / `state` / Page 名等の識別子は小文字 + ハイフン区切り（snake_case / camelCase は不可。canonical-enums.md §1〜§5 の enum 値）。
 - フォント名は **`Inter Semi Bold`（半角スペース必須）** のように Figma 内部表現に厳密に従う（typo は即時 `loadFontAsync` 失敗）。

@@ -5,7 +5,7 @@
 参照元:
 - canonical enum 定義: [`./canonical-enums.md`](./canonical-enums.md)（kind / layout / state / source / stable_id 命名規約）
 - T1 PoC 結果（auto-layout 動作実証済み）: `docs/einja/memory/figma-screen-spec-poc.md`
-- 既存 Plugin API パターン: [`../../einja-project-screen-flow-figma/references/figma-arrow-rules.md`](../../einja-project-screen-flow-figma/references/figma-arrow-rules.md)（動的バッチ分割・nodeId 再解決の根拠）
+- 既存 Plugin API パターン: 旧 `einja-project-screen-flow-figma/references/figma-arrow-rules.md`（drawio 化に伴い廃止。動的バッチ分割・nodeId 再解決パターンは本ファイル §5 に内包し、本Skill 側で完結する）
 
 ## 重要な前提（MCP server gotcha）
 
@@ -804,7 +804,7 @@ T1 PoC で 1画面（screen frame + 子矩形2個 + setSharedPluginData round-tr
 
 ### 5.2 動的バッチ分割ルール
 
-`use_figma` の入出力制限（既存 figma-arrow-rules.md §5 参照）:
+`use_figma` の入出力制限（旧 figma-arrow-rules.md §5 由来。drawio 化に伴い本ファイルが SSoT）:
 - 入力（`code` パラメータ）: **50,000 字**
 - 出力（レスポンス全体）: **20kb**
 
@@ -850,7 +850,7 @@ for (const batch of batches) {
 
 ### 5.4 バッチ間 nodeId 引き継ぎ
 
-バッチを跨ぐ場合、JS 側の変数は破棄されるため、**バッチ先頭で stable_id から `findAll` でノードを再解決する**。PoC ④ で動作確認済みのパターン（figma-arrow-rules.md §4 と同じ手法）:
+バッチを跨ぐ場合、JS 側の変数は破棄されるため、**バッチ先頭で stable_id から `findAll` でノードを再解決する**。PoC ④ で動作確認済みのパターン（旧 figma-arrow-rules.md §4 由来、drawio 化後は本Skill 側で完結）:
 
 ```javascript
 // バッチ2 先頭の reloadCode 例
@@ -915,5 +915,5 @@ return {
 - T1 PoC 結果（auto-layout / setSharedPluginData 動作実証）: `docs/einja/memory/figma-screen-spec-poc.md`
 - ヒアリング項目: [`./hearing-checklist.md`](./hearing-checklist.md)
 - manifest スキーマ: [`./manifest-schema.md`](./manifest-schema.md)
-- 既存 Plugin API パターン（動的バッチ・nodeId 再解決の根拠）: [`../../einja-project-screen-flow-figma/references/figma-arrow-rules.md`](../../einja-project-screen-flow-figma/references/figma-arrow-rules.md)
+- 既存 Plugin API パターン（動的バッチ・nodeId 再解決の根拠）: 旧 `einja-project-screen-flow-figma/references/figma-arrow-rules.md`（drawio 化に伴い廃止、本ファイル §5 内に内包）
 - MCP server 仕様: `claude.ai Figma` connector（`setCurrentPageAsync` 必須）

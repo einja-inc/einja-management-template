@@ -1,6 +1,6 @@
-# canonical-enums: einja-project-screen-flow-figma 共通 enum 定義
+# canonical-enums: einja-project-screen-flow-drawio 共通 enum 定義
 
-このファイルは `SKILL.md` / `references/hearing-checklist.md` / `references/figma-arrow-rules.md` / `references/manifest-schema.md` / サンプル `screen-flow-url.md` から参照される **canonical（正準）enum 定義**です。これら5ファイル間で enum 値の表記ゆれを防ぐため、本ファイルが Single Source of Truth です。
+このファイルは `SKILL.md` / `references/hearing-checklist.md` / `references/drawio-style-rules.md` / `references/manifest-schema.md` / サンプル `screen-flow-url.md` から参照される **canonical（正準）enum 定義**です。これら5ファイル間で enum 値の表記ゆれを防ぐため、本ファイルが Single Source of Truth です。
 
 各 enum 値は **lowercase + ハイフン形式** で記述し、後続ファイルはそのまま引用してください。
 
@@ -39,19 +39,21 @@ manifest `edges[].routing` フィールドに記録する経路種別。
 
 ## §4. node_kind enum
 
-Figma `setSharedPluginData("einja.screenFlow", "node_kind", ...)` に記録するノード種別。
+drawio では mxCell の id / style 属性で表現するノード種別（旧 Figma `setSharedPluginData("einja.screenFlow", "node_kind", ...)` 相当）。
 
 | value | 用途 |
 |-------|------|
-| `screen` | 画面 FrameNode |
-| `edge` | 遷移エッジ Group（VectorNode + TextNode） |
-| `lane` | swim lane 背景 Frame |
+| `screen` | 画面 mxCell（vertex、style に `shape=rectangle` 系） |
+| `edge` | 遷移エッジ mxCell（edge=1、source/target で連結） |
+| `lane` | swim lane 背景 mxCell（vertex、style に `swimlane` 系） |
 
-**移行互換性**: 旧 key `role`（値: `screen` / `edge`）からの移行のため、読み込み時は `node_kind` 優先 → なければ `role` にフォールバックする `readNodeKind()` ユーティリティを使用（詳細は `figma-arrow-rules.md §4`）。書き込みは新 key `node_kind` のみ。
+**識別方法**: drawio では mxCell の `id` プレフィックス（例: `screen-`, `edge-`, `lane-`）または `style` 属性で `node_kind` を判別する。詳細は `drawio-style-rules.md §4`。
+
+**移行互換性**: 旧 Figma 実装の key `role`（値: `screen` / `edge`）からの移行のため、互換読み込みが必要な場合は `node_kind` 優先 → なければ `role` にフォールバックする `readNodeKind()` ユーティリティを使用（詳細は `drawio-style-rules.md §4`）。書き込みは新 key `node_kind` のみ。
 
 ## §5. canonical role 識別子（6種）
 
-業務ロールの正準識別子。`setSharedPluginData("einja.screenFlow", "business_role", ...)` に記録、manifest `screens[].lane_id` にも使用。
+業務ロールの正準識別子。drawio では mxCell の style 属性または独自属性で記録し（旧 Figma `setSharedPluginData("einja.screenFlow", "business_role", ...)` 相当）、manifest `screens[].lane_id` にも使用。
 
 **デフォルト辞書順**: `Common → Employee → Manager → HR → Admin → Ext`（lane 配置順）
 
@@ -91,20 +93,22 @@ manifest 内のライフサイクル状態。再生成時の冪等性管理に�
 | `active` | 現行構成に含まれる |
 | `orphan` | 再生成で要件から削除された（自動削除はしない、ユーザーに手動削除を促す） |
 
-## §8. Figma plugin data namespace
+## §8. Figma plugin data namespace（Figma 互換のため過去資料 / drawio 化で使用しない）
 
-`setSharedPluginData` / `getSharedPluginData` の namespace は `einja.screenFlow` 固定。`einja.screenSpec`（einja-project-screen-spec Skill）とは厳密に分離。`findAll` のスコープも `figma.currentPage` 切替後に限定。
+> **注記**: 本セクションは旧 Figma 実装時の `setSharedPluginData` / `getSharedPluginData` namespace 定義であり、drawio 化以降は使用しない。drawio 移行時の互換読み込み目的のみで残置している。
+>
+> `setSharedPluginData` / `getSharedPluginData` の namespace は `einja.screenFlow` 固定。`einja.screenSpec`（einja-project-screen-spec Skill）とは厳密に分離。`findAll` のスコープも `figma.currentPage` 切替後に限定。
 
 ## §9. lane 配置パラメータ（参考定数）
 
-`figma-arrow-rules.md §3.1 swim-lane レイアウト` で使用するパラメータ。
+`drawio-style-rules.md §3.1 swim-lane レイアウト` で使用するパラメータ。
 
 | 定数 | 値 | 用途 |
 |------|-----|------|
 | `LANE_HEIGHT` | 240px | 1 lane の縦方向占有 |
 | `LANE_HEADER_W` | 160px | lane 左端のラベル領域 |
-| `FRAME_W` | 240px | 画面 FrameNode 幅 |
-| `FRAME_H` | 160px | 画面 FrameNode 高さ |
+| `FRAME_W` | 240px | 画面 mxCell 幅 |
+| `FRAME_H` | 160px | 画面 mxCell 高さ |
 | `FRAME_SPACING_X` | 80px | 同一 lane 内の画面間隔 |
 | `FRAME_SPACING_Y` | 40px | lane top と frame top のオフセット |
 | `EDGE_OFFSET` | 16px | 往復 edge の平行シフト量 |

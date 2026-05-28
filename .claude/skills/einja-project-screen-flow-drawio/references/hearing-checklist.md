@@ -1,6 +1,6 @@
 # 画面候補推定 + ヒアリング項目チェックリスト
 
-本ファイルは `einja-project-screen-flow-figma` Skill のワークフロー **Step 3（画面候補推定・章識別と画面候補抽出）** および **Step 4（AskUserQuestion によるヒアリング補完）** で参照される。`docs/project/requirements.md` を入力に、Figma 上に描く画面ノード集合と画面間遷移を確定させるための推定ルールと質問テンプレを定義する。
+本ファイルは `einja-project-screen-flow-drawio` Skill のワークフロー **Step 3（画面候補推定・章識別と画面候補抽出）** および **Step 4（AskUserQuestion によるヒアリング補完）** で参照される。`docs/project/requirements.md` を入力に、drawio 上に描く画面ノード集合と画面間遷移を確定させるための推定ルールと質問テンプレを定義する。
 
 enum 値（`layout_strategy` / `edge_kind` / `routing` / `node_kind` / `business_role` / `source_confidence` / `status` 等）は `canonical-enums.md` を Single Source of Truth として参照する。本ファイル内では lowercase + ハイフン形式で正確に引用すること。
 
@@ -20,7 +20,7 @@ enum 値（`layout_strategy` / `edge_kind` / `routing` / `node_kind` / `business
 | 補助 | §5 スコープ境界（§5.1 機能スコープ） | 「含む / 含まない」表で画面の取捨選択（含まない機能の画面は除外） | 中 |
 | 補助 | §6.1 機能一覧 | §2 で漏れる管理系画面（マスタ管理・設定・監査ログ閲覧等）を補強 | 中 |
 
-**システム側ノード（subgraph "新システム" / "バッチ" 等）は画面候補から除外**する（自動処理のため UI を持たない）。ただし「通知」「アラート」等は画面ではなく遷移トリガーとして §4 ヒアリング項目C で扱う。
+**システム側ノード（subgraph "新システム" / "バッチ" 等）は画面候補から除外**する（自動処理のため UI を持たない）。ただし「通知」「アラート」等は画面ではなく遷移トリガーとして §4 ヒアリング項目C で扱う。drawio 書き出し時はシステム側ノードを mxCell として描画しない。
 
 ## 2. 見出し名ベースの章識別パターン
 
@@ -47,11 +47,11 @@ patterns:
     maintenance: '/メンテナンス|計画停止|SLA/i'
 ```
 
-**フォールバック**: §2 TO-BE フローが見つからない / mermaid 抽出失敗時は、§6.1 機能一覧の全機能を 1:1 で画面化（機能名から `-画面` を補い、最低限のセーフティネットとする）。
+**フォールバック**: §2 TO-BE フローが見つからない / mermaid 抽出失敗時は、§6.1 機能一覧の全機能を 1:1 で画面化（機能名から `-画面` を補い、最低限のセーフティネットとする）。drawio 書き出しでも同じセーフティネットを適用する。
 
 ## 3. 抽出パターン例（勤怠管理SaaSサンプル）
 
-`docs/einja/example/specs/projects/sample-attendance-saas/requirements.md` を入力にした場合の推定結果例。各画面に **`(暫定推定)`** マークを付与し、ヒアリングで確定させる。
+`docs/einja/example/specs/projects/sample-attendance-saas/requirements.md` を入力にした場合の推定結果例。各画面に **`(暫定推定)`** マークを付与し、ヒアリングで確定させ、drawio に書き出す。
 
 **完全な出力サンプル（ヒアリング Step 4 確定後の manifest）**: `docs/einja/example/specs/projects/sample-attendance-saas/screen-flow-url.md` を参照（10画面 + 12エッジ規模）。
 
@@ -82,7 +82,7 @@ patterns:
 
 | 画面名 | 出現条件 | 既定 | 配置 lane_id | Note |
 |--------|--------|----|--------|------|
-| `login` | §3.3 権限マトリクス存在 / §4 採用方針に「認証」記載 | ON | `Common` | **user-flow レイアウト時はエントリポイント候補（既定 ON で `is_entry_point: true` 補完、`references/figma-arrow-rules.md §3.3.1` 3-method priority chain method 2 (heuristics-name) でマッチ）** |
+| `login` | §3.3 権限マトリクス存在 / §4 採用方針に「認証」記載 | ON | `Common` | **user-flow レイアウト時はエントリポイント候補（既定 ON で `is_entry_point: true` 補完、`references/drawio-style-rules.md §3.3.1` 3-method priority chain method 2 (heuristics-name) でマッチ）** |
 | `home` | §2 TO-BE 業務フローに「メニュー」「ダッシュボード」相当のハブ画面なし | ON | `Common` | - |
 | `settings` | §6 機能一覧に「設定」「プロフィール」等の記載 | OFF | `Common` | - |
 | `error` | §4.x 非機能 / §6 機能一覧に「エラー画面」記載 | ON | `Common` | - |
@@ -145,10 +145,10 @@ function normalizeToScreenName(label) {
 
 | 選択肢 | description | Note |
 |--------|------------|------|
-| そのまま採用 | 推定された全画面を Figma に生成する | メリット: 最速。デメリット: 不要画面も生成される可能性。後から個別削除も可 |
+| そのまま採用 | 推定された全画面を drawio に書き出す | メリット: 最速。デメリット: 不要画面も生成される可能性。後から個別削除も可 |
 | 一部削除して採用 | 不要な画面を指定して除外 | 削除画面名をリスト形式で指定。Note: 削除画面に紐づくエッジも自動除外される |
 | 追加・名称修正 | 抽出漏れの画面追加 / 画面名のリネーム | Note: 命名規則は kebab-case 推奨（`shift-management`等）。リネームは後工程の冪等性に影響しない |
-| 未確定で先に進む | 暫定推定のまま Figma 生成、後で手動編集 | Note: 冪等性により後から再実行しても手動編集は保持される（orphan化のみ） |
+| 未確定で先に進む | 暫定推定のまま drawio 書き出し、後で手動編集 | Note: 冪等性により後から再実行しても手動編集は保持される（orphan化のみ） |
 | その他（自由入力） | 上記以外の指示・質問 | - |
 
 ### 項目B: 画面間遷移（エッジ）
@@ -159,8 +159,8 @@ function normalizeToScreenName(label) {
 |--------|------------|------|
 | 推定遷移を採用 | flowchart のエッジを画面遷移に変換して採用 | Note: システム側ノード経由のエッジは「自動遷移」扱い（項目C で確認） |
 | 追加遷移を指定 | 抽出漏れの遷移を追加 | 例: ログイン画面 → ホーム、エラー画面遷移など共通遷移はフローに描かれないことが多い |
-| 双方向に修正 | 「戻る」遷移を明示したい場合 | Note: 矢印は片方向。双方向にする場合はエッジを2本描画（`edge_kind: back` 推奨、`canonical-enums.md §2` 参照） |
-| 未確定で先に進む | 推定のまま Figma 生成 | - |
+| 双方向に修正 | 「戻る」遷移を明示したい場合 | Note: drawio の矢印は片方向（edge mxCell）。双方向にする場合はエッジを2本描画（`edge_kind: back` 推奨、`canonical-enums.md §2` 参照） |
+| 未確定で先に進む | 推定のまま drawio 書き出し | - |
 | その他（自由入力） | - | - |
 
 ### 項目C: 遷移トリガー（エッジラベル）
@@ -172,21 +172,21 @@ function normalizeToScreenName(label) {
 | クリック操作 | ボタン押下による画面遷移 | 例: 「打刻ボタンクリック」「承認ボタンクリック」。最も一般的 |
 | 自動遷移 | システム処理完了後の自動遷移 | 例: 「打刻完了 → ホームへ自動戻り」「通知受信時」 |
 | 条件分岐 | mermaid の `B2{承認判定}` のような分岐 | Note: 1つの遷移元から2本以上のエッジが出る場合に使用（例: 承認 / 差し戻し）。差し戻しは `edge_kind: back` を付与 |
-| ラベルなし | トリガー未確定 / 自明な遷移 | Note: TextNode 自体を描画しない（エッジは線のみ） |
+| ラベルなし | トリガー未確定 / 自明な遷移 | Note: edge mxCell の value 属性を空にし、ラベル自体を描画しない（エッジは線のみ） |
 | その他（自由入力） | - | - |
 
 ### 項目D: ロール別アクセス可能画面（§3.3 権限マトリクスが存在する場合）
 
 **質問例**: §3.3 の権限マトリクスを参考に、各画面のアクセス可能ロールを確認。
 
-**デフォルト**: 「エントリポイント基準で階層化」（`layout_strategy: user-flow`、`canonical-enums.md §1` 参照）を **既定 ON** とする。視認性とエントリポイント基準階層化を優先するため。`swim-lane` は role 軸明示時のみ採用。
+**デフォルト**: 「エントリポイント基準で階層化」（`layout_strategy: user-flow`、`canonical-enums.md §1` 参照）を **既定 ON** とする。視認性とエントリポイント基準階層化を優先するため。drawio の swim-lane は role 軸明示時のみ採用。
 
 | 選択肢 | description | Note |
 |--------|------------|------|
-| エントリポイント基準で階層化（デフォルト） | `layout_strategy: user-flow` でエントリ画面から BFS 深さ順に階層配置 | Note: `references/figma-arrow-rules.md §3.3` 参照。視認性・操作フロー追従性向上。role 軸明示が不要な一般的ケースで推奨 |
-| ロールごとにグルーピング | `layout_strategy: swim-lane` で Common / Employee / Manager / HR / Admin / Ext の lane に画面を配置 | Note: `canonical-enums.md §5` の canonical role 辞書順で lane を生成。role 責務軸を明示したい場合に有用 |
-| 権限マトリクス準拠（ロール情報のみ付与） | swim-lane 配置はせず、各画面に `business_role` プラグインデータのみ付与 | Note: 後工程の Issue 仕様書生成等で再利用される。レイアウトは `grid` |
-| ロール情報なしで進める | アクセス制御は別途検討、画面のみ生成 | Note: 後から `setSharedPluginData("einja.screenFlow", "business_role", ...)` で追加可能 |
+| エントリポイント基準で階層化（デフォルト） | `layout_strategy: user-flow` でエントリ画面から BFS 深さ順に階層配置 | Note: `references/drawio-style-rules.md §3.3` 参照。視認性・操作フロー追従性向上。role 軸明示が不要な一般的ケースで推奨 |
+| ロールごとにグルーピング | `layout_strategy: swim-lane` で Common / Employee / Manager / HR / Admin / Ext の drawio swim-lane mxCell に画面を配置 | Note: `canonical-enums.md §5` の canonical role 辞書順で lane を生成。role 責務軸を明示したい場合に有用 |
+| 権限マトリクス準拠（ロール情報のみ付与） | swim-lane 配置はせず、各画面 mxCell に `business_role` 属性のみ付与 | Note: 後工程の Issue 仕様書生成等で再利用される。レイアウトは `grid` |
+| ロール情報なしで進める | アクセス制御は別途検討、画面のみ生成 | Note: 後から mxCell の `business_role` 属性で追加可能 |
 | その他（自由入力） | - | - |
 
 ### 項目E: 共通画面の追加（§3.3 共通画面リスト）
@@ -202,7 +202,7 @@ function normalizeToScreenName(label) {
 
 ### 項目F: エントリポイント確認（`user-flow` 経路で自動検出 0 件時のみ表示）
 
-**表示条件**: `references/figma-arrow-rules.md §3.3.1` の 3-method priority chain（manifest 明示 (`is_entry_point: true`) → 名前 heuristics (`/^(login|signin|sign-in|entry|top|landing|splash)(-|$)/i`) → primary in-degree 0）が全 0 件の場合のみ表示する。自動検出が成功した場合は本項目を skip する（デフォルト OFF）。
+**表示条件**: `references/drawio-style-rules.md §3.3.1` の 3-method priority chain（manifest 明示 (`is_entry_point: true`) → 名前 heuristics (`/^(login|signin|sign-in|entry|top|landing|splash)(-|$)/i`) → primary in-degree 0）が全 0 件の場合のみ表示する。自動検出が成功した場合は本項目を skip する（デフォルト OFF）。
 
 **質問例**: 「業務フローの開始画面を選択してください。自動検出ではエントリポイントを特定できませんでした。」
 
@@ -218,7 +218,7 @@ function normalizeToScreenName(label) {
 - **主観的な質問を避ける**: 「使いやすそうな配置にしますか？」のような曖昧質問は禁止。座標・命名等は機械的に決定する
 - **一度に多くを聞かない**: 項目A〜E を一括で聞かず、A → B → C → D → E の順で分割する（A の回答により B 以降の選択肢が変わるため）
 - **「未確定で先に進む」を必ず提供**: 後から手動編集 / 再実行で修正可能であることを Note に明記し、ヒアリングのブロッキングを防ぐ
-- **要件定義書を逸脱した質問を避ける**: 「ボタンの色は？」「フォントサイズは？」等の UI 詳細は本 Skill のスコープ外（→ `ui-design-generator` で扱う）
+- **要件定義書を逸脱した質問を避ける**: 「ボタンの色は？」「フォントサイズは？」等の UI 詳細は本 Skill のスコープ外（drawio 描画はノード矩形のみで配色等は問わない、→ `ui-design-generator` で扱う）
 - **画面の中身を聞かない**: 本 Skill は遷移図のみ。画面内のフォーム項目・コンポーネント構成は問わない
 - **クロスチェック由来画面を黙って追加しない**: §3.4 のクロスチェックで `source_confidence != "high"` のものは項目A で必ず確認対象とする（信頼度に応じた透明性確保）
 
@@ -228,16 +228,16 @@ function normalizeToScreenName(label) {
 
 - [`canonical-enums.md`](./canonical-enums.md) - enum 値の Single Source of Truth（`layout_strategy` / `edge_kind` / `routing` / `node_kind` / `business_role` / `source_confidence` / `status`）
 - [`manifest-schema.md`](./manifest-schema.md) - `docs/project/screen-flow-url.md` の frontmatter / manifest スキーマ定義
-- [`figma-arrow-rules.md`](./figma-arrow-rules.md) - Figma 上の矢印・swim-lane レイアウト描画ルール、`readNodeKind()` 等のユーティリティ
+- [`drawio-style-rules.md`](./drawio-style-rules.md) - drawio 上の矢印・swim-lane レイアウト描画ルール、`readNodeKind()` 等のユーティリティ
 - [`../SKILL.md`](../SKILL.md) - Skill 本体（ワークフロー Step 3 / Step 4 から本ファイルを参照）
 
 ## 7. ドラフト確認フェーズ（Step 4.5）
 
-SKILL.md ワークフロー **Step 4.5** から参照される。Step 4 ヒアリング完了後、Figma 描画（Step 6 以降）前に manifest ドラフトをユーザー承認する関門ステップの仕様を定義する。
+SKILL.md ワークフロー **Step 4.5** から参照される。Step 4 ヒアリング完了後、drawio 描画（Step 6 以降）前に manifest ドラフトをユーザー承認する関門ステップの仕様を定義する。
 
 ### 7.1 目的
 
-Step 4 ヒアリング完了直後、Figma 書き込みコストを払う前に manifest ドラフトを提示してユーザー承認を取るためのゲート。Figma 描画後の手戻り（再生成・orphan 量産）を抑止し、精度を高める。本フェーズは **読み取り専用 + draft note 編集のみ**で Figma 書き込みは発生しない。詳細経緯は worktree-synthetic-hinton.md Plan「Skill 1 の Step 4.5 新設」参照。
+Step 4 ヒアリング完了直後、drawio 書き出しコストを払う前に manifest ドラフトを提示してユーザー承認を取るためのゲート。drawio 描画後の手戻り（再生成・orphan 量産）を抑止し、精度を高める。本フェーズは **読み取り専用 + draft note 編集のみ**で drawio 書き出しは発生しない。詳細経緯は worktree-synthetic-hinton.md Plan「Skill 1 の Step 4.5 新設」参照。
 
 ### 7.2 draft note フォーマット
 
@@ -246,12 +246,12 @@ Step 4 ヒアリング完了直後、Figma 書き込みコストを払う前に 
   - YAML frontmatter（`project_name` / `layout_strategy` / `role_canonical_map` / `schema_version`）
   - `## screens` セクション（各画面の name / role / lane_id / source_confidence / is_entry_point）
   - `## edges` セクション（各エッジの from / to / trigger / edge_kind / routing）
-  - **`node_id` / `figma_url` / `file_key` 等の Figma 接続情報は全件 PLACEHOLDER**（Figma 未書き込みのため）
+  - **`cell_id` / `drawio_url` / `drawio_file_path` 等の drawio 接続情報は全件 PLACEHOLDER**（drawio 未書き出しのため）
 - **末尾コメントブロック**:
   - `<!-- status: draft -->`
   - 生成日時（ISO8601）
   - ヒアリング応答ログ（A〜F）
-  - 「ユーザー承認待ち — Figma 未書き込み」
+  - 「ユーザー承認待ち — drawio 未書き出し」
 
 ### 7.3 ヒアリング応答ログ テンプレ
 
@@ -306,7 +306,7 @@ Step 4.5 の AskUserQuestion 提示時の文言テンプレ:
 
 - **description**: サマリ表（`manifest-schema.md §8.4 サマリ表テンプレ` 参照、screen-flow 列を使用、再生成時は差分件数も）+ draft note ファイルパス（`docs/project/screen-flow-url.draft.md`）案内
 - **選択肢**（必ず「中止」と「その他（自由入力）」を末尾に含める。詳細は SKILL.md Step 4.5 処理 3 参照）:
-  1. 承認 → Figma 描画開始
+  1. 承認 → drawio 書き出し開始
   2. 画面リスト修正 → 項目A に戻る
   3. エッジ修正 → 項目B に戻る
   4. トリガー文言修正 → 項目C に戻る
@@ -325,7 +325,7 @@ Step 4.5 の AskUserQuestion 提示時の文言テンプレ:
 - **フィールド直接修正**: 自由入力指示を §7.4 識別子規約に従って解釈 → draft note を Edit で更新 → YAML 構文簡易 validate → Step 4.5 再表示（承認確認）
   - YAML 構文エラー時は AskUserQuestion で再入力依頼
   - 識別子規約違反（`screens[3]` のような index 指定）は明示エラーメッセージで案内
-- **中止**: draft note を `<manifest-name>.draft.aborted.md` にリネーム（既存衝突時は `<manifest-name>.draft.aborted-YYYYMMDD-HHMMSS.md` の timestamp サフィックス付き名にフォールバック）→ Skill 終了
-- **承認**: draft note は保持したまま Step 5 へ進む（Step 10 manifest 出力成功後に削除）
+- **中止**: draft note を `<manifest-name>.draft.aborted.md` にリネーム（既存衝突時は `<manifest-name>.draft.aborted-YYYYMMDD-HHMMSS.md` の timestamp サフィックス付き名にフォールバック）→ Skill 終了。drawio ファイルは生成しない
+- **承認**: draft note は保持したまま Step 5（drawio 書き出し）へ進む（Step 10 manifest 出力成功後に削除）
 
 draft note ライフサイクル全体は `manifest-schema.md §8.2 ライフサイクル` 参照。

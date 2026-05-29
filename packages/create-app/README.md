@@ -165,6 +165,43 @@ npx @einja-inc/create-app add --all
 npx @einja-inc/create-app add --dry-run
 ```
 
+### `@einja-inc/create-app sync [options]`
+
+既存プロジェクトを最新テンプレートと同期します。3-way merge により、ローカル変更を保持しつつテンプレ更新を取り込みます。
+
+**オプション:**
+
+| オプション | 説明 | デフォルト |
+|----------|------|----------|
+| `--categories <categories>` | 同期対象カテゴリをカンマ区切りで指定 (e.g. `env,tools,packages`) | - |
+| `--apps-detail <apps>` | `apps` カテゴリ内で同期対象を絞り込む (e.g. `web,admin`) | - |
+| `--packages-detail <packages>` | `packages` カテゴリ内で同期対象を絞り込む (e.g. `admin-ui`) | - |
+| `--all` | 全カテゴリを同期（`apps`, `packages` 含む） | false |
+| `--dry-run` | 変更プレビューのみ（ファイル変更なし） | false |
+| `--backup` | 同期前にバックアップ作成 | true |
+| `--rollback` | 直近のバックアップから復元 | false |
+| `--force` | ローカル変更を無視して上書き | false |
+| `-y, --yes` | 安全な既定カテゴリで対話プロンプトなしに実行（`apps`, `packages` 除外）。`--categories` 併用時は指定カテゴリでも対話を抑制 | false |
+
+**使用例:**
+
+```bash
+# 対話モード（カテゴリを選択）
+npx @einja-inc/create-app sync
+
+# 安全な既定カテゴリのみ非対話で同期
+npx @einja-inc/create-app sync --yes
+
+# `packages/admin-ui` のみ非対話で同期（Skill `einja-admin-ui-sync` が内部で使用）
+npx @einja-inc/create-app sync --categories packages --packages-detail admin-ui --yes
+
+# 変更プレビューのみ
+npx @einja-inc/create-app sync --dry-run
+
+# 直近バックアップから復元
+npx @einja-inc/create-app sync --rollback
+```
+
 ---
 
 ## プロジェクト構成

@@ -109,6 +109,12 @@ function getTemplatePath(): string {
 
 /**
  * sync コマンドのメイン関数
+ *
+ * 非対話モード: `--yes` または `--categories` 指定時は対話プロンプトを抑制し、
+ * 失敗時は `process.exit(1)` で fail-fast する。
+ *
+ * 詳細フィルタ: `--apps-detail` / `--packages-detail` で `apps` / `packages`
+ * カテゴリの subset を限定可能（commands/sync.ts L177-198 分岐）。
  */
 export async function syncCommand(options: SyncOptions): Promise<void> {
   const { existsSync } = fsExtra;
@@ -177,11 +183,29 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
     if (options.categories) {
       // コマンドラインで指定されたカテゴリのみ（--yesや--allより優先）
       categories = options.categories as SyncCategory[];
-      appsDetail = undefined;
-      packagesDetail = undefined;
+      appsDetail = options.appsDetail;
+      packagesDetail = options.packagesDetail;
       conflictStrategy = "merge";
 
       logger.info(`指定されたカテゴリ: ${categories.join(", ")}`);
+      if (appsDetail && appsDetail.length > 0) {
+        if (categories.includes("apps")) {
+          logger.info(`apps詳細: ${appsDetail.join(", ")}`);
+        } else {
+          logger.warn(
+            "⚠ --apps-detail は --categories apps と併用してください（無視されます）"
+          );
+        }
+      }
+      if (packagesDetail && packagesDetail.length > 0) {
+        if (categories.includes("packages")) {
+          logger.info(`packages詳細: ${packagesDetail.join(", ")}`);
+        } else {
+          logger.warn(
+            "⚠ --packages-detail は --categories packages と併用してください（無視されます）"
+          );
+        }
+      }
     } else if (options.all) {
       // --all: 全カテゴリ選択（apps, packages含む）
       categories = getAllSyncCategories();
@@ -246,8 +270,11 @@ export async function syncCommand(options: SyncOptions): Promise<void> {
       // 検出失敗
       logger.warn("⚠️ プロジェクト設定を自動検出できませんでした");
 
-      if (options.yes) {
-        logger.error("❌ --yes モードではプロジェクト設定の自動検出が必須です");
+      // --yes でも --categories（非対話呼び出し）でも、対話プロンプトは出さずに失敗終了
+      if (options.yes || options.categories) {
+        logger.error(
+          "❌ 非対話モード（--yes / --categories）ではプロジェクト設定の自動検出が必須です"
+        );
         logger.error("プロジェクトのpackage.jsonにnameフィールドを設定してから再試行してください");
         process.exit(1);
       }

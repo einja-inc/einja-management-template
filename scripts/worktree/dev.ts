@@ -244,7 +244,7 @@ function collectFilesRecursively(directoryPath: string): string[] {
 }
 
 export function getSeedSourcePaths(projectRoot: string = process.cwd()): string[] {
-	const seedFile = path.join(projectRoot, "packages/server-core/prisma/seed.ts");
+	const seedFile = path.join(projectRoot, "packages/server-core/db/seed.ts");
 	const testingDir = path.join(projectRoot, "packages/server-core/src/testing");
 
 	return [seedFile, ...collectFilesRecursively(testingDir)]

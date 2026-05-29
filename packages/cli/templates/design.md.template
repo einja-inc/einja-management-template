@@ -69,7 +69,7 @@ graph TB
 | Frontend | React / Next.js | UI実装 | 既存App Router準拠 |
 | Validation | Zod | 入力検証 | FE/BEで整合 |
 | Backend | Route Handlers / RPC | API層 | 既存契約準拠 |
-| ORM | Prisma | データアクセス | 既存Repository経由 |
+| ORM | Drizzle ORM | データアクセス | 既存Repository経由 |
 
 ## System Flows
 
@@ -118,16 +118,26 @@ interface FeatureEntity {
 }
 ```
 
-### Persistence
+### Persistence (Drizzle ORM)
 
-```prisma
-model FeatureEntity {
-  id        String   @id @default(cuid())
-  fieldA    String
-  fieldB    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+```typescript
+import { relations } from "drizzle-orm";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+
+export const featureEntities = pgTable("FeatureEntity", {
+  id: text("id").primaryKey(),
+  fieldA: text("fieldA").notNull(),
+  fieldB: text("fieldB"),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { precision: 3 })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export const featureEntitiesRelations = relations(featureEntities, () => ({
+  // 関連エンティティを定義
+}));
 ```
 
 ## API Contract
@@ -168,7 +178,7 @@ type UpdateFeatureResponse = {
 | FeaturePage | UI/Page | 画面全体の制御 | UI, NAV | Client | State |
 | FeatureForm | UI/Feature | 入力 / バリデーション | UI, VAL, UX | Schema, Client | Props, State |
 | FeatureUseCase | Server/Feature | ビジネスロジック | NAV, ERR, PERM | Repo | Service |
-| FeatureRepository | Server/Repository | 永続化 | ERR | Prisma | Persistence |
+| FeatureRepository | Server/Repository | 永続化 | ERR | Drizzle ORM | Persistence |
 
 ## Components and Interfaces
 

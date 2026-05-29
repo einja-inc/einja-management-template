@@ -83,8 +83,8 @@ describe("post-setup generator", () => {
       // Then: pnpm install が実行される
       expect(execa).toHaveBeenCalledWith("pnpm", ["install"], { cwd: testDir });
 
-      // Then: pnpm db:generate が実行される
-      expect(execa).toHaveBeenCalledWith("pnpm", ["db:generate"], { cwd: testDir });
+      // Then: Drizzle移行後、db:generate（Prismaクライアント生成相当）は不要のため呼ばれない
+      expect(execa).not.toHaveBeenCalledWith("pnpm", ["db:generate"], { cwd: testDir });
     });
 
     it("skipGitオプションが有効な場合、Git初期化がスキップされる", async () => {
@@ -199,20 +199,6 @@ describe("post-setup generator", () => {
       await expect(execPostSetup(mockConfig, testDir, {})).resolves.toBeUndefined();
     });
 
-    it("Prismaクライアント生成に失敗した場合、エラーハンドリングされる", async () => {
-      // Given: pnpm db:generateが失敗する
-      const { execa } = await import("execa");
-      // biome-ignore lint/suspicious/noExplicitAny: モック関数の型定義のため必要
-      (execa as any)
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // init.sh成功
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm install成功
-        .mockRejectedValueOnce(new Error("pnpm db:generate failed")); // pnpm db:generate失敗
-
-      // When: execPostSetup実行
-      // Then: エラーが投げられずに処理が継続される
-      await expect(execPostSetup(mockConfig, testDir, {})).resolves.toBeUndefined();
-    });
-
     it("@einja-inc/dev-cli initに失敗した場合、エラーハンドリングされる", async () => {
       // Given: npx @einja-inc/dev-cli initが失敗する
       const { execa } = await import("execa");
@@ -222,7 +208,6 @@ describe("post-setup generator", () => {
       (execa as any)
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // init.sh成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm install成功
-        .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm db:generate成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // pnpm env:rotate-secrets成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git init成功
         .mockResolvedValueOnce({ stdout: "", stderr: "" }) // git add成功

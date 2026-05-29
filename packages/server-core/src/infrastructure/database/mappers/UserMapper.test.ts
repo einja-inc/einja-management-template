@@ -1,43 +1,34 @@
-import type { User as PrismaUser, UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from "@prisma/client";
-import { beforeAll, describe, expect, it } from "vitest";
-import { User } from "../../../domain/entities/User";
-import { buildUserProps, UserFactory, initialize } from "../../../testing";
+import { describe, expect, it } from "vitest";
+import { User, type UserRole, type UserStatus } from "../../../domain/entities/User";
+import { buildUserProps, UserFactory } from "../../../testing";
 import { UserMapper } from "./UserMapper";
 
 describe("UserMapper", () => {
-	beforeAll(() => {
-		// マッパーテストではPrismaクライアントは使用しないため、空のオブジェクトを渡す
-		// biome-ignore lint/suspicious/noExplicitAny: test fixture initialization
-		initialize({ prisma: {} as any });
-	});
-
 	describe("toDomain", () => {
-		it("PrismaUserをDomain Userに変換できる", async () => {
+		it("DB行をDomain Userに変換できる", async () => {
 			// Given
-			const prismaUser = await UserFactory.build();
+			const row = await UserFactory.build();
 
 			// When
-			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
-			const domainUser = UserMapper.toDomain(prismaUser as any);
+			const domainUser = UserMapper.toDomain(row);
 
 			// Then
 			expect(domainUser).toBeInstanceOf(User);
-			expect(domainUser.id).toBe(prismaUser.id);
-			expect(domainUser.email).toBe(prismaUser.email);
-			expect(domainUser.name).toBe(prismaUser.name);
-			expect(domainUser.status).toBe(prismaUser.status);
-			expect(domainUser.role).toBe(prismaUser.role);
-			expect(domainUser.createdAt).toEqual(prismaUser.createdAt);
-			expect(domainUser.lastLogin).toEqual(prismaUser.lastLogin);
+			expect(domainUser.id).toBe(row.id);
+			expect(domainUser.email).toBe(row.email);
+			expect(domainUser.name).toBe(row.name);
+			expect(domainUser.status).toBe(row.status);
+			expect(domainUser.role).toBe(row.role);
+			expect(domainUser.createdAt).toEqual(row.createdAt);
+			expect(domainUser.lastLogin).toEqual(row.lastLogin);
 		});
 
 		it("nameがnullでも変換できる", async () => {
 			// Given
-			const prismaUser = await UserFactory.build({ name: null });
+			const row = await UserFactory.build({ name: null });
 
 			// When
-			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
-			const domainUser = UserMapper.toDomain(prismaUser as any);
+			const domainUser = UserMapper.toDomain(row);
 
 			// Then
 			expect(domainUser.name).toBeNull();
@@ -45,11 +36,10 @@ describe("UserMapper", () => {
 
 		it("lastLoginがnullでも変換できる", async () => {
 			// Given
-			const prismaUser = await UserFactory.build({ lastLogin: null });
+			const row = await UserFactory.build({ lastLogin: null });
 
 			// When
-			// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
-			const domainUser = UserMapper.toDomain(prismaUser as any);
+			const domainUser = UserMapper.toDomain(row);
 
 			// Then
 			expect(domainUser.lastLogin).toBeNull();
@@ -58,11 +48,10 @@ describe("UserMapper", () => {
 		describe("status変換", () => {
 			it("activeを変換できる", async () => {
 				// Given
-				const prismaUser = await UserFactory.build({ status: "active" as PrismaUserStatus });
+				const row = await UserFactory.build({ status: "active" });
 
 				// When
-				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
-				const domainUser = UserMapper.toDomain(prismaUser as any);
+				const domainUser = UserMapper.toDomain(row);
 
 				// Then
 				expect(domainUser.status).toBe("active");
@@ -70,11 +59,10 @@ describe("UserMapper", () => {
 
 			it("inactiveを変換できる", async () => {
 				// Given
-				const prismaUser = await UserFactory.build({ status: "inactive" as PrismaUserStatus });
+				const row = await UserFactory.build({ status: "inactive" });
 
 				// When
-				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
-				const domainUser = UserMapper.toDomain(prismaUser as any);
+				const domainUser = UserMapper.toDomain(row);
 
 				// Then
 				expect(domainUser.status).toBe("inactive");
@@ -82,11 +70,10 @@ describe("UserMapper", () => {
 
 			it("pendingを変換できる", async () => {
 				// Given
-				const prismaUser = await UserFactory.build({ status: "pending" as PrismaUserStatus });
+				const row = await UserFactory.build({ status: "pending" });
 
 				// When
-				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
-				const domainUser = UserMapper.toDomain(prismaUser as any);
+				const domainUser = UserMapper.toDomain(row);
 
 				// Then
 				expect(domainUser.status).toBe("pending");
@@ -96,11 +83,10 @@ describe("UserMapper", () => {
 		describe("role変換", () => {
 			it("adminを変換できる", async () => {
 				// Given
-				const prismaUser = await UserFactory.build({ role: "admin" as PrismaUserRole });
+				const row = await UserFactory.build({ role: "admin" });
 
 				// When
-				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
-				const domainUser = UserMapper.toDomain(prismaUser as any);
+				const domainUser = UserMapper.toDomain(row);
 
 				// Then
 				expect(domainUser.role).toBe("admin");
@@ -108,11 +94,10 @@ describe("UserMapper", () => {
 
 			it("userを変換できる", async () => {
 				// Given
-				const prismaUser = await UserFactory.build({ role: "user" as PrismaUserRole });
+				const row = await UserFactory.build({ role: "user" });
 
 				// When
-				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
-				const domainUser = UserMapper.toDomain(prismaUser as any);
+				const domainUser = UserMapper.toDomain(row);
 
 				// Then
 				expect(domainUser.role).toBe("user");
@@ -120,11 +105,10 @@ describe("UserMapper", () => {
 
 			it("moderatorを変換できる", async () => {
 				// Given
-				const prismaUser = await UserFactory.build({ role: "moderator" as PrismaUserRole });
+				const row = await UserFactory.build({ role: "moderator" });
 
 				// When
-				// biome-ignore lint/suspicious/noExplicitAny: test with factory-generated data
-				const domainUser = UserMapper.toDomain(prismaUser as any);
+				const domainUser = UserMapper.toDomain(row);
 
 				// Then
 				expect(domainUser.role).toBe("moderator");
@@ -132,146 +116,146 @@ describe("UserMapper", () => {
 		});
 	});
 
-	describe("toPrismaUpdate", () => {
-		it("Domain UserをPrisma更新データに変換できる", async () => {
+	describe("toRowUpdate", () => {
+		it("Domain UserをDB更新データに変換できる", async () => {
 			// Given
 			const props = await buildUserProps({
 				name: "Updated Name",
-				status: "active" as PrismaUserStatus,
-				role: "admin" as PrismaUserRole,
+				status: "active" satisfies UserStatus,
+				role: "admin" satisfies UserRole,
 				lastLogin: new Date("2025-01-03T00:00:00Z"),
 			});
 			const domainUser = new User(props);
 
 			// When
-			const prismaData = UserMapper.toPrismaUpdate(domainUser);
+			const rowData = UserMapper.toRowUpdate(domainUser);
 
 			// Then
-			expect(prismaData.name).toBe("Updated Name");
-			expect(prismaData.status).toBe("active");
-			expect(prismaData.role).toBe("admin");
-			expect(prismaData.lastLogin).toEqual(new Date("2025-01-03T00:00:00Z"));
+			expect(rowData.name).toBe("Updated Name");
+			expect(rowData.status).toBe("active");
+			expect(rowData.role).toBe("admin");
+			expect(rowData.lastLogin).toEqual(new Date("2025-01-03T00:00:00Z"));
 		});
 
 		it("nameがnullでも変換できる", async () => {
 			// Given
 			const props = await buildUserProps({
 				name: null,
-				status: "active" as PrismaUserStatus,
-				role: "user" as PrismaUserRole,
+				status: "active" satisfies UserStatus,
+				role: "user" satisfies UserRole,
 				lastLogin: null,
 			});
 			const domainUser = new User(props);
 
 			// When
-			const prismaData = UserMapper.toPrismaUpdate(domainUser);
+			const rowData = UserMapper.toRowUpdate(domainUser);
 
 			// Then
-			expect(prismaData.name).toBeNull();
+			expect(rowData.name).toBeNull();
 		});
 
 		it("lastLoginがnullでも変換できる", async () => {
 			// Given
 			const props = await buildUserProps({
 				name: "Test",
-				status: "pending" as PrismaUserStatus,
-				role: "user" as PrismaUserRole,
+				status: "pending" satisfies UserStatus,
+				role: "user" satisfies UserRole,
 				lastLogin: null,
 			});
 			const domainUser = new User(props);
 
 			// When
-			const prismaData = UserMapper.toPrismaUpdate(domainUser);
+			const rowData = UserMapper.toRowUpdate(domainUser);
 
 			// Then
-			expect(prismaData.lastLogin).toBeNull();
+			expect(rowData.lastLogin).toBeNull();
 		});
 
 		describe("status逆変換", () => {
-			it("activeをPrisma形式に変換できる", async () => {
+			it("activeをDB形式に変換できる", async () => {
 				// Given
 				const props = await buildUserProps({
-					status: "active" as PrismaUserStatus,
+					status: "active" satisfies UserStatus,
 				});
 				const domainUser = new User(props);
 
 				// When
-				const prismaData = UserMapper.toPrismaUpdate(domainUser);
+				const rowData = UserMapper.toRowUpdate(domainUser);
 
 				// Then
-				expect(prismaData.status).toBe("active");
+				expect(rowData.status).toBe("active");
 			});
 
-			it("inactiveをPrisma形式に変換できる", async () => {
+			it("inactiveをDB形式に変換できる", async () => {
 				// Given
 				const props = await buildUserProps({
-					status: "inactive" as PrismaUserStatus,
+					status: "inactive" satisfies UserStatus,
 				});
 				const domainUser = new User(props);
 
 				// When
-				const prismaData = UserMapper.toPrismaUpdate(domainUser);
+				const rowData = UserMapper.toRowUpdate(domainUser);
 
 				// Then
-				expect(prismaData.status).toBe("inactive");
+				expect(rowData.status).toBe("inactive");
 			});
 
-			it("pendingをPrisma形式に変換できる", async () => {
+			it("pendingをDB形式に変換できる", async () => {
 				// Given
 				const props = await buildUserProps({
-					status: "pending" as PrismaUserStatus,
+					status: "pending" satisfies UserStatus,
 				});
 				const domainUser = new User(props);
 
 				// When
-				const prismaData = UserMapper.toPrismaUpdate(domainUser);
+				const rowData = UserMapper.toRowUpdate(domainUser);
 
 				// Then
-				expect(prismaData.status).toBe("pending");
+				expect(rowData.status).toBe("pending");
 			});
 		});
 
 		describe("role逆変換", () => {
-			it("adminをPrisma形式に変換できる", async () => {
+			it("adminをDB形式に変換できる", async () => {
 				// Given
 				const props = await buildUserProps({
-					role: "admin" as PrismaUserRole,
+					role: "admin" satisfies UserRole,
 				});
 				const domainUser = new User(props);
 
 				// When
-				const prismaData = UserMapper.toPrismaUpdate(domainUser);
+				const rowData = UserMapper.toRowUpdate(domainUser);
 
 				// Then
-				expect(prismaData.role).toBe("admin");
+				expect(rowData.role).toBe("admin");
 			});
 
-			it("userをPrisma形式に変換できる", async () => {
+			it("userをDB形式に変換できる", async () => {
 				// Given
 				const props = await buildUserProps({
-					role: "user" as PrismaUserRole,
+					role: "user" satisfies UserRole,
 				});
 				const domainUser = new User(props);
 
 				// When
-				const prismaData = UserMapper.toPrismaUpdate(domainUser);
+				const rowData = UserMapper.toRowUpdate(domainUser);
 
 				// Then
-				expect(prismaData.role).toBe("user");
+				expect(rowData.role).toBe("user");
 			});
 
-			it("moderatorをPrisma形式に変換できる", async () => {
+			it("moderatorをDB形式に変換できる", async () => {
 				// Given
 				const props = await buildUserProps({
-					role: "moderator" as PrismaUserRole,
+					role: "moderator" satisfies UserRole,
 				});
 				const domainUser = new User(props);
 
 				// When
-				const prismaData = UserMapper.toPrismaUpdate(domainUser);
+				const rowData = UserMapper.toRowUpdate(domainUser);
 
 				// Then
-				expect(prismaData.role).toBe("moderator");
+				expect(rowData.role).toBe("moderator");
 			});
 		});
 	});

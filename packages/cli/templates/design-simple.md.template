@@ -29,18 +29,35 @@ sequenceDiagram
 
 ## データモデル
 
-### Prismaスキーマ
+### Drizzleスキーマ
 
-```prisma
+```typescript
 // 主要なデータモデルを記載
 
-model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+import { relations } from "drizzle-orm";
+import { pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+
+export const userStatusEnum = pgEnum("UserStatus", ["active", "inactive", "pending"]);
+
+export const users = pgTable(
+  "User",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    status: userStatusEnum("status").notNull().default("pending"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [uniqueIndex("User_email_key").on(t.email)],
+);
+
+export const usersRelations = relations(users, () => ({
+  // 関連エンティティを定義
+}));
 ```
 
 ### データモデル説明
@@ -132,7 +149,7 @@ model User {
 |--------|------|
 | XSS | エスケープ処理、Content Security Policy |
 | CSRF | トークン検証 |
-| SQLインジェクション | Prismaによるパラメータ化クエリ |
+| SQLインジェクション | Drizzle ORMのパラメータバインディング |
 | 機密情報漏洩 | 環境変数による管理 |
 
 ## テスト戦略

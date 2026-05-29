@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
-import { prisma } from "@repo/server-core/infrastructure/database/client";
+import { userRepository } from "@repo/server-core/infrastructure/database/repositories/UserRepository";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -28,37 +28,36 @@ export const baseAuthOptions: NextAuthConfig = {
         try {
           const { email, password } = credentialsSchema.parse(credentials);
 
-          const user = await prisma.user.findUnique({
-            where: { email },
-            select: {
-              id: true,
-              email: true,
-              name: true,
-              password: true,
-              image: true,
-            },
-          });
-
-          if (!user || !user.password) {
+          const findResult = await userRepository.findByEmailForAuth(email);
+          if (!findResult.isSuccess) {
+            console.error("Authentication error:", findResult.error);
             return null;
           }
 
-          const isPasswordValid = await bcrypt.compare(password, user.password);
+          const record = findResult.value;
+          if (!record || !record.password) {
+            return null;
+          }
+
+          const { user, password: hashedPassword, image } = record;
+
+          const isPasswordValid = await bcrypt.compare(password, hashedPassword);
           if (!isPasswordValid) {
             return null;
           }
 
           // lastLoginを更新
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { lastLogin: new Date() },
-          });
+          const updateResult = await userRepository.updateLastLogin(user.id, new Date());
+          if (!updateResult.isSuccess) {
+            console.error("Failed to update lastLogin:", updateResult.error);
+            // 認証自体は成功しているのでログインは続行する
+          }
 
           return {
             id: user.id,
             email: user.email,
             name: user.name,
-            image: user.image,
+            image,
           };
         } catch (error) {
           console.error("Authentication error:", error);

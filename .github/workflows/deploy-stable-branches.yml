@@ -159,7 +159,7 @@ jobs:
           echo "deploy_matrix=$DEPLOY_MATRIX" >> $GITHUB_OUTPUT
           echo "Deploy matrix: $DEPLOY_MATRIX"
 
-          if echo "$CHANGED_FILES" | grep -q "^prisma/migrations/"; then
+          if echo "$CHANGED_FILES" | grep -q "^packages/server-core/db/migrations/"; then
             echo "migration_changed=true" >> $GITHUB_OUTPUT
           else
             echo "migration_changed=false" >> $GITHUB_OUTPUT

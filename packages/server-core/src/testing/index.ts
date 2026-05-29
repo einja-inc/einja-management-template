@@ -1,17 +1,18 @@
 /**
  * テストデータファクトリー - メインエクスポート
  *
+ * Drizzle ベースの軽量ファクトリー。`build()` でメモリ上の行を生成し、
+ * `create()` で DB に挿入する。旧 `@quramy/prisma-fabbrica` の置き換え。
+ *
  * @example
  * ```typescript
- * import { initialize, UserFactory } from "@repo/server-core/testing";
- * import { prisma } from "@repo/server-core";
+ * import { UserFactory } from "@repo/server-core/testing";
  *
- * // 初期化（テストセットアップ時）
- * initialize({ prisma });
+ * // メモリ上の行を生成（DB 書き込みなし）
+ * const userRow = await UserFactory.build();
  *
- * // ユーザー作成
- * const user = await UserFactory.create();
- * const users = await UserFactory.createList(5);
+ * // DB に挿入（統合テスト用）
+ * const inserted = await UserFactory.create();
  * ```
  */
 

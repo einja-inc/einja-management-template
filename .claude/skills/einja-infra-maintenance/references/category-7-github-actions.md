@@ -18,7 +18,7 @@
 
 | # | ルール | 検出コマンド | 合格条件 |
 |---|--------|-------------|---------|
-| R1 | `db:push` をCI/デプロイで使用禁止 | `grep -rn "db:push\|prisma db push" .github/` | 出力なし |
+| R1 | `db:push` / `drizzle-kit push` をCI/デプロイで使用禁止（必ず `db:migrate:deploy` = `tsx db/migrate.ts` を使用） | `grep -rn "db:push\|drizzle-kit push" .github/` | 出力なし |
 | R2 | 全アプリ無条件デプロイ禁止（パスフィルタ必須） | `grep -n '"app":' .github/workflows/deploy-stable-branches.yml \| grep -v "steps\|matrix\|discover\|secret_suffix"` | ハードコードなし |
 | R3 | 2重ビルド禁止（Turboキャッシュ確認） | `grep -rn "TURBO_TOKEN" .github/workflows/` | deploy/CIジョブ両方で設定済み。`vercel deploy --prebuilt` を使用していること |
 | R4 | migration変更なし時はスキップ（stable branchのみ・PR Previewは除外） | `grep -n "migration_changed" .github/workflows/deploy-stable-branches.yml` | `changes` outputと`migrate-*`の`if:`条件に存在すること |
@@ -172,7 +172,7 @@ gh run list --status=in_progress
 | `neonctl: authentication failed` | → カテゴリ5でNEON_API_KEY更新 |
 | `Permission denied` | → `.github/workflows/`のpermissions設定確認を案内 |
 | `GH006: Protected branch update failed` | → カテゴリ7（リポジトリ設定）でGitHub Actionsのbypass権限を設定 |
-| `prisma migrate deploy` 失敗 / DBスキーマ不整合 | Neonブランチのマイグレーション履歴を確認。`db:push`（スキーマ直接プッシュ）が使われていた場合は `db:migrate:deploy` に変更する |
+| `tsx db/migrate.ts`（`db:migrate:deploy`）失敗 / DBスキーマ不整合 | Neonブランチのマイグレーション履歴を確認: `psql $DATABASE_URL -c 'SELECT * FROM "drizzle"."__drizzle_migrations" ORDER BY id;'`。`drizzle-kit push` や旧 `prisma db push` でスキーマ直接プッシュされていた場合は、`scripts/db-baseline.sql` で `drizzle.__drizzle_migrations` に baseline 登録（`psql $DATABASE_URL -f scripts/db-baseline.sql`）してから `db:migrate:deploy` に切り替える |
 | `database "neondb" does not exist` / DB接続エラー | Neonブランチが正しく作成されているか確認。NEON_API_KEY・NEON_PROJECT_IDの設定を確認 |
 | Neon `connection_uri` APIが空URLを返す | `role_name=neondb_owner` パラメータが推奨（APIドキュメント上はoptionalだが、未指定だとDB URLが返らないケースがある）。全API呼び出しに追加することを推奨する |
 | その他 | エラーログ全文を表示し、対処方法をAskUserQuestionで相談 |

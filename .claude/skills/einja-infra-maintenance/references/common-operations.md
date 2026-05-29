@@ -66,5 +66,5 @@ CLIツールをClaude Code（非対話モード）から実行する際の既知
 | 5 | `curl -H "Authorization: Bearer $VERCEL_TOKEN"` → `forbidden` / `missingToken` | Bash変数を1行で代入＋使用すると展開タイミングで失敗する | 変数は事前にexportしておくか、`${VERCEL_TOKEN}` 形式で使用する |
 | 6 | `npx turbo link` がVercel scope選択で無限ループ（1.3GBログ生成） | `--yes` フラグが効かず、対話選択をスキップできない | `.turbo/config.json` を `{"teamId":"...","teamSlug":"..."}` で手動作成する |
 | 7 | `vercel env add ... preview` → `git_branch_required` | preview環境では対象ブランチの指定が必須 | production環境のみ `vercel env add` で設定。preview/staging/developはCI/CDの `--env` 実行時注入で対応 |
-| 8 | PRプレビューCIでDBマイグレーションが適用されず失敗 | `pnpm db:push`（スキーマ直接プッシュ）を使用しており、マイグレーション履歴テーブルに記録されない | `pnpm db:migrate:deploy`（Prisma migrate deploy）に変更。本番・ステージングと同じマイグレーション方式に統一する |
+| 8 | PRプレビューCIでDBマイグレーションが適用されず失敗 | `pnpm db:push`（drizzle-kit push によるスキーマ直接プッシュ）を使用しており、`drizzle.__drizzle_migrations` 履歴テーブルに記録されない | `pnpm db:migrate:deploy`（= `tsx db/migrate.ts`、drizzle-kit migrate ベース）に変更。本番・ステージングと同じマイグレーション方式に統一する。**運用方針**: `drizzle-kit push` は schema 設計時のローカル試行のみ許可、CI/CD・本番・ステージング・PRプレビューでは禁止。確認: `psql $DATABASE_URL -c 'SELECT * FROM "drizzle"."__drizzle_migrations" ORDER BY id;'` で適用履歴を確認できる |
 | 9 | Neon `connection_uri` APIが空/エラーを返す | `role_name` パラメータが未指定。APIドキュメント上はoptionalだが、未指定だとDB URLが返らないケースがある | 全ての `connection_uri` API呼び出しに `&role_name=neondb_owner` を追加することを推奨する |

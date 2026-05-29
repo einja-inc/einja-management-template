@@ -4,31 +4,37 @@
 	"private": true,
 	"exports": {
 		"./*": "./src/*.ts",
-		"./testing": "./src/testing/index.ts"
+		"./testing": "./src/testing/index.ts",
+		"./db/schema": "./db/schema.ts",
+		"./db/client": "./db/client.ts"
 	},
 	"scripts": {
-		"generate": "prisma generate",
-		"db:generate": "prisma generate",
-		"db:push": "prisma db push",
-		"db:migrate": "prisma migrate dev",
-		"db:migrate:deploy": "prisma migrate deploy",
-		"db:studio": "dotenvx run -f ../../.env -- prisma studio",
-		"db:seed": "tsx prisma/seed.ts",
+		"generate": "drizzle-kit generate",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "tsx db/migrate.ts",
+		"db:migrate:deploy": "tsx db/migrate.ts",
+		"db:studio": "dotenvx run -f ../../.env -- drizzle-kit studio",
+		"db:seed": "dotenvx run -f ../../.env -- tsx db/seed.ts",
+		"db:check": "drizzle-kit check",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage"
 	},
 	"dependencies": {
-		"@prisma/client": "^6.10.1",
+		"@neondatabase/serverless": "^1.1.0",
 		"bcryptjs": "^3.0.2",
+		"drizzle-orm": "^0.45.2",
+		"ws": "^8.20.0",
 		"zod": "^3.25.67"
 	},
 	"devDependencies": {
 		"@faker-js/faker": "^9.6.0",
-		"@quramy/prisma-fabbrica": "^2.2.0",
 		"@repo/config": "workspace:*",
-		"prisma": "^6.10.1",
+		"@types/pg": "^8.11.10",
+		"@types/ws": "^8.18.1",
+		"drizzle-kit": "^0.31.10",
+		"pg": "^8.13.1",
 		"tsx": "^4.19.4",
 		"typescript": "^5",
 		"vitest": "^3.2.2"

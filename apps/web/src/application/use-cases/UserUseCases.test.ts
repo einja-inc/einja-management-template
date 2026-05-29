@@ -1,7 +1,7 @@
 import { failure, isFailure, isSuccess, success } from "@repo/server-core/core/result";
 import { User } from "@repo/server-core/domain/entities/User";
 import type { PaginatedResult } from "@repo/server-core/domain/repository-interfaces/IUserRepository";
-import { buildUserProps, initialize } from "@repo/server-core/testing";
+import { buildUserProps } from "@repo/server-core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userUseCases } from "./UserUseCases";
 
@@ -19,8 +19,6 @@ import { userRepository } from "@repo/server-core/infrastructure/database/reposi
 
 describe("UserUseCases", () => {
   beforeEach(() => {
-    // ユースケーステストではモックリポジトリを使用するため、空のオブジェクトを渡す
-    initialize({ prisma: {} as unknown as Parameters<typeof initialize>[0]["prisma"] });
     vi.clearAllMocks();
   });
 

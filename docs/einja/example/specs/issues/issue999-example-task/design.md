@@ -22,7 +22,7 @@
 ## Existing Architecture Analysis
 
 - **現状の実装**: パスワード認証が実装済み。並行運用期間中はパスワードログインも維持
-- **再利用する既存コンポーネント**: SessionProvider、既存のCookieベースセッション管理、PostgreSQL / Prisma
+- **再利用する既存コンポーネント**: SessionProvider、既存のCookieベースセッション管理、PostgreSQL / Drizzle ORM
 - **拡張対象**: 既存のユーザーモデル（MagicLinkToken / Session テーブルを追加）
 - **新規追加対象**: TokenService、EmailService、SecurityService、MagicLinkForm、VerificationMessage、TokenVerifying コンポーネント
 
@@ -52,7 +52,7 @@ graph TB
     end
 
     subgraph "Data Layer"
-        DB[(PostgreSQL<br/>via Prisma)]
+        DB[(PostgreSQL<br/>via Drizzle ORM)]
         Redis[(Redis<br/>レート制限キャッシュ)]
     end
 
@@ -87,7 +87,7 @@ graph TB
 | Frontend | React / Next.js (App Router) | UI実装 | 既存App Router準拠 |
 | Validation | Zod | 入力検証 | FE/BEで整合 |
 | Backend | Route Handlers / Hono | API層 | /api/auth/* ルート群 |
-| ORM | Prisma | データアクセス | 既存Repository経由 |
+| ORM | Drizzle | データアクセス | 既存Repository経由 |
 | Cache | Redis | レート制限カウンター | セッション情報の一時キャッシュも兼用 |
 | Email | SendGrid | マジックリンクメール送信 | HTML/テキストマルチパート |
 | Token | crypto.randomBytes | 256ビット安全乱数生成 | Node.js標準crypto |
@@ -353,10 +353,10 @@ graph TB
 | TokenVerifying | UI/Feature | トークン検証中UI・自動リダイレクト | AC2.UX.*, AC2.NAV.* | AuthApiClient | Props: token, onSuccess, onError |
 | ErrorScreen | UI/Feature | エラー種別別UI・リカバリーアクション | AC2.ERR.* | Router | Props: errorType, email |
 | SessionRevocationScreen | UI/Feature | セッション無効化確認 | AC3.UI.N.002, AC3.UI.N.004, AC3.NAV.N.002 | AuthApiClient | Props: sessionId |
-| TokenService | Server/Service | トークン生成・ハッシュ化・検証・無効化 | AC2.ERR.*, AC2.NAV.* | DB (Prisma) | generateToken(), verifyToken() |
+| TokenService | Server/Service | トークン生成・ハッシュ化・検証・無効化 | AC2.ERR.*, AC2.NAV.* | DB (Drizzle) | generateToken(), verifyToken() |
 | EmailService | Server/Service | マジックリンク・セキュリティ通知メール送信 | AC1.UI.N.001, AC3.UI.N.001 | SendGrid API | sendMagicLink(), sendSecurityNotification() |
 | SecurityService | Server/Service | レート制限・デバイス検知 | AC1.ERR.E.001 | Redis | checkRateLimit() |
-| SessionManager | Server/Service | セッション生成・Cookie設定・無効化 | AC2.NAV.N.001, AC3.UI.N.002 | DB (Prisma) | createSession(), revokeSession() |
+| SessionManager | Server/Service | セッション生成・Cookie設定・無効化 | AC2.NAV.N.001, AC3.UI.N.002 | DB (Drizzle) | createSession(), revokeSession() |
 
 ## Components and Interfaces
 
@@ -535,69 +535,107 @@ erDiagram
 - `TOKEN_EXPIRED`: トークンの有効期限切れ（expiresAt < now）
 - `TOKEN_USED`: トークンが既に使用済み（used = true）
 
-### Persistence (Prisma)
+### Persistence (Drizzle)
 
-```prisma
-model User {
-  id              String            @id @default(cuid())
-  email           String            @unique
-  name            String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  magicLinkTokens MagicLinkToken[]
-  sessions        Session[]
-  securityLogs    SecurityLog[]
+```typescript
+import { pgTable, text, timestamp, boolean, jsonb, index } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
+import { createId } from '@paralleldrive/cuid2';
 
-  @@index([email])
-  @@map("users")
-}
+export const users = pgTable(
+  'users',
+  {
+    id: text('id').primaryKey().$defaultFn(() => createId()),
+    email: text('email').notNull().unique(),
+    name: text('name'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    emailIdx: index('users_email_idx').on(table.email),
+  }),
+);
 
-model MagicLinkToken {
-  id          String   @id @default(cuid())
-  userId      String
-  hashedToken String   @unique
-  expiresAt   DateTime
-  used        Boolean  @default(false)
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+export const magicLinkTokens = pgTable(
+  'magic_link_tokens',
+  {
+    id: text('id').primaryKey().$defaultFn(() => createId()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    hashedToken: text('hashed_token').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    used: boolean('used').notNull().default(false),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    // インデックス戦略
+    hashedTokenIdx: index('magic_link_tokens_hashed_token_idx').on(table.hashedToken), // トークン検証の高速化
+    userCreatedAtIdx: index('magic_link_tokens_user_created_at_idx').on(table.userId, table.createdAt), // ユーザー別の履歴取得
+    expiresAtIdx: index('magic_link_tokens_expires_at_idx').on(table.expiresAt), // 期限切れトークンのクリーンアップ
+  }),
+);
 
-  // インデックス戦略
-  @@index([hashedToken])           // トークン検証の高速化
-  @@index([userId, createdAt])     // ユーザー別の履歴取得
-  @@index([expiresAt])              // 期限切れトークンのクリーンアップ
-  @@map("magic_link_tokens")
-}
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text('id').primaryKey().$defaultFn(() => createId()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceFingerprint: text('device_fingerprint'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastActivity: timestamp('last_activity', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdx: index('sessions_user_id_idx').on(table.userId),
+    expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt), // セッション期限管理
+  }),
+);
 
-model Session {
-  id               String   @id @default(cuid())
-  userId           String
-  deviceFingerprint String?
-  expiresAt        DateTime
-  createdAt        DateTime @default(now())
-  lastActivity     DateTime @default(now())
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+export const securityLogs = pgTable(
+  'security_logs',
+  {
+    id: text('id').primaryKey().$defaultFn(() => createId()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    eventType: text('event_type').notNull(), // LOGIN, LOGOUT, TOKEN_REQUEST, etc.
+    ipAddress: text('ip_address'),
+    deviceInfo: text('device_info'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userEventTypeIdx: index('security_logs_user_event_type_idx').on(table.userId, table.eventType), // イベントタイプ別の監査
+    createdAtIdx: index('security_logs_created_at_idx').on(table.createdAt), // 時系列での分析
+  }),
+);
 
-  @@index([userId])
-  @@index([expiresAt])              // セッション期限管理
-  @@map("sessions")
-}
+// リレーション定義
+export const usersRelations = relations(users, ({ many }) => ({
+  magicLinkTokens: many(magicLinkTokens),
+  sessions: many(sessions),
+  securityLogs: many(securityLogs),
+}));
 
-model SecurityLog {
-  id         String   @id @default(cuid())
-  userId     String
-  eventType  String   // LOGIN, LOGOUT, TOKEN_REQUEST, etc.
-  ipAddress  String?
-  deviceInfo String?
-  metadata   Json?
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+export const magicLinkTokensRelations = relations(magicLinkTokens, ({ one }) => ({
+  user: one(users, { fields: [magicLinkTokens.userId], references: [users.id] }),
+}));
 
-  @@index([userId, eventType])      // イベントタイプ別の監査
-  @@index([createdAt])               // 時系列での分析
-  @@map("security_logs")
-}
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, { fields: [sessions.userId], references: [users.id] }),
+}));
+
+export const securityLogsRelations = relations(securityLogs, ({ one }) => ({
+  user: one(users, { fields: [securityLogs.userId], references: [users.id] }),
+}));
 ```
 
 ## API Contract
@@ -982,7 +1020,7 @@ graph TB
 
 ## マイグレーション戦略
 
-Prismaを使用しているため、通常のスキーマ変更は`prisma migrate dev`で自動処理されます。
+Drizzle ORM を使用しているため、通常のスキーマ変更は `pnpm db:generate && pnpm db:migrate` で SQL マイグレーションを生成・適用します。
 
 ### 特別なデータ移行が必要なケース
 

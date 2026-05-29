@@ -2,11 +2,10 @@
 	"extends": "@repo/config/typescript",
 	"compilerOptions": {
 		"outDir": "./dist",
-		"rootDir": "./src",
 		"paths": {
 			"@/*": ["./src/*"]
 		}
 	},
-	"include": ["src/**/*"],
+	"include": ["src/**/*", "db/**/*", "drizzle.config.ts"],
 	"exclude": ["node_modules", "dist"]
 }

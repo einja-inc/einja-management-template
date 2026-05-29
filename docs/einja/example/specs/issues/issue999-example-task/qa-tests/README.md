@@ -131,7 +131,7 @@ curl -X POST http://localhost:3000/api/auth/magic-link \
   -d '{"email":"test@example.com"}'
 
 # データベース確認
-pnpm exec prisma db pull
+pnpm exec drizzle-kit introspect
 ```
 
 ### 自動テスト実行

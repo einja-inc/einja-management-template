@@ -1,14 +1,8 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import { buildUserProps, initialize } from "../../testing";
-import { User, type UserProps } from "./User";
+import { describe, expect, it } from "vitest";
+import { buildUserProps } from "../../testing";
+import { User } from "./User";
 
 describe("User Entity", () => {
-	beforeAll(() => {
-		// ドメインエンティティのテストではPrismaクライアントは使用しないため、空のオブジェクトを渡す
-		// biome-ignore lint/suspicious/noExplicitAny: test fixture initialization
-		initialize({ prisma: {} as any });
-	});
-
 	describe("constructor", () => {
 		it("有効なプロパティでエンティティが生成される", async () => {
 			// Given

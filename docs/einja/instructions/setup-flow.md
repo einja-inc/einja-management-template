@@ -75,7 +75,7 @@ sequenceDiagram
 | テンプレート展開 | `generators/template.ts` | テンプレートコピー → `{{projectName}}` `{{packageName}}` `{{description}}` `@repo/` 等の変数置換 → `.template` リネーム → `gitignore` → `.gitignore` リネーム → 認証方式に応じたファイル除外 → `.sh` に実行権限付与 |
 | Step 0: init.sh | `generators/post-setup.ts` | mise/Node.js/pnpm/direnv の初期導入（`stdio: inherit` で出力をそのまま表示） |
 | PATH補完 | `generators/post-setup.ts` | `~/.local/share/mise/shims` を `process.env.PATH` に追加（init.sh で導入した mise を後続ステップで利用可能にする） |
-| Step 1: 依存関係 | `generators/post-setup.ts` | `pnpm install` + `pnpm db:generate`（Prisma クライアント生成） |
+| Step 1: 依存関係 | `generators/post-setup.ts` | `pnpm install` + `pnpm db:generate`（Drizzle マイグレーション生成） |
 | Step 2: 秘密鍵ローテーション | `env-rotate-secrets.ts` | `--all --non-interactive` モードで全環境の AUTH_SECRET と DOTENV_PRIVATE_KEY を自動ローテーション |
 | Step 3: Git初期化 | `generators/post-setup.ts` | `git init` → `git add .` → `git commit -m "Initial commit"` |
 | Step 4: dev-cli 初期化 | `generators/post-setup.ts` | `setupEinjaCli=true` 時のみ `npx --yes @einja-inc/dev-cli@latest init --force --no-backup` を実行 |
@@ -270,7 +270,7 @@ sequenceDiagram
 
 **保護対象ファイル（同期から除外）:**
 - `.env.keys`, `.env.personal`, `.env.develop`, `.env.local`, `.env.production`, `.env.staging`, `.env.preview`
-- `**/prisma/schema.prisma`, `**/prisma/migrations/**`, `pnpm-lock.yaml`
+- `**/db/schema.ts`, `**/db/migrations/**`, `pnpm-lock.yaml`
 
 ---
 

@@ -110,7 +110,7 @@ Total Score = AC検証率(40) + required checks通過(20) + reviewセベリテ�
 | ブロッカー種別 | 検出方法 |
 |--------------|---------|
 | secret漏洩 | diff内にAPIキー・パスワード・トークン等のリテラルが含まれる |
-| migration破壊的変更 | Prismaマイグレーションに `DROP COLUMN` / `DROP TABLE` / `ALTER TABLE ... DROP` が含まれる |
+| migration破壊的変更 | Drizzle マイグレーション（`db/migrations/*.sql`）に `DROP COLUMN` / `DROP TABLE` / `ALTER TABLE ... DROP` が含まれる |
 | required check失敗 | lint / typecheck / build / test のいずれかがexit code != 0 |
 | outcome missing | Phase対象タスクグループの `artifacts/outcomes/{taskId}-outcome.json` が1件以上存在しない |
 
@@ -312,7 +312,7 @@ Playwright MCPでスクリーンショットを撮影し、`artifacts/evidence/p
 git diff origin/issue/{N}...HEAD | grep -E "(api[_-]?key|api[_-]?secret|password|token|secret)['\"]?\s*[:=]\s*['\"][a-zA-Z0-9+/]{16,}" -i
 
 # migration破壊的変更スキャン
-find . -path "*/prisma/migrations/*.sql" -newer <(git show origin/issue/{N}:.) 2>/dev/null | xargs grep -l "DROP COLUMN\|DROP TABLE\|ALTER TABLE.*DROP" 2>/dev/null
+find . -path "*/db/migrations/*.sql" -newer <(git show origin/issue/{N}:.) 2>/dev/null | xargs grep -l "DROP COLUMN\|DROP TABLE\|ALTER TABLE.*DROP" 2>/dev/null
 
 # Outcome Manifest存在確認
 # Phase対象タスクグループのoutcome.jsonが全て存在するか確認

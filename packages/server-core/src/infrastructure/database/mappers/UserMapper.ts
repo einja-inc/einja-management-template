@@ -1,102 +1,69 @@
 /**
  * UserMapper
  *
- * Prismaモデル ⇔ ドメインエンティティの変換を担当。
+ * Drizzle schema から独立したドメインエンティティへの変換を担当。
  */
 
-import type { User as PrismaUser, UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from "@prisma/client";
+import { users } from "../../../../db/schema";
 import { User, type UserRole, type UserStatus } from "../../../domain/entities/User";
 
-/**
- * Prismaのステータスをドメインのステータスに変換
- */
-function mapPrismaStatusToDomain(status: PrismaUserStatus): UserStatus {
-	switch (status) {
-		case "active":
-			return "active";
-		case "inactive":
-			return "inactive";
-		case "pending":
-			return "pending";
-	}
-}
+/** Drizzle の $inferSelect で取得した DB 行の型 */
+type UserRow = typeof users.$inferSelect;
 
-/**
- * Prismaのロールをドメインのロールに変換
- */
-function mapPrismaRoleToDomain(role: PrismaUserRole): UserRole {
-	switch (role) {
-		case "admin":
-			return "admin";
-		case "user":
-			return "user";
-		case "moderator":
-			return "moderator";
-	}
-}
-
-/**
- * ドメインのステータスをPrismaのステータスに変換
- */
-function mapDomainStatusToPrisma(status: UserStatus): PrismaUserStatus {
-	switch (status) {
-		case "active":
-			return "active";
-		case "inactive":
-			return "inactive";
-		case "pending":
-			return "pending";
-	}
-}
-
-/**
- * ドメインのロールをPrismaのロールに変換
- */
-function mapDomainRoleToPrisma(role: UserRole): PrismaUserRole {
-	switch (role) {
-		case "admin":
-			return "admin";
-		case "user":
-			return "user";
-		case "moderator":
-			return "moderator";
-	}
-}
+/** Drizzle の $inferInsert による DB 挿入用データの型 */
+type UserRowInsert = typeof users.$inferInsert;
 
 /**
  * UserMapper
  *
- * Prisma ⇔ Domain の変換を行うマッパークラス
+ * Drizzle DB行 ⇔ Domain の変換を行うマッパー
  */
 export const UserMapper = {
 	/**
-	 * PrismaのUserをドメインのUserに変換
+	 * Drizzle DB行をドメインのUserに変換
+	 *
+	 * enum カラムは Drizzle が pgEnum 定義と一致する値のみ返すため、
+	 * `$inferSelect` の戻り値はそのまま Domain 型と互換となる。
+	 * 型不一致が発生した場合はコンパイル時にエラーとして検知される。
 	 */
-	toDomain(prismaUser: PrismaUser): User {
+	toDomain(row: UserRow): User {
+		const status: UserStatus = row.status;
+		const role: UserRole = row.role;
+
 		return new User({
-			id: prismaUser.id,
-			email: prismaUser.email,
-			name: prismaUser.name,
-			status: mapPrismaStatusToDomain(prismaUser.status),
-			role: mapPrismaRoleToDomain(prismaUser.role),
-			createdAt: prismaUser.createdAt,
-			lastLogin: prismaUser.lastLogin,
+			id: row.id,
+			email: row.email,
+			name: row.name,
+			status,
+			role,
+			createdAt: row.createdAt,
+			lastLogin: row.lastLogin,
 		});
 	},
 
 	/**
-	 * ドメインのUserをPrismaの更新用データに変換
+	 * ドメインのUserをDB挿入用データに変換
 	 */
-	toPrismaUpdate(user: User): {
-		name: string | null;
-		status: PrismaUserStatus;
-		role: PrismaUserRole;
-		lastLogin: Date | null;
-	} {
+	toRowInsert(user: User): UserRowInsert {
+		return {
+			id: user.id,
+			email: user.email,
+			name: user.name,
+			status: user.status,
+			role: user.role,
+			createdAt: user.createdAt,
+			lastLogin: user.lastLogin,
+		};
+	},
+
+	/**
+	 * ドメインのUserをDB更新用データに変換
+	 */
+	toRowUpdate(user: User): Partial<UserRowInsert> {
 		return {
 			name: user.name,
-			status: mapDomainStatusToPrisma(user.status),
-			role: mapDomainRoleToPrisma(user.role),
+			status: user.status,
+			role: user.role,
 			lastLogin: user.lastLogin,
 		};
 	},

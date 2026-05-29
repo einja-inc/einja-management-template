@@ -1387,7 +1387,7 @@ export function runMigration(databaseName: string): void {
 	const databaseUrl = `postgresql://postgres:postgres@localhost:${cfg.postgres.port}/${databaseName}?schema=public`;
 
 	try {
-		execWithLog("pnpm db:push", {
+		execWithLog("pnpm db:migrate", {
 			env: {
 				...process.env,
 				DATABASE_URL: databaseUrl,

@@ -11,6 +11,7 @@
 	"scripts": {
 		"generate": "drizzle-kit generate",
 		"db:generate": "drizzle-kit generate",
+		"db:push": "drizzle-kit push",
 		"db:migrate": "tsx db/migrate.ts",
 		"db:migrate:deploy": "tsx db/migrate.ts",
 		"db:studio": "dotenvx run -f ../../.env -- drizzle-kit studio",

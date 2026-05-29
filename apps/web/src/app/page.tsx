@@ -38,7 +38,7 @@ export default function Home() {
               <li>• TypeScript (Strict Mode)</li>
               <li>• Tailwind CSS</li>
               <li>• NextAuth v5 (認証)</li>
-              <li>• Prisma ORM + PostgreSQL</li>
+              <li>• Drizzle ORM + PostgreSQL</li>
               <li>• shadcn/ui コンポーネント</li>
               <li>• Biome (Linting & Formatting)</li>
             </ul>

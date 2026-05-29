@@ -37,7 +37,6 @@ interface DirMapping {
 const dirMappings: DirMapping[] = [
   { src: "apps" },
   { src: "packages", exclude: ["cli", "create-app"] },
-  { src: "prisma" },
   { src: "public" },
   {
     src: "scripts",

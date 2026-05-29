@@ -190,19 +190,25 @@ it('有効なユーザーデータを渡すと、ユーザーが作成される'
 
 ### 正常系テストケース
 
-#### Repositoryのテスト
+#### Repositoryのテスト（統合テスト：実DBを使用）
+
+> **テストレベルの方針**: Repositoryのテストは原則「統合テスト」として実DBで実施する（`vitest.integration.config.ts`、`fileParallelism: false`）。
+> 一方、UseCaseなどRepositoryを利用する側のユニットテストでは、`vi.mock("../../../db/client")` でdrizzleクライアントをモック化する。
+> testcontainersは使用せず、CI上のテスト用DBに接続する。
 
 **Given-When-Then形式**:
 
 ```typescript
-// packages/server-core/src/infrastructure/database/repositories/__tests__/UserRepository.test.ts
+// packages/server-core/src/infrastructure/database/repositories/__tests__/UserRepository.integration.test.ts
 import { userRepository } from '../UserRepository'
-import { prisma } from '../../client'
+import { db } from '@repo/server-core/db/client'
+import { users } from '@repo/server-core/db/schema'
+import { eq } from 'drizzle-orm'
 
 describe('UserRepository', () => {
   beforeEach(async () => {
     // テストデータのクリーンアップ
-    await prisma.user.deleteMany()
+    await db.delete(users)
   })
 
   describe('create', () => {
@@ -225,9 +231,11 @@ describe('UserRepository', () => {
       }
 
       // データベースに保存されているか確認
-      const savedUser = await prisma.user.findUnique({
-        where: { email: 'test@example.com' }
-      })
+      const [savedUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, 'test@example.com'))
+        .limit(1)
       expect(savedUser).toBeDefined()
     })
   })
@@ -235,11 +243,9 @@ describe('UserRepository', () => {
   describe('find', () => {
     it('存在するユーザーのメールアドレスで検索すると、ユーザーが返る', async () => {
       // Given: ユーザーが存在する
-      await prisma.user.create({
-        data: {
-          email: 'existing@example.com',
-          name: 'Existing User',
-        }
+      await db.insert(users).values({
+        email: 'existing@example.com',
+        name: 'Existing User',
       })
 
       // When: メールアドレスで検索
@@ -419,14 +425,15 @@ describe('createUserSchema - 異常系', () => {
 #### データベースエラーのテスト
 
 ```typescript
+import { db } from '@repo/server-core/db/client'
+import { users } from '@repo/server-core/db/schema'
+
 describe('UserRepository - データベースエラー', () => {
   it('重複したメールアドレスでユーザーを作成すると、エラーが返る', async () => {
     // Given: 既に存在するメールアドレス
-    await prisma.user.create({
-      data: {
-        email: 'duplicate@example.com',
-        name: 'Existing User',
-      }
+    await db.insert(users).values({
+      email: 'duplicate@example.com',
+      name: 'Existing User',
     })
 
     // When: 同じメールアドレスでユーザー作成
@@ -440,6 +447,52 @@ describe('UserRepository - データベースエラー', () => {
     if (!result.isSuccess) {
       expect(result.error.code).toBe('CONFLICT')
     }
+  })
+})
+```
+
+#### UseCaseのテスト（ユニットテスト：drizzleクライアントをモック）
+
+UseCase層など、Repositoryを介してDBアクセスする層のユニットテストでは、`vi.mock` で drizzleクライアントをモック化する。
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// drizzleクライアントをモック化
+vi.mock('@repo/server-core/db/client', () => ({
+  db: {
+    select: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+}))
+
+import { db } from '@repo/server-core/db/client'
+import { userUseCase } from '../UserUseCase'
+
+describe('UserUseCase', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('createが呼ばれると、db.insertが呼び出される', async () => {
+    // Given: insert結果のモック
+    const mockReturning = vi.fn().mockResolvedValue([
+      { id: '1', email: 'test@example.com', name: 'Test User' },
+    ])
+    const mockValues = vi.fn().mockReturnValue({ returning: mockReturning })
+    vi.mocked(db.insert).mockReturnValue({ values: mockValues } as never)
+
+    // When: createメソッドを呼び出す
+    const result = await userUseCase.create({
+      email: 'test@example.com',
+      name: 'Test User',
+    })
+
+    // Then: insertが呼ばれる
+    expect(db.insert).toHaveBeenCalled()
+    expect(result.isSuccess).toBe(true)
   })
 })
 ```
@@ -469,33 +522,37 @@ describe('UserRepository - データベースエラー', () => {
 
 ```typescript
 // apps/web/__tests__/integration/post-api.test.ts
+// 注: posts テーブルは本リポジトリには未実装の仮想例（テスト戦略の説明用）
 import { rpc } from '@/lib/api/rpc'
-import { prisma } from '@repo/server-core/infrastructure/database/client'
+import { db } from '@repo/server-core/db/client'
+import { users } from '@repo/server-core/db/schema'
+// import { posts } from '@repo/server-core/db/schema' // 未実装テーブルの例
 
 describe('Post API統合テスト', () => {
   beforeEach(async () => {
     // テストデータのクリーンアップ
-    await prisma.post.deleteMany()
-    await prisma.user.deleteMany()
+    // await db.delete(posts) // 未実装テーブルの例
+    await db.delete(users)
   })
 
   it('投稿一覧APIを呼び出すと、@repo/server-coreのRepositoryが使用され、データが取得できる', async () => {
     // Given: ユーザーと投稿が存在する
-    const user = await prisma.user.create({
-      data: {
+    const [user] = await db
+      .insert(users)
+      .values({
         email: 'test@example.com',
         name: 'Test User',
-      }
-    })
+      })
+      .returning()
 
-    await prisma.post.create({
-      data: {
-        userId: user.id,
-        title: 'Test Post',
-        content: 'Content',
-        status: 'published',
-      }
-    })
+    // posts テーブルへの insert 例（仮想例）
+    // await db.insert(posts).values({
+    //   userId: user.id,
+    //   title: 'Test Post',
+    //   content: 'Content',
+    //   status: 'published',
+    // })
+    void user
 
     // When: API呼び出し
     const response = await rpc.posts.$get({
@@ -511,12 +568,14 @@ describe('Post API統合テスト', () => {
 
   it('Repositoryパターンが正しく動作し、型定義が適切に共有される', async () => {
     // Given: ユーザーが存在する
-    const user = await prisma.user.create({
-      data: {
+    const [user] = await db
+      .insert(users)
+      .values({
         email: 'test@example.com',
         name: 'Test User',
-      }
-    })
+      })
+      .returning()
+    void user
 
     // When: 投稿作成APIを呼び出し
     const response = await rpc.posts.$post({
@@ -722,27 +781,32 @@ test.describe('管理画面ユーザー管理フロー', () => {
 // e2e/cron-cleanup.spec.ts
 import { test, expect } from '@playwright/test'
 import { execSync } from 'child_process'
-import { prisma } from '@repo/server-core/infrastructure/database/client'
+import { db } from '@repo/server-core/db/client'
+import { sessions } from '@repo/server-core/db/schema'
+import { eq } from 'drizzle-orm'
 
 test.describe('Cronジョブフロー', () => {
   test('クリーンアップジョブが実行されると、期限切れセッションが削除される', async () => {
     // Given: 期限切れセッションが存在する
-    const expiredSession = await prisma.session.create({
-      data: {
+    const [expiredSession] = await db
+      .insert(sessions)
+      .values({
+        sessionToken: 'expired-token',
         userId: 'user1',
-        token: 'expired-token',
-        expiresAt: new Date(Date.now() - 1000 * 60 * 60), // 1時間前
-      }
-    })
+        expires: new Date(Date.now() - 1000 * 60 * 60), // 1時間前
+      })
+      .returning()
 
     // When: クリーンアップジョブを実行
     execSync('pnpm job:cleanup', { stdio: 'inherit' })
 
     // Then: 期限切れセッションが削除される
-    const deletedSession = await prisma.session.findUnique({
-      where: { id: expiredSession.id }
-    })
-    expect(deletedSession).toBeNull()
+    const [deletedSession] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.sessionToken, expiredSession.sessionToken))
+      .limit(1)
+    expect(deletedSession).toBeUndefined()
   })
 })
 ```
@@ -826,14 +890,16 @@ export default defineConfig({
 
 ```typescript
 import { beforeEach } from 'vitest'
-import { prisma } from '@repo/server-core/infrastructure/database/client'
+import { db } from '@repo/server-core/db/client'
+import { sessions, accounts, users } from '@repo/server-core/db/schema'
 
 // 各テスト前にデータベースをクリーンアップ
+// 外部キー制約を考慮した順序で削除する
+// 注: posts テーブルは本リポジトリには未実装
 beforeEach(async () => {
-  await prisma.post.deleteMany()
-  await prisma.session.deleteMany()
-  await prisma.account.deleteMany()
-  await prisma.user.deleteMany()
+  await db.delete(sessions)
+  await db.delete(accounts)
+  await db.delete(users)
 })
 ```
 

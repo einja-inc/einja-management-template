@@ -27,15 +27,15 @@
   **使用Skill**: [steering:backend-architecture]
 
   - 1.1.1 データベーススキーマ設計と実装
-    - Prisma schema.prismaにUserモデルを定義（id、email、name、createdAt、updatedAt）
-    - Sessionモデルを定義（id、userId、token、expiresAt）
-    - Accountモデルを定義（OAuth用、provider、providerAccountId）
-    - 適切なインデックスとリレーションを設定
-    - マイグレーションを作成（pnpm db:migrate:dev --name init）
-    - マイグレーションを実行し、データベースにテーブルを作成
+    - Drizzle スキーマ（`db/schema.ts`）にUserテーブルを定義（id、email、name、createdAt、updatedAt）
+    - Sessionテーブルを定義（id、userId、token、expiresAt）
+    - Accountテーブルを定義（OAuth用、provider、providerAccountId）
+    - 適切なインデックスとリレーション（`relations()`）を設定
+    - マイグレーションを生成（`pnpm db:generate`）
+    - マイグレーションを実行し、データベースにテーブルを作成（`pnpm db:migrate`）
     - **要件**: Story 1
     - **依存関係**: なし
-    - **完了条件**: Prismaスキーマが定義され、マイグレーションが実行され、データベースにテーブルが作成されていること（AC1.UI.N.001を満たす）
+    - **完了条件**: Drizzle スキーマが定義され、マイグレーションが実行され、データベースにテーブルが作成されていること（AC1.UI.N.001を満たす）
     - **対応設計**: design.md「データベース設計」セクション（L100-L150）
     - **シナリオテスト**: なし（DB設計のみ、UIフロー未実装のため）
     - **実行サブエージェント**: [backend-architect]（タスクレベルでオーバーライド）

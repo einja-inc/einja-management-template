@@ -310,7 +310,7 @@ describe("generateTemplate", { concurrent: false }, () => {
       const testFilePath = join(realTemplatePath, "packagename-slash-test.ts");
       writeFileSync(
         testFilePath,
-        'import { utils } from "{{packageName}}/ui/utils";\nimport { auth } from "{{packageName}}/front-core/auth";\nimport { prisma } from "{{packageName}}/server-core/infrastructure/database/client";',
+        'import { utils } from "{{packageName}}/ui/utils";\nimport { auth } from "{{packageName}}/front-core/auth";\nimport { db } from "{{packageName}}/server-core/db/client";',
         "utf-8"
       );
       testFilesToCleanup.push(testFilePath);
@@ -323,7 +323,7 @@ describe("generateTemplate", { concurrent: false }, () => {
         const content = readFileSync(join(targetPath, "packagename-slash-test.ts"), "utf-8");
         expect(content).toContain("@custom/ui/utils");
         expect(content).toContain("@custom/front-core/auth");
-        expect(content).toContain("@custom/server-core/infrastructure/database/client");
+        expect(content).toContain("@custom/server-core/db/client");
         // {{packageName}}/が残っていないことを確認
         expect(content).not.toContain("{{packageName}}/");
       }

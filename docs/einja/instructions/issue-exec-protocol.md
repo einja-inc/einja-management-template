@@ -108,7 +108,7 @@ fi
 ### 3.2 Risk Gate（条件付き、重要変更時のみ発火）
 
 **発火条件**（いずれか1つ以上に該当）:
-- auth/billing/prisma migration等の重要領域変更
+- auth/billing/drizzle migration 等の重要領域変更
 - 差分行数が大きい
 - QA記録が薄い
 - CI再実行が多発

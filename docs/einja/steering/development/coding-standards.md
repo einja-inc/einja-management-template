@@ -671,8 +671,13 @@ import { baseAuthOptions, mergeAuthOptions } from "@repo/front-core/auth";
 import { auth, signIn, signOut } from "@/lib/auth";
 import { requireAuth, withAuth } from "@/lib/auth/guard";
 
-// データベース
-import { prisma } from "@repo/server-core";
+// データベース（Drizzle ORM）
+// 推奨: Repository 層経由でアクセス（ドメインロジックをカプセル化）
+import { userRepository } from "@repo/server-core/infrastructure/repositories/userRepository";
+
+// 直接 DB クライアントを使う場合（Repository に該当処理がない時のみ）
+import { db } from "@repo/server-core/db/client";
+import { users, accounts, sessions } from "@repo/server-core/db/schema";
 
 // UIコンポーネント
 import { Button } from "@repo/ui/button";
@@ -731,7 +736,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
   - `packages/server-core`: `@/` → `src/`（例: `@/domain/entities/User`, `@/core/result`）
   - `packages/cli`: `@/` → `src/`（例: `@/lib/sync/diff-engine.js`, `@/types/sync.js`）
   - `packages/create-app`: `@/` → `src/`（例: `@/utils/merger.js`, `@/types/index.js`）
-- **index.ts不使用**: パッケージエクスポートにindex.tsは使わず、直接ファイルパスを指定する（`@repo/server-core/infrastructure/database/client` 等）
+- **index.ts不使用**: パッケージエクスポートにindex.tsは使わず、直接ファイルパスを指定する（`@repo/server-core/db/client`、`@repo/server-core/db/schema` 等）
 
 ## 関連ドキュメント
 

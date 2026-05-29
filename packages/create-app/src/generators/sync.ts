@@ -50,8 +50,10 @@ const ENV_FILE_PROTECTION = {
  * ユーザー固有のデータやビルド生成物を除外
  */
 const SYNC_EXCLUDE_PATTERNS = [
-  "**/prisma/schema.prisma",      // DBモデルはユーザー固有
-  "**/prisma/migrations/**",      // マイグレーション履歴
+  "**/db/schema.ts",              // DBモデルはユーザー固有
+  "**/db/migrations/**",          // マイグレーション履歴
+  "**/db/seed.ts",                // シードデータはユーザー固有
+  "**/drizzle.config.ts",         // drizzle 設定はユーザー固有
   "pnpm-lock.yaml",               // lockfile は sync すべきでない
   "**/node_modules/**",           // 依存関係
   "**/.git/**",                   // Git内部

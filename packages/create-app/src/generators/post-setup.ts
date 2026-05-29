@@ -76,21 +76,15 @@ export async function execPostSetup(
   }
 
   // 1. 依存関係インストール（git initより先に実行）
+  // 注: Drizzleではクライアント生成（prisma generate相当）が不要のため、
+  // Prismaで実行していた `db:generate` ステップは廃止。
+  // migrationファイル生成（drizzle-kit generate）はschema変更時のみ必要で、
+  // 新規プロジェクト初期化時にはテンプレート同梱のmigrationを使用する。
   if (!skipInstall) {
     const installSpinner = ora("依存関係をインストール中...").start();
     try {
       await execa("pnpm", ["install"], { cwd: targetPath });
       installSpinner.succeed("依存関係をインストールしました");
-
-      // Prismaクライアント生成
-      const prismaSpinner = ora("Prismaクライアントを生成中...").start();
-      try {
-        await execa("pnpm", ["db:generate"], { cwd: targetPath });
-        prismaSpinner.succeed("Prismaクライアントを生成しました");
-      } catch (error) {
-        prismaSpinner.fail("Prismaクライアントの生成に失敗しました");
-        logger.warn("後で手動で 'pnpm db:generate' を実行してください");
-      }
     } catch (error) {
       installSpinner.fail("依存関係のインストールに失敗しました");
       logger.warn("後で手動で 'pnpm install' を実行してください");

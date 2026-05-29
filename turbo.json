@@ -3,11 +3,10 @@
 	"globalDependencies": ["**/.env.*local"],
 	"tasks": {
 		"build": {
-			"dependsOn": ["generate", "^generate", "^build"],
+			"dependsOn": ["^build"],
 			"outputs": [".next/**", "!.next/cache/**", "dist/**"]
 		},
 		"dev": {
-			"dependsOn": ["generate", "^generate"],
 			"cache": false,
 			"persistent": true,
 			"passThroughEnv": ["PORT", "PORT_*", "DATABASE_URL", "NEXTAUTH_URL", "AUTH_SECRET"]
@@ -17,7 +16,9 @@
 			"persistent": true
 		},
 		"generate": {
-			"outputs": ["src/__generated__/**"]
+			"inputs": ["db/schema.ts", "drizzle.config.ts"],
+			"outputs": ["db/migrations/**"],
+			"passThroughEnv": ["DATABASE_URL", "DIRECT_URL"]
 		},
 		"lint": {
 			"dependsOn": ["^lint"]
@@ -32,10 +33,10 @@
 			"dependsOn": ["^format:fix"]
 		},
 		"typecheck": {
-			"dependsOn": ["generate", "^generate", "^typecheck"]
+			"dependsOn": ["^typecheck"]
 		},
 		"test": {
-			"dependsOn": ["generate", "^generate", "^build"],
+			"dependsOn": ["^build"],
 			"outputs": ["coverage/**"],
 			"passThroughEnv": ["DATABASE_URL"]
 		},
@@ -48,7 +49,9 @@
 			"persistent": true
 		},
 		"db:generate": {
-			"cache": false
+			"inputs": ["db/schema.ts", "drizzle.config.ts"],
+			"outputs": ["db/migrations/**"],
+			"passThroughEnv": ["DATABASE_URL", "DIRECT_URL"]
 		},
 		"db:push": {
 			"cache": false,
@@ -59,12 +62,10 @@
 			"passThroughEnv": ["DATABASE_URL", "DIRECT_URL"]
 		},
 		"db:migrate:deploy": {
-			"dependsOn": ["generate", "^generate"],
 			"cache": false,
 			"passThroughEnv": ["DATABASE_URL", "DIRECT_URL"]
 		},
 		"db:seed": {
-			"dependsOn": ["generate", "^generate"],
 			"cache": false,
 			"passThroughEnv": ["DATABASE_URL"]
 		},

@@ -379,7 +379,7 @@ function detectUnregisteredEntries() {
 		".env.personal", ".env.personal.example", ".env.preview",
 		".env.production", ".env.staging",
 		// create-app テンプレートで管理
-		"apps", "packages", "prisma", "public", "test",
+		"apps", "packages", "public", "test",
 		".changeset", ".github", ".husky", ".serena",
 		"package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml",
 		"tsconfig.json", "turbo.json", "biome.json",

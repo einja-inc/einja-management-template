@@ -20,7 +20,7 @@ Vercel TurborepoとNext.jsをベースとしたエンタープライズグレー
 1. **コードの重複と保守性**
    - 解決策: @repo/server-core による DRY 原則の徹底
    - Repositoryパターンでドメイン層とインフラ層を分離
-   - Mapperパターンで Prisma ⇔ Domain の変換を Infrastructure層に集約
+   - Mapperパターンで Drizzle ⇔ Domain の変換を Infrastructure層に集約
 
 2. **型安全性とエラーハンドリング**
    - 解決策: Result型パターンによる例外を使わないエラーハンドリング
@@ -47,9 +47,17 @@ project-root/
 │
 ├── packages/
 │   └── server-core/      # 共有バックエンドロジック⭐
-│       ├── core/             # アーキテクチャのコア（Result型等）
-│       ├── domain/           # Domain層
-│       └── infrastructure/   # Infrastructure層
+│       ├── db/               # Drizzleスキーマ・クライアント⭐
+│       │   ├── schema.ts     # Drizzleスキーマ定義（pgTable等）
+│       │   ├── client.ts     # DBクライアント（globalThisキャッシュ）
+│       │   ├── migrate.ts    # マイグレーション実行
+│       │   ├── seed.ts       # シードデータ投入
+│       │   └── migrations/   # drizzle-kit生成のマイグレーションSQL
+│       │
+│       └── src/
+│           ├── core/             # アーキテクチャのコア（Result型等）
+│           ├── domain/           # Domain層
+│           └── infrastructure/   # Infrastructure層
 │
 ├── apps/
 │   ├── web/src/application/        # Application層（webアプリ固有）⭐
@@ -79,6 +87,13 @@ project-root/
 
 ```
 packages/server-core/
+├── db/                      # 📦 Drizzle DB層（@repo/server-core/db で配布）
+│   ├── schema.ts            # pgTable / pgEnum / relations 定義⭐
+│   ├── client.ts            # Drizzle DB クライアント（globalThisキャッシュ）⭐
+│   ├── migrate.ts           # マイグレーション実行スクリプト
+│   ├── seed.ts              # シードデータ投入スクリプト
+│   └── migrations/          # drizzle-kit 生成の SQL マイグレーション
+│
 ├── src/
 │   ├── domain/              # 📗 Domain層（ビジネスロジック）
 │   │   ├── entities/        # エンティティ
@@ -102,18 +117,14 @@ packages/server-core/
 │   │
 │   ├── infrastructure/      # 📙 Infrastructure層（実装）
 │   │   ├── database/
-│   │   │   ├── prisma/
-│   │   │   │   ├── schema.prisma
-│   │   │   │   └── migrations/
-│   │   │   │
-│   │   │   ├── client.ts    # Prismaクライアント⭐
+│   │   │   ├── client.ts    # db/client.ts の re-export⭐
 │   │   │   │
 │   │   │   ├── repositories/  # リポジトリ実装⭐
 │   │   │   │   ├── UserRepository.ts
 │   │   │   │   ├── PostRepository.ts
 │   │   │   │   └── SessionRepository.ts
 │   │   │   │
-│   │   │   └── mappers/      # Prisma ⇔ Domain変換⭐
+│   │   │   └── mappers/      # Drizzle Row ⇔ Domain変換⭐
 │   │   │       ├── UserMapper.ts
 │   │   │       ├── PostMapper.ts
 │   │   │       └── SessionMapper.ts
@@ -165,13 +176,13 @@ graph TD
     end
 
     subgraph "📙 Infrastructure層"
-        Mapper[Mapper Classes<br/>Prisma ⇔ Domain]
+        Mapper[Mapper Objects<br/>Drizzle Row ⇔ Domain]
         RepoImpl[Repository<br/>Implementation]
-        PrismaClient[Prisma Client]
+        DrizzleDB[Drizzle DB<br/>db/client.ts]
     end
 
     subgraph "Database"
-        DB[(PostgreSQL)]
+        DB[(PostgreSQL / Neon)]
     end
 
     UI --> TQ
@@ -184,10 +195,10 @@ graph TD
     ResultCompose --> RepoIF
     RepoIF -.implements.-> RepoImpl
     RepoImpl --> Mapper
-    RepoImpl --> PrismaClient
+    RepoImpl --> DrizzleDB
     Mapper --> Entity
     UC --> Entity
-    PrismaClient --> DB
+    DrizzleDB --> DB
 ```
 
 ### 各層の責務と配置
@@ -311,7 +322,7 @@ export const postUseCases = {
 **技術**: TypeScript、Zod
 
 **重要な原則**:
-- **インフラ層に依存しない**（Prismaを知らない）
+- **インフラ層に依存しない**（Drizzle スキーマや `db` クライアントを知らない）
 - リポジトリは**インターフェース**のみ定義
 - データベースの実装詳細から独立
 
@@ -366,87 +377,155 @@ export interface IUserRepository {
 **配置**: `packages/server-core/src/infrastructure/`
 
 **責務**:
-- データベースアクセス（Prisma）
+- データベースアクセス（Drizzle ORM）
 - 外部サービス連携（メール、ストレージ）
 - リポジトリインターフェースの**実装**⭐
-- Prismaモデル ⇔ Domainエンティティの変換（Mapper）⭐
+- Drizzle Row ⇔ Domainエンティティの変換（Mapper）⭐
 
-**技術**: Prisma、Mapper、外部API
+**技術**: Drizzle ORM、Mapper、外部API
 
 **実装例: Repository Implementation**
 
 ```typescript
 // packages/server-core/src/infrastructure/database/repositories/UserRepository.ts
-import type { IUserRepository, UserSearchCriteria } from "@repo/server-core/domain/repository-interfaces/IUserRepository"
+import { and, eq } from "drizzle-orm"
+import { db } from "../../../../db/client"
+import { users } from "../../../../db/schema"
+import { failure, type Result, success } from "../../../core/result"
+import type {
+  CreateUserInput,
+  IUserRepository,
+  UserSearchCriteria,
+} from "../../../domain/repository-interfaces/IUserRepository"
+import type { User } from "../../../domain/entities/User"
 import { UserMapper } from "../mappers/UserMapper"
-import { prisma } from "../client"
+
+/** 検索条件を Drizzle の where 句に変換 */
+function buildWhereClause(criteria: UserSearchCriteria) {
+  const conditions = []
+  if (criteria.id !== undefined) conditions.push(eq(users.id, criteria.id))
+  if (criteria.email !== undefined) conditions.push(eq(users.email, criteria.email))
+  if (criteria.status !== undefined) conditions.push(eq(users.status, criteria.status))
+  return conditions.length > 0 ? and(...conditions) : undefined
+}
 
 export const userRepository: IUserRepository = {
-  find: async (criteria: UserSearchCriteria) => {
-    const prismaUser = await prisma.user.findFirst({
-      where: {
-        id: criteria.id,
-        email: criteria.email,
-        createdAt: {
-          gte: criteria.createdAfter,
-          lte: criteria.createdBefore,
-        },
-      },
-    })
+  async find(criteria: UserSearchCriteria): Promise<Result<User | null, Error>> {
+    try {
+      const where = buildWhereClause(criteria)
+      const rows = await db.select().from(users).where(where).limit(1)
 
-    if (!prismaUser) {
-      return { isSuccess: true, value: null }
+      if (rows.length === 0) {
+        return success(null)
+      }
+
+      return success(UserMapper.toDomain(rows[0]))
+    } catch (error) {
+      return failure(
+        error instanceof Error ? error : new Error("Unknown error occurred during user find"),
+      )
     }
-
-    const user = UserMapper.toDomain(prismaUser)
-    return { isSuccess: true, value: user }
   },
 
-  create: async (user) => {
-    const createInput = UserMapper.toPrismaCreate(user)
-    const prismaUser = await prisma.user.create({ data: createInput })
-    const domainUser = UserMapper.toDomain(prismaUser)
-    return { isSuccess: true, value: domainUser }
+  async create(input: CreateUserInput): Promise<Result<User, Error>> {
+    try {
+      const rows = await db
+        .insert(users)
+        .values({
+          id: input.id,
+          email: input.email,
+          name: input.name,
+          // status / role は省略時 DB デフォルト（pending / user）を使用
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.role !== undefined ? { role: input.role } : {}),
+        })
+        .returning()
+
+      if (rows.length === 0) {
+        return failure(new Error("Failed to create user: no row returned"))
+      }
+
+      return success(UserMapper.toDomain(rows[0]))
+    } catch (error) {
+      return failure(
+        error instanceof Error ? error : new Error("Unknown error occurred during user create"),
+      )
+    }
   },
 
   // ...
 }
 ```
 
+**実装ポイント**:
+- `db.select().from(table).where(...).limit(1)` で単一行検索（`findFirst` 相当）
+- `db.insert(table).values(...).returning()` で作成 + 作成行の取得
+- すべての操作を `try/catch` で囲み、`Result` 型で返す
+- 検索条件は `buildWhereClause` ヘルパーで `and(...)` に集約
+
 **実装例: Mapper**
 
 ```typescript
 // packages/server-core/src/infrastructure/database/mappers/UserMapper.ts
-import type { User as PrismaUser } from "@prisma/client"
-import { User } from "@repo/server-core/domain/entities/User"
-import { Email } from "@repo/server-core/domain/value-objects/Email"
+import { users } from "../../../../db/schema"
+import { User, type UserRole, type UserStatus } from "../../../domain/entities/User"
 
-export class UserMapper {
-  static toDomain(prismaUser: PrismaUser): User {
-    return new User(
-      prismaUser.id,
-      new Email(prismaUser.email),
-      prismaUser.name,
-      prismaUser.createdAt,
-    )
-  }
+/** Drizzle の $inferSelect で取得した DB 行の型 */
+type UserRow = typeof users.$inferSelect
 
-  static toPrismaCreate(user: User): Prisma.UserCreateInput {
+/** Drizzle の $inferInsert による DB 挿入用データの型 */
+type UserRowInsert = typeof users.$inferInsert
+
+export const UserMapper = {
+  /**
+   * Drizzle DB行をドメインの User に変換。
+   * enum カラムは Drizzle が pgEnum 定義と一致する値のみ返すため、
+   * `satisfies` で型保証しキャストを省く。
+   */
+  toDomain(row: UserRow): User {
+    const status: UserStatus = row.status satisfies UserStatus
+    const role: UserRole = row.role satisfies UserRole
+
+    return new User({
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      status,
+      role,
+      createdAt: row.createdAt,
+      lastLogin: row.lastLogin,
+    })
+  },
+
+  /** ドメインの User を DB 挿入用データに変換 */
+  toRowInsert(user: User): UserRowInsert {
     return {
       id: user.id,
-      email: user.email.value,
+      email: user.email,
       name: user.name,
+      status: user.status satisfies UserRow["status"],
+      role: user.role satisfies UserRow["role"],
+      createdAt: user.createdAt,
+      lastLogin: user.lastLogin,
     }
-  }
+  },
 
-  static toPrismaUpdate(user: Partial<User>): Prisma.UserUpdateInput {
+  /** ドメインの User を DB 更新用データに変換 */
+  toRowUpdate(user: User): Partial<UserRowInsert> {
     return {
-      email: user.email?.value,
       name: user.name,
+      status: user.status satisfies UserRow["status"],
+      role: user.role satisfies UserRow["role"],
+      lastLogin: user.lastLogin,
     }
-  }
+  },
 }
 ```
+
+**Mapper設計のポイント**:
+- `class` ではなく **オブジェクトリテラル** で実装（`UserMapper.toDomain(row)` で呼び出し）
+- 行型は `typeof users.$inferSelect`、挿入型は `typeof users.$inferInsert` で Drizzle スキーマから自動推論
+- `pgEnum` で定義した enum カラムは、ドメインの `UserStatus` / `UserRole` リテラル型と `satisfies` で整合チェック
 
 ---
 
@@ -523,17 +602,18 @@ export type UserSearchCriteria = {
 
 ### 3.2 Mapperパターン
 
-**目的**: Prismaモデル ⇔ Domainエンティティの変換
+**目的**: Drizzle DB 行 ⇔ Domain エンティティの変換
 
 **設計のポイント**:
 - Infrastructure層に配置
 - 変換ロジックを一箇所に集約
-- Domain層をPrismaの実装詳細から保護
+- Domain層を Drizzle スキーマ（`typeof table.$inferSelect`）の実装詳細から保護
+- 行型は `$inferSelect`、挿入型は `$inferInsert` から自動推論
 
 **変換方向**:
-1. **toDomain**: PrismaモデルからDomainエンティティへ
-2. **toPrismaCreate**: DomainエンティティからPrisma CreateInputへ
-3. **toPrismaUpdate**: DomainエンティティからPrisma UpdateInputへ
+1. **toDomain**: Drizzle DB 行（`$inferSelect`）から Domain エンティティへ
+2. **toRowInsert**: Domain エンティティから DB 挿入用データ（`$inferInsert`）へ
+3. **toRowUpdate**: Domain エンティティから DB 更新用データ（`Partial<$inferInsert>`）へ
 
 ---
 
@@ -626,39 +706,163 @@ import { User } from "@repo/server-core/domain/entities"  // index.tsなし
 | **APIフレームワーク** | Hono | 4.x | 型安全なWebフレームワーク |
 | **言語** | TypeScript | 5.x | 型安全性 |
 | **環境変数管理** | dotenv-cli | 7.3.0 | 階層的env読み込み |
-| **データベース** | Prisma | 5.x | ORM |
-| **DB本体** | PostgreSQL | 15.x | データストア |
+| **データベース** | Drizzle ORM | 0.x | 型安全な SQL クエリビルダー |
+| **DBドライバ（Neon）** | @neondatabase/serverless | 0.x | Vercel/Neon 本番用 WebSocket ドライバ |
+| **DBドライバ（ローカル）** | pg (node-postgres) | 8.x | ローカル PostgreSQL 用 TCP ドライバ |
+| **マイグレーション** | drizzle-kit | 0.x | スキーマ → SQL マイグレーション生成 |
+| **DB本体** | PostgreSQL | 15.x | データストア（ローカル）/ Neon（本番） |
 | **Linter & Formatter** | Biome | 1.9.4+ | コード品質・フォーマット |
 | **バリデーション** | Zod | 3.x | スキーマ検証 |
 | **日付処理** | date-fns | 3.x | 日付ユーティリティ |
 
 ---
 
-## 6. Prisma Client設定
+## 6. Drizzle DB Client設定
 
-### グローバル化パターン（Hot Reload対応）
+### グローバル化パターン（Hot Reload対応 + 環境別ドライバ切替）
 
-**配置**: `packages/server-core/src/infrastructure/database/client.ts`
+**配置**: `packages/server-core/db/client.ts`
 
 **設計の要点**:
-- 開発環境でのHot Reload時にPrismaクライアントの再作成を防ぐ
-- `global`オブジェクトにPrismaインスタンスをキャッシュ
-- ログレベルを環境別に設定
+- 開発環境での Hot Reload 時に Pool / Drizzle インスタンスの再作成を防ぐ
+- `globalThis` に Pool / DB インスタンスをキャッシュ
+- 接続文字列を見て **Neon（本番） / node-postgres（ローカル）** を自動切替
+  - Neon: `@neondatabase/serverless` の Pool + `drizzle-orm/neon-serverless`
+  - ローカル: `pg` の Pool + `drizzle-orm/node-postgres`
+  - 理由: ローカル PostgreSQL は Neon serverless が要求する WebSocket 接続をサポートしないため
+- Node 環境では `ws` モジュールを `neonConfig.webSocketConstructor` に注入（Edge Runtime では不要）
+- スキーマ全体を `drizzle(pool, { schema })` 経由で `db.query.*` の relational query から参照可能にする
+
+```typescript
+// packages/server-core/db/client.ts
+import * as schema from "./schema";
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not set");
+}
+
+// 接続先によってドライバを切り替え
+const isNeon =
+  connectionString.includes("neon.tech") ||
+  connectionString.includes("neon.database");
+
+type AnyPool = import("pg").Pool | import("@neondatabase/serverless").Pool;
+type AnyDrizzle =
+  | ReturnType<typeof import("drizzle-orm/node-postgres").drizzle>
+  | ReturnType<typeof import("drizzle-orm/neon-serverless").drizzle>;
+
+const globalForDb = globalThis as unknown as {
+  __einjaDbPool?: AnyPool;
+  __einjaDb?: AnyDrizzle;
+};
+
+function createDb(): { pool: AnyPool; db: AnyDrizzle } {
+  if (isNeon) {
+    const { neonConfig, Pool } = require("@neondatabase/serverless") as typeof import("@neondatabase/serverless");
+    const { drizzle } = require("drizzle-orm/neon-serverless") as typeof import("drizzle-orm/neon-serverless");
+    // Edge Runtime では WebSocket がグローバルにあるので注入不要
+    if (typeof (globalThis as Record<string, unknown>).EdgeRuntime === "undefined") {
+      const wsModule = require("ws") as typeof import("ws");
+      neonConfig.webSocketConstructor = (wsModule.default ?? wsModule) as unknown as typeof WebSocket;
+    }
+    const pool = new Pool({ connectionString });
+    return { pool, db: drizzle(pool, { schema }) };
+  } else {
+    const { Pool } = require("pg") as typeof import("pg");
+    const { drizzle } = require("drizzle-orm/node-postgres") as typeof import("drizzle-orm/node-postgres");
+    const pool = new Pool({ connectionString });
+    return { pool, db: drizzle(pool, { schema }) as unknown as AnyDrizzle };
+  }
+}
+
+const instance = globalForDb.__einjaDb
+  ? { pool: globalForDb.__einjaDbPool as AnyPool, db: globalForDb.__einjaDb }
+  : createDb();
+
+export const pool = instance.pool;
+export const db = instance.db;
+
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.__einjaDbPool = pool;
+  globalForDb.__einjaDb = db;
+}
+```
+
+### Schema 定義の要点
+
+**配置**: `packages/server-core/db/schema.ts`
+
+- `pgTable("User", { ... }, (t) => [uniqueIndex(...), foreignKey(...), primaryKey(...)])` の3引数形式で定義
+- `pgEnum("UserStatus", ["active", "inactive", "pending"])` で enum を宣言し、テーブルカラムで再利用
+- `timestamp("createdAt", { precision: 3 }).notNull().defaultNow()` + `.$onUpdate(() => new Date())` で `updatedAt` 自動更新
+- FK / PK / Unique制約には **明示的に名前を付ける**（既存 DB の制約名と合わせて drizzle-kit の差分検出を防ぐ）
+- ID は `text("id").primaryKey()` のみ（cuid 等のID生成はアプリケーション層で行う）
+- `relations(users, ({ many }) => ({ accounts: many(accounts) }))` で relational query 用のリレーションを定義
+
+### Infrastructure 層からの参照
+
+`packages/server-core/src/infrastructure/database/client.ts` は `db/client.ts` を re-export するだけの薄いラッパー：
 
 ```typescript
 // packages/server-core/src/infrastructure/database/client.ts
-import { PrismaClient } from "@prisma/client"
-
-const globalForPrisma = global as unknown as { prisma: PrismaClient }
-
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-  })
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
+export { db, pool } from "../../../db/client";
 ```
+
+これにより `@repo/server-core/infrastructure/database/client` 経由でも `@repo/server-core/db/client` 経由でも同一インスタンスにアクセスできる。
+
+### テストファクトリ（@faker-js/faker による手書きパターン）
+
+**配置**: `packages/server-core/src/testing/factories/user.factory.ts`
+
+Prisma 時代の `@quramy/prisma-fabbrica` を置き換え、`@faker-js/faker` で手書きする方針：
+
+```typescript
+import { faker } from "@faker-js/faker/locale/ja";
+import { db } from "../../../db/client";
+import { users } from "../../../db/schema";
+
+type UserRow = typeof users.$inferSelect;
+type UserInsert = typeof users.$inferInsert;
+
+export const UserFactory = {
+  /** メモリ上の UserRow を生成（DB書き込みなし） */
+  async build(overrides: Partial<UserInsert> = {}): Promise<UserRow> {
+    const now = new Date();
+    return {
+      id: overrides.id ?? faker.string.nanoid(25),
+      name: overrides.name !== undefined ? overrides.name : faker.person.fullName(),
+      email: overrides.email ?? faker.internet.email(),
+      emailVerified: overrides.emailVerified ?? null,
+      image: overrides.image ?? null,
+      password: overrides.password ?? null,
+      status: overrides.status ?? "active",
+      role: overrides.role ?? "user",
+      createdAt: overrides.createdAt ?? now,
+      updatedAt: overrides.updatedAt ?? now,
+      lastLogin: overrides.lastLogin ?? null,
+    };
+  },
+
+  /** DB に UserRow を挿入して返す（統合テスト用） */
+  async create(overrides: Partial<UserInsert> = {}): Promise<UserRow> {
+    const props = await UserFactory.build(overrides);
+    const [row] = await db.insert(users).values(props).returning();
+    return row;
+  },
+
+  /** トレイト別ファクトリ（例: アクティブユーザー） */
+  async buildActive(overrides: Partial<UserInsert> = {}): Promise<UserRow> {
+    return UserFactory.build({ status: "active", ...overrides });
+  },
+};
+```
+
+**ファクトリ設計のポイント**:
+- `build()` は DB に書き込まず、メモリ上の行を返す（単体テスト向け）
+- `create()` は `db.insert().values().returning()` で実際に DB へ書き込む（統合テスト向け）
+- `Partial<UserInsert>` で部分オーバーライドを受け、未指定フィールドは faker で生成
+- トレイト別（`buildActive` / `buildAdmin` / `buildPending` 等）は `build()` を呼び出して差分のみ指定
 
 ---
 
@@ -703,8 +907,8 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 - **[フロントエンド開発ガイド](frontend-development.md)** - Server/Client Component、Tanstack Query、React Hook Form、Hono Client
 
 ### データベース
-- **[スキーマ設計](../db-schema-design.md)** - Prismaスキーマ、テーブル定義、ERD
-- **[データベースガイドライン](database-guidelines.md)** - PostgreSQL日付型の使い分け、Prisma型マッピング
+- **[スキーマ設計](../db-schema-design.md)** - Drizzle スキーマ、テーブル定義、ERD
+- **[データベースガイドライン](database-guidelines.md)** - PostgreSQL日付型の使い分け、Drizzle 型マッピング
 
 ### インフラ
 - **[CI/CDパイプライン](../infrastructure/ci-cd.md)** - GitHub Actions、Turborepoキャッシュ

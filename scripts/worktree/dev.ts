@@ -244,7 +244,7 @@ function collectFilesRecursively(directoryPath: string): string[] {
 }
 
 export function getSeedSourcePaths(projectRoot: string = process.cwd()): string[] {
-	const seedFile = path.join(projectRoot, "packages/server-core/prisma/seed.ts");
+	const seedFile = path.join(projectRoot, "packages/server-core/db/seed.ts");
 	const testingDir = path.join(projectRoot, "packages/server-core/src/testing");
 
 	return [seedFile, ...collectFilesRecursively(testingDir)]
@@ -1387,7 +1387,7 @@ export function runMigration(databaseName: string): void {
 	const databaseUrl = `postgresql://postgres:postgres@localhost:${cfg.postgres.port}/${databaseName}?schema=public`;
 
 	try {
-		execWithLog("pnpm db:push", {
+		execWithLog("pnpm db:migrate", {
 			env: {
 				...process.env,
 				DATABASE_URL: databaseUrl,

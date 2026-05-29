@@ -28,7 +28,7 @@ cp .env.local.example .env.local
 
 - **apps/web**: エンドユーザー向けWebアプリケーション (Next.js App Router)
 - **packages/config**: 共通設定（TypeScript, Biome, Panda CSS, Worktree設定）
-- **packages/database**: Prismaスキーマとクライアント
+- **packages/database**: Drizzle スキーマとクライアント
 - **packages/auth**: NextAuth設定と認証ロジック
 - **packages/ui**: 共通UIコンポーネント
 
@@ -89,7 +89,7 @@ pnpm dev
 2. `.env.example`をベースに`.env`を自動生成
 3. PostgreSQLコンテナを起動（未起動の場合）
 4. データベースを作成（存在しない場合）
-5. Prismaスキーマを `db:push` で同期
+5. Drizzle スキーマを `pnpm db:push` で同期
 6. 新規DB作成時、またはseed定義変更時のみ seed 実行
 7. 全アプリケーションの開発サーバー起動
 
@@ -348,16 +348,16 @@ pnpm test:coverage
 ### データベース操作
 
 ```bash
-# Prisma Clientを生成
+# Drizzle マイグレーションを生成
 pnpm db:generate
 
 # スキーマをDBに反映（開発用）
 pnpm db:push
 
-# マイグレーション作成・実行
+# マイグレーション実行
 pnpm db:migrate
 
-# Prisma Studioを起動（GUI）
+# Drizzle Studioを起動（GUI）
 pnpm db:studio
 ```
 
@@ -431,15 +431,15 @@ docker compose ps
 |---------------|------|------|
 | `ENOENT: no such file or directory, open '.env.keys'` | `.env.keys`不在 | メインworktreeからコピー、または1Password等から取得して手動配置 |
 | `Error: connect ECONNREFUSED 127.0.0.1:25432` | PostgreSQL未起動 | `docker compose up -d postgres` → 10秒待機 → `docker compose exec postgres pg_isready` |
-| `prisma:error Error in schema` | Prismaスキーマエラー | エラーメッセージを確認し、`packages/server-core/prisma/schema.prisma`を修正 |
+| `drizzle-kit error` / schema validation error | Drizzle スキーマエラー | エラーメッセージを確認し、`packages/server-core/db/schema.ts` を修正 |
 | `Node.js version mismatch` / `Unsupported engine` | Node.jsバージョン不一致 | `mise install`（mise.tomlから自動読み取り）または `mise use node@22` |
 | `pnpm: command not found` | pnpm未インストール | `mise install`（mise.tomlから自動読み取り）または `npm i -g pnpm@10` |
 | `EACCES: permission denied` | ファイル権限エラー | 対象ファイルの権限確認（`ls -la`）、必要に応じて`chmod`で修正 |
 | `Cannot find module` | 依存関係不足 | `pnpm install` を再実行、`node_modules`を削除して再インストール |
 
-### Prismaマイグレーションが失敗する
+### Drizzle マイグレーションが失敗する
 
-**症状**: `Error: P1001: Can't reach database server`
+**症状**: `Error: ECONNREFUSED` / DB 接続不可
 
 **解決策**:
 
@@ -448,7 +448,7 @@ docker compose ps
    cat .env | grep DATABASE_URL
    ```
 
-2. **Prisma Clientを再生成**:
+2. **マイグレーションを再生成**:
    ```bash
    pnpm db:generate
    ```
@@ -541,25 +541,24 @@ pnpm build
 3. GitHub Issuesで既存の問題を検索
 4. チームメンバーに相談
 
-## Prisma単独セットアップ
+## Drizzle 単独セットアップ
 
-開発サーバー全体を起動せずにPrismaのみを操作する場合のコマンド:
+開発サーバー全体を起動せずに Drizzle のみを操作する場合のコマンド:
 
 | コマンド | 説明 | 用途 |
 |---------|------|------|
-| `pnpm db:generate` | Prismaクライアント生成 | スキーマ変更後の型生成 |
+| `pnpm db:generate` | マイグレーション SQL 生成 | スキーマ変更後のマイグレーション生成 |
 | `pnpm db:push` | スキーマをDBに反映 | プロトタイピング時（マイグレーション不使用） |
-| `pnpm db:migrate:deploy` | マイグレーション実行 | 本番環境・CI環境でのスキーマ適用 |
-| `pnpm db:migrate:dev` | マイグレーション作成・適用 | 開発時の新しいマイグレーション作成 |
-| `pnpm db:studio` | Prisma Studio起動 | ブラウザでのDB閲覧・編集 |
+| `pnpm db:migrate` | マイグレーション適用 | 開発・本番・CI 環境でのスキーマ適用 |
+| `pnpm db:studio` | Drizzle Studio起動 | ブラウザでのDB閲覧・編集 |
 
 ### 使い分け
 
 - **開発中のスキーマ変更**: `db:push`（マイグレーションファイルを作成せずに即座に反映）
-- **マイグレーション確定時**: `db:migrate:dev`（マイグレーションファイルを生成）
-- **デプロイ時**: `db:migrate:deploy`（既存マイグレーションを適用）
+- **マイグレーション確定時**: `db:generate`（マイグレーションファイルを生成）
+- **適用時**: `db:migrate`（既存マイグレーションを適用）
 
-> **注意**: `db:push` はマイグレーション履歴を作成しません。チームで共有する変更は必ず `db:migrate:dev` でマイグレーションを作成してください。
+> **注意**: `db:push` はマイグレーション履歴を作成しません。チームで共有する変更は必ず `db:generate` でマイグレーションファイルを作成してください。
 
 ## 包括的ヘルスチェック
 
@@ -600,14 +599,14 @@ done
 stat -f "%Lp" .env.personal 2>/dev/null | grep -q "600" && echo "✅ .env.personal: 権限OK (600)" || echo "⚠️ .env.personal: chmod 600 を実行してください"
 ```
 
-### 4. Prismaスキーマ
+### 4. Drizzle スキーマ
 
 ```bash
-# スキーマ検証
+# スキーマ検証（マイグレーション生成試行）
 pnpm db:generate
 
 # マイグレーション状態
-pnpm db:migrate:status 2>/dev/null || echo "マイグレーション状態の確認にはDB接続が必要です"
+pnpm exec drizzle-kit check 2>/dev/null || echo "マイグレーション状態の確認にはDB接続が必要です"
 ```
 
 ### 5. 開発サーバー

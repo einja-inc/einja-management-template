@@ -9,6 +9,29 @@ import type { Result } from "../../core/result";
 import type { User, UserRole, UserStatus } from "../entities/User";
 
 /**
+ * ユーザー作成入力データ
+ *
+ * password / image は Domain の User エンティティに含めない（機微情報をドメインに露出させない方針）。
+ * 作成時の入力としてのみ Repository インターフェースに渡し、戻り値は User エンティティを返す。
+ */
+export interface CreateUserInput {
+	/** ユーザーID（アプリ層で生成して渡す） */
+	readonly id: string;
+	/** メールアドレス */
+	readonly email: string;
+	/** 表示名 */
+	readonly name: string | null;
+	/** ハッシュ化済みパスワード（任意：OAuth ユーザー等は null） */
+	readonly password?: string | null;
+	/** プロフィール画像 URL（任意） */
+	readonly image?: string | null;
+	/** ステータス（省略時は DB デフォルト "pending"） */
+	readonly status?: UserStatus;
+	/** ロール（省略時は DB デフォルト "user"） */
+	readonly role?: UserRole;
+}
+
+/**
  * ユーザー検索条件
  */
 export interface UserSearchCriteria {
@@ -55,6 +78,16 @@ export interface PaginatedResult<T> {
  */
 export interface IUserRepository {
 	/**
+	 * 新規ユーザーを作成する
+	 *
+	 * password / image を含む入力を受け取り、Domain の User エンティティを返す。
+	 *
+	 * @param input - 作成するユーザーの入力データ
+	 * @returns 作成された User エンティティ、または失敗時のエラー
+	 */
+	create(input: CreateUserInput): Promise<Result<User, Error>>;
+
+	/**
 	 * 検索条件に基づいてユーザーを検索する
 	 *
 	 * @param criteria - 検索条件
@@ -89,6 +122,21 @@ export interface IUserRepository {
 	 * @returns 見つかったユーザー、または見つからない場合はnull
 	 */
 	findByEmail(email: string): Promise<Result<User | null, Error>>;
+
+	/**
+	 * 認証用にメールアドレスでユーザーを取得する（Credentials Provider 専用）
+	 *
+	 * Domain User は password / image を保持しないため、認証フローでのみ必要となる
+	 * 機微情報を Domain Entity と並列で返す専用メソッド。
+	 *
+	 * @param email - メールアドレス
+	 * @returns ユーザー本体と認証用フィールド、または見つからない場合はnull
+	 */
+	findByEmailForAuth(
+		email: string,
+	): Promise<
+		Result<{ user: User; password: string | null; image: string | null } | null, Error>
+	>;
 
 	/**
 	 * ユーザーの最終ログイン日時を更新する

@@ -1,5 +1,5 @@
 name: 'Database Migration'
-description: 'Run Prisma migration and optional seed'
+description: 'Run Drizzle migration and optional seed'
 
 inputs:
   dotenv-file:
@@ -29,7 +29,7 @@ runs:
       shell: bash
 
     # DB マイグレーション（pooler検出 + retry）
-    - name: Run Prisma migrate deploy
+    - name: Run Drizzle migrate deploy
       run: |
         npx dotenvx run -f ${{ inputs.dotenv-file }} -- bash -c '
           # Pooler URL検出 → DIRECT_URL導出（既存のDIRECT_URLがなければ自動導出）

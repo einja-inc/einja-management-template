@@ -2,9 +2,6 @@
  * ファクトリーのエクスポート
  */
 
-// fabbricaの初期化関数をエクスポート
-export { initialize } from "../../__generated__/fabbrica";
-
 // ユーザーファクトリー
 export {
   UserFactory,

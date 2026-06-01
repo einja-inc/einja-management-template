@@ -224,7 +224,7 @@ TaskCreate:
 
 ### resume 時の TaskList 再構築
 
-共有 TaskList の status は共通プロトコル（[Issue 実行共通プロトコル](../../../docs/einja/instructions/issue-exec-protocol.md)）に準拠し、以下の 4 状態のみを使用する:
+共有 TaskList の status は共通プロトコル（[Issue 実行共通プロトコル](../../../docs/einja/instructions/issue-exec-protocol.md)）に準拠し、通常運用では以下の 4 状態を使用する。失敗時のみ追加で `failed` を許容する:
 
 | status | 用途 |
 |--------|------|
@@ -232,6 +232,7 @@ TaskCreate:
 | `in_progress` | Director が claim 済み・作業中 |
 | `awaiting_review` | Worker 完了後、レビュー/QA/PR Gate 待ち |
 | `completed` | PR マージ完了 |
+| `failed` | 3回目の失敗で Manager にエスカレーション済み（[`issue-exec-protocol.md`](../../../docs/einja/instructions/issue-exec-protocol.md) §2.1 参照） |
 
 resume 時の再登録ルール:
 
@@ -239,8 +240,9 @@ resume 時の再登録ルール:
 - PR 作成済み・未マージ: `status=awaiting_review` で登録（PR Gate / マージ待ち）
 - claim 済みで PR 未作成（実行途中）: `status=in_progress` で登録
 - 未着手: `status=pending` で登録（依存関係も再設定）
+- エスカレーション済み: `status=failed` のまま再登録（Manager 判断待ち）
 
-> **注意**: `open` は使用しない。過去仕様で `open` を用いていた箇所はすべて `pending` に置換済み。
+> **注意**: `open` は使用しない。過去仕様で `open` を用いていた箇所はすべて `pending` に置換済み。`failed` は失敗エスカレーション時のみ使用（共通プロトコル `issue-exec-protocol.md` §2.1 と整合）。
 
 ---
 

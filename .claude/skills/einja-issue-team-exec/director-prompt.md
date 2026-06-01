@@ -32,10 +32,10 @@
      # worktree作成（冪等）
      WORKTREE_PATH="../${project-name}-worktrees/task-${N}-{X.Y}"
      WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-     if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+     if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
        : # 既存worktreeを再利用
      else
-       git worktree prune --expire now 2>/dev/null
+       git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
        if [ -d "$WORKTREE_PATH" ]; then
          rm -rf "$WORKTREE_PATH"
        fi
@@ -80,10 +80,10 @@
         # worktree作成（冪等）
         WORKTREE_PATH="../${project-name}-worktrees/task-${N}-{X.Y.Z}"
         WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-        if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+        if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
           : # 既存worktreeを再利用
         else
-          git worktree prune --expire now 2>/dev/null
+          git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
           if [ -d "$WORKTREE_PATH" ]; then
             rm -rf "$WORKTREE_PATH"
           fi
@@ -155,6 +155,14 @@
      DB changes: {テーブル/カラム or "なし"}
      Note: {申し送り事項 or "なし"}
      ```
+   - **finalize 失敗時の即時通知（必須）**: コミットまたは PR 作成に失敗した、もしくは
+     何らかの理由で `[pr-ready]` 送信まで到達できない場合、**沈黙せず即座に** Lead へ
+     `[error]` を送信する。本文に以下を含める:
+       - タスク番号（X.Y）
+       - Director worktree の絶対パス（worktree 内で実行中なら `$(pwd)`、または `$WORKTREE_ABS`）
+       - `git -C <worktree> status --short` と `git -C <worktree> log --oneline -3` の出力
+       - 失敗ステップ（commit / push / pr-create のいずれか）
+     これにより Lead は完成済み成果物を破棄せず finalize を引き取れる（SKILL.md エラー表参照）。
 
 8. **verdict 待ち**: Lead からの `[verdict]` メッセージ受信を待機
    - `approved` → worktree 削除 → 次タスク claim（1に戻る）

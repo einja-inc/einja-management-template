@@ -498,7 +498,8 @@ Lead・Director 双方がメッセージ送受信時にこのファイルを参�
 
 | 障害 | 検知 | 対応 |
 |------|------|------|
-| Director Teammate 停止（PR作成前） | idle 通知 + タスク状態が in_progress のまま | Lead が新 Teammate spawn してリトライ（最大2回）→ 3回目失敗はユーザーエスカレーション |
+| Director Teammate 停止/stall（finalize 前: 成果物が未完成） | idle 通知 + 成果物（modifications/qa-tests）未生成 | Lead が新 Teammate spawn してリトライ（最大2回）→ 3回目失敗はユーザーエスカレーション |
+| Director stall（finalize 段階: 成果物は完成・未コミット） | `[error]` 受信、または idle + Director worktree に未コミットの完成成果物あり | Lead が `git -C <worktree> status/diff/log`（cd しない・自 path 限定、`git add .` 等グローバル操作禁止）で点検 → Fast Gate 相当の検証（成果物存在・`<<<<<<<` / PARTIAL 等の danger-signal なし）に通れば、成果物を破棄せず Lead が `einja-task-commit`（未コミット時）+ `einja-create-pr` を当該 worktree 対象に実行して引き取る。検証 NG のみ新 Teammate で当該タスク再実行 |
 | Director Teammate 停止（PR作成済み） | idle 通知 + PR あり | スキップ（PRマージ待ちのまま継続） |
 | Director Teammate 停止（修正中: fix_required 対応中） | idle 通知 + fixCount > 0 | Lead が新 Teammate spawn（fixCount 引き継ぎ）→ 超過時はユーザーエスカレーション |
 | タスク失敗（task-executer 実行エラー） | Director からの SendMessage | Director がリトライ（最大2回）→ 3回目は Lead にエスカレーション → ユーザーにエスカレーション |

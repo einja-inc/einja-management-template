@@ -177,10 +177,10 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
    # worktree作成（冪等）
    WORKTREE_PATH=~/.einja/worktrees/issue-{N}/manager
    WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-   if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+   if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
      : # 既存worktreeを再利用
    else
-     git worktree prune --expire now 2>/dev/null
+     git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
      if [ -d "$WORKTREE_PATH" ]; then
        rm -rf "$WORKTREE_PATH"
      fi
@@ -285,10 +285,10 @@ git push -u origin "$BRANCH" 2>/dev/null || true
 # worktree作成（冪等）
 WORKTREE_PATH=~/.einja/worktrees/issue-{N}/task-{X.Y}
 WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
   : # 既存worktreeを再利用
 else
-  git worktree prune --expire now 2>/dev/null
+  git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
   if [ -d "$WORKTREE_PATH" ]; then
     rm -rf "$WORKTREE_PATH"
   fi
@@ -656,10 +656,10 @@ git push -u origin "$BRANCH" 2>/dev/null || true
 
 WORKTREE_PATH=~/.einja/worktrees/issue-{N}/task-{X.Y}
 WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
   : # 既存worktreeを再利用
 else
-  git worktree prune --expire now 2>/dev/null
+  git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
   if [ -d "$WORKTREE_PATH" ]; then
     rm -rf "$WORKTREE_PATH"
   fi

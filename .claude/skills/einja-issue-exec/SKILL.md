@@ -382,10 +382,11 @@ Manager は以下を監視:
        FOUND=$(ls "$SIGNAL_DIR"/*.signal 2>/dev/null)
        if [ -n "$FOUND" ]; then
          # 見つかったシグナルを全て収集（複数Worker同時完了対応）
-         # NOTE: ここでは削除しない。後続の case 分岐で種別ごとに
-         #       rm -f / mv warnings/ を行うため、収集時点で消すと
-         #       permission-warning-*.signal の warnings/ 退避が失敗する
+         # シグナルは起床トリガーのため、収集と同時に即時削除する
          SIGNALS="$FOUND"
+         for sig in $FOUND; do
+           rm -f "$sig"
+         done
          break
        fi
        sleep 2
@@ -402,49 +403,6 @@ Manager は以下を監視:
    - Managerはシグナル受信後、**全Workerのステータスファイルを走査**してゲートチェック実施
    - 質問ファイルの pending 状態も同様にシグナルファイルで通知（`question-{UUID}.signal`）
    - **シグナルファイルはあくまで「起床トリガー」**。完了の判定はステータスファイルで行う
-
-   **シグナル種別ごとの分岐処理（Manager側）:**
-
-   収集した `$SIGNALS` を以下のように分類して処理する:
-
-   ```bash
-   # シグナル種別ごとに分類
-   WARN_DIR="$SIGNAL_DIR/warnings"
-   mkdir -p "$WARN_DIR"
-   for sig in $SIGNALS; do
-     base=$(basename "$sig")
-     case "$base" in
-       worker-*.signal)
-         # 通常の完了通知 → ゲートチェックへ
-         # ステータスファイルで判定するため、シグナル本体はここで削除
-         rm -f "$sig"
-         ;;
-       question-*.signal)
-         # 質問エスカレーション → 質問ファイル処理へ
-         # 質問ファイル（question-{UUID}.json）側で状態管理するため、
-         # 起床トリガーであるシグナル本体は削除して再消費を防ぐ
-         rm -f "$sig"
-         ;;
-       permission-warning-*.signal)
-         # 権限モード未確認警告 → ログ出力 + 警告ディレクトリへ退避
-         WORKER_ID=$(echo "$base" | sed -E 's/^permission-warning-(.+)\.signal$/\1/')
-         echo "[WARN] Worker $WORKER_ID may be running without dangerously-skip-permissions" >&2
-         # events.jsonl に記録
-         printf '{"timestamp":"%s","event_type":"permission_warning","data":{"workerId":"%s"}}\n' \
-           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$WORKER_ID" \
-           >> ~/.einja/sessions/issue-{N}/events.jsonl
-         # 重要な警告のためユーザーに通知（任意）: AskUserQuestion で続行可否を確認できる
-         # 処理済みフラグとして warnings/ ディレクトリへ退避（再消費防止 + 監査用に保全）
-         mv "$sig" "$WARN_DIR/$base" 2>/dev/null || rm -f "$sig"
-         ;;
-       *)
-         # 未知のシグナル → 警告ログを出し、安全のため削除（再消費防止）
-         echo "[WARN] Unknown signal: $base" >&2
-         rm -f "$sig"
-         ;;
-     esac
-   done
-   ```
 
    **AskUserQuestion 検知（タイムアウトフォールバック時に実行）:**
 
@@ -496,7 +454,7 @@ Manager は以下を監視:
       b. **自力回答不可の場合**: `AskUserQuestion` でユーザーに質問を転送（Worker ID・質問内容を含める）。ユーザーの回答を受け取り次第、`tmux send-keys -t "$WORKER_PANE" "{ユーザーの回答}" Enter` で Worker pane に送信
    4. Worker は回答を受け取り自動的に作業を再開する
 
-2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
+2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じた**タスクPRマージ処理**（タスクPRはWorker側のeinja-task-exec Step 7.5で作成済み。ManagerはタスクPRを自ら作成しない） → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
 
 3. **質問エスカレーション処理（tmux Worker質問転送フロー — モード1）**:
 

@@ -1,0 +1,83 @@
+{
+  "theme": "base",
+  "themeVariables": {
+    "primaryColor": "#dbeafe",
+    "primaryTextColor": "#1e3a8a",
+    "primaryBorderColor": "#2563eb",
+    "secondaryColor": "#d1fae5",
+    "secondaryTextColor": "#065f46",
+    "secondaryBorderColor": "#10b981",
+    "tertiaryColor": "#fef3c7",
+    "tertiaryTextColor": "#92400e",
+    "tertiaryBorderColor": "#f59e0b",
+    "lineColor": "#6b7280",
+    "textColor": "#1f2937",
+    "mainBkg": "#dbeafe",
+    "nodeBorder": "#2563eb",
+    "edgeLabelBackground": "#ffffff",
+    "fontFamily": "'Hiragino Sans', 'Helvetica Neue', Arial, sans-serif",
+    "fontSize": "14px",
+    "background": "transparent",
+    "noteBkgColor": "#fef9c3",
+    "noteTextColor": "#713f12",
+    "noteBorderColor": "#fbbf24",
+    "activationBkgColor": "#dbeafe",
+    "activationBorderColor": "#2563eb",
+    "actorBkg": "#dbeafe",
+    "actorBorder": "#2563eb",
+    "actorTextColor": "#1e3a8a",
+    "actorLineColor": "#6b7280",
+    "signalColor": "#374151",
+    "signalTextColor": "#374151",
+    "labelBoxBkgColor": "#f3f4f6",
+    "labelBoxBorderColor": "#d1d5db",
+    "labelTextColor": "#374151",
+    "loopTextColor": "#374151",
+    "sequenceNumberColor": "#ffffff",
+    "fillType0": "#dbeafe",
+    "fillType1": "#d1fae5",
+    "fillType2": "#fef3c7",
+    "fillType3": "#ede9fe",
+    "fillType4": "#fce7f3",
+    "fillType5": "#ecfeff",
+    "fillType6": "#f0fdf4",
+    "fillType7": "#fff7ed"
+  },
+  "flowchart": {
+    "nodeSpacing": 50,
+    "rankSpacing": 80,
+    "curve": "basis",
+    "padding": 15,
+    "htmlLabels": true,
+    "useMaxWidth": true
+  },
+  "sequence": {
+    "actorMargin": 60,
+    "boxMargin": 10,
+    "messageMargin": 35,
+    "mirrorActors": false,
+    "useMaxWidth": true,
+    "showSequenceNumbers": false
+  },
+  "gantt": {
+    "useMaxWidth": true,
+    "fontSize": 13,
+    "numberSectionStyles": 4,
+    "axisFormat": "%m/%d"
+  },
+  "er": {
+    "useMaxWidth": true,
+    "fontSize": 13,
+    "layoutDirection": "TB",
+    "minEntityWidth": 100,
+    "minEntityHeight": 75,
+    "entityPadding": 15,
+    "diagramPadding": 20
+  },
+  "class": {
+    "useMaxWidth": true
+  },
+  "state": {
+    "useMaxWidth": true
+  }
+}

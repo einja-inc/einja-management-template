@@ -357,11 +357,12 @@ Director の `[task-claim]` と `[change-summary]` から Director 別の変更�
 
 ### 完了時の処理
 
-```bash
-gh pr create --base issue/${N} --head issue/${N}-phase{M} \
-  --title "Phase ${M}: {Phase名}" \
-  --body "Phase ${M} の全タスクグループ完了"
-```
+Phase PR 作成: einja-create-pr Skill で作成
+  - `--auto --base issue/${N}`
+  - `--head issue/${N}-phase{M}`
+  - `--title "Phase ${M}: {Phase名}"`
+
+> **changeset生成について**: Phase PRでは`einja-create-pr`のchangesetスキップ条件「`apps/` 配下に変更がない」に自然に該当するケースが多い。該当しない場合もchangesetが生成されるが、Phase PRでは無害（squash merge時に消える）。
 
 マージモード別処理:
 

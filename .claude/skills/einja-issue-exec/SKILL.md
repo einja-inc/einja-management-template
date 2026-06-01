@@ -304,7 +304,35 @@ fi
 WORKER_PANE=$(tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y} -P -F '#{pane_id}')
 # ManagerペインIDを環境変数としてWorkerに渡す（完了通知用）
 tmux send-keys -t "$WORKER_PANE" "export EINJA_MANAGER_PANE=$MANAGER_PANE" Enter
+# Worker識別用環境変数をセット（AUQ検知・セッション管理で使用）
+tmux send-keys -t "$WORKER_PANE" "export EINJA_AGENT_ROLE=worker" Enter
+tmux send-keys -t "$WORKER_PANE" "export EINJA_SESSION_ID=issue-{N}" Enter
 tmux send-keys -t "$WORKER_PANE" 'claude --dangerously-skip-permissions' Enter
+
+# claude起動完了を待つ（最大30秒、pane内のClaude Code起動メッセージを検知）
+started=0
+for i in $(seq 1 30); do
+  pane_out=$(tmux capture-pane -t "$WORKER_PANE" -p -S -5 2>/dev/null)
+  if echo "$pane_out" | grep -qE "(Type your prompt|claude-code|╭|❯)"; then
+    started=1
+    break
+  fi
+  sleep 1
+done
+if [ "$started" -eq 0 ]; then
+  echo "[WARN] Claude Code startup not detected, additional wait (worker={X.Y})" >&2
+  sleep 3
+fi
+
+# 権限モード検証（dangerously-skip-permissions が有効になっているか確認）
+# 起動コマンド自体（claude --dangerously-skip-permissions）にもマッチするよう -S -50 で範囲拡大
+SESSION_DIR=~/.einja/sessions/issue-{N}
+mkdir -p "$SESSION_DIR/signals"
+pane_out=$(tmux capture-pane -t "$WORKER_PANE" -p -S -50 2>/dev/null)
+if ! echo "$pane_out" | grep -qiE "(dangerously-skip-permissions|--dangerously-skip|bypass permissions|bypass-permissions|auto-accept|accept edits)"; then
+  echo "[WARN] Worker may not have permissions bypassed (worker={X.Y})" >&2
+  touch "$SESSION_DIR/signals/permission-warning-{X.Y}.signal"
+fi
 
 # einja-task-exec Skill を実行
 tmux send-keys -t "$WORKER_PANE" '/einja-task-exec #{N} {X.Y}' Enter
@@ -354,9 +382,10 @@ Manager は以下を監視:
        FOUND=$(ls "$SIGNAL_DIR"/*.signal 2>/dev/null)
        if [ -n "$FOUND" ]; then
          # 見つかったシグナルを全て収集（複数Worker同時完了対応）
+         # NOTE: ここでは削除しない。後続の case 分岐で種別ごとに
+         #       rm -f / mv warnings/ を行うため、収集時点で消すと
+         #       permission-warning-*.signal の warnings/ 退避が失敗する
          SIGNALS="$FOUND"
-         # 個別に削除（他Workerが同時にtouchしても安全）
-         for f in $FOUND; do rm -f "$f"; done
          break
        fi
        sleep 2
@@ -374,12 +403,162 @@ Manager は以下を監視:
    - 質問ファイルの pending 状態も同様にシグナルファイルで通知（`question-{UUID}.signal`）
    - **シグナルファイルはあくまで「起床トリガー」**。完了の判定はステータスファイルで行う
 
+   **シグナル種別ごとの分岐処理（Manager側）:**
+
+   収集した `$SIGNALS` を以下のように分類して処理する:
+
+   ```bash
+   # シグナル種別ごとに分類
+   WARN_DIR="$SIGNAL_DIR/warnings"
+   mkdir -p "$WARN_DIR"
+   for sig in $SIGNALS; do
+     base=$(basename "$sig")
+     case "$base" in
+       worker-*.signal)
+         # 通常の完了通知 → ゲートチェックへ
+         # ステータスファイルで判定するため、シグナル本体はここで削除
+         rm -f "$sig"
+         ;;
+       question-*.signal)
+         # 質問エスカレーション → 質問ファイル処理へ
+         # 質問ファイル（question-{UUID}.json）側で状態管理するため、
+         # 起床トリガーであるシグナル本体は削除して再消費を防ぐ
+         rm -f "$sig"
+         ;;
+       permission-warning-*.signal)
+         # 権限モード未確認警告 → ログ出力 + 警告ディレクトリへ退避
+         WORKER_ID=$(echo "$base" | sed -E 's/^permission-warning-(.+)\.signal$/\1/')
+         echo "[WARN] Worker $WORKER_ID may be running without dangerously-skip-permissions" >&2
+         # events.jsonl に記録
+         printf '{"timestamp":"%s","event_type":"permission_warning","data":{"workerId":"%s"}}\n' \
+           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$WORKER_ID" \
+           >> ~/.einja/sessions/issue-{N}/events.jsonl
+         # 重要な警告のためユーザーに通知（任意）: AskUserQuestion で続行可否を確認できる
+         # 処理済みフラグとして warnings/ ディレクトリへ退避（再消費防止 + 監査用に保全）
+         mv "$sig" "$WARN_DIR/$base" 2>/dev/null || rm -f "$sig"
+         ;;
+       *)
+         # 未知のシグナル → 警告ログを出し、安全のため削除（再消費防止）
+         echo "[WARN] Unknown signal: $base" >&2
+         rm -f "$sig"
+         ;;
+     esac
+   done
+   ```
+
+   **AskUserQuestion 検知（タイムアウトフォールバック時に実行）:**
+
+   120秒のシグナル待機がタイムアウトした場合（`$SIGNALS` が空）、各 Worker pane の最新出力を走査して AskUserQuestion のプロンプトを検出する:
+
+   ```bash
+   # タイムアウト時: 全アクティブ Worker pane を走査して AUQ を検知
+   if [ -z "$SIGNALS" ]; then
+     # 現時点でアクティブな Worker pane を動的に取得（Manager pane は除外）
+     ACTIVE_WORKER_PANES=$(tmux list-panes -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -F '#{pane_id}' 2>/dev/null | grep -vFx "$MANAGER_PANE" | tr '\n' ' ')
+     for WORKER_PANE in $ACTIVE_WORKER_PANES; do
+       AUQ_OUTPUT=$(tmux capture-pane -t "$WORKER_PANE" -p -S -20 2>/dev/null)
+
+       # AUQ パターン検出: 選択肢番号表示、質問文末尾の "?"、"Select an option" 等
+       if echo "$AUQ_OUTPUT" | grep -qE '(^[[:space:]]*[0-9]+\)|Select an option|Pick one|Other \(|その他（)'; then
+         # 質問内容を抽出（最新20行から質問ブロックを取得）
+         AUQ_QUESTION=$(echo "$AUQ_OUTPUT" | tail -20)
+
+         # Manager/Director がコンテキストから自力回答を試みる
+         # → 回答可能な場合: tmux send-keys で回答番号を送信
+         # → 回答不可の場合: AskUserQuestion でユーザーに転送
+         #
+         # 判定基準:
+         #   - spec/design.md に明記された仕様に基づく質問 → 自力回答
+         #   - session.json の設定値で決まる質問 → 自力回答
+         #   - ビジネス判断・要件判断が必要な質問 → ユーザーに転送
+         #
+         # 自力回答の場合:
+         #   tmux send-keys -t "$WORKER_PANE" "{回答番号}" Enter
+         #
+         # ユーザー転送の場合:
+         #   AskUserQuestion で質問内容を提示し、回答を取得後:
+         #   tmux send-keys -t "$WORKER_PANE" "{ユーザーの回答}" Enter
+
+         break  # 1つ検出したら処理（次ループで残りを処理）
+       fi
+     done
+   fi
+   ```
+
+   **AUQ 検知の詳細フロー:**
+   1. `tmux capture-pane -t "$WORKER_PANE" -p -S -20` で各 Worker pane の最新20行を取得
+   2. AUQ パターンマッチング:
+      - 選択肢番号表示: `1)`, `2)`, `3)` 等の行頭パターン
+      - 質問文: `?` で終わる文
+      - Claude Code 固有パターン: `Select an option`, `Pick one`, `Other (`
+   3. 検出した場合の処理分岐:
+      a. **Manager が自力回答可能な場合**: セッションコンテキスト（spec、design.md、session.json）を参照して回答を決定し、`tmux send-keys -t "$WORKER_PANE" "{回答番号}" Enter` で Worker pane に送信
+      b. **自力回答不可の場合**: `AskUserQuestion` でユーザーに質問を転送（Worker ID・質問内容を含める）。ユーザーの回答を受け取り次第、`tmux send-keys -t "$WORKER_PANE" "{ユーザーの回答}" Enter` で Worker pane に送信
+   4. Worker は回答を受け取り自動的に作業を再開する
+
 2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じたPR処理 → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
 
-3. **質問エスカレーション処理**:
-   - `~/.einja/sessions/issue-{N}/questions/` の pending 質問を検知
-   - AskUserQuestion で人間に質問を表示
-   - 回答をステータスファイルに書き込み
+3. **質問エスカレーション処理（tmux Worker質問転送フロー — モード1）**:
+
+   tmuxモードのWorkerは AskUserQuestion を直接使えないため、ファイルベースで質問をManagerに転送する。
+
+   **Worker側の手順**（einja-task-exec実行中にPENDING_QUESTIONSが発生した場合）:
+   ```bash
+   # 1. 質問ファイル書込み
+   QUESTION_ID=$(uuidgen)
+   QUESTION_DIR=~/.einja/sessions/issue-{N}/questions
+   mkdir -p "$QUESTION_DIR"
+   cat > "$QUESTION_DIR/q-${QUESTION_ID}.json" <<EOF
+   {
+     "id": "q-${QUESTION_ID}",
+     "from": "worker-{X.Y}",
+     "question": "...",
+     "context": "...",
+     "options": [{"label": "...", "description": "..."}],
+     "status": "pending",
+     "answer": null,
+     "answeredBy": null
+   }
+   EOF
+
+   # 2. シグナルファイル作成（Managerの起床トリガー）
+   SIGNAL_DIR=~/.einja/sessions/issue-{N}/signals
+   mkdir -p "$SIGNAL_DIR"
+   touch "$SIGNAL_DIR/question-${QUESTION_ID}.signal"
+
+   # 3. 回答待ちループ（15秒間隔、最大30分=120回）
+   for i in $(seq 1 120); do
+     STATUS=$(jq -r '.status' "$QUESTION_DIR/q-${QUESTION_ID}.json" 2>/dev/null)
+     if [ "$STATUS" = "answered" ]; then
+       ANSWER=$(jq -r '.answer' "$QUESTION_DIR/q-${QUESTION_ID}.json")
+       echo "$ANSWER"  # 後続処理で使用
+       break
+     fi
+     sleep 15
+   done
+   # タイムアウト時はタスクをfailed扱いで停止
+   ```
+
+   **Manager側の手順**:
+   1. シグナル待機ループで `question-{UUID}.signal` を検知（通常の `worker-*.signal` と同じディレクトリ）
+   2. 対応する `q-{UUID}.json` を読み込み、質問内容を解析
+   3. **自力回答可否を判定**:
+      - spec/design.md・session.json・既存設定から判定可能 → 自力で回答
+      - ビジネス判断・要件判断が必要 → AskUserQuestion でユーザーに転送
+   4. 回答を質問ファイルに書き込み:
+      ```bash
+      jq --arg ans "$USER_ANSWER" \
+         --arg by "${ANSWERED_BY:-manager|human}" \
+         '.status="answered" | .answer=$ans | .answeredBy=$by' \
+         "$QUESTION_DIR/q-${QUESTION_ID}.json" > "$QUESTION_DIR/q-${QUESTION_ID}.json.tmp"
+      mv "$QUESTION_DIR/q-${QUESTION_ID}.json.tmp" "$QUESTION_DIR/q-${QUESTION_ID}.json"
+      ```
+   5. Worker は回答書込みを次のポーリングサイクル（最大15秒以内）で検知して作業再開
+   6. 回答内容のドキュメント還元先判定は issue-exec-protocol.md「質問エスカレーション意味論」を参照
+
+   **タイムアウト処理**:
+   - Worker側: 30分（120回×15秒）経過しても answered にならない場合、タスクを failed 扱いで停止し、`task-{X.Y}.json` に `failureReason: "question_timeout"` を記録
+   - Manager側: ユーザーがAskUserQuestionを長時間放置した場合の救済として、Worker再起動時に同じ質問IDを引き継いで再ポーリング可能（質問ファイルが残っていれば answered を検知できる）
 
 4. **Phase 完了処理**:
    - Phase完了条件（issue-exec-protocol.md参照）を満たしたら:
@@ -665,7 +844,25 @@ fi
 
 # 2. tmux pane で claude 起動（$EINJA_TMUX_SESSION, $EINJA_TMUX_WINDOW は Step 5 冒頭で設定済み）
 WORKER_PANE=$(tmux split-window -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW" -h -c ~/.einja/worktrees/issue-{N}/task-{X.Y} -P -F '#{pane_id}')
+# Worker識別用環境変数をセット（AUQ検知・セッション管理で使用）
+tmux send-keys -t "$WORKER_PANE" "export EINJA_AGENT_ROLE=worker" Enter
+tmux send-keys -t "$WORKER_PANE" "export EINJA_SESSION_ID=issue-{N}" Enter
 tmux send-keys -t "$WORKER_PANE" 'claude --dangerously-skip-permissions' Enter
+
+# claude起動完了を待つ（最大30秒、pane内のClaude Code起動メッセージを検知）
+started=0
+for i in $(seq 1 30); do
+  pane_out=$(tmux capture-pane -t "$WORKER_PANE" -p -S -5 2>/dev/null)
+  if echo "$pane_out" | grep -qE "(Type your prompt|claude-code|╭|❯)"; then
+    started=1
+    break
+  fi
+  sleep 1
+done
+if [ "$started" -eq 0 ]; then
+  echo "[WARN] Claude Code startup not detected, additional wait" >&2
+  sleep 3
+fi
 
 # 3. einja-task-exec Skill を実行
 # claude 起動後に以下を送信:

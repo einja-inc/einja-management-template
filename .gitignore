@@ -106,3 +106,6 @@ modifications/
 # Claude-Mem: shared-memory.json のみコミット対象
 .claude-mem/*
 !.claude-mem/shared-memory.json
+
+# einja-md-export 出力先（PDF/HTML/PPTX）
+docs/exports/

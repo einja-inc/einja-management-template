@@ -32,10 +32,10 @@
      # worktree作成（冪等）
      WORKTREE_PATH="../${project-name}-worktrees/task-${N}-{X.Y}"
      WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-     if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+     if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
        : # 既存worktreeを再利用
      else
-       git worktree prune --expire now 2>/dev/null
+       git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
        if [ -d "$WORKTREE_PATH" ]; then
          rm -rf "$WORKTREE_PATH"
        fi
@@ -80,10 +80,10 @@
         # worktree作成（冪等）
         WORKTREE_PATH="../${project-name}-worktrees/task-${N}-{X.Y.Z}"
         WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-        if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+        if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
           : # 既存worktreeを再利用
         else
-          git worktree prune --expire now 2>/dev/null
+          git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
           if [ -d "$WORKTREE_PATH" ]; then
             rm -rf "$WORKTREE_PATH"
           fi
@@ -139,6 +139,11 @@
    - einja-task-commit Skill でコミット・プッシュ（確認なしで自動実行）
    - einja-create-pr Skill で PR 作成
    - Lead に `[pr-ready] Task {X.Y}: PR #{PR番号}` を送信
+   - シグナルファイルを作成してLeadの待機ループをトリガーする:
+     ```bash
+     mkdir -p ~/.einja/sessions/issue-{N}/signals
+     touch ~/.einja/sessions/issue-{N}/signals/director-{ID}.signal
+     ```
    - タスク完了後に共有リソース変更がある場合は broadcast:
      ```
      [change-summary] Task {X.Y}: {タスク名}
@@ -150,13 +155,21 @@
      DB changes: {テーブル/カラム or "なし"}
      Note: {申し送り事項 or "なし"}
      ```
+   - **finalize 失敗時の即時通知（必須）**: コミットまたは PR 作成に失敗した、もしくは
+     何らかの理由で `[pr-ready]` 送信まで到達できない場合、**沈黙せず即座に** Lead へ
+     `[error]` を送信する。本文に以下を含める:
+       - タスク番号（X.Y）
+       - Director worktree の絶対パス（worktree 内で実行中なら `$(pwd)`、または `$WORKTREE_ABS`）
+       - `git -C <worktree> status --short` と `git -C <worktree> log --oneline -3` の出力
+       - 失敗ステップ（commit / push / pr-create のいずれか）
+     これにより Lead は完成済み成果物を破棄せず finalize を引き取れる（SKILL.md エラー表参照）。
 
 8. **verdict 待ち**: Lead からの `[verdict]` メッセージ受信を待機
    - `approved` → worktree 削除 → 次タスク claim（1に戻る）
    - `fix_required` → fixInstructions に従い修正 → 既存 PR にpush（新規PR作成禁止）→ 5に戻る
    - `rejected` → エラー報告 → 次タスク claim
 
-9. **全タスク完了 or claimable なし**: Lead に `[idle]` 通知
+9. **全タスク完了 or claimable なし**: Lead に `[idle]` 通知後、シグナルファイルを作成: `mkdir -p ~/.einja/sessions/issue-{N}/signals && touch ~/.einja/sessions/issue-{N}/signals/director-{ID}.signal`
 
 ### タスク種別: Phase 99（ドキュメント反映）
 
@@ -194,6 +207,8 @@ Lead からタスクグループ実行以外の指示（例: 特定ファイル�
 
 ## エラー処理
 
+> **注意**: Lead へのエスカレーション（SendMessage）時は、必ず下記「シグナルファイル作成ルール」に従いシグナルファイルも作成すること。
+
 - task-executer 失敗 → リトライ（最大2回）→ Lead にエスカレーション
 - task-reviewer MAJOR 超過（3回目）→ Lead にエスカレーション
 - task-qa FAILURE(B/C/D) → Lead にエスカレーション
@@ -206,3 +221,20 @@ issue-exec-protocol.md に準拠:
 - コンフリクト発生時: einja-conflict-resolver Skill 使用
 - コミット: einja-task-commit Skill 使用
 - PR作成: einja-create-pr Skill 使用
+
+### シグナルファイル作成ルール
+
+Lead への SendMessage 送信後は、以下の基準でシグナルファイルを作成する:
+
+| メッセージ | シグナル | 理由 |
+|-----------|---------|------|
+| `[pr-ready]` | **必須** | Lead がゲートチェックを即座に実行する必要がある |
+| `[idle]` | **必須** | Lead がDirectorの再割当・Phase完了判定を行う必要がある |
+| `[error]` エスカレーション | **必須** | Lead がリトライ/中止の判断を即座に行う必要がある |
+| `[progress]` | 不要 | 情報ログのみ、Lead の即時アクション不要 |
+| `[task-claim]`（broadcast） | 不要 | 情報更新のみ、Lead の即時アクション不要 |
+| `[change-summary]`（broadcast） | 不要 | 情報更新のみ |
+| `[peer-review]` | 不要 | Director間の直接通信、Lead経由しない |
+| `[conflict-resolved]` | 不要 | ログ記録のみ |
+
+コマンド: `mkdir -p ~/.einja/sessions/issue-{N}/signals && touch ~/.einja/sessions/issue-{N}/signals/director-{ID}.signal`

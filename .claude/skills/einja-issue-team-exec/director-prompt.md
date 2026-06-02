@@ -120,11 +120,27 @@ while (X.Y.Z タスクが残存):
 
 1. 変更がある場合のみ `einja-task-commit` Skill でコミット・プッシュ
 2. `einja-create-pr` Skill で PR 作成（base: `issue/{N}-phase{M}`）
-3. Lead に PR 準備完了を通知:
+3. 共有 TaskList の X.Y を `awaiting_review` に更新
+4. Lead に PR 準備完了を通知:
    ```
    [pr-ready] Task {X.Y}: PR #{PR番号}
    ```
-4. 共有リソース変更がある場合は `[change-summary]` を broadcast。汎用 `[change-summary]` ([`einja-team-exec/message-schemas.md`](../einja-team-exec/message-schemas.md) を継承し、Issue 固有拡張として追加フィールド `PR: #{PR番号}` を含める。拡張スキーマの定義は [`message-schemas.md`](./message-schemas.md) 「Issue 固有拡張」セクション参照
+5. シグナルファイル作成（Lead の待機ループを即時起動するため必須）:
+   ```bash
+   mkdir -p ~/.einja/sessions/issue-{N}/signals
+   touch ~/.einja/sessions/issue-{N}/signals/director-{ID}-complete.signal
+   ```
+6. 共有リソース変更がある場合は `[change-summary]` を broadcast。汎用 `[change-summary]` ([`einja-team-exec/message-schemas.md`](../einja-team-exec/message-schemas.md)) を継承し、Issue 固有拡張として追加フィールド `PR: #{PR番号}` を含める。拡張スキーマの定義は [`message-schemas.md`](./message-schemas.md) 「Issue 固有拡張」セクション参照
+7. **finalize 失敗時の即時通知（必須）**: コミット・プッシュ・PR 作成のいずれかが失敗し、もしくは何らかの理由で `[pr-ready]` 送信まで到達できない場合、**沈黙せず即座に** Lead へ `[error]` を送信し、続けて `director-{ID}-error.signal` を作成する。本文に以下を含める:
+     - タスク番号（X.Y）
+     - Director worktree の絶対パス（worktree 内で実行中なら `$(pwd)`、または `$WORKTREE_ABS`）
+     - `git -C <worktree> status --short` と `git -C <worktree> log --oneline -3` の出力
+     - 失敗ステップ（commit / push / pr-create のいずれか）
+   ```bash
+   mkdir -p ~/.einja/sessions/issue-{N}/signals
+   touch ~/.einja/sessions/issue-{N}/signals/director-{ID}-error.signal
+   ```
+   これにより Lead は完成済み成果物を破棄せず finalize を引き取れる（SKILL.md エラー表参照）。
 
 ## Issue 固有の品質ゲート（`{QUALITY_GATE_STEPS}` 展開）
 
@@ -135,6 +151,15 @@ while (X.Y.Z タスクが残存):
 3. **Fast Gate / Risk Gate**: Lead 側で実施（Director は `[pr-ready]` 送信後、`[verdict]` 受信を待機）
 
 verdict 待ち・fix_required 時の挙動は汎用テンプレートの Step 6 と同一。
+
+### 全タスク完了 / claimable なし
+
+Lead に `[idle]` 通知後、シグナルファイルを作成する:
+
+```bash
+mkdir -p ~/.einja/sessions/issue-{N}/signals
+touch ~/.einja/sessions/issue-{N}/signals/director-{ID}-idle.signal
+```
 
 ## Worker への追加指示（`{ADDITIONAL_WORKER_INSTRUCTIONS}` 展開）
 
@@ -168,7 +193,24 @@ Worker prompt には以下を必ず含める:
 
 ## 共通プロトコル（Issue 実行）
 
+> **注意**: Lead へのエスカレーション（SendMessage）時は、必ず下記「シグナルファイル作成ルール」に従いシグナルファイルも作成すること。
+
 - ステータス遷移: `pending → in_progress → awaiting_review → completed`（[Issue 実行共通プロトコル](../../../docs/einja/instructions/issue-exec-protocol.md) 準拠）
 - コンフリクト: `einja-conflict-resolver` Skill
 - コミット: `einja-task-commit` Skill
 - PR 作成: `einja-create-pr` Skill
+
+### シグナルファイル作成ルール
+
+| メッセージ | シグナルファイル | 理由 |
+|-----------|----------------|------|
+| `[pr-ready]` | `director-{ID}-complete.signal`（**必須**） | Lead がゲートチェックを即座に実行する必要がある |
+| `[idle]` | `director-{ID}-idle.signal`（**必須**） | Lead が Director の再割当・Phase 完了判定を行う必要がある |
+| `[error]` エスカレーション | `director-{ID}-error.signal`（**必須**） | Lead がリトライ / 中止の判断を即座に行う必要がある |
+| `[progress]` | 不要 | 情報ログのみ |
+| `[task-claim]`（broadcast） | 不要 | 情報更新のみ |
+| `[change-summary]`（broadcast） | 不要 | 情報更新のみ |
+| `[peer-review]` | 不要 | Director 間の直接通信 |
+| `[conflict-resolved]` | 不要 | ログ記録のみ |
+
+コマンド: `mkdir -p ~/.einja/sessions/issue-{N}/signals && touch ~/.einja/sessions/issue-{N}/signals/director-{ID}-{type}.signal`

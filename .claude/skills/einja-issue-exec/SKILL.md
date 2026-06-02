@@ -177,10 +177,10 @@ $ARGUMENTS をLLMとして自然言語解析し、以下の情報を抽出する
    # worktree作成（冪等）
    WORKTREE_PATH=~/.einja/worktrees/issue-{N}/manager
    WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-   if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+   if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
      : # 既存worktreeを再利用
    else
-     git worktree prune --expire now 2>/dev/null
+     git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
      if [ -d "$WORKTREE_PATH" ]; then
        rm -rf "$WORKTREE_PATH"
      fi
@@ -285,10 +285,10 @@ git push -u origin "$BRANCH" 2>/dev/null || true
 # worktree作成（冪等）
 WORKTREE_PATH=~/.einja/worktrees/issue-{N}/task-{X.Y}
 WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
   : # 既存worktreeを再利用
 else
-  git worktree prune --expire now 2>/dev/null
+  git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
   if [ -d "$WORKTREE_PATH" ]; then
     rm -rf "$WORKTREE_PATH"
   fi
@@ -403,6 +403,13 @@ Manager は以下を監視:
    - Managerはシグナル受信後、**全Workerのステータスファイルを走査**してゲートチェック実施
    - 質問ファイルの pending 状態も同様にシグナルファイルで通知（`question-{UUID}.signal`）
    - **シグナルファイルはあくまで「起床トリガー」**。完了の判定はステータスファイルで行う
+   - **タイムアウト時のフォールバック**: 120秒経過してもシグナルが検出されなかった場合（`$SIGNALS` が空文字列）、Managerは以下を実行する:
+     1. **全Workerのステータスファイルを走査**し、未処理のactionable stateがないか確認する。対象: `status` が `awaiting_review` かつ未判定（`directorVerdict` が null）のWorker
+     2. 未処理Workerが見つかればシグナル受信時と同様にゲートチェックを実施する
+     3. **Worker pane の生存確認**（tmuxモードのみ）: `tmux list-panes -t "$EINJA_TMUX_SESSION:$EINJA_TMUX_WINDOW"` でWorker paneの存在を確認。paneが消滅しているWorkerが `in_progress` のままの場合は、当該タスクを `failed` に遷移し、ユーザーにエラーを報告する
+     4. 未処理もpane消滅もなければ、監視ループの先頭に戻り再度120秒のシグナル待機に入る
+     5. **ハング検知**: pane存在かつ `in_progress` のWorkerについて、`tmux capture-pane` で最新出力を取得し、前回チェック時と比較して出力に変化がない場合はハングの可能性として記録する。連続3回（約6分間）出力変化なしの場合、当該Worker paneの状態を詳細出力してユーザーに報告し、手動介入を促す。正常にビルド・テスト実行中のWorkerを誤検知しないよう、pane消滅または出力停止を条件とする
+   - これはシグナルファイルの作成漏れ、Worker のハング、プロセスクラッシュに対する防御策である
 
    **AskUserQuestion 検知（タイムアウトフォールバック時に実行）:**
 
@@ -786,10 +793,10 @@ git push -u origin "$BRANCH" 2>/dev/null || true
 
 WORKTREE_PATH=~/.einja/worktrees/issue-{N}/task-{X.Y}
 WORKTREE_ABS=$(cd "$(dirname "$WORKTREE_PATH")" 2>/dev/null && echo "$(pwd)/$(basename "$WORKTREE_PATH")" || echo "$WORKTREE_PATH")
-if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS"; then
+if git worktree list --porcelain | grep -qFx "worktree $WORKTREE_ABS" && [ -d "$WORKTREE_PATH" ]; then
   : # 既存worktreeを再利用
 else
-  git worktree prune --expire now 2>/dev/null
+  git worktree remove "$WORKTREE_ABS" --force 2>/dev/null || true
   if [ -d "$WORKTREE_PATH" ]; then
     rm -rf "$WORKTREE_PATH"
   fi

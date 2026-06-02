@@ -291,6 +291,46 @@ Lead は以下の順序で各 Teammate の `instructions` を構築する:
 
 > **汎用の監視ループ・通知チャネル役割分担・無応答検知・silent failure 検知は [`einja-team-exec/SKILL.md` Step 1-D](../einja-team-exec/SKILL.md#step-1-d-監視ループモード別設計) を参照。**
 
+> **重要**: Leadの監視待機にはシグナルファイル方式を使用する。`sleep` のみの状態ポーリングは禁止。
+> ```bash
+> # 監視ループ初期化（Lead側で1度だけ実行）
+> SIGNAL_DIR=~/.einja/sessions/issue-{N}/signals
+> mkdir -p "$SIGNAL_DIR"
+> declare -A processed_pr_numbers=()   # 同一 [pr-ready] 等の二重処理防止セット（PR番号をキーに登録）
+> # 使用例（Lead の [pr-ready] ハンドラ内）:
+> #   if [ "${processed_pr_numbers[$pr_num]+_}" ]; then continue; fi
+> #   processed_pr_numbers[$pr_num]=1
+> #   # ...（PR Gate / verdict 処理）
+>
+> # シグナルファイル待機（最大120秒、2秒間隔チェック、複数Director同時完了対応）
+> for i in $(seq 1 60); do
+>   FOUND=$(ls "$SIGNAL_DIR"/*.signal 2>/dev/null)
+>   if [ -n "$FOUND" ]; then
+>     for f in $FOUND; do rm -f "$f"; done
+>     echo "$FOUND"
+>     break
+>   fi
+>   sleep 2
+> done
+> ```
+>
+> **通知チャネルの役割分担**:
+> - **シグナルファイル** = 起床トリガー（Leadのbash待機ループを即座に抜けさせる）
+> - **SendMessage** = 内容通知（完了/エラー/進捗の詳細情報を運ぶ）
+> - DirectorはSendMessage送信**後に** 用途別suffix付きシグナルファイルを `touch` する:
+>   - 完了通知: `touch ~/.einja/sessions/issue-{N}/signals/director-{ID}-complete.signal`
+>   - アイドル通知: `touch ~/.einja/sessions/issue-{N}/signals/director-{ID}-idle.signal`
+>   - エラー通知: `touch ~/.einja/sessions/issue-{N}/signals/director-{ID}-error.signal`
+> - Leadはシグナル受信後、TaskList / SendMessageキューを両方チェックして処理する
+> - `processed_pr_numbers` セットにより同一イベントの二重処理を防止
+>
+> **タイムアウト時のフォールバック**: 120秒経過してもシグナルが検出されなかった場合、Leadは以下を実行する:
+> 1. 全DirectorからのSendMessageキューに未読メッセージがないか確認する。`[pr-ready]`・`[error]`・`[idle]` 等のメッセージが届いていればシグナル受信時と同様に処理する
+> 2. 未読メッセージがなければ、全Directorの最終応答時刻を確認し、長時間（10分以上）応答がないDirectorを検出する
+> 3. 応答停止Directorがなければ監視ループの先頭に戻り、再度120秒のシグナル待機に入る
+> 4. **最大待機上限**: 応答停止Director検出時、または連続15回（約30分間）未読メッセージも応答停止もない場合、全Directorの状態をユーザーに報告し手動介入を促す。正常に実装中のDirectorを誤検知しないよう、応答停止（SendMessage/TaskOutput が一定時間ない）を条件とする
+> これはシグナルファイルの作成漏れ、Directorのハングに対する防御策である
+
 ### Issue 固有の追加ハンドラ
 
 | メッセージ種別 | Issue 固有処理 |
@@ -458,15 +498,18 @@ Issue 固有の追加エラーと対応:
 
 | 障害 | 検知 | 対応 |
 |------|------|------|
-| Director 停止（PR 作成済み） | idle 通知 + PR あり | スキップ（PR マージ待ち継続） |
-| Director 停止（修正中: fix_required 対応中） | idle 通知 + fixCount > 0 | 新 Teammate spawn（fixCount 引き継ぎ） |
-| タスク失敗（task-executer 実行エラー） | Director SendMessage | Director がリトライ（最大2回）→ Lead エスカレーション |
-| レビュー不合格（task-reviewer MAJOR 超過） | Director SendMessage | Director が該当タスク再実行（最大2回）→ Lead エスカレーション |
-| QA 失敗（task-qa FAILURE B/C/D） | Director SendMessage | Lead がユーザーエスカレーション（A: 実装ミスは Director が自動再実行） |
-| PR 作成失敗 | `gh pr create` エラー | 再試行（認証エラーは Lead エスカレーション） |
+| Director Teammate 停止/stall（finalize 前: 成果物が未完成） | idle 通知 + 成果物（modifications/qa-tests）未生成 | Lead が新 Teammate spawn してリトライ（最大2回）→ 3回目失敗は Lead エスカレーション → ユーザーエスカレーション |
+| Director stall（finalize 段階: 成果物は完成・未コミット、またはコミット済みだが PR 未作成） | `[error]` 受信、または idle + Director worktree に完成成果物あり（未コミット or コミット済みで PR 未作成） | Lead が `git -C "$DIRECTOR_WORKTREE_ABS" status/diff/log`（cd しない・自 path 限定、`git add .` 等グローバル操作禁止）で点検 → Fast Gate 相当の検証（成果物存在・`<<<<<<<` / PARTIAL 等の danger-signal なし）に通れば、成果物を破棄せず Lead が `einja-task-commit`（未コミット時）+ `einja-create-pr`（PR 未作成時）を当該 worktree 対象に実行して引き取る。検証 NG のみ新 Teammate で当該タスク再実行 |
+| Director Teammate 停止（PR 作成済み） | idle 通知 + PR あり | スキップ（PR マージ待ちのまま継続） |
+| Director Teammate 停止（修正中: fix_required 対応中） | idle 通知 + fixCount > 0 | Lead が新 Teammate spawn（fixCount 引き継ぎ）→ 超過時は Lead エスカレーション → ユーザーエスカレーション |
+| タスク失敗（task-executer 実行エラー） | Director からの SendMessage | Director がリトライ（最大2回）→ 3回目は Lead エスカレーション → ユーザーエスカレーション |
+| レビュー不合格（task-reviewer MAJOR 超過） | Director からの SendMessage | Director が該当タスク再実行（最大2回）→ 3回目は Lead エスカレーション → ユーザーエスカレーション |
+| QA 失敗（task-qa FAILURE B/C/D） | Director からの SendMessage | Lead エスカレーション → ユーザーエスカレーション（実装ミス(A) は Director が自動再実行） |
+| PR 作成失敗 | `gh pr create` エラー | Director が再試行（認証エラーは Lead エスカレーション） |
+| マージコンフリクト | git merge/rebase 失敗 | `einja-conflict-resolver` Skill 呼び出し |
 | CI 失敗 | `gh run` status チェック | Director が修正 → 再 push → 再 CI 待機 |
 | CI 待機タイムアウト | 30 分超過 | Lead が AskUserQuestion でユーザー通知 |
-| GitHub API 認証失敗 | gh コマンドエラー | ユーザー通知して停止 |
+| GitHub API 認証失敗 | gh コマンドエラー | Lead がユーザー通知して停止 |
 | Lead セッション断絶 | - | session resume 不可（Agent Teams 既知制限）。再実行時に issue ブランチの状態から途中再開 |
 
 ---

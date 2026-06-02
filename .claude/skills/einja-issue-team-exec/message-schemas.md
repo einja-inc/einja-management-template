@@ -93,3 +93,74 @@ PR: #{PR番号}
 ```
 
 > 汎用フィールドの詳細・各フィールドの意味は汎用スキーマ側を一次情報とする。本ファイルでは Issue 固有差分（`PR` フィールドの追加）のみを定義する。
+
+---
+
+## 3. メッセージ規約 SSOT（Lead↔Director・3ファイル一致）
+
+> **このセクションは `director-prompt.md` / `SKILL.md` / `message-schemas.md` の3ファイル間で文言が完全一致する前提の SSOT である。** 以下のフォーマットを**唯一の正**とし、各ファイルはこれを参照する。`[error]` は本ファイル §1 の既存規約（Director→Lead）を流用し、重複定義しない。
+
+### 3.1 `[heartbeat]`（Director → Lead）
+
+実装中も一定間隔で Director が Lead へ送信する生存通知。lease 更新として扱う。
+
+**フォーマット**:
+
+```
+[heartbeat] Task {X.Y}: alive, phase={implementing|reviewing|qa|finalizing}
+```
+
+| フィールド | 必須 | 説明 |
+|-----------|------|------|
+| `Task` | 必須 | 進行中タスクの ID（X.Y 形式） |
+| `phase` | 必須 | 現在のフェーズ（`implementing` / `reviewing` / `qa` / `finalizing` のいずれか） |
+
+- **送信者**: Director
+- **受信者**: Lead
+- **用途**: Director→Lead の生存通知（lease 更新）。
+- **Lead の動作**: heartbeat は**起床トリガーにせず、キューでバックログ処理**する（情報ログのみ・即時アクション不要）。Director 別の最終 heartbeat 時刻をメモリ保持し、シグナル待機ループを抜けた際にキューを読んで更新する。heartbeat 継続中は長時間実装とみなし誤 kill しない。heartbeat 途絶（lease 失効）で初めて stall 候補とする。
+
+### 3.2 `[task-claim]`（Director → All・broadcast）
+
+Director がタスク（X.Y）を claim したことを宣言する broadcast。
+
+**フォーマット**:
+
+```
+[task-claim] Task {X.Y}: {タスク名}
+Files: {編集予定ファイル}
+Director: {自分の名前}
+ClaimedAt: {ISO8601}
+```
+
+| フィールド | 必須 | 説明 |
+|-----------|------|------|
+| `Task` | 必須 | claim 対象タスクの ID（X.Y 形式）と名前 |
+| `Files` | 必須 | 編集予定ファイル |
+| `Director` | 必須 | claim した Director 自身の名前 |
+| `ClaimedAt` | 必須 | claim 宣言時刻（ISO8601） |
+
+- **送信者**: Director
+- **受信者**: All（broadcast）
+- **`ClaimedAt` の用途**: claim 裁定のタイブレークに用いる。**`ClaimedAt` が早い方を優先し、同時刻は `Director` 名の辞書順小**を勝者とする（決定論的）。
+
+### 3.3 shutdown ハンドシェイク（`shutdown_request` / `shutdown_response`）
+
+Agent Teams の `shutdown_request` / `shutdown_response` の本文規約。
+
+**`shutdown_response` 本文フォーマット**:
+
+```
+shutdown_response: { approve: true|false, status: "approved"|"deferred", worktree: "{絶対パス or none}", reason: "{未finalize報告 or none}" }
+```
+
+| フィールド | 必須 | 説明 |
+|-----------|------|------|
+| `approve` | 必須 | shutdown を承認するか（`true` / `false`） |
+| `status` | 必須 | `"approved"`（承認）/ `"deferred"`（保留） |
+| `worktree` | 必須 | 未finalize 時は worktree の絶対パス（Lead が引き取れるようにする）。それ以外は `"none"` |
+| `reason` | 必須 | 未finalize 報告（未finalize 時）。それ以外は `"none"` |
+
+- **Director の動作**: Director は `[pr-ready]` 未送信 かつ worktree に未コミット/未push の完成成果物がある場合、即 approve せず **finalize（commit+push+PR）を試行**する。成功時は `[pr-ready]` 送信後に approve、失敗時は `[error]` 送信後に approve する。`worktree` は未finalize 時に絶対パスを入れ、Lead が引き取れるようにする。`reason` に未finalize 報告を入れる。
+- **`approve: false` / `status: "deferred"` の扱い**: 現設計では Director は finalize の成否に関わらず最終的に常に `approve: true` / `status: "approved"` を返す（即approveを遅延させて finalize を先に試行するだけ）。`approve: false` / `status: "deferred"` は将来拡張用の予約値であり、現状は使用しない。
+- **`[error]`**: 本ファイル §1 の既存規約（Director→Lead）を流用する（重複定義しない）。

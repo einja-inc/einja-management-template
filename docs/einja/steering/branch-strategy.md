@@ -444,7 +444,9 @@ git push origin タスクブランチ名
 - [Issue実行共通プロトコル](../instructions/issue-exec-protocol.md) - 共通ルール
 - [タスク管理](task-management.md) - タスク階層と粒度基準
 - [開発ワークフロー](development-workflow.md) - 仕様書作成からタスク実行までの全体フロー
-- [einja-issue-team-exec SKILL.md](../../.claude/skills/einja-issue-team-exec/SKILL.md) - Agent Teams版
+- [einja-issue-team-exec SKILL.md](../../../.claude/skills/einja-issue-team-exec/SKILL.md) - Agent Teams版（Issue並列実行）
+- [einja-team-exec SKILL.md](../../../.claude/skills/einja-team-exec/SKILL.md) - Agent Teams版（汎用チーム並列実行ドライバー）
+- [Agent Teams 環境変数とフック動作要件](../instructions/agent-teams-env.md) - `EINJA_SESSION_ID` 等の必須環境変数
 <!-- @einja:managed:end -->
 
 <!-- @einja:project-private:start id="branch-strategy-project" -->

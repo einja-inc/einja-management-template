@@ -110,18 +110,15 @@ promptに「このタスクは [エージェント名] サブエージェント�
 - モジュール分割の方針
 - 依存関係の設計
 
-> ⚠️ サブエージェントではAskUserQuestionは動作しません。
-> 以下のYAML例は「どんな質問をすべきか」の参照情報です。
-> 実際にはpreload済みの「サブエージェント質問プロトコル」に従い、
-> PENDING_QUESTIONS形式で質問を返却して停止してください。
-
-**⚠️ AskUserQuestion 確認ポイント**:
-以下の場合のみ AskUserQuestion で確認:
+**⚠️ 判断に迷った場合の確認ポイント**:
+以下の場合のみ `_einja-subagent-question-protocol` Skill に従い PENDING_QUESTIONS 形式で質問を返却して停止する:
 - 複数の実装方法が考えられる場合
 - フロントエンド/バックエンドの実装方針が不明確な場合
 - 既存パターンと異なるアプローチを採用する場合
 
-**注意**: skill で既に確認済みの項目は再質問しないこと。
+**注意**:
+- このサブエージェントは AskUserQuestion を**使用してはならない**（呼び出し元の einja-task-exec が PENDING_QUESTIONS を受け取り、必要に応じてユーザーへ転送する）
+- skill で既に確認済みの項目は再質問しないこと
 
 #### 2.3 影響範囲の特定
 - 変更により影響を受ける既存コードの特定
@@ -132,12 +129,12 @@ promptに「このタスクは [エージェント名] サブエージェント�
 
 **⚠️ ACが不十分な場合の確認**:
 promptに含まれるACでは不十分な場合、フォールバックパスからrequirements.mdを読み込んで追加情報を取得する。
-それでも不明な場合のみ AskUserQuestion で以下を確認:
+それでも不明な場合のみ `_einja-subagent-question-protocol` Skill に従い PENDING_QUESTIONS 形式で以下を返却して停止する:
   - 要件理解が正しいか
   - 実装スコープに漏れがないか
   - 破壊的変更がある場合はその影響
 
-**重要**: ユーザーへの情報提供のみで、許可待ちはしません（spec がある場合）。
+**重要**: ユーザーへの情報提供のみで、許可待ちはしません（spec がある場合）。AskUserQuestion は使用禁止。
 
 以下の情報を提示：
 - このタスクの実装方針の概要
@@ -169,7 +166,7 @@ task-execから個別タスク（X.Y.Z）として呼び出された場合:
 #### 4.3 テスト実装の原則
 
 **⚠️ テスト方針が不明確な場合の確認**:
-ACや設計からテスト方針が判断できない場合のみ、AskUserQuestion で以下を確認:
+ACや設計からテスト方針が判断できない場合のみ、`_einja-subagent-question-protocol` Skill に従い PENDING_QUESTIONS 形式で以下を返却して停止する（AskUserQuestion は使用禁止）:
   - 単体テストの必要性と範囲
   - 統合テストの必要性と範囲
   - E2Eテストの必要性と範囲
@@ -426,7 +423,7 @@ task-qa は artifacts/outcomes/{taskId}-outcome.json を読み込み → マー�
 |-----------|------|------|
 | **設計参照読み込み失敗** | design.mdの指定パス・セクションが見つからない | フォールバックパスからdesign.md全体を読み込む |
 | **AC不明** | promptにACが含まれていない | フォールバックパスからrequirements.mdを直接読み込む |
-| **フォールバックパス無効** | specディレクトリが存在しない | AskUserQuestion で代替手段を確認 |
+| **フォールバックパス無効** | specディレクトリが存在しない | `_einja-subagent-question-protocol` Skill に従い PENDING_QUESTIONS 形式で代替手段を確認（AskUserQuestion 使用禁止） |
 
 エラー発生時は：
 1. エラー内容を明確に報告

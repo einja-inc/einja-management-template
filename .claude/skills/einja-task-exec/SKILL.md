@@ -311,22 +311,33 @@ while (未完了タスクが存在):
   3. 収集したタスクを TaskUpdate で in_progress に設定
   4. 【実行サブエージェント判定】各タスクの `実行サブエージェント` フィールドを確認し、
      上記マッピングで起動エージェントを決定する:
+
+     **【全エージェント共通の必須プレフィックス】**
+     どのエージェント（design-engineer / frontend-coder / backend-architect / codex-agent / task-executer 等）を起動する場合も、Task ツールの prompt 先頭に以下の指示を必ず含めること:
+
+     > **【必須】AskUserQuestionツールは使用禁止。質問が必要な場合は `.claude/skills/_einja-subagent-question-protocol/SKILL.md` を参照し、PENDING_QUESTIONS 形式で質問を返却して作業を停止すること。**
+
+     この指示は分岐ごとの個別追加ではなく、Task 起動時の共通プレフィックスとして全エージェントに一律で適用する。
+
+     なお、`.claude/agents/einja/task/task-executer.md` も PENDING_QUESTIONS プロトコルに統一済み（AskUserQuestion 使用前提の記述は撤去済み）であり、本 SKILL.md の AUQ 禁止指示と整合している。
+
      - [design-engineer] の場合:
        * そのタスクの「対応UIデザイン」フィールドからフレーム名を独立して解決し、複数フレームの場合は frameNames[0] を使用、残りは einja-task-exec（親）が riskFlags に記録する
        * Step 2.5 が未実行（またはそのタスクの対象フレームで未生成）であれば先に実行（baseline.png + manifest.json を生成）
        * Task ツールで design-engineer を起動
-       * promptに含める: タスクID + タスク名 + AC + 設計パス + 完了条件 +
+       * promptに含める: 上記共通プレフィックス + タスクID + タスク名 + AC + 設計パス + 完了条件 +
          baseline_png（Step 2.5 で保存した絶対パス） + manifest_json（同）+
          使用Skill指示（指定されている場合）+ 外部API連携フラグ（該当する場合）
      - [frontend-coder] / [backend-architect] / [codex-agent] の場合:
        * Task ツールで対応エージェントを起動
-       * promptに含める: タスクID + タスク名 + AC + 設計パス + 完了条件 +
+       * promptに含める: 上記共通プレフィックス + タスクID + タスク名 + AC + 設計パス + 完了条件 +
          使用Skill指示（指定されている場合）+ 外部API連携フラグ（該当する場合）+
          baseline_png（UIタスクかつ Step 2.5 完了済みの場合のみ）+
          manifest_json（同上）
      - 未指定 or [task-executer] の場合（デフォルト）:
        * Task ツールで task-executer を起動
        * promptに含める（ハイブリッド方式）:
+         0. 上記共通プレフィックス（AskUserQuestion禁止 + PENDING_QUESTIONS 形式の利用指示）
          a. タスクID + タスク名 + 実装指示（Issueから抽出したサブタスク内容）
          b. AC（受け入れ基準）→ 直接埋め込み（親が抽出済み）
          c. 設計 → design.mdパス + セクション名（executerが自分でRead）
@@ -352,6 +363,32 @@ while (未完了タスクが存在):
 - 重複懸念がある場合は直列化する
 - どのエージェントを起動した場合もコミットさせない（Step 7でまとめて実行）
 
+#### Agent tool subagent 質問転送フロー（モード2）
+
+サブエージェント（task-executer等）は AskUserQuestion を使用できないため、PENDING_QUESTIONS形式で質問を返却する。einja-task-exec（親エージェント）が以下の手順で処理する:
+
+```
+1. サブエージェント出力に `## PENDING_QUESTIONS` セクション検出
+   ↓
+2. 自律解決試行:
+   - spec/requirements.md/design.md・既存実装・ownership_map から判定可能か検証
+   - 既存ドキュメント・設定・コード調査で確実に判定可能 → 自律解決
+   - 判定不可（ビジネス判断・要件判断） → AskUserQuestion でユーザー転送
+   ↓
+3. AskUserQuestion でユーザー転送（必要時）:
+   - 質問内容・選択肢を `_einja-subagent-question-protocol` の規約に従って提示
+   - ユーザー回答を取得
+   ↓
+4. resume（SendMessage to: agentId）:
+   - SendMessage(to: agentId, message: "resume: {回答内容}")
+   - サブエージェントが resume プロトコルに従い作業再開
+   ↓
+5. resume後の出力に再度 PENDING_QUESTIONS が含まれる場合は 2 に戻る（最大3回まで）
+   3回超過時はタスクを failed 扱いで停止し、ユーザーに報告
+```
+
+詳細は `.claude/skills/_einja-subagent-question-protocol/SKILL.md` を参照すること。
+
 #### Phase末尾タスクグループの特殊処理
 
 タスクグループのメタデータ（Step 1で抽出した「実行サブエージェント」フィールド）に `[phase-reviewer]` が含まれる場合、通常の並列実行ループではなく以下の特殊処理を行う:
@@ -359,6 +396,7 @@ while (未完了タスクが存在):
 1. **task-executer の代わりに phase-reviewer エージェントを起動する**
    - Task ツールで `phase-reviewer` エージェントを直列起動（並列不可）
    - 入力: 全Outcome Manifest（`artifacts/outcomes/` 配下の `{taskId}-outcome.json`）、Phase diff範囲（`git diff --name-only origin/issue/{N}...HEAD`）、specパス
+   - **prompt 先頭に Step 4 の「全エージェント共通の必須プレフィックス」（AskUserQuestion禁止 + PENDING_QUESTIONS 形式利用指示）を含めること**
 
 2. **判定結果の処理**
 
@@ -378,6 +416,7 @@ while (未完了タスクが存在):
 - 要件定義・設計との整合性確認
 - MAJOR判定 → 該当タスクのみ再実行（Step 4に戻る）
 - PASS/MINOR判定 → デザイン整合性レビューフェーズへ（UIタスクの場合）または品質保証フェーズへ（非UIタスクの場合）
+- **task-reviewer 起動時の prompt 先頭に Step 4 の「全エージェント共通の必須プレフィックス」（AskUserQuestion禁止 + PENDING_QUESTIONS 形式利用指示）を含めること**
 
 ### Step 5.5: デザイン整合性レビュー（UIタスクの場合のみ）
 
@@ -386,6 +425,7 @@ while (未完了タスクが存在):
 Task ツールで `task-design-reviewer` エージェントを **直列実行** する（並列不可）。
 
 **渡す情報**（promptに含める）:
+- Step 4 の「全エージェント共通の必須プレフィックス」（AskUserQuestion禁止 + PENDING_QUESTIONS 形式利用指示）を prompt 先頭に含める
 - `baseline_png`: Step 2.5 で保存した `artifacts/ui-design/{taskId}/baseline.png` の絶対パス（`{taskId}` は対象タスクの X.Y.Z 形式のタスクID）
 - `manifest_json`: Step 2.5 で保存した `artifacts/ui-design/{taskId}/manifest.json` の絶対パス（`{taskId}` は同上）
 - `changed_files`: Step 5（task-reviewer）完了時点の変更ファイル一覧（`git diff --name-only HEAD` 等で取得）
@@ -403,6 +443,7 @@ Task ツールで `task-design-reviewer` エージェントを **直列実行** 
 - 受け入れ条件に基づく動作確認
 - テスト失敗 → 該当タスクのみ再実行（Step 4に戻る）
 - 全テスト合格 → L2技術的受け入れゲートへ
+- **task-qa 起動時の prompt 先頭に Step 4 の「全エージェント共通の必須プレフィックス」（AskUserQuestion禁止 + PENDING_QUESTIONS 形式利用指示）を含めること**
 
 ### Step 6.5: 技術的受け入れゲート（自動判定）
 
@@ -505,6 +546,7 @@ while true:
 2. **docs-updater の呼び出し**
    - Task ツールで docs-updater エージェントを呼び出し
    - prompt に以下を含める：
+     - Step 4 の「全エージェント共通の必須プレフィックス」（AskUserQuestion禁止 + PENDING_QUESTIONS 形式利用指示）を prompt 先頭に含める
      - Issue番号
      - タスクグループ番号
      - 対象タスクspecのパス（全Phaseで完了したタスクspec）
@@ -676,12 +718,13 @@ AskUserQuestion:
 #### 3. task-modification-analyzerの呼び出し
 
 上記の確認後、task-modification-analyzerを呼び出し：
-1. Issue番号、タスクグループ番号、ユーザー指示を渡す
-2. 分析結果を表示してユーザーの承諾を待つ
-3. 承諾後、推奨パターンで実行：
+1. Step 4 の「全エージェント共通の必須プレフィックス」（AskUserQuestion禁止 + PENDING_QUESTIONS 形式利用指示）を prompt 先頭に含める
+2. Issue番号、タスクグループ番号、ユーザー指示を渡す
+3. 分析結果を表示してユーザーの承諾を待つ
+4. 承諾後、推奨パターンで実行（task-executer / task-reviewer / task-qa 起動時も同じ共通プレフィックスを含めること）:
    - 小規模修正: task-executerのみ
    - 中規模以上: task-executer → task-reviewer → task-qa
-4. 完了後、追加指示待ち状態に戻る
+5. 完了後、追加指示待ち状態に戻る
 
 ### 終了条件
 

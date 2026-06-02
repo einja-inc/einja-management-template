@@ -314,6 +314,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `react-doctor` `React診断` `ヘルススコア` `Reactヘルス` | `.claude/skills/einja-react-doctor/SKILL.md` |
 | `Skill更新` `参照元を最新化` `Skillを最新化` `ref-updater` | `.claude/skills/einja-skill-ref-updater/SKILL.md` |
 | `issue-team-exec` `Agent Teams` `チーム実行` `team exec` `Desktop実行` | `.claude/skills/einja-issue-team-exec/SKILL.md` |
+| `team-exec` `Team並列` `汎用チーム実行` `チームで並列` `Agent Teamsで` | `.claude/skills/einja-team-exec/SKILL.md` |
 | `Pencil` `pencil` `.pen` `design-master` `デザインマスター` `デザイン管理` | `.claude/skills/einja-pencil-design-manager/SKILL.md` |
 | `Skill計画` `Skill仕様策定` `skill-plan-guide` `Skill品質チェック` | `.claude/skills/einja-skill-plan-guide/SKILL.md` |
 | `Planレビュー` `plan review` `計画レビュー` | `.claude/skills/einja-review-plan/SKILL.md` |

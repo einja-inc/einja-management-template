@@ -105,6 +105,17 @@ fi
 - **通過時**: `directorVerdict = "approved"` → マージモードに応じたPR処理へ
 - **不通過時**: `directorVerdict = "fix_required"` + `fixInstructions` → Worker修正へ（セクション4参照）
 
+### [Agent Teams版のみ] Lead-Owned 検証強化
+
+> このサブセクションは **Agent Teams版（einja-issue-team-exec）専用**。tmux版 Manager は Skill/サブエージェントの spawn を持たず「自らテストを再実行」できないため適用外で、tmux版は上記テーブルの存在確認ベースを維持する。
+
+Agent Teams版では、Lead は Director の自己申告（task-reviewer/task-qa は Director 配下の自己採点）を信じず、独立に検証する。上記 Fast Gate に以下を上乗せする:
+
+- **L0 証跡実体検証**: Outcome Manifest（`artifacts/outcomes/{taskId}-outcome.json`）/ qa-tests / modifications の各 evidence が **bytes>0 ＋ exitCode==0 ＋ 実ファイル到達可** であること。「存在」ではなく「実体」を確認し、空・欠落は不合格とする。
+- **L1 テスト再実行**: Lead-owned 監査サブエージェントが対象 worktree 内で `lint/typecheck/build/test`（monorepo は `pnpm --filter {影響package}` で限定）を再実行し、**Director の報告値ではなく自分の exit code** で判定する。非0 → `fix_required`。
+- **危険シグナル再スキャン**: diff に `<<<<<<<` / `PARTIAL` / `FAILURE` / 未解決 TODO/FIXME がないことを再確認する。
+- 結果は `artifacts/audit/{X.Y}-audit.json` に記録する。これが無ければ `approved` を出さない。
+
 ### 3.2 Risk Gate（条件付き、重要変更時のみ発火）
 
 **発火条件**（いずれか1つ以上に該当）:
@@ -118,6 +129,18 @@ fi
 
 **NG時の動作**:
 - autoモードでもmanualに降格し、段階的リカバリへ移行
+
+### [Agent Teams版のみ] 種別別 動作確認の必須化
+
+> このサブセクションは **Agent Teams版（einja-issue-team-exec）専用**。tmux版 Manager は Skill/サブエージェントの spawn を持たないためこの強化は適用外で、tmux版は上記の「曖昧発火＋代表スモーク」を維持する。tmux版 Manager の Playwright/人間降格対応の可否は別途検討事項とする。
+
+Agent Teams版では、上記の「曖昧発火」を**差分ファイルの種別に応じた必須実行**に格上げする。発火判定は `gh pr diff {PR} --name-only` で取得した差分ファイルの種別による。
+
+- **L2（必須動作確認）**:
+  - UI変更（`.tsx` / `.jsx` / `.css` 等を含む）→ **Playwright MCP で代表シナリオ1本を必須実行**する。画面表示の確認だけでなく、操作フロー到達まで検証する。
+  - API/RPC変更 → **curl で実エンドポイントを必須で打鍵**する（モック不可）。
+- **L3（人間受け入れ必須）**: 認証 / 課金 / migration / 外部API の変更 → **人間受け入れを必須**とする（`auto` モードでも `manual` に降格）。
+- **静的のみで可**: 純ロジック / util / docs のみの変更 → 静的検証（L0/L1）で可とし、E2E はスキップする。
 
 ---
 

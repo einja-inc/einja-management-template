@@ -11,6 +11,7 @@ allowed-tools:
   - TaskCreate
   - TaskUpdate
   - ToolSearch
+  - Skill
   - mcp__playwright__*
 ---
 
@@ -20,7 +21,9 @@ allowed-tools:
 
 ## 前提条件
 
-- **呼び出し元**: `phase-reviewer` Agent（Phase末尾タスクグループの完了後に呼び出される）
+- **呼び出し元**:
+  - `phase-reviewer` Agent（Phase末尾タスクグループの完了後に呼び出される。`einja-task-exec` 経由）
+  - `einja-issue-team-exec` の Lead（`Skill` ツールで直接呼ぶ。Phase完了時・解散前 Final Sweep）
 - **コンテキスト不要**: fork なし（このSkillはサブエージェント起動・Skill呼び出しを行うため）
 - **依存Skill**: `einja-review-code`（Step 4で使用）
 - **不明点がある場合**: 推測で進めず `.claude/skills/_einja-subagent-question-protocol/SKILL.md` を参照してPENDING_QUESTIONS形式で質問を返却し、作業を停止すること
@@ -39,6 +42,7 @@ spec: docs/specs/issues/issue123-feature-name/
 - **Issue番号** (必須): `#123` または `123`
 - **Phase番号** (必須): `2`
 - **specパス** (任意): `docs/specs/issues/issue{N}-{name}/`（省略時は自動検索）
+- **diff範囲** (任意): `origin/{baseBranch}...origin/issue/{N}` 等（省略時は `origin/issue/{N}...HEAD`）。「diff範囲」「diffRange」「diff range」等のキーワードで自然言語指定された範囲を後続の全Gitコマンドで使用する。詳細は「diff範囲」セクションを参照
 
 ---
 
@@ -146,24 +150,33 @@ Score < 45   → FAIL
   - b. Figma（ui-design-url.md）を更新してから再実装する
   - c. 前 Phase の成果物を修正してから当 Phase を再実装する
 - 結果レポートの「判定」欄に `🚨 PHASE_ESCALATE` を記載し、根本原因と推奨アクションを詳述する
-- 呼び出し元の `einja-task-exec` に PHASE_ESCALATE 判定を返却する（差し戻しリストは不要）
+- 呼び出し元（`einja-task-exec` または `einja-issue-team-exec` の Lead）に PHASE_ESCALATE 判定を返却する（差し戻しリストは不要）。Step 8「構造化サマリ」では `{ "verdict": "PHASE_ESCALATE", "score": {n}, "reason": "{根本原因と推奨アクション}" }` を併記する
 
 ---
 
 ## diff範囲
 
-Phase内の変更を取得するGitコマンド:
+このSkillが検証する diff 範囲は **引数で受け取れる**。以下を「diff範囲」`{DIFF_RANGE}` として解決する:
+
+- **呼び出し時に diff範囲が指定された場合**（例: `diff範囲: origin/main...origin/issue/123`）: その値を `{DIFF_RANGE}` とする。
+- **省略時のデフォルト**: `origin/issue/{N}...HEAD`（従来動作・後方互換）。
+
+> 以降のステップで `origin/issue/{N}...HEAD` と書かれている箇所はすべてこの `{DIFF_RANGE}` で解決する。
+
+Phase内（または指定範囲）の変更を取得するGitコマンド:
 
 ```bash
-# Phase内の変更ファイル一覧
-git diff --name-only origin/issue/{N}...HEAD
+# 変更ファイル一覧
+git diff --name-only {DIFF_RANGE}    # デフォルト: origin/issue/{N}...HEAD
 
-# Phase内のdiff全量
-git diff origin/issue/{N}...HEAD
+# diff全量
+git diff {DIFF_RANGE}                # デフォルト: origin/issue/{N}...HEAD
 ```
 
-- `origin/issue/{N}`: issueブランチ（PhaseブランチのマージベースとなるIssueブランチ）
-- `HEAD`: 現在のPhaseブランチの最新コミット（`issue/{N}-phase{P}` ブランチ上で実行）
+- **デフォルト範囲**（diff範囲省略時）:
+  - `origin/issue/{N}`: issueブランチ（PhaseブランチのマージベースとなるIssueブランチ）
+  - `HEAD`: 現在のPhaseブランチの最新コミット（`issue/{N}-phase{P}` ブランチ上で実行）
+- **引数指定の用途例**: `einja-issue-team-exec` の Final Sweep（Issue→base 検証）では `origin/{baseBranch}...origin/issue/{N}` を渡す。この場合 `git diff --name-only origin/issue/{N}...HEAD` ではなく指定範囲で検証する。
 
 ---
 
@@ -178,7 +191,7 @@ git diff origin/issue/{N}...HEAD
 1. **specディレクトリ探索**: `docs/specs/issues/*/issue{N}-*/` でspecパスを特定
 2. **requirements.md の読み込み**: Phase対象のStory・AC一覧を抽出
 3. **design.md のパス特定**: 内容は必要に応じて参照
-4. **Phase diff取得**: `git diff --name-only origin/issue/{N}...HEAD` で変更ファイル一覧
+4. **Phase diff取得**: `git diff --name-only {DIFF_RANGE}`（デフォルト: `origin/issue/{N}...HEAD`。「diff範囲」セクション参照）で変更ファイル一覧
 5. **Outcome Manifest全件ロード**: `artifacts/outcomes/` 配下のPhase対象タスクグループの `{taskId}-outcome.json` を全件読み込む
 
 Phase対象タスクグループの特定方法:
@@ -308,11 +321,11 @@ Playwright MCPでスクリーンショットを撮影し、`artifacts/evidence/p
 以下を確認してハードブロッカーがあれば即座にFAIL:
 
 ```bash
-# secret漏洩スキャン（APIキー・トークンパターン）
-git diff origin/issue/{N}...HEAD | grep -E "(api[_-]?key|api[_-]?secret|password|token|secret)['\"]?\s*[:=]\s*['\"][a-zA-Z0-9+/]{16,}" -i
+# secret漏洩スキャン（APIキー・トークンパターン）   ※ {DIFF_RANGE} はデフォルト origin/issue/{N}...HEAD
+git diff {DIFF_RANGE} | grep -E "(api[_-]?key|api[_-]?secret|password|token|secret)['\"]?\s*[:=]\s*['\"][a-zA-Z0-9+/]{16,}" -i
 
-# migration破壊的変更スキャン
-find . -path "*/prisma/migrations/*.sql" -newer <(git show origin/issue/{N}:.) 2>/dev/null | xargs grep -l "DROP COLUMN\|DROP TABLE\|ALTER TABLE.*DROP" 2>/dev/null
+# migration破壊的変更スキャン（{DIFF_RANGE} の左辺＝マージベースを基準に検査）
+git diff {DIFF_RANGE} --name-only -- "*/prisma/migrations/*.sql" | xargs -r grep -l "DROP COLUMN\|DROP TABLE\|ALTER TABLE.*DROP" 2>/dev/null
 
 # Outcome Manifest存在確認
 # Phase対象タスクグループのoutcome.jsonが全て存在するか確認
@@ -413,11 +426,30 @@ Score < 45           → FAIL
 {FAILの場合のみ: 修正が必要な指摘の優先リスト}
 ```
 
+#### 構造化サマリ（全判定で必須・併記）
+
+**markdown レポートの末尾に、判定に関わらず以下の構造化サマリを必ず併記する**。これにより `Skill` ツールで直接呼ぶ呼び出し元（`einja-issue-team-exec` の Lead）が判定を機械的に消費できる。既存の markdown レポートはそのまま残すため、markdown を期待する既存呼び出し元（`phase-reviewer` Agent 経由の `einja-task-exec`）は壊れない。
+
+```json
+{
+  "verdict": "PASS | CONDITIONAL | FAIL | PHASE_ESCALATE",
+  "score": 72,
+  "fixRequired": []
+}
+```
+
+- **PASS**: `verdict: "PASS"` + `score` + `fixRequired: []`（空配列）。
+- **CONDITIONAL**: `verdict: "CONDITIONAL"` + `score` + `fixRequired`（軽微指摘を入れてもよいが verdict は CONDITIONAL を維持。承認扱い）。
+- **FAIL**: `verdict: "FAIL"` + `score` + `fixRequired[]`（下記「FAIL処理（差し戻し）」の形式。`hardBlockers` を併せて含めてよい）。**従来の FAIL 返却を維持**。
+- **PHASE_ESCALATE**: `verdict: "PHASE_ESCALATE"` + `score` + `reason`（根本原因と推奨アクション）。`fixRequired` は不要（差し戻しリストではなく上位エスカレーション）。
+
+> **後方互換**: `score` の追加と PASS/CONDITIONAL の構造化は、既存消費（`einja-task-exec` は `verdict` と `fixRequired[].taskGroupId` のみ参照）に影響しない（未知フィールドは無視され、`fixRequired` は空配列なら差し戻し0件）。
+
 ---
 
 ## FAIL処理（差し戻し）
 
-**このSkillはFAIL時の指摘リストを返却するのみ**。差し戻し処理（fix_required遷移）は呼び出し元が担う:
+**このSkillは判定と（FAIL時の）指摘リストを返却するのみ**。差し戻し処理（fix_required遷移）は呼び出し元が担う。FAIL時は下記の詳細形式（`hardBlockers` + `fixRequired[]` の各要素に `priority`/`taskGroupId`/`type`/`description`/`recommendation` を含む）で返却する。これは Step 8「構造化サマリ」の `fixRequired` を詳細化したものであり、矛盾しない:
 
 - **einja-issue-exec** / **einja-issue-team-exec**: Manager/Leadが `directorVerdict = "fix_required"` + `fixInstructions` を設定し、該当Workerを再起動
 - **issue-exec-protocol.md** の `approved / fix_required / rejected` 状態機械をそのまま使用
@@ -460,7 +492,9 @@ Score < 45           → FAIL
 
 ## 連携
 
-- **呼び出し元**: `phase-reviewer` Agent（Phase末尾タスクグループ完了後）
+- **呼び出し元**:
+  - `phase-reviewer` Agent（Phase末尾タスクグループ完了後・`einja-task-exec` 経由）
+  - `einja-issue-team-exec` の Lead（`Skill` ツールで直接呼ぶ）
 - **依存Skill**: `einja-review-code`（Step 4: 仕様整合性）
 - **参照プロトコル**: `docs/einja/instructions/issue-exec-protocol.md`（状態機械）
 - **差し戻し先**: `einja-task-exec` Skill（FAIL時の fix_required 処理）

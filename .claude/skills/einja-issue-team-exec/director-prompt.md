@@ -55,7 +55,19 @@ Director は claim 後、タスクグループの description から個別タス
 
 ## Issue 固有のメインフロー差分
 
-汎用 self-claim ループの Step 3〜5 を以下で上書きする。Step 1（claim）・Step 2（Director worktree 作成）・Step 6（verdict 待ち + 削除）は汎用フローを使用する。
+汎用 self-claim ループの Step 3〜5 を以下で上書きする。Step 1（claim）・Step 2（Director worktree 作成）・Step 6（verdict 待ち + 削除）は汎用フローを使用するが、Step 1 の claim は下記「Step 1: claim 裁定」の手順に従う。
+
+### Step 1: claim 裁定（共有 TaskList の X.Y claim のみ）
+
+共有 TaskList の X.Y タスクグループを claim する際は、二重取りを構造的に防ぐため以下の手順を踏む。**この裁定は共有 TaskList の X.Y claim のみに適用し、Director 内の X.Y.Z 個別タスクの in_progress 化（Step 3a/3b）には適用しない**（裁定ウィンドウで Director 内ループを無駄に遅延させないため）。
+
+1. `TaskUpdate` で `owner=自分` + `status=in_progress` に更新する。
+2. **直後に `TaskGet` で `owner==自分` を確認**する（負けていれば即 abort して次タスクへ。これは早期 abort 用の軽量チェックで、完全には穴を塞がない）。
+3. `[task-claim]`（[`message-schemas.md`](./message-schemas.md)・`ClaimedAt` 含む）を broadcast する。
+4. **裁定ウィンドウ（例 2-3 秒）** 待機する。
+5. ウィンドウ経過後に競合する `[task-claim]`（同一 X.Y）を受信していなければ claim 確定。受信していたらタイブレーク（`ClaimedAt` が早い方、同時刻は Director 名の辞書順小）で 1 名に確定し、敗者は `status=pending` に戻して別タスクを claim する。
+
+> **最終確定は (5) のタイブレークが単一の裁定者**である（(2) の `TaskGet` は早期 abort 用で、non-CAS な `TaskUpdate` の同時書き込みの穴を完全には塞がない）。
 
 ### Step 3a: 個別タスク登録（Director ローカルファイル）
 
@@ -83,16 +95,31 @@ while (X.Y.Z タスクが残存):
   5. Worker worktree 作成（命名: task/{N}-{X.Y.Z}）
   6. Worker prompt に下記「Worker への追加指示」を埋め込み、run_in_background:true で起動
   7. TaskOutput で完了待機 → Director worktree にマージ
+     # merge 直前に Worker worktree に未コミット変更が残っていないことを確認する
+     git -C ../${project-name}-worktrees/task-{N}-{X.Y.Z} status --short   # 出力が空であること
+     # 残っていれば Director がコミットして取り込む（取りこぼし防止）:
+     #   ※ 当該 worker worktree 内でのみ `-C <worker-wt>` 経由で実行するため他ツリーには影響しない（worktree 限定のフォールバック）
+     #   git -C <worker-wt> add -A && git -C <worker-wt> commit -m "chore: Task {X.Y.Z} 未コミット変更を取り込み"
      git merge --no-ff task/{N}-{X.Y.Z} -m "merge: Task {X.Y.Z} の変更を統合"
-  8. Worker worktree・ブランチ削除
+  8. Worker worktree・ブランチ削除（**当該変更が Director worktree へ merge 済みであることを確認してから**。削除手順は後述「Worker worktree 削除の保全条件」参照）
   9. ローカルファイルの status を completed に更新 → 1 へ戻る
 ```
 
 > **注**: 上記ステップで言及する「ローカル」操作はすべて Director ローカルファイル（`~/.einja/sessions/issue-{N}/tasks-{director-name}/`）への読み書きであり、`TaskCreate` / `TaskUpdate` / `TaskList` 等の共有 TaskList API は使用しない。共有 TaskList API は X.Y タスクグループ自体のステータス（claim / pending / completed 等）操作にのみ用いる。
 
 - 並列起動タスク間でファイル変更対象が重複しないよう、設計セクションから推定して確認。重複懸念があれば直列化する
-- Worker にはコミットさせない（後段でまとめて実行）
+- **Worker は自 worktree（`task/{N}-{X.Y.Z}`）で X.Y.Z 単位の変更を必ずコミットする**（Director の `git merge` が空振りせず、Worker worktree 削除で成果物が消えないようにするため）。
+- **二段コミットの役割分担**: ①Worker が X.Y.Z をコミット（中間統合用）→ ②Director が `git merge --no-ff` で Director worktree（`task/{N}-{X.Y}`）へ統合 → ③Step 6 は Director worktree の**統合済みコミットをそのまま push/PR**（再コミット不要。`einja-task-commit` は未コミット差分がある場合のみコミットし、無ければ push/PR のみ実行）。これにより「Worker 中間コミット」と「Step 6」が二重コミットで衝突しない。
 - 進捗報告: 各 X.Y.Z の開始時・完了時に `[progress] Task {X.Y.Z}: {started|completed} - {タスク名}` を Lead に SendMessage
+- **heartbeat 送信**: 実装ループ中、一定間隔（例 90 秒）で `[heartbeat] Task {X.Y}: alive, phase={implementing|reviewing|qa|finalizing}`（[`message-schemas.md`](./message-schemas.md)）を Lead へ送信する（lease 更新。Lead が長時間実装と stall を区別するため）
+
+#### Worker worktree 削除の保全条件
+
+ループ 8.（Worker worktree・ブランチ削除）は以下を厳守する:
+
+- **削除は「当該変更が Director worktree へ merge 済み」を確認してから**実行する。merge 未済なら削除せず、Director がコミットして取り込む（前述の merge 直前フォールバック参照）。
+- worktree は `git worktree remove --force`、ブランチは `git branch -d`（**非強制**）で削除する。`git branch -d` は未マージなら失敗する＝保全側に倒れるため、`-D`（強制）には**変えない**。
+- `git branch -d` が失敗した場合は未マージ＝未回収の可能性があるため、削除を中断して merge 状態を再確認する。
 
 ### Step 4: レビューフェーズ（タスクグループ全体で1回）
 
@@ -141,6 +168,19 @@ while (X.Y.Z タスクが残存):
    touch ~/.einja/sessions/issue-{N}/signals/director-{ID}-error.signal
    ```
    これにより Lead は完成済み成果物を破棄せず finalize を引き取れる（SKILL.md エラー表参照）。
+
+## shutdown_request 受信時の処理
+
+Lead から `shutdown_request` を受信したら、**即 approve せず**に未回収成果物の有無を確認する:
+
+1. **finalize 試行の判定**: (i) `[pr-ready]` 未送信 **かつ** (ii) Director worktree に未コミット/未push の完成成果物がある（`git -C <worktree> status --short` が非空、または未push commit あり）場合は、まず finalize（commit + push + PR 作成）を試行する。
+   - **成功時**: `[pr-ready]` を Lead へ送信した上で approve する。
+   - **失敗時**: `[error]` を Lead へ送信（worktree の絶対パス・`git -C <worktree> status --short`・`git -C <worktree> log --oneline -3` を本文に添付）した上で approve する。
+2. **成果物が無い / finalize 不要**（既に `[pr-ready]` 送信済み、または worktree に未回収変更が無い）の場合は通常どおり approve する。
+3. **応答本文の規約**: `shutdown_response` は以下に従う（[`message-schemas.md`](./message-schemas.md) の shutdown ハンドシェイク本文規約と一致させること）:
+   ```
+   shutdown_response: { approve: true|false, status: "approved"|"deferred", worktree: "{絶対パス or none}", reason: "{未finalize報告 or none}" }
+   ```
 
 ## Issue 固有の品質ゲート（`{QUALITY_GATE_STEPS}` 展開）
 
@@ -208,6 +248,7 @@ Worker prompt には以下を必ず含める:
 | `[idle]` | `director-{ID}-idle.signal`（**必須**） | Lead が Director の再割当・Phase 完了判定を行う必要がある |
 | `[error]` エスカレーション | `director-{ID}-error.signal`（**必須**） | Lead がリトライ / 中止の判断を即座に行う必要がある |
 | `[progress]` | 不要 | 情報ログのみ |
+| `[heartbeat]` | 不要 | 情報ログのみ・Lead 即時アクション不要（キューでバックログ処理） |
 | `[task-claim]`（broadcast） | 不要 | 情報更新のみ |
 | `[change-summary]`（broadcast） | 不要 | 情報更新のみ |
 | `[peer-review]` | 不要 | Director 間の直接通信 |

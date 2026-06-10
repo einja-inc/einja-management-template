@@ -15,20 +15,23 @@ Lead/Director/Worker 間で使用するシグナルファイルは、用途別�
 | Agent Teams系（Director → Lead） | `director-{ID}-complete.signal` | Director がタスク完了を SendMessage 送信後に作成 | Director | Lead の bash 待機ループ（tmuxモード）/ 補助監視（in-process） |
 | Agent Teams系（Director → Lead） | `director-{ID}-error.signal` | Director がエラー発生時に作成 | Director | 同上 |
 | Agent Teams系（Director → Lead） | `director-{ID}-idle.signal` | Director がアイドル状態を通知 | Director | 同上 |
-| Platform hooks系（補助） | `teammate-idle-{TEAMMATE}.signal` | `TeammateIdle` hook が自動作成 | Claude Code platform | Lead の補助監視 |
-| Platform hooks系（補助） | `task-{TASK_ID}-completed.signal` | `TaskCompleted` hook が自動作成 | Claude Code platform | Lead の補助監視 |
+| Platform hooks系（signalizer） | `teammate-idle-{TEAMMATE}.signal` | `TeammateIdle` hook が自動作成（Agent Teams 有効時は**常時生成**・モード判定なし） | Claude Code platform | Lead が `MONITOR_MODE` に応じて解釈（tmux=起床トリガー / in-process=取りこぼし補助） |
+| Platform hooks系（signalizer） | `task-{TASK_ID}-completed.signal` | `TaskCompleted` hook が自動作成（Agent Teams 有効時は**常時生成**・モード判定なし） | Claude Code platform | Lead が `MONITOR_MODE` に応じて解釈（tmux=起床トリガー / in-process=取りこぼし補助） |
 
 ### in-process モードでのシグナルファイル扱い
 
-Agent Teams in-process モードでは Platform hooks 設定時にシグナルファイルが自動作成されるが、
-これは **補助的な役割** に留まる。メイン通信路は SendMessage 受信であり、シグナルファイルは
-SendMessage の取りこぼし検知や TaskList 監視のフォールバックとして使用する。
+Platform hooks 設定時、hooks は実効モードを判定せず **Agent Teams 有効時は常にシグナルを生成する**（signalizer）。
+in-process モードでは、これらシグナルは **補助的な役割** に留まる。メイン通信路は SendMessage 受信であり、
+シグナルファイルは SendMessage の取りこぼし検知や TaskList 監視のフォールバックとして使用する（無視してもよい）。
 
 | モード | メイン通信 | シグナルファイル |
 |-------|----------|----------------|
-| tmuxモード | SendMessage + シグナルファイル | **必須**（bash 待機ループ駆動） |
-| in-processモード（hooks有） | SendMessage 受信 | 補助（取りこぼし検知用） |
+| tmuxモード | SendMessage + シグナルファイル | **起床トリガー**（bash 待機ループ駆動） |
+| in-processモード（hooks有） | SendMessage 受信 | 補助（取りこぼし検知用・無視可） |
 | in-processモード（hooks無） | SendMessage 受信のみ | 不使用 |
+
+> **注**: 現行の einja settings では hooks は常時有効・常時生成される（Agent Teams 有効時）。
+> 上記「hooks無」は hooks 未設定の外部環境向けの記述として残している。
 
 ---
 
@@ -108,9 +111,14 @@ done
 
 ---
 
-## Platform hooks（補助・オプション）
+## Platform hooks（イベント signalizer）
 
-`TeammateIdle` / `TaskCompleted` hook（v2.1.33+ で公式サポート確認済み — 出典: https://code.claude.com/docs/en/hooks ）を補助的に使用可能。
+`TeammateIdle` / `TaskCompleted` hook（v2.1.33+ で公式サポート確認済み — 出典: https://code.claude.com/docs/en/hooks ）は、
+**実効モードを判定せず、Agent Teams 有効時は常時シグナルを生成する「イベント signalizer」** として動作する。
+hooks 自体はモード判定を行わず、生成されたシグナルを **Lead が自分で resolve した `MONITOR_MODE` に応じて解釈** する:
+
+- **tmux モード**: シグナルを **起床トリガー** として使用（bash 待機ループを即座に抜けさせる）
+- **in-process モード**: SendMessage がメイン通信路。シグナルは **取りこぼし検知の補助** として使用（無視してもよい）
 
 ```jsonc
 // settings.json
@@ -128,4 +136,7 @@ done
 }
 ```
 
-**必須ではない** — hooks 未設定でも SendMessage + シグナルファイル方式で動作する。
+> **注**: 上記 settings.json 例の `touch ~/.einja/sessions/$SESSION/...` は **hooks 未設定の外部環境向けの最小構成例**であり、シグナルファイル名が `$SESSION` / `$TASK_ID` / `$TEAMMATE` の素の env 展開に依存する。einja 同梱の `.claude/hooks/einja/task-completed.sh` / `teammate-idle.sh` はこれより高機能で、**stdin JSON（`team_name` / `task_id` / `teammate_name`）を解析して動的にシグナルファイル名・session dir を決定**する（詳細: [`agent-teams-env.md`](../../../../docs/einja/instructions/agent-teams-env.md) 「3-0. フックの入力」）。einja 環境では同梱フックが使われるため、この最小例を手動設定する必要はない。
+
+現行の einja settings では上記 hooks は常時有効・常時生成される。hooks 未設定の外部環境でも、
+tmux モードでは Director が自前で `touch` するシグナルファイル、in-process モードでは SendMessage により動作する。

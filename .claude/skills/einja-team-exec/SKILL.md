@@ -69,17 +69,41 @@ echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
 | `1` | Agent Teams モードで続行 |
 | 空 / 未設定 | **フォールバック**: Agent tool + foreground subagent 方式に自動切替（Step 1-A-fb 参照） |
 
-### 表示モード検出
+### Lead 監視モード resolve
+
+teammate の実効モード（tmux pane / in-process）を hook/SKILL から確実判定する公式手段は無い（`CLAUDE_CODE_TEAMMATE_MODE` は Claude Code が公式提供しない env var）。そのため **Lead 自身が監視モードを決める**。hooks はモード判定せず Agent Teams 有効時は常時シグナルを生成するため、Lead が in-process と判定した場合はシグナルを無視すればよい。
+
+解決順（先に決まったものを採用）:
+1. `EINJA_TEAMMATE_MONITOR_MODE`（einja 明示指定: `tmux` / `in-process`）
+2. settings.json の top-level `teammateMode`（project → user。`tmux` / `in-process` / `auto`）
+3. 既定 `auto`
 
 ```bash
-echo $CLAUDE_CODE_TEAMMATE_MODE
-echo $TMUX
+MODE="${EINJA_TEAMMATE_MONITOR_MODE:-}"
+# 未指定なら settings.json の top-level teammateMode を読む（project: ./.claude/settings.json → user: ~/.claude/settings.json）
+# 読み取りは node（fs.readFileSync + JSON.parse。require 回避）優先、jq フォールバック。JSONCコメント非対応前提。
+if [ -z "$MODE" ]; then
+  for f in "$PWD/.claude/settings.json" "$HOME/.claude/settings.json"; do
+    [ -f "$f" ] || continue
+    v="$(node -e 'try{const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));if(j.teammateMode!=null)process.stdout.write(String(j.teammateMode))}catch(e){}' "$f" 2>/dev/null \
+      || jq -r '.teammateMode // empty' "$f" 2>/dev/null || true)"
+    [ -n "$v" ] && { MODE="$v"; break; }
+  done
+fi
+[ -z "$MODE" ] && MODE="auto"   # いずれも未取得なら既定 auto
+# auto / tmux は実環境を確認して降格判定する:
+#   $TMUX 非空 かつ `tmux list-panes` 成功 → tmux、それ以外/失敗 → in-process へ降格
+if { [ "$MODE" = "tmux" ] || [ "$MODE" = "auto" ]; } && [ -n "${TMUX:-}" ] && tmux list-panes >/dev/null 2>&1; then
+  MONITOR_MODE="tmux"
+else
+  MONITOR_MODE="in-process"
+fi
 ```
 
-| 環境 | 監視方式 |
+| MONITOR_MODE | 監視方式 |
 |------|---------|
-| `CLAUDE_CODE_TEAMMATE_MODE=tmux` かつ `$TMUX` が非空 | tmuxモード: シグナルファイル + tmux pane監視 |
-| 上記以外 | in-processモード: SendMessage受信 + TaskList確認 |
+| `tmux` | シグナルファイル + tmux pane監視。**併せて SendMessage / TaskList poll も実施**（#29207 の silent in-process fallback 保険として取りこぼしを防ぐ） |
+| `in-process` | SendMessage受信 + TaskList確認。hooks のシグナルは取りこぼし検知の補助としてのみ使用 |
 
 ### フォールバック（Agent Teams 無効時）— Step 1-A-fb
 
@@ -367,7 +391,7 @@ Director は以下の場合に Lead へエスカレーションする:
 |-------|---------|------|
 | Agent Teams in-process | SendMessage 受信 + TaskList 確認（メイン）/ シグナルファイル（補助） | [monitoring.md §Agent Teams モード](./references/monitoring.md#agent-teams-モードin-process) |
 | Agent Teams tmux | シグナルファイル + bash 待機ループ（必須）+ SendMessage（内容） | [monitoring.md §tmux モード](./references/monitoring.md#tmux-モード) |
-| Platform hooks（補助） | hooks → シグナルファイル自動生成 | [monitoring.md §Platform hooks](./references/monitoring.md#platform-hooks補助オプション) |
+| Platform hooks（イベント signalizer） | hooks → シグナルファイル自動生成（常時） | [monitoring.md §Platform hooks](./references/monitoring.md#platform-hooksイベント-signalizer) |
 
 ### シグナルファイル命名規則（3系統サマリ）
 

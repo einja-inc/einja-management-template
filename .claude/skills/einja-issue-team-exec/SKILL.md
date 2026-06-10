@@ -75,11 +75,11 @@ GitHub Issue 全体のタスクを Lead → Director(Teammate Pool) → Worker(S
 
 > **【必須】処理開始前に `einja-common:agent-teams-guide` Skill を Skill ツールで読み込むこと。** TeamCreate / teammate 管理 / ファイル競合防止策 / フォールバック手順といった Agent Teams 利用時の必守ルールを参照するため、本 Skill 起動直後に最初に実行する。
 >
-> **汎用の Agent Teams 有効確認・表示モード検出は [`einja-team-exec/SKILL.md` Step 1-A](../einja-team-exec/SKILL.md#step-1-a-前提条件環境検出) を参照。**
+> **汎用の Agent Teams 有効確認・Lead 監視モード resolve（tmux/in-process の判定。`CLAUDE_CODE_TEAMMATE_MODE` には依存しない）は [`einja-team-exec/SKILL.md` Step 1-A](../einja-team-exec/SKILL.md#step-1-a-環境検出) を参照。**
 >
 > ### 【最重要・上書き】汎用 fallback の不継承
 >
-> [`einja-team-exec/SKILL.md` Step 1-A（およびフォールバック節 Step 1-A-fb）](../einja-team-exec/SKILL.md#step-1-a-前提条件環境検出) では「Agent Teams 無効時は Agent tool (Task) ベースの並列実行へ自動 fallback する」と定義されているが、**本 Skill（einja-issue-team-exec）ではこの汎用 fallback を継承しない**。
+> [`einja-team-exec/SKILL.md` Step 1-A（およびフォールバック節 Step 1-A-fb）](../einja-team-exec/SKILL.md#step-1-a-環境検出) では「Agent Teams 無効時は Agent tool (Task) ベースの並列実行へ自動 fallback する」と定義されているが、**本 Skill（einja-issue-team-exec）ではこの汎用 fallback を継承しない**。
 >
 > 理由: Issue 並列実行は Issue 単位の Phase / タスクグループ / PR Gate / verdict フロー / docs-updater / Phase 99 等の前提に依存しており、Agent tool ベースの汎用 fallback では Issue 固有の Lead↔Director↔Worker メッセージング・PR ゲートチェック・Phase ブランチ運用が成立しないため。
 >

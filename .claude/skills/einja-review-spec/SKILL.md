@@ -73,6 +73,9 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | B | ATDD・受け入れ基準品質 | AC一覧、AC詳細、正常系/異常系、検証可能性、UXカテゴリのACにインタラクション4状態・エラーメッセージ導線・多重送信防止・フォーカス管理が含まれているか |
 | C | 実装可能性・既存整合 | 既存アーキテクチャや実装パターンとの整合、非現実的要件の有無 |
 | D | QAトレーサビリティ | 後続の設計・QA・タスク分解に必要な情報が揃っているか |
+| E | Readiness & 依存境界 | 「横断必須ゲート」§G1（readiness level 混在）+ §G2（external-deps 明示）。infra/サービス/外部連携を含む場合は必ずピック |
+| F | セキュリティ・脅威モデリング | 「横断必須ゲート」§G3（threat-modeling / control-plane / 危険 sink）。外部入力・認証・権限・特権操作・外部連携を含む場合は必ずピック |
+| G | SSOT 整合 | 「横断必須ゲート」§G4（同一設定値の重複・矛盾）。設定値・閾値・接続先が複数箇所に登場する場合は必ずピック |
 
 #### `phase2_bundle`
 
@@ -82,6 +85,9 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | B | UI/UX・画面整合 | `ui-design-url.md`（Figma）と requirements/design の整合、一貫性、主要導線、インタラクション4状態設計（disabled/error/empty/loading）の有無、エラーメッセージの位置と再試行導線の明示、多重送信防止とローディング制御、基本フォーカス管理 |
 | C | QA網羅性・実行可能性 | AC対応、前提条件、手順の明確さ、打鍵確認可能性 |
 | D | 横断整合性 | design / ui / qa の用語、API名、画面名、外部API前提の一致 |
+| E | Readiness & external-deps DAG | 「横断必須ゲート」§G1 + §G2。design に readiness matrix があり、healthy 到達の external-deps（DB migrate / secret / DNS / OAuth 等）が依存関係として整理されているか。infra/サービス/外部連携を含む場合は必ずピック |
+| F | セキュリティ・脅威モデリング | 「横断必須ゲート」§G3。design に Threat Model セクションがあり、authz / secrets 露出 / injection / SSRF / admin・control-plane 露出 / token scope・衝突 / privilege scope / runtime 入力→危険 sink が識別・対策されているか。外部入力・認証・権限・特権・外部連携を含む場合は必ずピック |
+| G | SSOT 整合 | 「横断必須ゲート」§G4。requirements / design / ui / qa にまたがる同一設定値が矛盾しておらず、正本ファイルが定義されているか |
 
 #### `tasks`
 
@@ -91,6 +97,44 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | B | 依存関係・並列性・UX網羅性 | 並列実行可能性、依存関係記法、Phase分割の妥当性。フロントエンド変更を含むタスクグループにUXカテゴリAC（インタラクション4状態・エラーメッセージ導線・多重送信防止・フォーカス管理）が割り当てられているか |
 | C | トレーサビリティ | requirements / design / qa との対応関係の明確さ |
 | D | 実行準備性 | サブエージェント割当、完了条件、シナリオテスト指定の妥当性 |
+| E | 「作れる」≠「healthy」分離 | 「横断必須ゲート」§G2。サービス・外部連携を含むタスクで「リソースを作る」タスクと「healthy にする」タスクが別ノードに分かれ、external-deps が依存関係（blockedBy）として張られているか |
+| F | セキュリティ観点の漏れ | 「横断必須ゲート」§G3。タスク完了条件・実装指示に、外部入力→危険 sink（path-traversal 等）の対策や authz / secrets / privilege の考慮が欠けていないか。認証・権限・特権操作・外部連携を含むタスクグループで必ずピック |
+| G | SSOT 整合 | 「横断必須ゲート」§G4。タスク完了条件・設定値が requirements / design と矛盾していないか |
+
+### 横断必須ゲート（全 review_scope 共通: 観点 E/F/G の詳細）
+
+以下 4 ゲートは、対象成果物が該当性質を持つ場合に必ず適用する。各ゲートに対応する観点（E/F/G）をピックし、レビュアーのプロンプトに該当ゲートのチェックリストを埋め込む。**Web アプリ開発汎用**（frontend / backend / API / DB / auth / secret / 外部連携 / インフラ）の観点で確認する。
+
+#### §G1: readiness level の混在検出（→ 観点 E）
+
+- [ ] 1 つの AC / 完了条件が `created / configured / external-deps-ready / healthy / E2E-ready`（定義は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「完了レベル」節）を混在させていないか
+- [ ] `healthy` 以上を完了条件にする AC に、前提 external-deps が明記されているか
+- [ ] infra / サービス / 外部連携を含む場合、readiness matrix（`docs/einja/templates/readiness-matrix.md.template`）で各コンポーネントの到達レベルと `blocked-by` / `deferred-to` が俯瞰できるか
+
+#### §G2: external-deps の明示（→ 観点 E）
+
+- [ ] 「箱を作れる（materialized / configured）」と「healthy になる」が区別され、healthy 到達に必要な外部依存が列挙されているか
+- [ ] 代表的な依存が明示されているか（例: 「API healthy ← DB migrated + connection string injected」「auth ready ← OAuth secret + redirect URI 登録」「webhook ready ← DNS / route 公開 + 署名 secret + 送信元設定」）
+- [ ] その external-deps が後続のタスク DAG で依存エッジ（blockedBy）として張れる粒度で書かれているか
+
+#### §G3: threat-modeling gate（→ 観点 F）
+
+設計段階で脅威を先に捕まえるためのゲート。実装中の発覚・コードレビューでの見落としを防ぐ。runtime 入力 → 危険 sink のデータフローと、Web 汎用の脅威観点を確認する。
+
+- [ ] **runtime 入力 → 危険 sink** のデータフローが識別されているか（sink 例: path 結合 / shell 実行 / SQL / URL fetch / file delete・`rm -rf` / `mv` / `cp` / symlink 作成 / untrusted state(JSON / lock / cache / 生成 manifest) の読み込み）。特に **path-traversal**（外部入力をファイルパスに結合）への対策（許可リスト・正規化・basedir 制約）があるか
+- [ ] **authz**: 認可境界（誰がどのリソースを操作できるか）が明示され、IDOR / 権限昇格が塞がれているか
+- [ ] **secrets 露出**: secret を log / レスポンス / エラーメッセージ / 生成物に出さない方針か。平文保存していないか
+- [ ] **injection**: XSS / SQLi / コマンドインジェクション対策（出力エスケープ・パラメタライズドクエリ）があるか
+- [ ] **SSRF**: 外部入力由来の URL を fetch する箇所で宛先制限があるか
+- [ ] **admin / control-plane 露出**: 管理ダッシュボード / 管理 API / SSH / CI token / root token 等が不要に公開されていないか
+- [ ] **token 衝突**: 共有 token・prod/dev key 再利用による衝突が無いか
+- [ ] **privilege scope**: 特権 token の常用を避け、最小権限か。bootstrap / 一時特権 token の retire 条件が定義されているか
+
+#### §G4: SSOT 矛盾の検出（→ 観点 G）
+
+- [ ] 同一設定値（cron 間隔 / port / env key / URL / token scope / retention / replica 数 / タイムアウト / 上限値 等）が複数ファイル・複数箇所で**矛盾**していないか（`grep` で重複出現を洗い出して突合する）
+- [ ] 重複が避けられない場合、**正本ファイル（SSOT）**と**負け側（参照のみ）**が明示され、負け側に「正本: <path>」の注記があるか
+- [ ] requirements / design / ui / qa 間で用語・API 名・画面名・外部 API 前提が一致しているか
 
 ### Step 3: 観点別並列レビューの実行
 
@@ -112,8 +156,19 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 - `docs/einja/steering/development-workflow.md`
 - `docs/einja/steering/task-management.md`
 - `docs/einja/steering/development/review-guidelines.md`
-- `docs/einja/steering/acceptance-criteria-and-qa-guide.md`
+- `docs/einja/steering/acceptance-criteria-and-qa-guide.md`（「完了レベル（readiness level）」節を含む）
 - `docs/einja/steering/development/testing-strategy.md`
+- `docs/einja/templates/readiness-matrix.md.template`（観点 E をピックした場合）
+- `docs/einja/templates/design.md.template`「Threat Model & Security Considerations」節（観点 F をピックした場合）
+
+## 横断必須ゲート（観点 E/F/G をピックした場合のみ）
+{ピックした観点の review_scope に応じて以下を埋め込む:
+  - requirements 観点 E → §G1 + §G2
+  - phase2_bundle 観点 E → §G1 + §G2
+  - tasks 観点 E → §G2 のみ
+  - 観点 F → §G3
+  - 観点 G → §G4
+}
 
 ## ユーザーの元要求
 {呼び出し元から渡されたユーザー要求}

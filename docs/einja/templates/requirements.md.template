@@ -80,6 +80,17 @@ graph TB
 - ファイル制約:
 - 業務制約:
 
+<!-- infra/サービス/外部連携を含む場合: 各コンポーネントが healthy になる前提（external-deps）を列挙する。 -->
+<!-- 「箱を作れる（created/configured）」と「healthy になる」を区別し、healthy 到達に必要な外部依存（DB/secret/DNS/OAuth 等）を明示する。 -->
+<!-- 詳細は design.md「Readiness & External Dependencies」/ docs/einja/templates/readiness-matrix.md.template を参照。 -->
+
+### 2.1 external-deps（healthy 到達の前提・該当する場合）
+
+| component | healthy になる前提（external-deps） |
+|-----------|-------------------------------------|
+| 例: API | DB migrated + connection string injected |
+| 例: 認証 | OAuth client secret + redirect URI 登録 |
+
 ## 3. 画面構成・状態
 
 ### 3.1 画面構成
@@ -414,11 +425,18 @@ erDiagram
 - APIレスポンス:
 - 初期表示:
 
-### セキュリティ
+### セキュリティ（脅威モデリング）
+
+<!-- 外部入力・認証・権限・特権操作・外部連携を含む場合は、設計前に脅威観点を識別する（threat-modeling gate）。 -->
+<!-- 詳細な脅威分析は design.md「Threat Model & Security Considerations」で行う。ここでは要件として識別する。 -->
 
 - 認証:
-- 認可:
+- 認可（authz / IDOR / 権限昇格）:
 - 入力検証:
+- runtime 入力 → 危険 sink（path-traversal / SQLi / コマンド / SSRF / file delete / symlink）の有無:
+- secrets 露出（log / レスポンス / 平文保存）:
+- admin / control-plane exposure（管理 API / SSH / CI token / root token）:
+- token scope / privilege（特権 token 常用禁止・共有 token 衝突・最小権限）:
 
 ### 可観測性
 
@@ -431,3 +449,13 @@ erDiagram
 - 関連ドキュメント:
 - 既存コンポーネント:
 - 再利用候補:
+
+## 15. 設定値の正本（SSOT）
+
+<!-- 同一設定値が複数ファイル・複数箇所に登場する場合、矛盾防止のため正本（SSOT）と負け側（参照のみ）を宣言する。 -->
+<!-- 対象: cron 間隔 / port / env key / URL / token scope / retention / replica 数 / タイムアウト / 上限値 等。該当が無ければ省略可。 -->
+<!-- 詳細マッピングは design.md「Spec SSOT（設定値の正本・負け側）」で確定する。 -->
+
+| 設定値 | 正本ファイル（SSOT） | 負け側（参照のみ・正本を引用） |
+|--------|---------------------|------------------------------|
+| 例: cron 間隔 | `config/schedule.ts` | requirements.md / runbook |

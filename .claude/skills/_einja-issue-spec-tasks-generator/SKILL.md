@@ -101,6 +101,42 @@ GitHub Issueの本文（Markdown形式）:
 - `missingFromPackage` が空の場合または `design-component-manifest.json` が存在しない場合はこのステップをスキップする
 - live Pencil MCPは呼ばない（`design-component-manifest.json` の内容を読み込むだけ）
 
+## external-deps 分離ルール（「作れる」≠「healthy になる」）
+
+サービス・API・DB・認証・外部連携・インフラを伴うタスクでは、**「リソースを作れる（materialized / configured）」タスクと「healthy になる（外部依存込みで稼働する）」タスクを別ノードに分ける**。両者を 1 タスクに混ぜると、外部依存（DB / secret / DNS / OAuth 等）が未充足のまま完了判定され、順序事故・完了誤認を招く。
+
+### ルール
+
+1. **別ノード化**: 「箱を作る」ステップと「healthy にする」ステップを別タスク（X.Y.Z）に分割する。完了条件には対象が到達する readiness level（`created / configured / external-deps-ready / healthy / E2E-ready`。定義は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「完了レベル」節）を 1 段階で明記する。
+2. **external-deps を依存エッジに変換**: 「healthy になる」タスクの `**依存関係**` に、healthy 到達の前提となる external-deps を生成する別タスクを `blockedBy` として張る。
+3. **external-deps section**: 該当タスクグループに external-deps を明記する。汎用例:
+   - `API healthy ← DB migrated + connection string injected`
+   - `auth ready ← OAuth client secret + redirect URI 登録 + セッションストア接続`
+   - `webhook ready ← DNS / route 公開 + 署名 secret + 送信元（source）設定`
+   - `cron / job healthy ← スケジューラ起動 + 対象リソースへの権限`
+4. **readiness matrix 参照**: design に readiness matrix（`docs/einja/templates/readiness-matrix.md.template`）がある場合、各タスクが担保する component × level と整合させる。
+
+### 例（別ノード分割）
+
+```markdown
+- [ ] 1.2 API サービス稼働
+
+  - 1.2.1 API サービスの materialize（created / configured）
+    - サービス定義・設定・env 投入（外部疎通はしない）
+    - **完了条件**: 設定が読み込まれエラーなく起動できる（readiness: configured）
+    - **依存関係**: 1.1
+    - **external-deps**: なし（この段階では外部依存に接続しない）
+
+  - 1.2.2 DB migration と接続文字列注入（external-deps-ready）
+    - **完了条件**: migration 成功 + 接続文字列が有効（readiness: external-deps-ready）
+    - **依存関係**: 1.2.1
+
+  - 1.2.3 API を healthy にする
+    - **完了条件**: /health が 200、代表的な read/write が成功（readiness: healthy）
+    - **依存関係**: 1.2.2
+    - **external-deps**: API healthy ← DB migrated + connection string injected
+```
+
 ## Phase末尾タスクグループ生成ルール
 
 各Phase（Phase 99を除く）の最後に **Phase完了確認タスクグループ** を配置すること。

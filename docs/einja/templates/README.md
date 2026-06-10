@@ -137,6 +137,20 @@
 - **design-simple.md.template を使用**: 既存パターンに従う標準的な CRUD 機能、シンプルなビジネスロジック
 - **design.md.template を使用**: 新しいアーキテクチャパターンの導入、複雑な状態管理、大規模なパフォーマンス最適化が必要な機能
 
+### readiness-matrix.md.template
+
+インフラ・サービス・外部連携・認証・データ層を含む機能で、各コンポーネントの到達レベル（`created/configured/external-deps-ready/healthy/E2E-ready`）を俯瞰するテンプレートです。
+
+**用途**:
+- 「箱は作れたが外部依存が無くて healthy にできない」段階を可視化し、AC の完了レベル混在・順序事故を防ぐ
+- `healthy` 到達に必要な external-deps（DB / secret / DNS / OAuth 等）を列挙し、タスク DAG の依存エッジ（blockedBy）の根拠にする
+
+**用途判断**:
+- **使用**: backend / API / DB / auth / 外部連携 / インフラを伴う機能
+- **省略可**: 外部依存の無い単純な画面 / CRUD 機能
+
+**関連**: `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「完了レベル（readiness level）を混在させない」節
+
 ### qa-test.md.template
 
 QA テスト結果記録のテンプレートです。

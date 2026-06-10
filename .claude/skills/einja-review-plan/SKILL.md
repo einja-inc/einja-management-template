@@ -50,6 +50,7 @@ Agent tool（general-purpose）で無名サブエージェントを起動し、�
 - タスクの粒度は適切か（大きすぎ/小さすぎないか）
 - 並列化戦略に矛盾はないか
 - タスク間の依存関係は正しく整理されているか
+- **external-deps DAG**: サービス・API・DB・認証・外部連携・インフラを伴う場合、「リソースを作れる（materialized / configured）」タスクと「healthy になる（外部依存込みで稼働する）」タスクが別ノードに分かれているか。healthy 到達の前提となる external-deps（DB migrate / secret / DNS / OAuth 等）が依存エッジ（blockedBy）として張られているか（例: 「API healthy ← DB migrated + connection string injected」）。「作れる」と「healthy」を 1 タスクに混ぜると順序事故・完了誤認を招く
 
 ### C. リスク・見落とし
 - 技術的リスク、影響範囲の見落とし

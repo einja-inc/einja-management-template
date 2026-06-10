@@ -375,11 +375,13 @@ flowchart LR
 - **インフラ選定**: メッセージキュー（SQS / RabbitMQ 等）、バッチ実行基盤（Cloud Run Jobs / ECS Scheduled Task 等）、リアルタイム通知（WebSocket / SSE / Polling）の選定
 - **API スキーマ詳細**: REST / GraphQL / RPC の選定、エンドポイント設計、HTTP ステータス設計、エラーレスポンス形式
 - **データスキーマ詳細**: テーブル設計、インデックス戦略、マイグレーション方針
+- **脅威モデリング申し送り（該当する場合）**: 認証・権限・特権操作・外部連携・外部入力を扱うフローで、設計フェーズで対策すべき脅威観点（authz 境界 / secrets 露出 / runtime 入力→危険 sink（path-traversal 等）/ admin・control-plane 露出 / token scope・privilege）。詳細な脅威分析は design.md「Threat Model & Security Considerations」へ引き継ぐ
 
 | 項目 | 申し送り内容 | 関連 §2.2 ステップ / §5.4 制約 |
 |------|------------|-----------------------------|
 | [ 例: 同時打刻時のロック方式 ] | [ 楽観ロック（バージョン番号） vs 悲観ロック の選定が必要 ] | [ §2.2 ステップ S5 / §5.4 一意性制約 ] |
 | [ 例: バッチ実行基盤 ] | [ Cloud Run Jobs / ECS Scheduled Task の選定が必要 ] | [ §2.2 ステップ S10 ] |
+| [ 例: 脅威モデリング申し送り ] | [ authz 境界 / secrets 露出 / runtime 入力→危険 sink（path-traversal 等）/ admin・control-plane 露出 / token scope。design.md「Threat Model & Security Considerations」で対策確定 ] | [ §2.2 / §4 外部連携 ] |
 ```
 
 ---

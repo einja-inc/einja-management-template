@@ -1,0 +1,57 @@
+# [機能名] Readiness Matrix
+
+<!-- このテンプレートは、インフラ・サービス・外部連携・認証・データ層を含む機能の -->
+<!-- 「どのコンポーネントがどの readiness level まで到達したか」を俯瞰するために使用します。 -->
+<!-- 単純な画面/CRUD 機能で外部依存が無い場合は省略可。 -->
+<!-- readiness level の定義は docs/einja/steering/acceptance-criteria-and-qa-guide.md「完了レベル」節を参照。 -->
+
+## readiness level の定義（再掲）
+
+| level | 意味 |
+|-------|------|
+| `created`（materialized） | リソース・ファイル・コンポーネントの実体が存在する |
+| `configured` | 設定値・env・接続文字列・権限が投入された（まだ外部疎通はしない） |
+| `external-deps-ready` | 依存する外部リソース（DB / secret / DNS / OAuth / 外部 API）が揃い接続可能 |
+| `healthy` | 外部依存込みで稼働し、health check / 主要動作が通る |
+| `E2E-ready` | ユーザー導線・他コンポーネント連携を含め、E2E シナリオが通せる |
+
+## マトリクス
+
+<!-- 各セル: ✅ 到達 / ⏳ 未到達 / N/A 非該当 -->
+<!-- materialized = created（実体生成）の意。 -->
+
+| component | materialized | configured | external-deps-ready | healthy | E2E-ready | blocked-by | deferred-to |
+|-----------|:------------:|:----------:|:-------------------:|:-------:|:---------:|------------|-------------|
+| API サーバー | ✅ | ✅ | ⏳ | ⏳ | ⏳ | DB migrate / 接続文字列注入 | Phase 2 |
+| DB（スキーマ） | ✅ | ✅ | ⏳ | ⏳ | N/A | migration 実行 | Phase 1.2 |
+| 認証（OAuth/セッション） | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | OAuth client secret / redirect URI 登録 | Phase 2 |
+| 外部連携（webhook 等） | ✅ | ⏳ | ⏳ | ⏳ | ⏳ | DNS / route 公開 + 署名 secret + 送信元設定 | Phase 3 |
+| フロントエンド画面 | ✅ | ✅ | N/A | ✅ | ⏳ | API healthy 待ち | Phase 2 |
+
+## external-deps 一覧（healthy 到達の前提）
+
+<!-- 「作れる（materialized/configured）」と「healthy になる」を分け、healthy 到達に必要な外部依存を列挙する。 -->
+<!-- これがタスク DAG の依存エッジ（blockedBy）の根拠になる。 -->
+
+| component が healthy になる条件 | 必要な external-deps |
+|-------------------------------|----------------------|
+| API が healthy | DB migrated + connection string injected |
+| 認証 ready | OAuth client secret + redirect URI 登録 + セッションストア接続 |
+| webhook ready | DNS / route 公開 + 署名 secret + 送信元（source）設定 |
+| ジョブ/cron が healthy | スケジューラ起動 + 対象リソースへの権限 |
+
+## AC との対応
+
+<!-- 各 AC がどの component のどの readiness level を担保するかを対応付ける。 -->
+
+| AC ID | 担保する component | 担保する level |
+|-------|--------------------|----------------|
+| AC1.UI.N.001 | フロントエンド画面 | healthy |
+| AC2.NAV.N.001 | API サーバー | healthy |
+| AC2.ERR.E.001 | API サーバー + DB | E2E-ready |
+
+## 備考
+
+- ⏳（未到達）のセルには必ず `blocked-by`（何待ちか）と `deferred-to`（どのタスク/Phase で到達するか）を記す。
+- **表記の区別**: 本マトリクスの列名は人間可読の `blocked-by`（ハイフン）。タスク記述側の依存フィールドは `**依存関係**`（`blockedBy` として機能）。同じ依存関係を 2 つの表現で書く点に注意する。
+- 未到達は「失敗」ではなく「段階」として扱う。完了報告では到達済み level のみを「完了」と主張する。

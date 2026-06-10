@@ -17,6 +17,27 @@
 - 期待結果を「問題ないこと」「成功すること」で済ませる。
 - 実装手段（特定フレームワーク、DB テーブル構造など）を強制する。
 
+### 完了レベル（readiness level）を混在させない
+
+AC や完了条件は、対象（特に backend / API / DB / auth / 外部連携 / インフラを伴うコンポーネント）の「どこまで到達すれば完了か」を **1 つの readiness level に固定**して書く。`created`（箱が作られた）と `healthy`（外部依存込みで実際に動く）を同一 AC に混ぜると、「箱は作れたが外部依存が無くて healthy にできない」段階が曖昧になり、順序事故・完了誤認を招く。
+
+#### readiness level の定義（5 段階）
+
+| level | 意味 | 完了確認の例 |
+|-------|------|-------------|
+| `created`（materialized） | リソース・ファイル・コンポーネントの実体が存在する | ファイル / レコード / サービス / テーブルが存在する |
+| `configured` | 設定値・env・接続文字列・権限が投入された（まだ外部疎通はしない） | 設定が読み込まれ、エラーなく起動可能な状態 |
+| `external-deps-ready` | 依存する外部リソース（DB / secret / DNS / OAuth / 外部 API）が揃い接続可能 | DB migrate 済 + 接続文字列が有効、secret 注入済、DNS 解決可 |
+| `healthy` | 外部依存込みで稼働し、health check / 主要動作が通る | `/health` が 200、代表的な read / write が成功 |
+| `E2E-ready` | ユーザー導線・他コンポーネント連携を含め、E2E シナリオが通せる | 主要シナリオが端から端まで通る |
+
+#### 規約
+
+- 1 つの AC / 完了条件で確認する readiness level は **1 段階に固定**する。`created` を確認する AC と `healthy` を確認する AC は分ける。
+- `healthy` 以上を完了条件にする AC は、**前提となる external-deps を明記**する（例: 「API が healthy ← DB migrated + connection string injected」）。external-deps が未充足の段階で `healthy` の AC を「完了」と判定しない。
+- インフラ・サービス・外部連携を含む機能では、コンポーネントごとの到達レベルを **readiness matrix**（`docs/einja/templates/readiness-matrix.md.template`）で俯瞰し、各 AC がどの level を担保するかを対応付ける。
+- まだ到達できない level は `blocked-by`（何待ちか）/ `deferred-to`（どのタスク・Phase で到達するか）を明示し、未到達を「失敗」ではなく「段階」として扱う。
+
 ### 振る舞い駆動テンプレート
 
 > **Note**: AC IDの直後に記載する「振る舞いの名前」は、この受け入れ基準の内容を1文で要約したものです。Given/When/Thenの詳細を読まなくても概要が把握できるようにしてください。
@@ -464,6 +485,9 @@ pnpm test / pnpm test:e2e / pnpm lint / pnpm build / pnpm typecheck
 - [ ] ハッピーパスと主要な異常系が含まれているか。
 - [ ] テストレベルと責任者が明記されているか。
 - [ ] 実装構造への指示（ファイル名/クラス名など）が混入していないか。
+- [ ] 1 つの AC が `created/configured/external-deps-ready/healthy/E2E-ready` の readiness level を混在させていないか。
+- [ ] `healthy` 以上を完了条件にする AC に、前提 external-deps（DB / secret / DNS / OAuth 等）が明記されているか。
+- [ ] インフラ・外部連携を含む場合、readiness matrix で各コンポーネントの到達レベルと blocked-by / deferred-to が俯瞰できるか。
 
 ### テストレビュー
 - [ ] テスト名・説明が AC やビジネスルールを反映しているか。

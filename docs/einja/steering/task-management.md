@@ -199,6 +199,16 @@ CRUD機能の場合、以下のように**価値単位（作成 / 閲覧 / 更�
 - 1機能でDomain→Infra→UseCase→API→UIをフルスタック実装
 - レイヤーごとの分割は禁止
 
+### external-deps の分離（「作れる」≠「healthy になる」）
+
+サービス・API・DB・認証・外部連携・インフラを伴うタスクでは、**「リソースを作れる（materialized / configured）」タスクと「healthy になる（外部依存込みで稼働する）」タスクを別ノードに分ける**。両者を 1 タスクに混ぜると、外部依存（DB / secret / DNS / OAuth 等）が未充足のまま完了判定され、順序事故・完了誤認を招く。
+
+- 各タスクの完了条件には、対象が到達する readiness level（`created / configured / external-deps-ready / healthy / E2E-ready`。定義は [受け入れ基準とQAガイド](acceptance-criteria-and-qa-guide.md)「完了レベル」節）を **1 段階**で明記する。
+- 「healthy になる」タスクの `**依存関係**` に、healthy 到達の前提 external-deps を生成する別タスクを `blockedBy` として張る（例: 「API healthy ← DB migrated + connection string injected」「auth ready ← OAuth secret + redirect URI 登録」「webhook ready ← DNS / route 公開 + 署名 secret + 送信元設定」）。
+- インフラ・外部連携を含む機能では、[readiness matrix テンプレ](../templates/readiness-matrix.md.template)で component × level を俯瞰し、各タスクが担保する到達レベルと整合させる。
+
+> **縦切り原則との関係**: フルスタック縦切り（Domain→UI）の原則は維持しつつ、外部依存の「接続・疎通（healthy 化）」は materialize と**別タスク（X.Y.Z）**に切り出す（`_einja-issue-spec-tasks-generator` の external-deps 分離ルールの例と整合）。これは横切り分割（レイヤー別分割）とは異なり、readiness level による段階分割である。
+
 ### ❌ アンチパターン（絶対にやってはいけない分割）
 
 **パターン1: 画面ごとの分割**

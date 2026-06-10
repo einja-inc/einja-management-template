@@ -375,23 +375,25 @@ IssueBranchBase (main)
 | `issue/{N}-phase{M}` | **merge-only** | Manager/Teammate（Agent Teams版）とWorkerが参照する共有ブランチ |
 | `task/{N}-{X.Y}` | rebase可 | 単独Worker所有のため安全 |
 
+**base追従は必ず merge で行う**（`issue/{N}` は共有ブランチのため、IssueBranchBase の取り込みに rebase/pull --rebase を使わない。rebase可なのは単独所有の `task/{N}-{X.Y}` のみ）。
+
 ### マージ戦略: 楽観的並行マージ
 
 - 先にIssueBranchBase（main等）にマージしたIssueが勝ち
 - 後続Issueはmainの最新を `merge` で取り込み、PR を更新してからマージ
 - Issue間依存がある場合: `--base-branch` でIssueブランチを指定するか、人間が実行順序を制御
 
-### IssueBranchBase自動同期
+### IssueBranchBase 取り込み（Phase境界同期 + 最終PRゲート）
 
-Managerの監視ループでIssueBranchBaseの進行を検知し、以下を実行する:
+IssueBranchBase（develop/main 等）の進行を受動検知に頼らず、(1) 各Phase境界（Phase完了→次Phase着手前）、(2) 最終PR作成直前 の2タイミングで能動的に取り込む。すべて **merge-only・冪等**（`git rev-list --count "issue/{N}..origin/{IssueBranchBase}"` が 0 ならスキップ）。
 
-1. **進行検知**: `git fetch origin` で `origin/{IssueBranchBase}` の変更を確認
-2. **Issueブランチへの取り込み**: `issue/{N}` ブランチで `git merge origin/{IssueBranchBase}` を実行
-3. **成功時**: 各Workerにsync通知（tmux版）/ Teammateに通知（Agent Teams版）。Phaseブランチは直接更新しない
-4. **Managerの同期**: 安全ポイント（タスク開始前・マージ直後）でPhaseブランチを同期し、タスクブランチ作成時に最新を反映
-5. **merge失敗時**: `einja-conflict-resolver` Skill で解消 → 解消不可ならユーザーにエスカレーション
+1. **Phase境界強制同期**: Manager（tmux版）/ Lead（Agent Teams版）が、Phase完了→次Phase着手前に `git fetch origin` → behind判定 → `git merge --no-edit origin/{IssueBranchBase}` → `git push origin issue/{N}`。push成功確認後に次Phaseブランチを作成。
+2. **最終PR前ゲート**: `einja-create-pr` 直前に同じ behind判定→merge→push を実行し、CONFLICTING/DIRTY なPRを構造的に防ぐ。
+3. **merge失敗時**: `einja-conflict-resolver` Skill で解消 → 解消不可ならユーザーにエスカレーション。
 
-詳細手順は [Issue実行共通プロトコル](../instructions/issue-exec-protocol.md) の「IssueBranchBase自動同期プロトコル」を参照。
+旧「Managerの監視ループによる受動検知→sync通知」モデルは廃止。
+
+詳細手順は [Issue実行共通プロトコル](../instructions/issue-exec-protocol.md) の §12.3「IssueBranchBase 取り込みプロトコル」を参照。
 
 ---
 

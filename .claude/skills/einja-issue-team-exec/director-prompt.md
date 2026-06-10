@@ -52,6 +52,8 @@ Director は claim 後、タスクグループの description から個別タス
 > **明示的な上書き**: 汎用テンプレートでは `{WORKTREE_PATH}` プレースホルダーで任意のパスを許容しているが、Issue 並列実行（派生 Skill）では Issue 番号 `{N}` とタスクグループ番号 `{X.Y}` / 個別タスク番号 `{X.Y.Z}` を含む上記命名で固定する。これは PR / ブランチ運用との整合性、resume 時の検索容易性、`task/{N}-` プレフィックスによる一括クリーンアップ（SKILL.md Step 9 参照）を成立させるため。
 >
 > 冪等な作成・削除手順は汎用テンプレートの Step 2 / Step 3 を参照（命名のみ上記で置換）。
+>
+> **注**: 上記 base（`origin/issue/{N}-phase{M}`）は、Lead/Manager が Phase 境界で issue/{N} を IssueBranchBase から最新化済み（§12.3.1）であることを前提とする。Director は worktree 作成直前に `git fetch origin` を実行し、最新の base を参照すること。
 
 ## Issue 固有のメインフロー差分
 

@@ -20,6 +20,8 @@
    git pull --rebase
    ```
 
+   > **共有ブランチは merge で最新化**: `git pull --rebase` は個人/feature ブランチ向け。**共有ブランチ（`issue/{N}` / `issue/{N}-phase{M}`）の最新化・IssueBranchBase 追従は rebase ではなく `merge` を使う**（複数エージェント・複数 worktree の参照を壊さないため）。詳細は steering/branch-strategy.md「ブランチ操作安全ルール」を参照。
+
 3. **現在の状態確認**
    ```bash
    git status

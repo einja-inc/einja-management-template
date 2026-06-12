@@ -461,7 +461,7 @@ Manager は以下を監視:
       b. **自力回答不可の場合**: `AskUserQuestion` でユーザーに質問を転送（Worker ID・質問内容を含める）。ユーザーの回答を受け取り次第、`tmux send-keys -t "$WORKER_PANE" "{ユーザーの回答}" Enter` で Worker pane に送信
    4. Worker は回答を受け取り自動的に作業を再開する
 
-2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じた**タスクPRマージ処理**（タスクPRはWorker側のeinja-task-exec Step 7.5で作成済み。ManagerはタスクPRを自ら作成しない） → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他active Workerにsync通知。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
+2. **Worker完了後のゲートチェック**: 詳細は issue-exec-protocol.md「ゲートチェック仕様」を参照。ゲート通過後はマージモードに応じた**タスクPRマージ処理**（タスクPRはWorker側のeinja-task-exec Step 7.5で作成済み。ManagerはタスクPRを自ら作成しない） → **Issue説明文のチェックボックス更新**（protocol.md「2.3 completed 遷移時の必須アクション」参照）→ 他 active Worker は次タスク開始時に最新 Phase ブランチを取り込む（`task/{N}-{X.Y}` は単独所有のため rebase 可。base 取込は Manager が §12.3.1 で実施）。**Worker pane・worktreeはPhase完了まで維持する**（修正指示に備えるため）
 
 3. **質問エスカレーション処理（tmux Worker質問転送フロー — モード1）**:
 
@@ -603,7 +603,7 @@ Agent tool は完了時に結果を返すため、ポーリング不要:
    - 残りのPhase（ある場合）
 3. **AskUserQuestion で次のアクションを確認**:
    - **次のPhaseを実行**: 次のPhaseの実行を開始
-     - Note: 現在のPhaseがマージ済みであることを確認してから開始
+     - Note: 現在のPhaseがマージ済みであることを確認。**着手前に Phase境界強制同期（§12.3.1）を実行** — `git fetch origin` → `git rev-list --count "issue/{N}..origin/{baseBranch}"` で behind 判定 → behind>0 なら `git merge --no-edit origin/{baseBranch}`（衝突→einja-conflict-resolver）→ `git push origin issue/{N}`（lock系→§12.2）。push成功後に次Phaseブランチを最新 issue/{N} から作成。詳細: issue-exec-protocol.md §12.3.1
    - **修正を実施**: レビュー指摘やテスト結果に基づく修正を実行
      - Note: 修正対象のPR番号・指摘内容を入力。該当Workerを再起動して修正
    - **セッションを終了**: worktree・セッションファイルをクリーンアップして終了
@@ -613,6 +613,19 @@ Agent tool は完了時に結果を返すため、ポーリング不要:
 ### Step 8: 全Phase完了 → 最終PR・待機
 
 全Phaseが完了した場合:
+
+> **最終PR前ゲート（§12.3.2・必須）**: 下記「1. 最終PR作成」の実行直前に `issue/{N}` を base から最新化し、CONFLICTING/DIRTY な最終PRを構造的に防ぐ:
+> ```bash
+> git fetch origin
+> BEHIND=$(git rev-list --count "issue/{N}..origin/{baseBranch}")
+> if [ "$BEHIND" -gt 0 ]; then
+>   git merge --no-edit "origin/{baseBranch}"   # 衝突→einja-conflict-resolver / push失敗→§12.2
+>   git push origin "issue/{N}"
+> fi
+> # push 成功を確認してから「1. 最終PR作成」を実行すること
+> ```
+> 詳細: issue-exec-protocol.md §12.3.2
+
 1. 最終PR作成: `/einja-create-pr --auto --base {baseBranch}` を実行
 2. PR URL を表示
 3. **セッションを維持したまま待機モード**に入る（クリーンアップしない）
@@ -754,6 +767,7 @@ result の値:
 | Worker異常終了（修正中・Agent tool） | Agent tool エラー応答 + directorVerdict=fix_required | Managerが再起動（fixCount引き継ぎ）→ 上限超過時はユーザーにエスカレーション |
 | Manager異常終了 | ユーザー手動 | `--resume` でセッション復元 |
 | rebaseコンフリクト | git rebase失敗 | einja-conflict-resolver Skillで自力解消 |
+| mergeコンフリクト（base取込: Phase境界/最終PRゲート） | git merge失敗 | einja-conflict-resolver Skillで解消 → 解消不可ならユーザーにエスカレーション |
 | CI失敗 | gh run status | 修正 → 再push → 再CI待機 |
 
 ## 質問回答のドキュメント還元
@@ -851,4 +865,4 @@ tmux send-keys -t "$WORKER_PANE" '/einja-task-exec #{N} {X.Y}' Enter
 - Worker 内部のタスク並列実行は既存の einja-task-exec Skill フロー（Task ツール + run_in_background）をそのまま活用
 - ステータスファイルの `status.json` 更新には `flock` による排他制御を使用
 - 質問ファイルは1ファイル1質問のためロック不要（UUID でアトミック書き込み）
-- Worker は各タスク完了毎 + PR作成前にステータスファイルをチェック（sync_required検知時は次タスク開始前にrebase）
+- Worker は各タスク完了毎 + PR作成前にステータスファイルをチェックし、Manager が Phase ブランチを最新化していれば次タスク開始前に取り込む（`task/{N}-{X.Y}` は単独所有のため rebase 可）

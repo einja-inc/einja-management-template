@@ -212,7 +212,7 @@ Human（回答入力）
 ```
 Worker-1.1 作業中
  │
- ├─ 0. git rebase origin/issue/123-phase1（最新取り込み）
+ ├─ 0. git rebase origin/issue/123-phase1（task/123-1.1 を Phaseブランチへ追従。taskブランチは単独所有のため rebase 可）
  ├─ 1. task-exec 完了 → task/123-1.1 に commit & push
  ├─ 2. CI 完了待機（gh run list ポーリング）
  ├─ 3. gh pr create --base issue/123-phase1 --head task/123-1.1
@@ -245,7 +245,6 @@ Director 検知（ステータスファイル: status=awaiting_review）
  │   └─ auto: CI通過確認後に gh pr merge --squash 実行
  │
  ├─ マージ検知後:
- │   ├─ 他 active Worker にステータスで sync_required 通知
  │   ├─ タスク worktree 削除 + tmux window kill
  │   ├─ GitHub Issue チェックボックス更新
  │   └─ 依存タスク起動判定 → 新 Worker 起動
@@ -258,7 +257,8 @@ Manager 検知
  ├─ マージモードに応じた処理
  ├─ マージ後: Phase worktree 削除
  ├─ 他 active Phase に変更伝播
- └─ 次 Phase 起動 or 全完了 → 最終 PR 作成
+ ├─ Phase境界強制同期（§12.3.1）: 次Phase着手前に issue/123 を base から最新化（fetch→behind判定→merge→push、merge-only・冪等）
+ └─ 次 Phase 起動 or 全完了 → 最終 PR 作成（最終PR前は §12.3.2 ゲートで base 取込）
 ```
 
 ---

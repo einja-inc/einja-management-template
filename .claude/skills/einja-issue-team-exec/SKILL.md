@@ -75,11 +75,11 @@ GitHub Issue 全体のタスクを Lead → Director(Teammate Pool) → Worker(S
 
 > **【必須】処理開始前に `einja-common:agent-teams-guide` Skill を Skill ツールで読み込むこと。** TeamCreate / teammate 管理 / ファイル競合防止策 / フォールバック手順といった Agent Teams 利用時の必守ルールを参照するため、本 Skill 起動直後に最初に実行する。
 >
-> **汎用の Agent Teams 有効確認・表示モード検出は [`einja-team-exec/SKILL.md` Step 1-A](../einja-team-exec/SKILL.md#step-1-a-前提条件環境検出) を参照。**
+> **汎用の Agent Teams 有効確認・Lead 監視モード resolve（tmux/in-process の判定。`CLAUDE_CODE_TEAMMATE_MODE` には依存しない）は [`einja-team-exec/SKILL.md` Step 1-A](../einja-team-exec/SKILL.md#step-1-a-環境検出) を参照。**
 >
 > ### 【最重要・上書き】汎用 fallback の不継承
 >
-> [`einja-team-exec/SKILL.md` Step 1-A（およびフォールバック節 Step 1-A-fb）](../einja-team-exec/SKILL.md#step-1-a-前提条件環境検出) では「Agent Teams 無効時は Agent tool (Task) ベースの並列実行へ自動 fallback する」と定義されているが、**本 Skill（einja-issue-team-exec）ではこの汎用 fallback を継承しない**。
+> [`einja-team-exec/SKILL.md` Step 1-A（およびフォールバック節 Step 1-A-fb）](../einja-team-exec/SKILL.md#step-1-a-環境検出) では「Agent Teams 無効時は Agent tool (Task) ベースの並列実行へ自動 fallback する」と定義されているが、**本 Skill（einja-issue-team-exec）ではこの汎用 fallback を継承しない**。
 >
 > 理由: Issue 並列実行は Issue 単位の Phase / タスクグループ / PR Gate / verdict フロー / docs-updater / Phase 99 等の前提に依存しており、Agent tool ベースの汎用 fallback では Issue 固有の Lead↔Director↔Worker メッセージング・PR ゲートチェック・Phase ブランチ運用が成立しないため。
 >
@@ -539,6 +539,14 @@ Phase PR 作成後、**Lead が `Skill` ツールで `_einja-phase-review` を�
 
 ```bash
 git fetch origin
+# §12.3.1 Phase境界強制同期: 次Phaseブランチ作成前に issue/${N} を base(${baseBranch}) から最新化（merge-only・冪等）
+# ※ issue/${N} をチェックアウトしているツリーで実行すること
+BEHIND=$(git rev-list --count "issue/${N}..origin/${baseBranch}")
+if [ "$BEHIND" -gt 0 ]; then
+  git merge --no-edit "origin/${baseBranch}"   # 衝突→einja-conflict-resolver / push失敗→§12.2リトライ
+  git push origin "issue/${N}"
+fi
+# push 成功を確認してから次Phaseブランチを最新 origin/issue/${N} から作成/追従
 BRANCH="issue/${N}-phase{M+1}"
 BASE="origin/issue/${N}"
 if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
@@ -563,7 +571,7 @@ git push -u origin "$BRANCH" 2>/dev/null || true
 1. Phase PR 作成（未作成時）: `einja-create-pr` Skill で作成
 2. 完了報告をユーザーに表示（完了 Phase、作成 PR 一覧、残り Phase）
 3. **AskUserQuestion で次のアクションを確認**:
-   - **次の Phase を実行**: idle Director が新タスクを claim。現 Phase がマージ済みであることを確認してから開始
+   - **次の Phase を実行**: idle Director が新タスクを claim。現 Phase がマージ済みであることを確認してから開始（base 取込の Phase境界強制同期 §12.3.1 は「マージ後の次 Phase 準備」セクションで実行済みであることを前提とする）
    - **修正を実施**: レビュー指摘やテスト結果に基づく修正。修正対象 PR 番号・指摘内容を入力 → 該当 Director に SendMessage
    - **セッションを終了**: チーム解散・クリーンアップ
    - **その他（自由入力）**: 追加指示
@@ -571,6 +579,17 @@ git push -u origin "$BRANCH" 2>/dev/null || true
 ## Step 8: 全 Phase 完了 → 最終 PR・待機
 
 全 Phase 完了時:
+
+> **最終PR前ゲート（§12.3.2・必須）**: 下記「1. 最終 PR 作成」の直前に issue/${N} を base から最新化し、CONFLICTING/DIRTY な最終PRを構造的に防ぐ:
+> ```bash
+> git fetch origin
+> BEHIND=$(git rev-list --count "issue/${N}..origin/${baseBranch}")
+> if [ "$BEHIND" -gt 0 ]; then
+>   git merge --no-edit "origin/${baseBranch}"   # 衝突→einja-conflict-resolver / push失敗→§12.2
+>   git push origin "issue/${N}"
+> fi
+> ```
+> 詳細: issue-exec-protocol.md §12.3.2
 
 1. `einja-create-pr` Skill で最終 PR 作成:
    ```

@@ -302,38 +302,54 @@ Agent Teams版（einja-issue-team-exec）: Worker → Director(Teammate) → Lea
 - **全リトライ失敗時**: abort（エラーをManagerにエスカレーション）
 - **jitter**: `sleep $((RANDOM % 2 + 1))` 相当のランダム待機
 
-### 12.3 IssueBranchBase自動同期プロトコル
+### 12.3 IssueBranchBase 取り込みプロトコル（Phase境界同期 + 最終PRゲート）
 
-Managerの監視ループでIssueBranchBaseの進行を検知し、Issueブランチに取り込むプロトコル。
+IssueBranchBase（develop/main 等）の進行を **受動検知に頼らず**、(1) 各Phase境界、(2) 最終PR作成直前 の2つの確定タイミングで能動的に取り込む。これにより Issueブランチがbaseから大きく遅れて最終マージで巻き戻しが起きる問題を構造的に防ぐ。すべて **merge-only**（`issue/{N}` は共有ブランチのため rebase/force-push 禁止）・**冪等**（behind=0ならスキップ）。
 
-#### 同期手順
+#### 12.3.1 Phase境界強制同期
 
-1. **進行検知**: Manager監視ループ内で `git fetch origin` 実行時、`origin/{IssueBranchBase}` の HEAD が前回確認時から進行していることを検知
-2. **Issueブランチへの取り込み**: Manager worktree内で以下を実行:
-   ```bash
-   cd <manager-worktree>
-   git fetch origin
-   git merge origin/{IssueBranchBase}
-   git push origin issue/{N}
-   ```
-3. **成功時**: 各active Workerに `sync_required` を通知（tmux版）/ Teammate に通知（Agent Teams版）。Phaseブランチは直接更新しない
-4. **Workerの同期（tmux版）/ Directorの同期（Agent Teams版）**: 安全ポイント（タスク開始前・マージ直後）で以下を実行:
-   ```bash
-   cd <phase-worktree>
-   git fetch origin
-   git merge origin/issue/{N}
-   git push origin issue/{N}-phase{M}
-   ```
-   > tmux版の場合、Manager が Phase ブランチを最新化すれば Worker 側の個別同期は不要（Worker はタスク開始前に Manager が最新 Phase ブランチからブランチを切るため）
-5. **merge失敗時**: `einja-conflict-resolver` Skill で解消 → 解消不可ならユーザーにエスカレーション
+Phase完了 → 次Phase着手前に、Manager（tmux版）/ Lead（Agent Teams版）が **必ず** 以下を実行:
+
+```bash
+# ※ issue/{N} をチェックアウトしている worktree（Manager/Lead worktree）で実行すること
+git fetch origin
+# issue/{N} が origin/{IssueBranchBase} より遅れているコミット数
+BEHIND=$(git rev-list --count "issue/{N}..origin/{IssueBranchBase}")
+if [ "$BEHIND" -gt 0 ]; then
+  git merge --no-edit "origin/{IssueBranchBase}"   # 衝突→einja-conflict-resolver Skill で解消（解消不可ならユーザーにエスカレーション）
+  git push origin "issue/{N}"                        # lock系エラー→§12.2 リトライポリシー（最大3回）
+fi
+# 次Phaseブランチ issue/{N}-phase{M+1} は、最新化後の issue/{N} から作成/追従する（merge-only・冪等）
+```
+
+- behind=0 のときは merge/push をスキップ（冪等）
+- push 成功を確認してから次Phaseブランチを作成すること（古い `issue/{N}` を参照しないため）
+
+#### 12.3.2 最終PR作成前 遅れ検知ゲート（必須）
+
+`einja-create-pr` 実行直前に、Manager/Lead が **必ず** 以下を実行:
+
+```bash
+# ※ issue/{N} をチェックアウトしている worktree（Manager/Lead worktree）で実行すること
+git fetch origin
+BEHIND=$(git rev-list --count "issue/{N}..origin/{IssueBranchBase}")
+echo "issue/{N} は origin/{IssueBranchBase} から ${BEHIND} コミット遅れ"
+if [ "$BEHIND" -gt 0 ]; then
+  echo "[WARN] ${BEHIND}件のbase更新が未取込。巻き戻しリスクがあるため取り込みます"
+  git merge --no-edit "origin/{IssueBranchBase}"   # 衝突→einja-conflict-resolver
+  git push origin "issue/{N}"                        # lock系→§12.2
+fi
+# この後にPR作成 → CONFLICTING/DIRTY なPRを構造的に防ぐ
+```
 
 #### 同期のタイミング
 
 | トリガー | 実行者 | 動作 |
 |---------|--------|------|
-| `git fetch` で IssueBranchBase の進行を検知 | Manager | Issueブランチに merge → Worker（tmux版）/ Teammate（Agent Teams版）に通知 |
-| `sync_required` 通知の受信 | Worker（tmux版）/ Director（Agent Teams版） | 安全ポイントで Phase ブランチに merge |
-| タスク開始前 | Manager（tmux版）/ Director（Agent Teams版） | Phase ブランチの最新を確認 |
+| Phase完了 → 次Phase着手前 | Manager（tmux版）/ Lead（Agent Teams版） | §12.3.1: fetch → behind判定 → merge → push（冪等） |
+| 最終PR作成直前（einja-create-pr前） | Manager（tmux版）/ Lead（Agent Teams版） | §12.3.2: fetch → behind判定 → 警告 → merge → push |
+
+> 旧「Manager監視ループによるbase進行の受動検知 → sync_required 通知」モデルは廃止。base取り込みは上記2タイミングの能動同期に一本化する。
 
 ### 12.4 複数Issue並行時のマージ順序
 

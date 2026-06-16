@@ -50,6 +50,8 @@ Agent tool（general-purpose）で無名サブエージェントを起動し、�
 - タスクの粒度は適切か（大きすぎ/小さすぎないか）
 - 並列化戦略に矛盾はないか
 - タスク間の依存関係は正しく整理されているか
+- **external-deps DAG**: サービス・API・DB・認証・外部連携・インフラを伴う場合、「リソースを作れる（materialized / configured）」タスクと「healthy になる（外部依存込みで稼働する）」タスクが別ノードに分かれているか。healthy 到達の前提となる external-deps（DB migrate / secret / DNS / OAuth 等）が依存エッジ（blockedBy）として張られているか（例: 「API healthy ← DB migrated + connection string injected」）。「作れる」と「healthy」を 1 タスクに混ぜると順序事故・完了誤認を招く
+- **最終受け入れゲート**: 最終 Phase の受け入れに「動く実物がユーザーと同等の操作で価値を端から端まで届ける（`E2E-ready`）」確認が計画されているか。`created` / `configured` 止まり（"できたつもり"）で完了とする計画になっていないか。ユーザー導線が無い変更は `healthy` 疎通確認＋ N/A 理由、マージ / デプロイ後にしか確認できない場合は申し送り（readiness matrix `deferred-to`）と人間 QA 手順（`qa-test.md` の種別 `人手E2E`）が計画に含まれているか（詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「最終受け入れの readiness 下限」節）
 
 ### C. リスク・見落とし
 - 技術的リスク、影響範囲の見落とし

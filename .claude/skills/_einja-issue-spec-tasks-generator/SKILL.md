@@ -101,6 +101,42 @@ GitHub Issueの本文（Markdown形式）:
 - `missingFromPackage` が空の場合または `design-component-manifest.json` が存在しない場合はこのステップをスキップする
 - live Pencil MCPは呼ばない（`design-component-manifest.json` の内容を読み込むだけ）
 
+## external-deps 分離ルール（「作れる」≠「healthy になる」）
+
+サービス・API・DB・認証・外部連携・インフラを伴うタスクでは、**「リソースを作れる（materialized / configured）」タスクと「healthy になる（外部依存込みで稼働する）」タスクを別ノードに分ける**。両者を 1 タスクに混ぜると、外部依存（DB / secret / DNS / OAuth 等）が未充足のまま完了判定され、順序事故・完了誤認を招く。
+
+### ルール
+
+1. **別ノード化**: 「箱を作る」ステップと「healthy にする」ステップを別タスク（X.Y.Z）に分割する。完了条件には対象が到達する readiness level（`created / configured / external-deps-ready / healthy / E2E-ready`。定義は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「完了レベル」節）を 1 段階で明記する。
+2. **external-deps を依存エッジに変換**: 「healthy になる」タスクの `**依存関係**` に、healthy 到達の前提となる external-deps を生成する別タスクを `blockedBy` として張る。
+3. **external-deps section**: 該当タスクグループに external-deps を明記する。汎用例:
+   - `API healthy ← DB migrated + connection string injected`
+   - `auth ready ← OAuth client secret + redirect URI 登録 + セッションストア接続`
+   - `webhook ready ← DNS / route 公開 + 署名 secret + 送信元（source）設定`
+   - `cron / job healthy ← スケジューラ起動 + 対象リソースへの権限`
+4. **readiness matrix 参照**: design に readiness matrix（`docs/einja/templates/readiness-matrix.md.template`）がある場合、各タスクが担保する component × level と整合させる。
+
+### 例（別ノード分割）
+
+```markdown
+- [ ] 1.2 API サービス稼働
+
+  - 1.2.1 API サービスの materialize（created / configured）
+    - サービス定義・設定・env 投入（外部疎通はしない）
+    - **完了条件**: 設定が読み込まれエラーなく起動できる（readiness: configured）
+    - **依存関係**: 1.1
+    - **external-deps**: なし（この段階では外部依存に接続しない）
+
+  - 1.2.2 DB migration と接続文字列注入（external-deps-ready）
+    - **完了条件**: migration 成功 + 接続文字列が有効（readiness: external-deps-ready）
+    - **依存関係**: 1.2.1
+
+  - 1.2.3 API を healthy にする
+    - **完了条件**: /health が 200、代表的な read/write が成功（readiness: healthy）
+    - **依存関係**: 1.2.2
+    - **external-deps**: API healthy ← DB migrated + connection string injected
+```
+
 ## Phase末尾タスクグループ生成ルール
 
 各Phase（Phase 99を除く）の最後に **Phase完了確認タスクグループ** を配置すること。
@@ -115,6 +151,10 @@ GitHub Issueの本文（Markdown形式）:
 2. **機能的受け入れ確認**（AskUserQuestionで受け入れパケット提示）:
    - Phase内で実装した全ACをチェックリスト形式で列挙した受け入れパケットをユーザーに提示する
    - ユーザーが受け入れOK（承認）を判定してから次Phaseへ進む
+
+3. **最終受け入れのE2E-ready担保（最終Phaseのみ）**: 最終 Phase の受け入れパケットに、ユーザー導線がある変更は `E2E-ready` 到達状況を含める。`created` / `configured` 止まりで「完了」としない。導線が無い変更（インフラ / ライブラリ）は `healthy` 疎通確認を含め、`E2E-ready` 免除時は readiness matrix に N/A 理由を明記する。マージ / デプロイ後にしか確認できない場合は readiness matrix の `deferred-to`（申し送り）と `qa-test.md` の種別 `人手E2E` シナリオ（人間 QA 手順）の両方を提示する。
+   - **「最終Phase」の機械判定**: Phase 番号のうち **Phase 99（ドキュメント反映用の予約 Phase）を除いた最大 Phase 番号**を最終受け入れ対象 Phase とする。Phase 99 が無い場合は最大 Phase 番号がそのまま最終 Phase。
+   - 規約の詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「最終受け入れの readiness 下限」節を参照。
 
 ### テンプレート
 
@@ -142,6 +182,7 @@ GitHub Issueの本文（Markdown形式）:
     - **実装AC**: なし（受け入れ確認タスク）
     - **依存関係**: X.N.1
     - **完了条件**: ユーザーが受け入れOKを判定したこと
+      - （最終 Phase の場合のみ）最終受け入れの `E2E-ready` 到達状況を受け入れパケットに含める。到達不能な場合は readiness matrix の `deferred-to`（申し送り）と `qa-test.md` の種別 `人手E2E` シナリオ（人間 QA 手順）を提示する。検証の実体は実装 Phase 側タスクが担保し、ここでは提示に留める。
     - **対応設計**: なし（受け入れ確認タスク）
     - **シナリオテスト**: なし（受け入れ確認タスク）
 ```

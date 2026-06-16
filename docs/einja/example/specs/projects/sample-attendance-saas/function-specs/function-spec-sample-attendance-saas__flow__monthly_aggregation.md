@@ -459,11 +459,11 @@ flowchart LR
 
 `screen-flow-url.md` の `stable_id` を参照キーとして、本業務フローで利用する画面を列挙する。
 
-| stable_id | 画面名 | Figma リンク | 役割（この業務フロー内） |
-|-----------|--------|-------------|--------------------|
-| sample-attendance-saas__dashboard | ダッシュボード | （screen-flow-url.md / file_key: PLACEHOLDER_FILE_KEY / node_id: 1:3） | 日次集計状況・未確定件数・例外検知件数の俯瞰表示、月次レポート画面・エクスポート画面への導線、バッチ完了通知のリアルタイム反映 |
-| sample-attendance-saas__monthly-report | 月次レポート画面 | （node_id: 1:8） | R-01 月次勤怠台帳 / R-02 有給残高一覧 / R-03 残業時間レポート の表示、日次明細ドリルダウン |
-| sample-attendance-saas__export | エクスポート画面 | （node_id: 1:9） | 帳票種別（R-01/R-02/R-03）・形式（PDF/Excel/CSV）選択、ファイル生成・ダウンロード、給与システム連携用CSV出力 |
+| stable_id | 画面名 | cell_id | 役割（この業務フロー内） |
+|-----------|--------|---------|--------------------|
+| sample-attendance-saas__dashboard | ダッシュボード | screen__dashboard | 日次集計状況・未確定件数・例外検知件数の俯瞰表示、月次レポート画面・エクスポート画面への導線、バッチ完了通知のリアルタイム反映 |
+| sample-attendance-saas__monthly-report | 月次レポート画面 | screen__monthly_report | R-01 月次勤怠台帳 / R-02 有給残高一覧 / R-03 残業時間レポート の表示、日次明細ドリルダウン |
+| sample-attendance-saas__export | エクスポート画面 | screen__export | 帳票種別（R-01/R-02/R-03）・形式（PDF/Excel/CSV）選択、ファイル生成・ダウンロード、給与システム連携用CSV出力 |
 
 ---
 

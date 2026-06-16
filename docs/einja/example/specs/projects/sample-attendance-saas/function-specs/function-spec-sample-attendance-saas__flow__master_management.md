@@ -390,10 +390,10 @@ flowchart LR
 
 `screen-flow-url.md` の `stable_id` を参照キーとして、本業務フローで利用する画面を列挙する。
 
-| stable_id | 画面名 | Figma リンク | 役割（この業務フロー内） |
-|-----------|--------|-------------|--------------------|
-| sample-attendance-saas__dashboard | ダッシュボード | （screen-flow-url.md / file_key: PLACEHOLDER_FILE_KEY / node_id: 1:3） | システム管理者の管理画面入口（ユーザー管理画面への導線） |
-| sample-attendance-saas__user-mgmt | ユーザー管理画面 | （node_id: 1:11） | 従業員マスタの CRUD 操作・権限ロール変更・無効化を実行する主画面・楽観ロック競合時の再取得 |
+| stable_id | 画面名 | cell_id | 役割（この業務フロー内） |
+|-----------|--------|---------|--------------------|
+| sample-attendance-saas__dashboard | ダッシュボード | screen__dashboard | システム管理者の管理画面入口（ユーザー管理画面への導線） |
+| sample-attendance-saas__user-mgmt | ユーザー管理画面 | screen__user_mgmt | 従業員マスタの CRUD 操作・権限ロール変更・無効化を実行する主画面・楽観ロック競合時の再取得 |
 
 ---
 

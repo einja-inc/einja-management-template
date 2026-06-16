@@ -1,11 +1,10 @@
 <!--
-本ファイルはサンプル用の screen-flow-url.md です（Plan v3: user-flow レイアウト前提のサンプル）。
+本ファイルはサンプル用の screen-flow-url.md です（Plan v2.1: swim-lane レイアウト前提）。
 本来の出力先は docs/project/screen-flow-url.md（1リポジトリ1プロジェクト前提）。
 einja-project-screen-flow-drawio Skill により生成されるマニフェストの実例として配置しています。
 
-drawio 化（2026-05-28 以降）: 本ファイルは Figma → drawio 移行に伴い schema_version: 2 に更新。
-旧 figma_url / file_key / plan_key / node_id フィールドは廃止され、
-drawio_file_path / drawio_url / cell_id へリネームされた。
+**本 fixture は einja-project-screen-flow-drawio Skill の `normalizeManifestV1or2` 関数の動作確認用です。schema_version: 1 を保持しており、v2 reader（drawio Skill 現行版）が読むと「再生成して drawio 化 / 中止 / その他（自由入力）」の AskUserQuestion 警告が出るのが期待動作です。詳細: references/manifest-schema.md §5。**
+schema_version: 1 のまま据置し、旧 Figma 時代のフィールド構造（figma_url / file_key / plan_key / node_id）を保持する。
 
 - 入力サンプル: ./requirements.md
 - Skill 定義: .claude/skills/einja-project-screen-flow-drawio/
@@ -13,10 +12,10 @@ drawio_file_path / drawio_url / cell_id へリネームされた。
 - レーン enum / 同義語: .claude/skills/einja-project-screen-flow-drawio/references/canonical-enums.md
 - 矢印ルーティング規約: .claude/skills/einja-project-screen-flow-drawio/references/drawio-style-rules.md
 
-本ファイルは v3 user-flow レイアウト前提のサンプル成果物です。
+本ファイルは swim-lane レイアウト前提のサンプル成果物です。
+v3 user-flow（現行 default、`screen-flow-url.md`）と v1 grid（`screen-flow-url-v1-grid.md`）に対する、**明示 swim-lane 指定時の参考 fixture** として保持する。3 層 fixture 構造（v1 grid / v2 swim-lane / v3 user-flow）の v2 swim-lane 側。
 v1 後方互換 fixture（schema_version: 1 のままの旧格子レイアウト）は
 同ディレクトリの screen-flow-url-v1-grid.md を参照してください。
-v2 swim-lane fixture は `screen-flow-url-v2-swimlane.md` として別途保存（v2 swim-lane PoC の固定版 fixture、layout_strategy 明示指定時の参照用）。
 
 サンプル簡略化のため省略している画面（ヒアリング Step 4 項目A での確定経緯を含む）:
 - MFA 入力画面（§4.2 Auth.js + 多要素認証由来）→ login 画面に統合
@@ -30,27 +29,27 @@ v2 swim-lane fixture は `screen-flow-url-v2-swimlane.md` として別途保存�
 - forbidden-403: 認可エラー（403）共通画面。権限マトリクス（Manager/HR/Admin 限定機能への
   Employee アクセス時など）から補完。Common lane に配置。
 
-position 算出ルール (v3 user-flow / drawio-style-rules.md §3.3、座標式 §3.3.4、クラスタリング §3.3.3):
-- `x = LEFT_MARGIN(80) + depth * (FRAME_W(240) + HORIZONTAL_GAP(160)) = 80 + depth * 400`
-- `y = median(parents.map(p => p.y))`（衝突回避は VERTICAL_GAP=80px の下方向 stable sort）
-- `depth` はエントリ画面（`is_entry_point: true`）から primary edge のみで BFS した最短到達深さ。
-  back エッジ（`edge_kind: back`）は BFS から除外、shortcut（既到達ノードへの再エッジ）は深さ変更なし
-- root（depth=0）の y は基準値 160px、以降は親 y の中央値を継承
-- 同一 depth で y が重複する場合は YAML screens[] 出現順 stable sort で VERTICAL_GAP=80px ずつ下方シフト
-- 未到達ノード（unreachable）は `depth = maxDepth + 1` として末尾に配置、y は基準値 160 を割り当て
+position 算出ルール (drawio-style-rules.md §3.1):
+- `x = LANE_HEADER_W (160) + x_order * (FRAME_W (240) + FRAME_SPACING_X (80)) = 160 + x_order * 320`
+- `y = lane_index * LANE_HEIGHT (240) + FRAME_SPACING_Y (40)`
+- `lane_index` は role_canonical_map 適用後の **usedLanes**（実利用 lane のみ）における canonical 出現順
+  （canonical-enums §5 のデフォルト辞書順 `Common→Employee→Manager→HR→Admin→Ext` を維持）
+- 本サンプルでは Ext 未使用のため Common=0, Employee=1, Manager=2, HR=3, Admin=4
+- x_order は業務フロー順の topological sort 結果（同一 lane 内で 0 始まり）
 - Skill 再生成時もユーザー手動レイアウトを保持する設計（manifest-schema.md §3.1）
 
-注意: 下記 drawio_file_path / drawio_url / cell_id はサンプル用プレースホルダーであり、
-実在の drawio ファイルではありません（実ファイル添付は drawio 描画 PoC 完了後の
+注意: 下記 figma_url / file_key / plan_key / node_id はサンプル用プレースホルダーであり、
+実在の Figma ファイルではありません（実ファイル添付は Figma MCP 復旧後の
 別 Issue で対応予定）。
 -->
 ---
-drawio_file_path: docs/project/screen-flow.drawio
-drawio_url: PLACEHOLDER_DRAWIO_URL
-schema_version: 2
-generated_at: 2026-05-28
+figma_url: https://www.figma.com/design/PLACEHOLDER_FILE_KEY/sample-attendance-saas-screen-flow
+file_key: PLACEHOLDER_FILE_KEY
+plan_key: PLACEHOLDER_PLAN_KEY
+schema_version: 1
+generated_at: 2026-05-25
 project_name: sample-attendance-saas
-layout_strategy: user-flow
+layout_strategy: swim-lane
 role_canonical_map:
   共通: Common
   従業員: Employee
@@ -64,108 +63,105 @@ role_canonical_map:
 
 - name: login
   stable_id: sample-attendance-saas__login
-  cell_id: "screen__login"
+  node_id: "PLACEHOLDER_NODE_ID_login"
   role: 共通
   lane_id: Common
-  is_entry_point: true
   source_confidence: high
   status: active
-  position: { x: 80, y: 160 }
+  position: { x: 160, y: 40 }
 
 - name: forbidden-403
   stable_id: sample-attendance-saas__forbidden-403
-  cell_id: "screen__forbidden_403"
+  node_id: "PLACEHOLDER_NODE_ID_forbidden_403"
   role: 共通
   lane_id: Common
   source_confidence: high
   status: active
-  position: { x: 2080, y: 160 }  # unreachable（primary edge の入辺なし）
-                                 # depth = maxDepth(4) + 1 = 5、y は基準値 160 を割り当て
-                                 # unreachable サンプル（drawio-style-rules.md §3.3.2 reachable 不能ノード扱い、Phase 2 で確認 UI 追加予定）
+  position: { x: 480, y: 40 }  # Common lane の x_order=1 として配置
+                               # ※ edges を持たない共通画面は lane 内出現順で詰める（topological sort 対象外）
 
 - name: punch
   stable_id: sample-attendance-saas__punch
-  cell_id: "screen__punch"
+  node_id: "PLACEHOLDER_NODE_ID_punch"
   role: 従業員
   lane_id: Employee
   source_confidence: high
   status: active
-  position: { x: 880, y: 0 }
+  position: { x: 480, y: 280 }
 
 - name: request
   stable_id: sample-attendance-saas__request
-  cell_id: "screen__request"
+  node_id: "PLACEHOLDER_NODE_ID_request"
   role: 従業員
   lane_id: Employee
   source_confidence: high
   status: active
-  position: { x: 880, y: 80 }
+  position: { x: 800, y: 280 }
 
 - name: approval-list
   stable_id: sample-attendance-saas__approval-list
-  cell_id: "screen__approval_list"
+  node_id: "PLACEHOLDER_NODE_ID_approval_list"
   role: 上長
   lane_id: Manager
   source_confidence: high
   status: active
-  position: { x: 1280, y: 80 }
+  position: { x: 1120, y: 520 }
 
 - name: approval
   stable_id: sample-attendance-saas__approval
-  cell_id: "screen__approval"
+  node_id: "PLACEHOLDER_NODE_ID_approval"
   role: 上長
   lane_id: Manager
   source_confidence: high
   status: active
-  position: { x: 1680, y: 80 }
+  position: { x: 1440, y: 520 }
 
 - name: dashboard
   stable_id: sample-attendance-saas__dashboard
-  cell_id: "screen__dashboard"
+  node_id: "PLACEHOLDER_NODE_ID_dashboard"
   role: 人事部
   lane_id: HR
   # dashboard は全ロール (Common/Employee/Manager/HR/Admin) からアクセスされる multi-role ハブ画面。
   # drawio-style-rules.md §3.1 multi-role 主 lane 判定ルール 1（manifest 明示 lane_id 最優先）により HR に配置。
-  # v3 user-flow では lane_id は表示には使われないが、参考情報として残置。
   source_confidence: high
   status: active
-  position: { x: 480, y: 160 }
+  position: { x: 160, y: 760 }
 
 - name: monthly-report
   stable_id: sample-attendance-saas__monthly-report
-  cell_id: "screen__monthly_report"
+  node_id: "PLACEHOLDER_NODE_ID_monthly_report"
   role: 人事部
   lane_id: HR
   source_confidence: high
   status: active
-  position: { x: 880, y: 160 }
+  position: { x: 480, y: 760 }
 
 - name: export
   stable_id: sample-attendance-saas__export
-  cell_id: "screen__export"
+  node_id: "PLACEHOLDER_NODE_ID_export"
   role: 人事部
   lane_id: HR
   source_confidence: high
   status: active
-  position: { x: 1280, y: 160 }
+  position: { x: 800, y: 760 }
 
 - name: shift-mgmt
   stable_id: sample-attendance-saas__shift-mgmt
-  cell_id: "screen__shift_mgmt"
+  node_id: "PLACEHOLDER_NODE_ID_shift_mgmt"
   role: 人事部
   lane_id: HR
   source_confidence: high
   status: active
-  position: { x: 880, y: 240 }
+  position: { x: 1120, y: 760 }
 
 - name: user-mgmt
   stable_id: sample-attendance-saas__user-mgmt
-  cell_id: "screen__user_mgmt"
+  node_id: "PLACEHOLDER_NODE_ID_user_mgmt"
   role: システム管理者
   lane_id: Admin
   source_confidence: high
   status: active
-  position: { x: 880, y: 320 }
+  position: { x: 160, y: 1000 }
 
 ## edges
 
@@ -173,7 +169,7 @@ role_canonical_map:
   to: dashboard
   trigger: ログイン成功
   stable_id: login__to__dashboard
-  cell_id: "edge__login__to__dashboard"
+  node_id: "PLACEHOLDER_NODE_ID_edge_login_to_dashboard"
   edge_kind: primary
   routing: l-shape
   label_collision_warning: false
@@ -183,7 +179,7 @@ role_canonical_map:
   to: punch
   trigger: 打刻ボタンクリック
   stable_id: dashboard__to__punch
-  cell_id: "edge__dashboard__to__punch"
+  node_id: "PLACEHOLDER_NODE_ID_edge_dashboard_to_punch"
   edge_kind: primary
   routing: l-shape
   label_collision_warning: false
@@ -193,7 +189,7 @@ role_canonical_map:
   to: request
   trigger: 申請ボタンクリック
   stable_id: dashboard__to__request
-  cell_id: "edge__dashboard__to__request"
+  node_id: "PLACEHOLDER_NODE_ID_edge_dashboard_to_request"
   edge_kind: primary
   routing: l-shape
   label_collision_warning: false
@@ -203,7 +199,7 @@ role_canonical_map:
   to: monthly-report
   trigger: 月次レポートボタンクリック
   stable_id: dashboard__to__monthly-report
-  cell_id: "edge__dashboard__to__monthly_report"
+  node_id: "PLACEHOLDER_NODE_ID_edge_dashboard_to_monthly_report"
   edge_kind: primary
   routing: l-shape
   label_collision_warning: false
@@ -213,7 +209,7 @@ role_canonical_map:
   to: shift-mgmt
   trigger: シフト管理ボタンクリック
   stable_id: dashboard__to__shift-mgmt
-  cell_id: "edge__dashboard__to__shift_mgmt"
+  node_id: "PLACEHOLDER_NODE_ID_edge_dashboard_to_shift_mgmt"
   edge_kind: primary
   routing: l-shape
   label_collision_warning: false
@@ -223,7 +219,7 @@ role_canonical_map:
   to: user-mgmt
   trigger: ユーザー管理ボタンクリック
   stable_id: dashboard__to__user-mgmt
-  cell_id: "edge__dashboard__to__user_mgmt"
+  node_id: "PLACEHOLDER_NODE_ID_edge_dashboard_to_user_mgmt"
   edge_kind: primary
   routing: l-shape
   label_collision_warning: false
@@ -233,7 +229,7 @@ role_canonical_map:
   to: export
   trigger: エクスポートボタンクリック
   stable_id: monthly-report__to__export
-  cell_id: "edge__monthly_report__to__export"
+  node_id: "PLACEHOLDER_NODE_ID_edge_monthly_report_to_export"
   edge_kind: primary
   routing: straight
   label_collision_warning: false
@@ -243,7 +239,7 @@ role_canonical_map:
   to: approval-list
   trigger: 申請送信ボタンクリック
   stable_id: request__to__approval-list
-  cell_id: "edge__request__to__approval_list"
+  node_id: "PLACEHOLDER_NODE_ID_edge_request_to_approval_list"
   edge_kind: primary
   routing: l-shape
   label_collision_warning: false
@@ -253,7 +249,7 @@ role_canonical_map:
   to: approval
   trigger: 申請項目クリック
   stable_id: approval-list__to__approval
-  cell_id: "edge__approval_list__to__approval"
+  node_id: "PLACEHOLDER_NODE_ID_edge_approval_list_to_approval"
   edge_kind: primary
   routing: straight
   label_collision_warning: false
@@ -263,7 +259,7 @@ role_canonical_map:
   to: request
   trigger: 差し戻しボタンクリック
   stable_id: approval__to__request
-  cell_id: "edge__approval__to__request"
+  node_id: "PLACEHOLDER_NODE_ID_edge_approval_to_request"
   edge_kind: back
   routing: l-shape
   label_collision_warning: false
@@ -273,7 +269,7 @@ role_canonical_map:
   to: dashboard
   trigger: 打刻完了後の自動遷移
   stable_id: punch__to__dashboard
-  cell_id: "edge__punch__to__dashboard"
+  node_id: "PLACEHOLDER_NODE_ID_edge_punch_to_dashboard"
   edge_kind: primary
   routing: l-shape
   label_collision_warning: false
@@ -283,7 +279,7 @@ role_canonical_map:
   to: dashboard
   trigger: 申請完了後の自動遷移
   stable_id: request__to__dashboard
-  cell_id: "edge__request__to__dashboard"
+  node_id: "PLACEHOLDER_NODE_ID_edge_request_to_dashboard"
   edge_kind: primary
   routing: l-shape
   label_collision_warning: false

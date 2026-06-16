@@ -1,4 +1,9 @@
 <!-- @einja:managed:start -->
+<!--
+**2026-05-28 注釈**: 本ドキュメントは Figma 関連の管理規約。einja-project-screen-flow は 2026-05-28 以降 drawio 化（einja-project-screen-flow-drawio）されたため、本 doc は **screen-spec / ui-design-generator / einja-pencil-design-manager** 系のみが対象。screen-flow は対象外。
+本文中に残る `screen-flow-url.md` / `einja-project-screen-flow-figma` 関連の記述は歴史的経緯であり、現行 screen-flow 実装は drawio 版を参照すること。
+-->
+
 # Figmaデザイン管理規約
 
 ## 概要
@@ -47,6 +52,8 @@ Pencilのケバブケースルールに準拠したURLパスベース + BEM風�
 - 共通コンポーネント: `_components/[name]`（アンダースコアプレフィックス）
 
 ### screen-flow-url.md 固有の命名規則（補強）
+
+> **2026-05-28 注釈**: 本セクションの命名規則は **歴史的経緯**（drawio 化以前の Figma 時代の screen-flow-url.md 仕様）として記録する。現行 screen-flow は drawio 化により本命名規則を参照しない。screen-spec / ui-design-generator が新規 Figma file 作成時に参照する命名規則は L120 以降のセクションを参照。
 
 プロジェクト全体の画面遷移マニフェスト（`screen-flow-url.md`）を生成する場合は、上記の基本ルールに加えて以下の命名規則を適用します。`einja-project-screen-flow-figma` Skill により生成されるFigmaノードに対する規約です。
 
@@ -137,7 +144,7 @@ YAMLフロントマター + `## screens` / `## edges` の2リストセクショ�
 | `screens[]` | リスト | プロジェクト全体の画面リスト（`name` / `stable_id` / `node_id` / `role` / `status` / `position`） |
 | `edges[]` | リスト | 画面間遷移（`from` / `to` / `trigger` / `stable_id` / `node_id` / `status`） |
 
-完全スキーマ・冪等性ポリシー（再生成時の `stable_id` 照合、orphan化、AskUserQuestion確認フロー）は `.claude/skills/einja-project-screen-flow-figma/references/manifest-schema.md` を参照してください。
+完全スキーマ・冪等性ポリシー（再生成時の `stable_id` 照合、orphan化、AskUserQuestion確認フロー）は `.claude/skills/einja-project-screen-flow-drawio/references/manifest-schema.md` を参照してください（drawio 化により旧 `einja-project-screen-flow-figma` から移行済）。
 
 ### YAML最小実例
 

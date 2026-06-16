@@ -438,12 +438,12 @@ flowchart LR
 
 `screen-flow-url.md` の `stable_id` を参照キーとして、本業務フローで利用する画面を列挙する。
 
-| stable_id | 画面名 | Figma リンク | 役割（この業務フロー内） |
-|-----------|--------|-------------|--------------------|
-| sample-attendance-saas__dashboard | ダッシュボード | （screen-flow-url.md / file_key: PLACEHOLDER_FILE_KEY / node_id: 1:3） | 申請画面・承認一覧画面の導線 / 承認結果・差し戻し・催促バナーの表示先 |
-| sample-attendance-saas__request | 申請画面 | （node_id: 1:5） | 残業・有給の申請入力・送信 |
-| sample-attendance-saas__approval-list | 承認一覧画面 | （node_id: 1:6） | 上長配下の申請一覧表示 / 競合時の戻り先 |
-| sample-attendance-saas__approval | 承認画面 | （node_id: 1:7） | 申請詳細表示・承認/差し戻し操作（差し戻しコメントはモーダル） |
+| stable_id | 画面名 | cell_id | 役割（この業務フロー内） |
+|-----------|--------|---------|--------------------|
+| sample-attendance-saas__dashboard | ダッシュボード | screen__dashboard | 申請画面・承認一覧画面の導線 / 承認結果・差し戻し・催促バナーの表示先 |
+| sample-attendance-saas__request | 申請画面 | screen__request | 残業・有給の申請入力・送信 |
+| sample-attendance-saas__approval-list | 承認一覧画面 | screen__approval_list | 上長配下の申請一覧表示 / 競合時の戻り先 |
+| sample-attendance-saas__approval | 承認画面 | screen__approval | 申請詳細表示・承認/差し戻し操作（差し戻しコメントはモーダル） |
 
 ---
 

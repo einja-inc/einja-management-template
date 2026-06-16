@@ -9,7 +9,7 @@
 受託開発のSaaSプロジェクトを想定した、プロジェクト全体合意ドキュメントの完全サンプル群。
 
 - [requirements.md](specs/projects/sample-attendance-saas/requirements.md) — プロジェクト要件定義書（einja-project-requirements 出力例）
-- [screen-flow-url.md](specs/projects/sample-attendance-saas/screen-flow-url.md) — 画面遷移図manifest（einja-project-screen-flow-figma 出力例）
+- [screen-flow-url.md](specs/projects/sample-attendance-saas/screen-flow-url.md) — 画面遷移図manifest（einja-project-screen-flow-drawio 出力例）
 - [function-specs/index.md](specs/projects/sample-attendance-saas/function-specs/index.md) — 業務フロー機能仕様 一覧（einja-project-function-spec 出力例）
 
 **学習ポイント**:

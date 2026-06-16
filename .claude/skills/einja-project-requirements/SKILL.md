@@ -4,6 +4,13 @@ description: "システム受託開発の「プロジェクト全体の要件定
 user-invocable: true
 ---
 
+<!--
+**上流 Skill**: `einja-design-5-planes`（goodpatch 5 段階モデル横断オーケストレーター）から呼び出される下流 Skill のひとつ。
+- 担当 Plane: **Plane 1 Strategy（§1〜§4）+ Plane 2 Scope（§5〜§6）**
+- 単独起動も可能。`einja-design-5-planes` 経由起動時は manifest を介した進捗管理が伴う
+- マッピング詳細: `.claude/skills/einja-design-5-planes/references/skill-mapping.md` §1 / §4 参照
+-->
+
 # einja-project-requirements: プロジェクト全体要件定義書 生成Skill
 
 ## あなたの役割

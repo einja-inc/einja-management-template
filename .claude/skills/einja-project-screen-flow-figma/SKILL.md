@@ -23,6 +23,8 @@ user-invocable: true
 
 Do NOT use for: Issue 単位の画面モックアップ（→ `ui-design-generator`）、Issue 単位の `requirements.md §8.2` mermaid（→ `requirements-generator`）、状態遷移図（→ `design.md State Transitions`）、FigJam ファイル生成（本 Skill は Design ファイル専用）。
 
+> **最終受け入れとの関係**: 画面遷移で定義する端から端までの導線が、E2E 受け入れで検証するユーザージャーニーの基準になる（規約詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「最終受け入れの readiness 下限」節）。
+
 ## 2. 前提・事前準備
 
 | 項目 | 内容 |

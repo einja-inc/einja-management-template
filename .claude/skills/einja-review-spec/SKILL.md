@@ -73,7 +73,7 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | B | ATDD・受け入れ基準品質 | AC一覧、AC詳細、正常系/異常系、検証可能性、UXカテゴリのACにインタラクション4状態・エラーメッセージ導線・多重送信防止・フォーカス管理が含まれているか |
 | C | 実装可能性・既存整合 | 既存アーキテクチャや実装パターンとの整合、非現実的要件の有無 |
 | D | QAトレーサビリティ | 後続の設計・QA・タスク分解に必要な情報が揃っているか |
-| E | Readiness & 依存境界 | 「横断必須ゲート」§G1（readiness level 混在）+ §G2（external-deps 明示）。infra/サービス/外部連携を含む場合は必ずピック |
+| E | Readiness & 依存境界 | 「横断必須ゲート」§G1（readiness level 混在）+ §G2（external-deps 明示）+ §G6（最終受け入れの E2E-ready 到達下限）。**最終受け入れを伴う場合は必ずピック**（§G6 を無条件適用）。§G1 / §G2 は infra / サービス / 外部連携を含む場合に適用 |
 | F | セキュリティ・脅威モデリング | 「横断必須ゲート」§G3（threat-modeling / control-plane / 危険 sink）。外部入力・認証・権限・特権操作・外部連携を含む場合は必ずピック |
 | G | SSOT 整合 | 「横断必須ゲート」§G4（同一設定値の重複・矛盾）。設定値・閾値・接続先が複数箇所に登場する場合は必ずピック |
 
@@ -83,11 +83,12 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 |----|--------|------|
 | A | 設計妥当性 | アーキテクチャ、API、DB、要件トレースの妥当性 |
 | B | UI/UX・画面整合 | `ui-design-url.md`（Figma）と requirements/design の整合、一貫性、主要導線、インタラクション4状態設計（disabled/error/empty/loading）の有無、エラーメッセージの位置と再試行導線の明示、多重送信防止とローディング制御、基本フォーカス管理 |
-| C | QA網羅性・実行可能性 | AC対応、前提条件、手順の明確さ、打鍵確認可能性 |
+| C | QA網羅性・実行可能性 | AC対応、前提条件、手順の明確さ、打鍵確認可能性。最終受け入れに必要な人手E2Eシナリオ（種別 `人手E2E`）が qa-test.md に用意されているか |
 | D | 横断整合性 | design / ui / qa の用語、API名、画面名、外部API前提の一致 |
 | E | Readiness & external-deps DAG | 「横断必須ゲート」§G1 + §G2。design に readiness matrix があり、healthy 到達の external-deps（DB migrate / secret / DNS / OAuth 等）が依存関係として整理されているか。infra/サービス/外部連携を含む場合は必ずピック |
 | F | セキュリティ・脅威モデリング | 「横断必須ゲート」§G3。design に Threat Model セクションがあり、authz / secrets 露出 / injection / SSRF / admin・control-plane 露出 / token scope・衝突 / privilege scope / runtime 入力→危険 sink が識別・対策されているか。外部入力・認証・権限・特権・外部連携を含む場合は必ずピック |
 | G | SSOT 整合 | 「横断必須ゲート」§G4。requirements / design / ui / qa にまたがる同一設定値が矛盾しておらず、正本ファイルが定義されているか |
+| H | AI処理フロー | 「横断必須ゲート」§G5。design の System Flows に AI処理フロー（入力構築・出力検証/パース・低信頼/失敗/タイムアウト/レート制限時のリトライ/フォールバック/デフォルト分岐・非決定性対応）があるか。AI処理（`LLM呼び出し / 推論 / 分類 / 生成 / 要約 / RAG / 埋め込み検索 / エージェント等、出力が非決定的な処理`。正本: design-generator.md 条件付き必須図）を含む場合は必ずピック |
 
 #### `tasks`
 
@@ -97,13 +98,14 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | B | 依存関係・並列性・UX網羅性 | 並列実行可能性、依存関係記法、Phase分割の妥当性。フロントエンド変更を含むタスクグループにUXカテゴリAC（インタラクション4状態・エラーメッセージ導線・多重送信防止・フォーカス管理）が割り当てられているか |
 | C | トレーサビリティ | requirements / design / qa との対応関係の明確さ |
 | D | 実行準備性 | サブエージェント割当、完了条件、シナリオテスト指定の妥当性 |
-| E | 「作れる」≠「healthy」分離 | 「横断必須ゲート」§G2。サービス・外部連携を含むタスクで「リソースを作る」タスクと「healthy にする」タスクが別ノードに分かれ、external-deps が依存関係（blockedBy）として張られているか |
+| E | 「作れる」≠「healthy」分離 + 最終受け入れ | 「横断必須ゲート」§G2 + §G6。**最終受け入れを伴う場合は必ずピック**（§G6 を無条件適用）。§G2 はサービス・外部連携を含むタスクで「リソースを作る」タスクと「healthy にする」タスクが別ノードに分かれ、external-deps が依存関係（blockedBy）として張られているか。§G6 は最終受け入れの E2E-ready 到達下限を満たすか |
 | F | セキュリティ観点の漏れ | 「横断必須ゲート」§G3。タスク完了条件・実装指示に、外部入力→危険 sink（path-traversal 等）の対策や authz / secrets / privilege の考慮が欠けていないか。認証・権限・特権操作・外部連携を含むタスクグループで必ずピック |
 | G | SSOT 整合 | 「横断必須ゲート」§G4。タスク完了条件・設定値が requirements / design と矛盾していないか |
+| H | AI処理タスク網羅性 | 「横断必須ゲート」§G5（tasks scope）。AI処理を含む機能で、出力検証・リトライ/フォールバック/デフォルト/人手エスカレーション等の実装がタスク完了条件に落ち、AIサービスの external-deps（API キー/エンドポイント等）が依存エッジ（`blockedBy`）として張られているか。出力が非決定的なAI処理（正本: design-generator.md 条件付き必須図）を含むタスクグループで必ずピック |
 
-### 横断必須ゲート（全 review_scope 共通: 観点 E/F/G の詳細）
+### 横断必須ゲート（全 review_scope 共通: 観点 E/F/G/H の詳細）
 
-以下 4 ゲートは、対象成果物が該当性質を持つ場合に必ず適用する。各ゲートに対応する観点（E/F/G）をピックし、レビュアーのプロンプトに該当ゲートのチェックリストを埋め込む。**Web アプリ開発汎用**（frontend / backend / API / DB / auth / secret / 外部連携 / インフラ）の観点で確認する。
+以下 6 ゲートは、対象成果物が該当性質を持つ場合に必ず適用する。各ゲートに対応する観点（E/F/G/H。§G6 は観点 E に同居）をピックし、レビュアーのプロンプトに該当ゲートのチェックリストを埋め込む。**Web アプリ開発汎用**（frontend / backend / API / DB / auth / secret / 外部連携 / インフラ）の観点で確認する。
 
 #### §G1: readiness level の混在検出（→ 観点 E）
 
@@ -136,6 +138,27 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 - [ ] 重複が避けられない場合、**正本ファイル（SSOT）**と**負け側（参照のみ）**が明示され、負け側に「正本: <path>」の注記があるか
 - [ ] requirements / design / ui / qa 間で用語・API 名・画面名・外部 API 前提が一致しているか
 
+#### §G5: AI processing flow gate（→ 観点 H）
+
+AI処理（`LLM呼び出し / 推論 / 分類 / 生成 / 要約 / RAG / 埋め込み検索 / エージェント等、出力が非決定的な処理`。トリガー定義の正本は design-generator.md 条件付き必須図）を含む機能で、AI 特有の分岐が設計段階で図示・識別されているかを確認するゲート。単なる決定的な外部 API 呼び出しは対象外（§G3 / readiness 側で扱う）。design の `System Flows` に **AI処理フロー**（`sequenceDiagram` + alt/opt、判定ロジックが複雑な場合は `flowchart TD` 併用）があり、以下が網羅されているか確認する。
+
+- [ ] **入力構築**: プロンプト / コンテキストの構築が明示されているか
+- [ ] **出力の検証・パース**: スキーマ検証 / 型変換失敗時の扱いが定義されているか
+- [ ] **非決定性への対応**: リトライ / フォールバック / デフォルト値 / 人手エスカレーションが**分岐として**描かれているか
+- [ ] **失敗系の挙動**: タイムアウト / レート制限 / 5xx / トークン上限超過時の挙動が定義されているか
+- [ ] **（該当時）信頼度・スコア閾値による分岐**が表現されているか（複雑なら `flowchart` 併用）
+- [ ] AIサービスが外部連携の場合、Architecture Pattern & Boundary Map の External Systems / §G3 Threat Model とも整合しているか
+- [ ] **（tasks scope の場合）** 上記の各分岐（出力検証 / リトライ / フォールバック / デフォルト / 人手エスカレーション）が**実装タスクの完了条件**に落ちており、AIサービスの external-deps（API キー / エンドポイント等）が tasks DAG に `blockedBy` として張られているか
+
+#### §G6: 最終受け入れゲート（→ 観点 E）
+
+readiness level の「到達下限」を検証するゲート。§G1（1 つの AC 内で level を**混在**させない＝粒度）と直交し、§G6 は「Issue / 機能の**最終受け入れ**がどの level に到達して初めて"完了"と呼べるか＝到達下限」を見る。`created` / `configured` 止まり（"できたつもり"）を完了と判定していないかを落とす。規約本文は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「最終受け入れの readiness 下限」節（SSOT）。
+
+- [ ] **デフォルト（ユーザー導線あり）**: 最終受け入れの AC 群に `E2E-ready`（ユーザーと同等の操作で価値が端から端まで届く）を担保する AC が **1 件以上**含まれているか。`created` / `configured` を確認する AC の集合だけで「完了」としていないか
+- [ ] **ユーザー導線が無い変更（インフラ / ライブラリ）**: 変更後に `healthy`（疎通・主要動作）を確認する AC が置かれているか。`E2E-ready` を免除する場合、readiness matrix に **N/A の理由が明記**されているか（理由なき N/A・検証ゼロは不可）
+- [ ] **マージ後 / デプロイ後にしか確認できない場合**: (a) readiness matrix の `deferred-to`（申し送り先工程）と (b) `qa-test.md` の種別 `人手E2E` シナリオ（人間 QA 手順）の**両方**が用意されているか
+- [ ] readiness matrix の最終受け入れ対象 component の `E2E-ready` 列が ✅ / ⏳（`deferred-to` 必須）/ N/A（理由併記）のいずれかで埋まり、空欄・無印が無いか
+
 ### Step 3: 観点別並列レビューの実行
 
 ピックした観点ごとにレビュアー（Agent tool, general-purpose）を**1つのメッセージで複数同時に**起動する。Codex MCP有効時は Codexレビュアー（Agent tool, `codex-agent`）も同時に起動する。
@@ -156,18 +179,24 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 - `docs/einja/steering/development-workflow.md`
 - `docs/einja/steering/task-management.md`
 - `docs/einja/steering/development/review-guidelines.md`
-- `docs/einja/steering/acceptance-criteria-and-qa-guide.md`（「完了レベル（readiness level）」節を含む）
+- `docs/einja/steering/acceptance-criteria-and-qa-guide.md`（「完了レベル（readiness level）」「最終受け入れの readiness 下限」節を含む）
 - `docs/einja/steering/development/testing-strategy.md`
 - `docs/einja/templates/readiness-matrix.md.template`（観点 E をピックした場合）
 - `docs/einja/templates/design.md.template`「Threat Model & Security Considerations」節（観点 F をピックした場合）
+- `docs/einja/templates/design.md.template`「System Flows / AI処理フロー」節（観点 H をピックした場合）
 
-## 横断必須ゲート（観点 E/F/G をピックした場合のみ）
+## 横断必須ゲート（観点 E/F/G/H をピックした場合のみ）
 {ピックした観点の review_scope に応じて以下を埋め込む:
-  - requirements 観点 E → §G1 + §G2
+  - requirements 観点 E → §G1 + §G2 + §G6
   - phase2_bundle 観点 E → §G1 + §G2
-  - tasks 観点 E → §G2 のみ
+  - tasks 観点 E → §G2 + §G6
   - 観点 F → §G3
   - 観点 G → §G4
+  - phase2_bundle 観点 H → §G5（design の AI処理フロー図）
+  - tasks 観点 H → §G5（実装タスクの完了条件・external-deps）
+  - phase2_bundle 観点 C → §G6 本体は付けず「最終受け入れに必要な人手E2Eシナリオ（種別 `人手E2E`）が qa-test.md に用意されているか」を確認する
+  - （観点 H は phase2_bundle / tasks に適用。requirements の観点テーブルには H が無い＝AI処理フロー図は design 成果物のため requirements 段階では §G5 を適用しない）
+  - （§G6＝最終受け入れゲートは requirements / tasks では最終受け入れを伴う限り観点 E を必ずピックして無条件に適用する。phase2_bundle は §G6 本体を付けず観点 C で人手E2Eシナリオの有無を確認する）
 }
 
 ## ユーザーの元要求

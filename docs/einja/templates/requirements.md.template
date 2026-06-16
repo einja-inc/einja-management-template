@@ -132,6 +132,12 @@ graph TB
 - `N` = 正常系 / `E` = 異常系
 - 連番は各Story × カテゴリ × 区分（N/E）ごとに001から開始
 
+> **最終受け入れの readiness 下限**: 最終受け入れの AC 群は "できたつもり"（`created` / `configured` 止まり）で完了としない。
+> - ユーザー導線がある変更: `E2E-ready`（ユーザーと同等の操作で価値が端から端まで届く）を担保する AC を 1 件以上含める。
+> - ユーザー導線が無い変更（インフラ / ライブラリ）: 変更後に `healthy`（疎通）を確認する AC を置き、`E2E-ready` を免除する場合は readiness matrix に N/A 理由を明記する。
+> - マージ後 / デプロイ後にしか確認できない場合: readiness matrix の `deferred-to`（申し送り）と、`qa-test.md` の種別 `人手E2E` シナリオ（人間 QA テスト手順）の両方を用意する。
+> 規約の詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「最終受け入れの readiness 下限」節を参照。
+
 ### Story 1: [Story タイトル — 例: 管理者としてユーザーを登録したい]
 
 **As a** [ロール]

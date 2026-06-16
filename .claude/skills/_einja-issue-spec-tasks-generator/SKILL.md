@@ -152,6 +152,10 @@ GitHub Issueの本文（Markdown形式）:
    - Phase内で実装した全ACをチェックリスト形式で列挙した受け入れパケットをユーザーに提示する
    - ユーザーが受け入れOK（承認）を判定してから次Phaseへ進む
 
+3. **最終受け入れのE2E-ready担保（最終Phaseのみ）**: 最終 Phase の受け入れパケットに、ユーザー導線がある変更は `E2E-ready` 到達状況を含める。`created` / `configured` 止まりで「完了」としない。導線が無い変更（インフラ / ライブラリ）は `healthy` 疎通確認を含め、`E2E-ready` 免除時は readiness matrix に N/A 理由を明記する。マージ / デプロイ後にしか確認できない場合は readiness matrix の `deferred-to`（申し送り）と `qa-test.md` の種別 `人手E2E` シナリオ（人間 QA 手順）の両方を提示する。
+   - **「最終Phase」の機械判定**: Phase 番号のうち **Phase 99（ドキュメント反映用の予約 Phase）を除いた最大 Phase 番号**を最終受け入れ対象 Phase とする。Phase 99 が無い場合は最大 Phase 番号がそのまま最終 Phase。
+   - 規約の詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「最終受け入れの readiness 下限」節を参照。
+
 ### テンプレート
 
 ```markdown
@@ -178,6 +182,7 @@ GitHub Issueの本文（Markdown形式）:
     - **実装AC**: なし（受け入れ確認タスク）
     - **依存関係**: X.N.1
     - **完了条件**: ユーザーが受け入れOKを判定したこと
+      - （最終 Phase の場合のみ）最終受け入れの `E2E-ready` 到達状況を受け入れパケットに含める。到達不能な場合は readiness matrix の `deferred-to`（申し送り）と `qa-test.md` の種別 `人手E2E` シナリオ（人間 QA 手順）を提示する。検証の実体は実装 Phase 側タスクが担保し、ここでは提示に留める。
     - **対応設計**: なし（受け入れ確認タスク）
     - **シナリオテスト**: なし（受け入れ確認タスク）
 ```

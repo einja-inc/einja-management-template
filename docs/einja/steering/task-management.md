@@ -131,6 +131,7 @@ GitHub Issueのチェックボックスでタスクグループのステータ�
     - 全シナリオテストの成功確認
     - コードレビュー完了確認
     - デプロイ可能な状態であることを確認
+    - **最終受け入れ（最終 Phase のみ）**: ユーザー導線がある変更は `E2E-ready` を担保する完了確認を 1 件以上含む。導線が無い変更は `healthy` 疎通確認を置き `E2E-ready` 免除時は N/A 理由を明記。マージ / デプロイ後にしか確認できない場合は readiness matrix の `deferred-to`（申し送り）と `qa-test.md` の種別 `人手E2E` シナリオの両方を用意する。
     - **要件**: Story 1, Story 2（該当する全Story）
     - **依存関係**: 1.N.Z（Phase内の最後のタスク番号）
     - **完了条件**: フェーズ1の全タスクグループが完了し、受け入れ基準**Story 1 の全AC（AC1.UI.N.001等）**を満たすことが確認できること
@@ -208,6 +209,17 @@ CRUD機能の場合、以下のように**価値単位（作成 / 閲覧 / 更�
 - インフラ・外部連携を含む機能では、[readiness matrix テンプレ](../templates/readiness-matrix.md.template)で component × level を俯瞰し、各タスクが担保する到達レベルと整合させる。
 
 > **縦切り原則との関係**: フルスタック縦切り（Domain→UI）の原則は維持しつつ、外部依存の「接続・疎通（healthy 化）」は materialize と**別タスク（X.Y.Z）**に切り出す（`_einja-issue-spec-tasks-generator` の external-deps 分離ルールの例と整合）。これは横切り分割（レイヤー別分割）とは異なり、readiness level による段階分割である。
+
+### 最終受け入れの readiness 下限
+
+external-deps の明示（どこまで作れば healthy か）が「順序」を担保するのに対し、ここは「Issue / 機能の最終受け入れがどの level に到達して初めて"完了"か」という**到達下限**を担保する。`created` / `configured` 止まり（"できたつもり"）を完了としない。
+
+- ユーザー導線がある変更: 最終受け入れに `E2E-ready` を担保する確認を 1 件以上含める。
+- ユーザー導線が無い変更（インフラ / ライブラリ）: 変更後の `healthy` 疎通確認を置く。`E2E-ready` 免除時は readiness matrix に N/A 理由を明記（理由なき N/A・検証ゼロは不可）。
+- マージ後 / デプロイ後にしか確認できない場合: readiness matrix の `deferred-to`（申し送り先工程）と `qa-test.md` の種別 `人手E2E` シナリオ（人間 QA 手順）の両方を必須とする。
+
+> **責務境界**: 本節は到達下限を**仕様・タスク分割時点で担保させる**入口ゲート。デプロイ環境で AC を実際に実行する実行・QA層（phase-reviewer / task-qa）とは補完関係であり、本節は実行そのものには踏み込まない。
+> 規約本文の詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「最終受け入れの readiness 下限」節を参照。
 
 ### ❌ アンチパターン（絶対にやってはいけない分割）
 

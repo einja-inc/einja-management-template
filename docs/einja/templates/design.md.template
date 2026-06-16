@@ -4,6 +4,7 @@
 <!-- 図はMermaid記法を標準とする。C4記法（C4Context等）は公式experimentalのため使用せず、graph TB + subgraph で C4 相当を表現する -->
 <!-- 条件付き必須化: UI変更時→C4 Component図、DB変更時→物理ERD、状態を持つ機能→State Transitions、外部連携→C4 Containerに外部システム明示 -->
 <!-- 条件付き必須化（追加）: 外部入力/認証/権限/特権/外部連携→Threat Model & Security、infra/サービス/外部連携→Readiness & External Dependencies、同一設定値が複数箇所→Spec SSOT -->
+<!-- 条件付き必須化（追加）: AI処理（LLM呼び出し / 推論 / 分類 / 生成 / 要約 / RAG / 埋め込み検索 / エージェント等、出力が非決定的な処理）→ System Flows に AI処理フロー（出力検証・低信頼/失敗/タイムアウト時のリトライ/フォールバック/デフォルト分岐・非決定性対応）。判定ロジックが複雑なら flowchart TD を併用 -->
 <!-- requirements.md の AC一覧 / AC詳細 / ルール系セクションを参照して記述してください -->
 
 ## Overview
@@ -158,6 +159,66 @@ sequenceDiagram
             end
         end
     end
+```
+
+### AI処理フロー
+
+<!-- AI処理（LLM呼び出し / 推論 / 分類 / 生成 / 要約 / RAG / 埋め込み検索 / エージェント等、出力が非決定的な処理。正本: design-generator.md 条件付き必須図）がある場合は必須。 -->
+<!-- 必須要素: 入力（プロンプト/コンテキスト）構築 / 出力の検証・パース（スキーマ検証・型変換失敗時の扱い） / -->
+<!-- 非決定性への対応（リトライ・フォールバック・デフォルト値・人手エスカレーション）の分岐 / -->
+<!-- 失敗・タイムアウト・レート制限・トークン上限超過時の挙動 / （該当時）信頼度・スコア閾値による分岐。 -->
+<!-- 外部連携を伴う場合は Architecture Pattern & Boundary Map の External Systems / Threat Model とも整合させる。 -->
+<!-- AIサービスとの相互作用と例外分岐は sequenceDiagram(alt/opt) で、判定ロジックが複雑な場合は flowchart TD を併用する。 -->
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UseCase
+    participant Validator as 出力検証
+    participant AI as AI Service (External)
+
+    User->>UseCase: 処理要求
+    UseCase->>UseCase: プロンプト / コンテキスト構築
+
+    loop 最大Nリトライ
+        UseCase->>AI: 推論リクエスト
+        alt タイムアウト / レート制限 / 5xx
+            AI-->>UseCase: エラー
+            Note over UseCase: バックオフして再試行
+        else 応答あり
+            AI-->>UseCase: 生成結果
+            UseCase->>Validator: スキーマ検証 / パース
+            alt 検証OK かつ 信頼度 >= 閾値
+                Validator-->>UseCase: 採用
+            else 検証NG / 低信頼
+                Note over UseCase: 上限内なら再生成（ループ継続）/ 上限到達ならループ脱出
+            end
+        end
+    end
+
+    alt 採用結果あり
+        UseCase-->>User: 結果返却
+    else リトライ / 再生成 上限到達
+        UseCase-->>User: フォールバック / デフォルト値 / 人手エスカレーション
+    end
+```
+
+```mermaid
+flowchart TD
+    Start([AI処理開始]) --> Build[プロンプト構築]
+    Build --> Call[AI呼び出し]
+    Call --> Err{失敗 / タイムアウト?}
+    Err -->|Yes| Retry{リトライ上限?}
+    Retry -->|未到達| Call
+    Retry -->|到達| Fallback[フォールバック / デフォルト / 人手エスカレーション]
+    Err -->|No| Validate[出力検証・パース]
+    Validate --> Conf{検証OK かつ 信頼度>=閾値?}
+    Conf -->|Yes| Accept[結果採用]
+    Conf -->|No| Regen{再生成上限?}
+    Regen -->|未到達| Call
+    Regen -->|到達| Fallback
+    Accept --> End([完了])
+    Fallback --> End
 ```
 
 ## Requirements Traceability

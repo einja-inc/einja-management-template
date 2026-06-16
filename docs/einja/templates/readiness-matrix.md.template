@@ -42,6 +42,8 @@
 
 ## AC との対応
 
+> **最終受け入れの `E2E-ready` 列**: 最終受け入れ対象の component は `E2E-ready` 列を必ず埋める。値は ✅（到達）/ ⏳（未到達。`deferred-to` に申し送り先工程を必須記載）/ N/A（非該当。**理由を併記**、理由なき N/A は不可）のいずれか。空欄・無印は禁止。
+
 <!-- 各 AC がどの component のどの readiness level を担保するかを対応付ける。 -->
 
 | AC ID | 担保する component | 担保する level |
@@ -55,3 +57,5 @@
 - ⏳（未到達）のセルには必ず `blocked-by`（何待ちか）と `deferred-to`（どのタスク/Phase で到達するか）を記す。
 - **表記の区別**: 本マトリクスの列名は人間可読の `blocked-by`（ハイフン）。タスク記述側の依存フィールドは `**依存関係**`（`blockedBy` として機能）。同じ依存関係を 2 つの表現で書く点に注意する。
 - 未到達は「失敗」ではなく「段階」として扱う。完了報告では到達済み level のみを「完了」と主張する。
+- `deferred-to` 列は「申し送り事項」に対応する。マージ後 / デプロイ後にしか `healthy` / `E2E-ready` を確認できない component は、どの後続工程（Phase / デプロイ後 QA 等）で到達させるかを `deferred-to` に記載し、対応する人手 QA 手順を `qa-test.md` の種別 `人手E2E` シナリオに用意する。
+- 規約の詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「最終受け入れの readiness 下限」節を参照。

@@ -51,6 +51,7 @@ user-invocable: true
 8. **内部実装詳細の取り扱い境界**: §2.2 システム観点では「同一TX」「Best-effort」レベルのトランザクション境界宣言までを本Skillで扱う。具体的なロック方式（楽観/悲観）・BEGIN/COMMIT 位置・テーブル名 / カラム名 / 正規表現 / HTTP ステータスコードは §7 申し送りに分離し、design.md / Issue 仕様で確定する
 9. **画面イベント駆動の粒度**: §2.2 システム観点 sequenceDiagram は「画面表示」「フォーム送信」「バリデーションエラー」「業務エラー」「非同期反映」を画面イベント単位で記述する。技術的なミドルウェア層（ロードバランサー・キャッシュサーバー等）の挙動は §7 申し送りに分離する
 10. **脅威モデリングの申し送り（threat-modeling gate）**: 認証・権限・特権操作・外部連携・外部入力を扱う業務フローでは、セキュリティ上注意すべき点（authz 境界 / secrets 露出 / runtime 入力→危険 sink（path-traversal 等）/ admin・control-plane 露出 / token scope・privilege）を §7 設計フェーズ申し送りに明記する。詳細な脅威分析・対策は本 Skill では行わず、design.md「Threat Model & Security Considerations」セクション（`docs/einja/templates/design.md.template`）に引き継ぐ。設計段階で先に脅威を捕まえ、実装中の発覚を防ぐことが目的
+11. **ここで定義した業務フローが下流の E2E 受け入れシナリオの基準になる**。最終受け入れは、この業務フローをユーザーが端から端まで通せること（`E2E-ready`）で確認する（規約詳細は `docs/einja/steering/acceptance-criteria-and-qa-guide.md`「最終受け入れの readiness 下限」節）。
 
 ### §2.2 canonical participant 名（固定）
 

@@ -325,6 +325,7 @@ TaskCreateツールを使用して詳細な進捗を可視化します：
 - **C4記法（C4Context、C4Container等）は使用禁止** — 公式experimentalのため非推奨。代わりに `graph TB` + `subgraph` で C4相当を表現する
 - コンテナ境界は `subgraph "システム名 (技術スタック)"` で表現し、技術スタックをラベルに含める
 - 外部システムは独立した `subgraph "External Systems"` で明示する
+- **`flowchart TD` は判定ロジック（AI処理の信頼度閾値分岐・再生成ループ等）の表現に使用可** — シーケンスでは表しにくい分岐・ループ中心のフローに用いる
 
 ## 条件付き必須図
 
@@ -336,9 +337,12 @@ TaskCreateツールを使用して詳細な進捗を可視化します：
 | DB変更あり | 物理ERD（`erDiagram`） | Data Modelセクション冒頭 |
 | 状態を持つ機能（申請/注文/認証/招待/支払等） | 詳細状態遷移図（`stateDiagram-v2`） | state/event/guard を含む |
 | 外部連携あり（API/認証/決済等） | C4 Container図（Architecture Pattern & Boundary Map）に外部システムの subgraph を明示 | 必須ノード |
+| **AI処理あり**（LLM呼び出し / 推論 / 分類 / 生成 / 要約 / RAG / 埋め込み検索 / エージェント等、**出力が非決定的な処理**） | System Flows に **AI処理フロー**シーケンス図（出力検証・低信頼/失敗/タイムアウト時のリトライ/フォールバック/デフォルト分岐）。信頼度閾値分岐・再生成ループ等の判定ロジックが複雑な場合は `flowchart TD` を併用 | 外部連携を伴う場合は C4 Container の External Systems とも整合させる |
 | 複雑なドメイン（集約複数等） | 概念ERは requirements.md 側、物理ERは design.md 側 | 二重記載しない |
 
-## 5つの新規図の作成指示
+> **AI処理トリガー定義の正本（SSOT）**: 上表「AI処理あり」行のトリガー範囲（`LLM呼び出し / 推論 / 分類 / 生成 / 要約 / RAG / 埋め込み検索 / エージェント等、出力が非決定的な処理`）がこの定義の正本。`design.md.template` / `einja-review-spec`（§G5）はこれを参照し、独自に再定義しないこと。
+
+## 6つの新規図の作成指示
 
 ### 図1: C4 Container図（Architecture Pattern & Boundary Map 強化）
 
@@ -488,6 +492,66 @@ stateDiagram-v2
     Approved --> [*]
 ```
 
+### 図6: AI処理フロー（System Flows 強化、AI処理がある場合は必須）
+
+AI処理（LLM呼び出し / 推論 / 分類 / 生成 / 要約 / RAG / 埋め込み検索 / エージェント等、**出力が非決定的な処理**）を含む場合は必須。
+`System Flows` セクション内に配置する。AI特有の分岐——出力検証、低信頼/失敗/タイムアウト/レート制限/トークン上限時のリトライ・フォールバック・デフォルト・人手エスカレーション、非決定性への対応——を**漏れなく分岐として表現**する。
+
+**まず `sequenceDiagram`（alt/opt）で AIサービスとの相互作用と例外分岐を表現する:**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UseCase
+    participant Validator as 出力検証
+    participant AI as AI Service (External)
+
+    User->>UseCase: 処理要求
+    UseCase->>UseCase: プロンプト / コンテキスト構築
+
+    loop 最大Nリトライ
+        UseCase->>AI: 推論リクエスト
+        alt タイムアウト / レート制限 / 5xx
+            AI-->>UseCase: エラー
+            Note over UseCase: バックオフして再試行
+        else 応答あり
+            AI-->>UseCase: 生成結果
+            UseCase->>Validator: スキーマ検証 / パース
+            alt 検証OK かつ 信頼度 >= 閾値
+                Validator-->>UseCase: 採用
+            else 検証NG / 低信頼
+                Note over UseCase: 上限内なら再生成（ループ継続）/ 上限到達ならループ脱出
+            end
+        end
+    end
+
+    alt 採用結果あり
+        UseCase-->>User: 結果返却
+    else リトライ / 再生成 上限到達
+        UseCase-->>User: フォールバック / デフォルト値 / 人手エスカレーション
+    end
+```
+
+**信頼度閾値分岐・再生成ループ等の判定ロジックが複雑な場合は `flowchart TD` を併用する:**
+
+```mermaid
+flowchart TD
+    Start([AI処理開始]) --> Build[プロンプト構築]
+    Build --> Call[AI呼び出し]
+    Call --> Err{失敗 / タイムアウト?}
+    Err -->|Yes| Retry{リトライ上限?}
+    Retry -->|未到達| Call
+    Retry -->|到達| Fallback[フォールバック / デフォルト / 人手エスカレーション]
+    Err -->|No| Validate[出力検証・パース]
+    Validate --> Conf{検証OK かつ 信頼度>=閾値?}
+    Conf -->|Yes| Accept[結果採用]
+    Conf -->|No| Regen{再生成上限?}
+    Regen -->|未到達| Call
+    Regen -->|到達| Fallback
+    Accept --> End([完了])
+    Fallback --> End
+```
+
 ## 新AC ID体系への対応
 
 requirements.md の AC一覧は新体系（`AC<StoryNo>.<カテゴリ>.<N|E>.<連番>` 形式、例: `AC1.UI.N.001`）で記載されている。
@@ -504,7 +568,7 @@ Story単位の構造に対応して、Component Summary 等のセクションも
 2. **Existing Architecture Analysis** — 現状実装・再利用コンポーネント・拡張対象
 3. **Architecture Pattern & Boundary Map** — C4 Container相当（graph TB + subgraph、外部システム明示）
 4. **Technology Stack** — Layer/Choice/Role/Notes テーブル
-5. **System Flows** — 主要フロー + 例外フロー（alt/opt/loop/par 使用）
+5. **System Flows** — 主要フロー + 例外フロー（alt/opt/loop/par 使用）。**AI処理がある場合は AI処理フロー（図6）を含める**
 6. **Requirements Traceability** — AC ID（新体系）→ Components/Interfaces/Flows のマッピング表
 7. **Component Summary** — C4 Component図（graph TB + subgraph ネスト）+ Component一覧テーブル（UI変更時は必須）
 8. **Components and Interfaces** — 各コンポーネントの責務・依存・状態を表形式で記載
@@ -516,7 +580,7 @@ Story単位の構造に対応して、Component Summary 等のセクションも
 14. **Related Documents** — 参照すべきsteering文書・類似Issue/Plan・既存実装
 15. **Related Skills / Subagents** — 使用Skill・推奨サブエージェントのテーブル
 
-**注意**: State Transitions は「状態を持つ機能」のみ必須。Component Summary の C4 Component図は「UI変更あり」のみ必須。Data Model の物理ERDは「DB変更あり」のみ必須。詳細は「条件付き必須図」セクションを参照。
+**注意**: State Transitions は「状態を持つ機能」のみ必須。Component Summary の C4 Component図は「UI変更あり」のみ必須。Data Model の物理ERDは「DB変更あり」のみ必須。System Flows の AI処理フロー（図6）は「AI処理あり」のみ必須。詳細は「条件付き必須図」セクションを参照。
 
 ---
 
@@ -710,6 +774,7 @@ CLAUDE.mdに記載された以下の要素を必ず考慮：
      - DB変更あり → Data Model に 物理ERD（erDiagram）があるか
      - 状態を持つ機能 → State Transitions に stateDiagram-v2 があるか
      - 外部連携あり → Architecture Pattern & Boundary Map に External Systems subgraph があるか
+     - AI処理あり → System Flows に AI処理フロー（図6: 出力検証・低信頼/失敗/タイムアウト時のリトライ/フォールバック/デフォルト分岐）があるか
    - **【必須】AC ID体系の確認**
      - Requirements Traceability の AC ID が新体系（`AC<N>.<カテゴリ>.<N|E>.<連番>`）形式になっているか
    - **【必須】mermaid記法の確認**

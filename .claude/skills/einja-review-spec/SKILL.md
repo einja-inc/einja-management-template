@@ -70,12 +70,30 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | ID | 観点名 | 説明 |
 |----|--------|------|
 | A | 要件網羅性・スコープ | ユーザー要求、対象外、前提条件、残存リスクの明確さ |
-| B | ATDD・受け入れ基準品質 | AC一覧、AC詳細、正常系/異常系、検証可能性、UXカテゴリのACにインタラクション4状態・エラーメッセージ導線・多重送信防止・フォーカス管理が含まれているか |
+| B | ATDD・受け入れ基準品質 | AC一覧、AC詳細、正常系/異常系、検証可能性、UXカテゴリのACにインタラクション4状態・エラーメッセージ導線・多重送信防止・フォーカス管理が含まれているか。**加えて AC が遵守ルール通りに執筆されているか（下記「要件構造・遵守性チェック（→ 観点 B）」5項目を観点 B 内の適用ガイドとして検証する）** |
 | C | 実装可能性・既存整合 | 既存アーキテクチャや実装パターンとの整合、非現実的要件の有無 |
 | D | QAトレーサビリティ | 後続の設計・QA・タスク分解に必要な情報が揃っているか |
 | E | Readiness & 依存境界 | 「横断必須ゲート」§G1（readiness level 混在）+ §G2（external-deps 明示）+ §G6（最終受け入れの E2E-ready 到達下限）。**最終受け入れを伴う場合は必ずピック**（§G6 を無条件適用）。§G1 / §G2 は infra / サービス / 外部連携を含む場合に適用 |
-| F | セキュリティ・脅威モデリング | 「横断必須ゲート」§G3（threat-modeling / control-plane / 危険 sink）。外部入力・認証・権限・特権操作・外部連携を含む場合は必ずピック |
+| F | セキュリティ・脅威モデリング | 「横断必須ゲート」§G3（threat-modeling / control-plane / 危険 sink）+ 下記「SEC 識別チェック（→ 観点 F）」。外部入力・認証・権限・特権操作・外部連携を含む場合は必ずピック |
 | G | SSOT 整合 | 「横断必須ゲート」§G4（同一設定値の重複・矛盾）。設定値・閾値・接続先が複数箇所に登場する場合は必ずピック |
+
+##### 要件構造・遵守性チェック（→ 観点 B）
+
+`requirements` の観点 B（ATDD・受け入れ基準品質）をピックした場合、AC が遵守ルール通りに執筆されているかを以下の**観点 B 内の適用ガイド**で検証する（これらは観点 B のピック条件ではなく、ピック後の適用項目）。詳細規範は `docs/einja/steering/acceptance-criteria-and-qa-guide.md` を正本として参照する。
+
+- [ ] §4 AC詳細が**画面の性質に応じたシーン見出し**で構成され「画面横断」見出しが常設されているか（フォームは推奨ベースライン `初期表示 / 入力中 / 送信時 / 送信成功時 / 送信失敗時`、一覧 / ウィザード / バッチ / API単体 はその画面に合ったシーン構成。純粋な一覧・API単体では本①〜⑤のうち粒度④以外が N/A になりうる）
+- [ ] §4 参照列の VR-ID が §6.2 入力ルール表の行に実在するか（双方向①: §4→§6.2。双方向整合は **AC詳細本文の `（→§6 VR-1-001, VR-1-002, …）` 全列挙を正本**として §6.2 と突合する。AC一覧表の参照列は簡潔化されている場合があるため、本文の列挙を基準とする）
+- [ ] §6.2 入力ルール表の全行に VR-ID が付与されているか（双方向②: §6.2自己完結）
+- [ ] Then 文が同一の複数AC（フィールド単位・規則単位の水増し）が存在しないか（粒度。**過検出防止のため「Then がほぼ同文の重複のみ」を指摘対象に限定**し、観測可能な結果（Then）が異なる AC は分割として正当とみなす）
+- [ ] AC本文に正規表現・桁数・形式詳細が直書きされず `（→§6 VR-xxx）` 参照になっているか／エラーメッセージ文言が §6.2 のみに存在するか
+
+> **過検出防止の注記**: ④粒度チェックは「Then がほぼ同文の重複」のみを指摘対象とする。フィールド数や規則数が多いこと自体は指摘理由にならない（観測可能な結果が異なるなら別ACとして正当）。粒度・シーン構成・VR-ID 記法の詳細規範は `docs/einja/steering/acceptance-criteria-and-qa-guide.md` を参照すること。
+
+##### SEC 識別チェック（→ 観点 F）
+
+`requirements` の観点 F（セキュリティ・脅威モデリング）をピックした場合、§G3 に加えて以下を確認する（SEC はカテゴリを新設せず本観点で担保する）。
+
+- [ ] 観点 F のトリガー（外部入力 / 認証・権限 / 特権操作 / 外部連携）に応じたセキュリティ観点が requirements §13 非機能要件「セキュリティ（脅威モデリング）」節で識別されているか（**外部入力時**: 危険シンク（SQL / HTML / コマンド）・SSRF。**認証・権限時**: 認可境界（IDOR / 権限昇格）・secrets 露出。**特権操作時**: privilege scope・control-plane 露出）
 
 #### `phase2_bundle`
 
@@ -179,18 +197,19 @@ readiness level の「到達下限」を検証するゲート。§G1（1 つの 
 - `docs/einja/steering/development-workflow.md`
 - `docs/einja/steering/task-management.md`
 - `docs/einja/steering/development/review-guidelines.md`
-- `docs/einja/steering/acceptance-criteria-and-qa-guide.md`（「完了レベル（readiness level）」「最終受け入れの readiness 下限」節を含む）
+- `docs/einja/steering/acceptance-criteria-and-qa-guide.md`（「完了レベル（readiness level）」「最終受け入れの readiness 下限」節を含む。**requirements 観点 B の「要件構造・遵守性チェック」（シーン見出し／VR-ID 双方向整合／粒度／AC本文の参照記法）の詳細規範の正本でもある**）
 - `docs/einja/steering/development/testing-strategy.md`
 - `docs/einja/templates/readiness-matrix.md.template`（観点 E をピックした場合）
 - `docs/einja/templates/design.md.template`「Threat Model & Security Considerations」節（観点 F をピックした場合）
 - `docs/einja/templates/design.md.template`「System Flows / AI処理フロー」節（観点 H をピックした場合）
 
-## 横断必須ゲート（観点 E/F/G/H をピックした場合のみ）
+## 横断必須ゲート・追加チェック（観点 B/E/F/G/H をピックした場合のみ）
 {ピックした観点の review_scope に応じて以下を埋め込む:
+  - requirements 観点 B → 「要件構造・遵守性チェック（→ 観点 B）」5項目（画面性質に応じたシーン見出し＋画面横断常設〔フォームは推奨ベースライン、一覧 / ウィザード / API単体は画面に合ったシーン。純粋な一覧・API単体は粒度④以外 N/A になりうる〕 / VR-ID §4→§6.2 双方向①〔**双方向整合は AC詳細本文の `（→§6 VR-1-001, VR-1-002, …）` 全列挙を正本として §6.2 と突合。AC一覧表の参照列は簡潔化されている場合があるため本文の列挙を基準とする**〕 / §6.2全行 VR-ID 双方向② / Then同文重複の粒度 / AC本文の `（→§6 VR-xxx）` 参照記法・文言§6.2集約）。**これらは観点 B のピック条件ではなく適用ガイド。粒度チェックは「Then がほぼ同文の重複のみ」を指摘対象に限定（過検出防止）。詳細規範は acceptance-criteria-and-qa-guide.md を参照**
   - requirements 観点 E → §G1 + §G2 + §G6
   - phase2_bundle 観点 E → §G1 + §G2
   - tasks 観点 E → §G2 + §G6
-  - 観点 F → §G3
+  - 観点 F → §G3（requirements 観点 F は追加で「SEC 識別チェック（→ 観点 F）」: トリガー（外部入力 / 認証・権限 / 特権操作 / 外部連携）に応じたセキュリティ観点 — 外部入力時は危険シンク（SQL/HTML/コマンド）・SSRF、認証・権限時は認可境界・secrets 露出、特権操作時は privilege scope・control-plane 露出 — が requirements §13 非機能要件「セキュリティ（脅威モデリング）」節で識別されているか。SEC はカテゴリ新設せず本観点で担保）
   - 観点 G → §G4
   - phase2_bundle 観点 H → §G5（design の AI処理フロー図）
   - tasks 観点 H → §G5（実装タスクの完了条件・external-deps）

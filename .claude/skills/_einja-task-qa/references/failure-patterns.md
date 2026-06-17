@@ -36,7 +36,7 @@ QAテスト失敗時の分類判断に迷った場合の参考事例集。
 **戻し先**: requirements.md修正 → task-executer
 
 ### 例9: AC間の矛盾
-**症状**: AC1.2「即座削除」vs AC1.3「バッチ削除」
+**症状**: AC1.NAV.N.001「即座削除」vs AC1.NAV.N.002「バッチ削除」
 **判定**: **B: 要件齟齬**（AC間矛盾）
 **戻し先**: requirements.md修正 → task-executer
 

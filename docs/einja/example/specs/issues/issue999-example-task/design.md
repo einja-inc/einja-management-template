@@ -254,11 +254,9 @@ sequenceDiagram
 | Requirement / AC | Summary | Components | Interfaces | Flows |
 |------------------|---------|------------|------------|-------|
 | AC1.UI.N.001 | 有効メール送信時の成功メッセージ表示 | MagicLinkForm, VerificationMessage | Props: email | 主要フロー |
-| AC1.VAL.E.001 | 無効メール形式エラー | MagicLinkForm, Zod Schema | Validation contract | 例外フロー（リクエスト） |
+| AC1.VAL.E.001 | 必須未入力・形式不正で送信が阻止されエラー表示（VR-1-001/VR-1-002 を統合参照） | MagicLinkForm, Zod Schema | Validation contract | 例外フロー（リクエスト） |
 | AC1.ERR.E.001 | レート制限エラー | MagicLinkForm, AuthRoute | Error response | 例外フロー（レート制限） |
 | AC1.UI.N.002 | メールアドレスフィールドのフォーカス状態表示 | MagicLinkForm | Props: focusedField state | 主要フロー |
-| AC1.VAL.E.002 | 空欄送信で必須エラー | MagicLinkForm, Zod Schema | Validation contract | 例外フロー（リクエスト） |
-| AC1.VAL.E.003 | 不正形式で形式エラー | MagicLinkForm, Zod Schema | Validation contract | 例外フロー（リクエスト） |
 | AC1.UX.N.001 | 送信ボタン無効化・スピナー（多重送信防止） | MagicLinkForm | State: isSubmitting | 主要フロー |
 | AC1.UX.N.002 | 3秒以上で進捗メッセージ表示 | MagicLinkForm, TokenVerifying | State: elapsedTime | 主要フロー |
 | AC1.NAV.N.001 | 送信成功後の確認画面遷移 | MagicLinkForm, Router | onSubmitSuccess callback | 主要フロー |
@@ -273,9 +271,9 @@ sequenceDiagram
 | AC2.ERR.E.005 | 無効トークンでログインページへの導線表示 | ErrorScreen | Props: errorType = TOKEN_INVALID | 例外フロー（検証） |
 | AC2.UI.N.001 | エラー画面からの再送信時のメールアドレスプリフィル | ErrorScreen, MagicLinkForm | Props: defaultEmail | 例外フロー（検証） |
 | AC3.UI.N.001 | 新規デバイスログイン時のセキュリティ通知メール送信 | EmailService, SecurityService | sendSecurityNotification() | 例外フロー（検証）opt |
-| AC3.UI.N.002 | 通知からワンクリックでセッション無効化 | SessionRevocationScreen | revokeSession API | 主要フロー |
+| AC3.UI.N.002 | メールの「今すぐ保護」リンクからワンクリックでセッション即時無効化 | EmailService, Router | GET /auth/revoke?sessionId=&confirm=1（確認画面を介さず即時revoke） | 主要フロー |
 | AC3.UI.N.003 | 新規デバイスログイン後のダッシュボード通知バナー | Dashboard | SecurityBanner component | 主要フロー |
-| AC3.NAV.N.001 | セキュリティ通知メールからのセッション無効化確認画面遷移 | EmailService, Router | /auth/revoke?sessionId= | 主要フロー |
+| AC3.NAV.N.001 | メールの「アクティビティを確認」リンクからセッション無効化確認画面へ遷移 | EmailService, Router | /auth/revoke?sessionId= | 主要フロー |
 | AC3.UI.N.004 | 確認画面で「無効化する」クリックで無効化実行 | SessionRevocationScreen | POST /api/auth/revoke | 主要フロー |
 | AC3.NAV.N.002 | 確認画面で「キャンセル」クリックでセッション維持 | SessionRevocationScreen | Router.back() | 主要フロー |
 
@@ -352,7 +350,7 @@ graph TB
 | VerificationMessage | UI/Feature | 送信確認・再送信カウントダウン | AC1.UI.N.001, AC1.NAV.N.001 | - | Props: email, onResend |
 | TokenVerifying | UI/Feature | トークン検証中UI・自動リダイレクト | AC2.UX.*, AC2.NAV.* | AuthApiClient | Props: token, onSuccess, onError |
 | ErrorScreen | UI/Feature | エラー種別別UI・リカバリーアクション | AC2.ERR.* | Router | Props: errorType, email |
-| SessionRevocationScreen | UI/Feature | セッション無効化確認 | AC3.UI.N.002, AC3.UI.N.004, AC3.NAV.N.002 | AuthApiClient | Props: sessionId |
+| SessionRevocationScreen | UI/Feature | セッション無効化確認（「アクティビティを確認」リンク経由の確認画面） | AC3.NAV.N.001, AC3.UI.N.004, AC3.NAV.N.002 | AuthApiClient | Props: sessionId |
 | TokenService | Server/Service | トークン生成・ハッシュ化・検証・無効化 | AC2.ERR.*, AC2.NAV.* | DB (Prisma) | generateToken(), verifyToken() |
 | EmailService | Server/Service | マジックリンク・セキュリティ通知メール送信 | AC1.UI.N.001, AC3.UI.N.001 | SendGrid API | sendMagicLink(), sendSecurityNotification() |
 | SecurityService | Server/Service | レート制限・デバイス検知 | AC1.ERR.E.001 | Redis | checkRateLimit() |

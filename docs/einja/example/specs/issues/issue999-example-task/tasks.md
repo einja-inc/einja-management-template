@@ -8,7 +8,7 @@
 
 本ドキュメントは、サンプル機能の実装タスク一覧です。以下のユーザーストーリーを実装します：
 
-- **Story 1**: マジックリンクのリクエスト（Story 1 の全AC: AC1.UI.N.001, AC1.UI.N.002, AC1.VAL.E.001, AC1.VAL.E.002, AC1.VAL.E.003, AC1.ERR.E.001, AC1.UX.N.001, AC1.UX.N.002, AC1.NAV.N.001）
+- **Story 1**: マジックリンクのリクエスト（Story 1 の全AC: AC1.UI.N.001, AC1.UI.N.002, AC1.VAL.E.001, AC1.ERR.E.001, AC1.UX.N.001, AC1.UX.N.002, AC1.NAV.N.001 ／ AC1.VAL.E.001 は旧 E.002・E.003 を統合した受け入れ条件）
 - **Story 2**: マジックリンクによる認証（Story 2 の全AC: AC2.NAV.N.001, AC2.NAV.N.002, AC2.ERR.E.001, AC2.ERR.E.002, AC2.ERR.E.003, AC2.ERR.E.004, AC2.ERR.E.005, AC2.UX.N.001, AC2.UX.N.002, AC2.UI.N.001）
 - **Story 3**: セキュリティ通知（Story 3 の全AC: AC3.UI.N.001, AC3.UI.N.002, AC3.UI.N.003, AC3.UI.N.004, AC3.NAV.N.001, AC3.NAV.N.002）
 

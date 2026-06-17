@@ -21,7 +21,7 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
 
 **必須パラメータ**:
 - `spec_dir`: spec ディレクトリのパス（例: `/docs/specs/issues/auth/issue21-login-feature/`）
-- `ac_ids`: 対象AC番号（例: `AC1.1, AC1.2`）
+- `ac_ids`: 対象AC番号（例: `AC1.UI.N.001, AC1.VAL.E.001`）
 
 **入力形式**: 自然言語でAC情報を指定
 
@@ -45,11 +45,11 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
 1. requirements.md を読み込む
 2. 以下の情報を抽出:
    - **ユーザーストーリー**: 該当タスクに関連するストーリー
-   - **受け入れ条件（AC）**: `AC{N}.{M}` 形式のすべての受け入れ基準
+   - **受け入れ条件（AC）**: `AC{Story#}.{カテゴリ}.{N|E}.{連番3桁}` 形式（例: `AC1.UI.N.001`, `AC1.VAL.E.001`）のすべての受け入れ基準
    - **検証レベル**: 各ACの `Unit` / `Integration` / `E2E` 分類
    - **非機能要件**: パフォーマンス、セキュリティ等の制約
 
-**パース対象**: `**ACx.y**: [要約文]` + インデントGiven-When-Then形式の受け入れ条件（`- Given:` / `- When:` / `- Then:` / `- 検証レベル:` の箇条書き形式）
+**パース対象**: `**AC{Story#}.{カテゴリ}.{N|E}.{連番3桁}**: [要約文]`（例: `**AC1.UI.N.001**: [要約文]`）+ インデントGiven-When-Then形式の受け入れ条件（`- Given:` / `- When:` / `- Then:` / `- 検証レベル:` の箇条書き形式）
 
 ---
 
@@ -68,7 +68,7 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
 ### ステップ4: qa-tests/ からのテスト仕様抽出
 
 1. AC番号からストーリー番号を特定し、テストファイルを参照
-   - 例: AC1.1 → Story 1 → `qa-tests/story1.md`、AC2.3 → Story 2 → `qa-tests/story2.md`
+   - 例: AC1.UI.N.001 → Story 1 → `qa-tests/story1.md`、AC2.VAL.E.001 → Story 2 → `qa-tests/story2.md`
 2. scenarios.md から該当タスクのシナリオテストを確認
 3. 以下の情報を抽出:
    - **テストシナリオ**: 実行すべきテストケース
@@ -100,8 +100,8 @@ spec-create で作成された仕様書（requirements.md、design.md、qa-tests
 #### 受け入れ条件
 | AC番号 | タイトル | 検証レベル | 概要 |
 |--------|---------|-----------|------|
-| AC1.1 | [タイトル] | Unit | [Given-When-Then概要] |
-| AC1.2 | [タイトル] | Integration | [Given-When-Then概要] |
+| AC1.UI.N.001 | [タイトル] | Unit | [Given-When-Then概要] |
+| AC1.VAL.E.001 | [タイトル] | Integration | [Given-When-Then概要] |
 
 ### 設計
 #### アーキテクチャ

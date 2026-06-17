@@ -67,8 +67,7 @@ BLOCKED時の必須アクション:
 1. `{spec_dir}/requirements.md` の存在を確認
 2. requirements.md を読み込み、AC（受け入れ条件）を抽出
 3. 各ACから「検証レベル」（Unit/Integration/E2E）を識別
-4. `{spec_dir}/qa-tests/scenarios.md` が存在する場合は読み込み、
-   現在のPhaseに対応するシナリオIDを特定する
+4. `{spec_dir}/qa-tests/scenarios.md` が存在する場合は読み込み、**task-exec から渡された当該タスクグループの `**シナリオテスト**:` 指定、および scenarios.md の実施タイミングに基づき、実行すべきシナリオと実行範囲（部分実行/フル実行/リグレッション）を特定する**。
 
 **パース目標**: AC番号、タイトル、前提条件、操作、期待結果、**検証レベル**
 
@@ -117,6 +116,7 @@ AskUserQuestion:
 1. **テスト仕様ファイルの特定**: 自然言語で指定されたAC番号からStoryを判定
    - 例: 「AC1.UI.N.001, AC1.UI.N.002のテストを実行」→ AC番号の先頭数字（1）からStory 1を特定 → `qa-tests/story1.md`
    - 例: 「AC2.UI.E.001のテストを実行」→ `qa-tests/story2.md`
+   - **実装ACが複数Storyにまたがる場合は、該当する全 `story{N}.md` を対象にする**（先頭ACのStoryだけに限定しない）。
 2. **シナリオテストの確認**: `qa-tests/scenarios.md` で該当ACの実施タイミングを確認
 3. **テスト仕様の読み込み**: story{N}.md 内の該当ACセクションからテストシナリオ、確認項目、期待値を把握
 

@@ -242,6 +242,7 @@ AskUserQuestion:
        - `N` = 正常系 / `E` = 異常系
        - 連番は各 Story × カテゴリ × 区分 ごとに001から
        - AC採番は Story起点（Story1配下のUI正常系は AC1.UI.N.001 から始まる）
+     - **§4 AC詳細はシーン主軸の見出し（初期表示 / 入力中 / 送信時 / 送信成功時 / 送信失敗時 / 画面横断（常設））で構成する（規範は `docs/einja/steering/acceptance-criteria-and-qa-guide.md` 参照）**
      - `UX` カテゴリACには以下を含めること:
        - 多重送信防止（送信中ボタンdisabled）
        - ローディング表示とその解除

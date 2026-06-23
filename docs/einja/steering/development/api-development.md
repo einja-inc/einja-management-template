@@ -437,6 +437,10 @@ export type CreatePostInput = z.infer<typeof createPostSchema>
 
 この型は、フロントエンドとバックエンドで共有されます。
 
+### エラーメッセージ文言の正本（SSoT）
+
+ユーザー向けエラーメッセージ文言の正本は各機能の `docs/specs/features/<feature>/requirements.md` §6.2（フィールド別ルール表）および各 Issue の `docs/specs/issues/.../requirements.md` §6.2 である。Zod スキーマ・API レスポンス・UI で同一文言を直書き複製せず、§6.2 を正本として参照すること。設定値の SSoT は design.md の『Spec SSOT』表を参照。
+
 ---
 
 ## 6. エラーハンドリング

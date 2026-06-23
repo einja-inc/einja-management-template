@@ -46,6 +46,7 @@ allowed-tools:
 
 - `requirements`
   - `requirements.md` または `requirements/README.md` と各分割ファイル
+  - `docs-impact.md`（存在する場合）— 反映先 Docs への影響定義
 - `phase2_bundle`
   - `requirements.md`
   - `design.md` または `design/README.md` と各分割ファイル
@@ -95,6 +96,15 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 
 - [ ] 観点 F のトリガー（外部入力 / 認証・権限 / 特権操作 / 外部連携）に応じたセキュリティ観点が requirements §13 非機能要件「セキュリティ（脅威モデリング）」節で識別されているか（**外部入力時**: 危険シンク（SQL / HTML / コマンド）・SSRF。**認証・権限時**: 認可境界（IDOR / 権限昇格）・secrets 露出。**特権操作時**: privilege scope・control-plane 露出）
 
+##### docs-impact 妥当性チェック（→ 観点 D）
+
+`requirements` scope に `docs-impact.md` が含まれる場合、観点 D（QAトレーサビリティ）の**適用ガイド**として以下を検証する（これらは観点 D のピック条件ではなく、ピック後の適用項目）。反映先 Docs の確定仕様（Steering 3 点 / Feature 仕様 / `docs/einja/steering/development/api-development.md`）への影響定義が正確かを担保する。
+
+- [ ] **反映先の実在性**: `docs-impact.md` の `targets[].file` が、実在する確定仕様 Docs（Steering 3 点 / Feature 仕様 / `api-development.md`）のみを指しているか。幻のファイルや旧 `features/` 参照など、実在しない／確定仕様でないパスを指していないか（`Glob` / `Read` でパス実在を確認）
+- [ ] **source_section の妥当性**: `targets[].source_section` が requirements / design の**実セクション**（実在する見出し）と整合しているか。存在しない節や曖昧な参照になっていないか
+- [ ] **§6.2 文言の重複直書き検査**: requirements §6.2 のエラーメッセージ文言が他 Docs（反映先含む）に**直書き複製**されていないか。`grep` で §6.2 の文言を反映先候補に対して突合する。ただしエラーメッセージは自然言語のため**機械検査（grep 突合）は補助に留め、最終判断はレビュアーの目視**で行う（文言の言い換え・部分一致を機械検査だけで断定しない）
+- [ ] **tentative / unresolved の分類妥当性**: 確定していない影響が `tentative` / `unresolved` として適切に分類され、確定済みの影響と混在していないか
+
 #### `phase2_bundle`
 
 | ID | 観点名 | 説明 |
@@ -102,7 +112,7 @@ ToolSearchで `mcp__codex__codex` が利用可能か確認する。この結果�
 | A | 設計妥当性 | アーキテクチャ、API、DB、要件トレースの妥当性 |
 | B | UI/UX・画面整合 | `ui-design-url.md`（Figma）と requirements/design の整合、一貫性、主要導線、インタラクション4状態設計（disabled/error/empty/loading）の有無、エラーメッセージの位置と再試行導線の明示、多重送信防止とローディング制御、基本フォーカス管理 |
 | C | QA網羅性・実行可能性 | AC対応、前提条件、手順の明確さ、打鍵確認可能性。最終受け入れに必要な人手E2Eシナリオ（種別 `人手E2E`）が qa-test.md に用意されているか |
-| D | 横断整合性 | design / ui / qa の用語、API名、画面名、外部API前提の一致 |
+| D | 横断整合性 | design / ui / qa の用語、API名、画面名、外部API前提の一致。**`docs-impact.md` がある場合**、`targets[].source_section` のうち design.md 由来の参照を、**確定した design.md の実セクションと整合するか再検証**する（Phase 1 時点では design 未確定で仮置きだった source_section が、design.md 確定後も有効な見出しを指すかを追加確認）。これは requirements scope の「docs-impact 妥当性チェック」（Phase 1・requirements 由来 source_section 中心）とは**重複しない差分**＝design 確定後にしか検証できない design.md 由来 source_section の再検証に限る |
 | E | Readiness & external-deps DAG | 「横断必須ゲート」§G1 + §G2。design に readiness matrix があり、healthy 到達の external-deps（DB migrate / secret / DNS / OAuth 等）が依存関係として整理されているか。infra/サービス/外部連携を含む場合は必ずピック |
 | F | セキュリティ・脅威モデリング | 「横断必須ゲート」§G3。design に Threat Model セクションがあり、authz / secrets 露出 / injection / SSRF / admin・control-plane 露出 / token scope・衝突 / privilege scope / runtime 入力→危険 sink が識別・対策されているか。外部入力・認証・権限・特権・外部連携を含む場合は必ずピック |
 | G | SSOT 整合 | 「横断必須ゲート」§G4。requirements / design / ui / qa にまたがる同一設定値が矛盾しておらず、正本ファイルが定義されているか |
@@ -206,6 +216,8 @@ readiness level の「到達下限」を検証するゲート。§G1（1 つの 
 ## 横断必須ゲート・追加チェック（観点 B/E/F/G/H をピックした場合のみ）
 {ピックした観点の review_scope に応じて以下を埋め込む:
   - requirements 観点 B → 「要件構造・遵守性チェック（→ 観点 B）」5項目（画面性質に応じたシーン見出し＋画面横断常設〔フォームは推奨ベースライン、一覧 / ウィザード / API単体は画面に合ったシーン。純粋な一覧・API単体は粒度④以外 N/A になりうる〕 / VR-ID §4→§6.2 双方向①〔**双方向整合は AC詳細本文の `（→§6 VR-1-001, VR-1-002, …）` 全列挙を正本として §6.2 と突合。AC一覧表の参照列は簡潔化されている場合があるため本文の列挙を基準とする**〕 / §6.2全行 VR-ID 双方向② / Then同文重複の粒度 / AC本文の `（→§6 VR-xxx）` 参照記法・文言§6.2集約）。**これらは観点 B のピック条件ではなく適用ガイド。粒度チェックは「Then がほぼ同文の重複のみ」を指摘対象に限定（過検出防止）。詳細規範は acceptance-criteria-and-qa-guide.md を参照**
+  - requirements 観点 D（docs-impact.md がある場合のみ）→ 「docs-impact 妥当性チェック（→ 観点 D）」4項目（反映先の実在性〔`targets[].file` が実在する確定仕様 Docs = Steering 3 点 / Feature 仕様 / api-development.md のみを指すか。旧 `features/` 等の幻ファイル参照が無いか。`Glob`/`Read` で実在確認〕 / source_section の妥当性〔requirements・design の実セクションと整合〕 / §6.2 文言の重複直書き検査〔`grep` で §6.2 エラーメッセージ文言を反映先に突合。**機械検査は補助、最終はレビュアー目視**〕 / tentative・unresolved の分類妥当性）。**これらは観点 D のピック条件ではなく適用ガイド**
+  - phase2_bundle 観点 D（docs-impact.md がある場合のみ）→ `targets[].source_section` のうち **design.md 由来の参照を、確定した design.md の実セクションと整合するか再検証**する（Phase 1 では design 未確定で仮置きだった source_section が design.md 確定後も有効な見出しを指すか追加確認）。**requirements 観点 D の docs-impact 妥当性チェック（Phase 1・requirements 由来 source_section 中心）とは重複しない差分**＝design 確定後にしか検証できない design.md 由来 source_section の再検証に限る
   - requirements 観点 E → §G1 + §G2 + §G6
   - phase2_bundle 観点 E → §G1 + §G2
   - tasks 観点 E → §G2 + §G6

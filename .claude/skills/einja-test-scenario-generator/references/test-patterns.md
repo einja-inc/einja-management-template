@@ -28,6 +28,8 @@ einja 標準スタック（Vitest + Playwright）で慣例に従ったテスト�
 
 ## 2. Vitest テンプレート
 
+> **構造の正典は §1 と §2.1/§2.6**: 実際に生成するテストは §1 チェックリストと §2.1・§2.6 の **2 階層 describe（正常系/異常系分離）+ 3 観点網羅** に従う。§2.3〜§2.5 は個別技術（モジュールモック / 非同期 / 表駆動）の最小例のため describe を単層で示すが、生成時はこれらの技術を §2.1 の階層構造の中に組み込む。
+
 ### 2.1 基本構造（純粋関数・正常系/異常系/境界値の3観点）
 
 **使い分け基準**: 外部依存（fs, fetch, DB）を持たない純粋関数・ロジックの検証に使う。最も生成数が多いはずのパターン。`testing-strategy.md` の describe 分類ルールに従い、**2 階層 describe（対象名 → メソッド名 + 異常系分離）** で構成し、正常系・異常系・境界値を必ず含める。
@@ -37,8 +39,8 @@ import { describe, expect, it } from "vitest";
 import { computeSomething } from "./target-module";
 
 describe("computeSomething", () => {
-  // 正常系
-  describe("computeSomething", () => {
+  // 正常系（+ 境界値）
+  describe("正常系", () => {
     it("正の整数を渡すと、2倍の値を返す", () => {
       // Given: 正の整数 2 を入力として用意する
       const input = 2;
@@ -56,7 +58,7 @@ describe("computeSomething", () => {
   });
 
   // 異常系（無効入力・null/undefined・例外処理）
-  describe("computeSomething - 異常系", () => {
+  describe("異常系", () => {
     it("負の数を渡すと、RangeError を throw する", () => {
       // Given: 定義域外の入力 / When/Then: 例外がスローされる
       expect(() => computeSomething(-1)).toThrow(RangeError);
@@ -80,6 +82,10 @@ describe("computeSomething", () => {
 ```ts
 import { describe, expect, it, vi } from "vitest";
 import type { IUserRepository } from "@repo/server-core/domain/repository-interfaces/IUserRepository";
+// TODO: 被テスト対象の UseCase を実プロジェクトのパスから import する。
+// 本リポの testing-strategy.md §8 はシングルトン（import { userUseCase }）呼び出し例だが、
+// テスト容易性のため下記はコンストラクタ注入で示す。既存コードの流儀に合わせて選ぶこと。
+import { UserUseCase } from "@repo/server-core/application/use-cases/UserUseCase";
 
 // __tests__/mocks/userRepository.mock.ts に切り出すのが望ましい
 const createMockUserRepository = (): IUserRepository => ({
@@ -218,8 +224,8 @@ import { describe, expect, it } from "vitest";
 import { formatCurrency } from "./format-currency";
 
 describe("formatCurrency", () => {
-  // 正常系
-  describe("formatCurrency", () => {
+  // 正常系（+ 境界値）
+  describe("正常系", () => {
     it("整数の円金額を渡すと、3桁区切りと円記号を付けて返す", () => {
       // Given: 整数の金額
       const amount = 1234567;
@@ -249,7 +255,7 @@ describe("formatCurrency", () => {
   });
 
   // 異常系
-  describe("formatCurrency - 異常系", () => {
+  describe("異常系", () => {
     it("未対応の通貨コードを渡すと、RangeError を throw する", () => {
       // Given/When/Then: 未知の通貨で例外
       expect(() => formatCurrency(1000, "XXX")).toThrow(RangeError);

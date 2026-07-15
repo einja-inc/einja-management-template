@@ -1,4 +1,4 @@
-# 出力フォーマット規約 — test-scenario-generator
+# 出力フォーマット規約 — einja-test-scenario-generator
 
 ## 目次
 
@@ -14,7 +14,7 @@
 
 ## 目的
 
-test-scenario-generator が生成するテストファイル・実行ログ・バックアップの命名と配置を一本化し、Skill 内の各 Step（特に Step 5/6/7）が同じ規約を共有することを保証する。
+einja-test-scenario-generator が生成するテストファイル・実行ログ・バックアップの命名と配置を一本化し、Skill 内の各 Step（特に Step 5/6/7）が同じ規約を共有することを保証する。
 
 ## ディレクトリ構造
 
@@ -102,7 +102,7 @@ Step 7 のテスト実行結果を保存する。失敗・成功問わず必ず�
 YYYY-MM-DD HH:MM:SS
 
 ## 実行コマンド
-pnpm vitest run __tests__/nl-1-login-validation.test.ts
+pnpm exec vitest run __tests__/nl-1-login-validation.test.ts
 
 ## サマリ
 - Pass: 3

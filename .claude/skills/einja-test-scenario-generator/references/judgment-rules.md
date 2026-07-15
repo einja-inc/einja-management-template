@@ -106,7 +106,10 @@ function classifyScenario(scenario):
         type = "vitest"
         confidence = "high" if vitest_score >= 3 else "medium"
 
-    return { scenario_id, type, confidence, signals: matched_signals }
+    # feature_kebab はシナリオ要約から 2-4 単語を抽出し小文字ケバブケース化（[a-z0-9-] のみ、
+    # 日本語は英訳してから正規化）。詳細は §判定結果の出力フォーマット を参照
+    feature_kebab = to_kebab_case(summarize(scenario))
+    return { scenario_id, type, confidence, signals: matched_signals, feature_kebab }
 ```
 
 判定不能時の既定値:

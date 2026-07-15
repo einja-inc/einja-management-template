@@ -15,7 +15,7 @@ allowed-tools:
   - mcp__playwright__*
 ---
 
-# test-scenario-generator — Vitest/Playwright テスト自動生成
+# einja-test-scenario-generator — Vitest/Playwright テスト自動生成
 
 ## 概要
 
@@ -87,7 +87,7 @@ Step 2 で確定したシナリオ群を unit (Vitest) / E2E (Playwright) / both
 
 1. `Glob: {対象パッケージ}/**/*.{test,spec}.{ts,tsx}` で既存テストを探索する（`node_modules` を除外）
 2. 更新日時順または重要度順で最大 3 件を Read する
-3. 以下の観点を抽出する: import スタイル（名前付き / default）、describe/it の言語（日本語 / 英語）、Given/When/Then コメントの有無、モック方針（`vi.mock` / `vi.resetModules` + 動的 import）、ファイル配置（`__tests__/` / `tests/` / 隣接）、Playwright のロケータ優先順
+3. 以下の観点を抽出する: import スタイル（名前付き / default）、describe の階層構造（正常系/異常系分離の有無）、describe/it の言語（日本語 / 英語）、Given/When/Then コメントの有無、モック方針（`vi.fn()` DI ファクトリ / `vi.resetModules` + 動的 import）、ファイル配置（`__tests__/` / `tests/` / 隣接）、Playwright のロケータ優先順
 4. einja 標準（`testing-strategy.md`）と既存スタイルが矛盾する場合は **既存を優先** する（ESLint で禁止された書式の持ち込みを防ぐため）
 5. **重複検出**: 生成予定シナリオが既存テスト名と一致する場合は AskUserQuestion で「追記 / スキップ / 個別選択 / その他（自由入力）」を提示する
 6. **被テスト実装ファイル（impl_path）の候補収集**（coverage available 時のみ）: git diff の非 test ファイル / シナリオが指す対象モジュールから `impl_path` 候補（対象パッケージルート起点の相対 glob）を集める。**ここでは確定せず**、Step 5 でテスト生成後に生成テストの import 先解析を合流させて確定する（生成テストは Step 5 で初めて作られるため）。詳細は [coverage-ci.md §被テスト実装ファイル（impl_path）の特定](references/coverage-ci.md) を参照
@@ -99,16 +99,21 @@ Step 2 で確定したシナリオ群を unit (Vitest) / E2E (Playwright) / both
 Step 3 の判定結果と Step 4 のスタイル情報を元に、テンプレートに沿ったテストコードを生成する。テンプレートと einja 慣例の詳細は [test-patterns.md](references/test-patterns.md) を参照する。
 
 1. シナリオごとに [test-patterns.md](references/test-patterns.md) の該当テンプレートを選択する:
-   - Vitest: 基本構造 / モジュールモック / 非同期 / 表駆動
+   - Vitest: 基本構造（正常系/異常系/境界値）/ DI モック / モジュールモック / 非同期 / 表駆動
    - Playwright: 基本 E2E / フォーム入力 / ログイン状態 / スクリーンショット
 2. ファイル名は `{scenario-id}-{feature-kebab}.test.ts`（Vitest）または `.spec.ts`（Playwright）。詳細は [output-format.md §生成テストファイル命名規約](references/output-format.md) を参照
 3. 出力先: `.work/test-scenario-generator/generated/` （リポジトリへは Step 6 で初めて反映する）
-4. **passing-by-accident チェック**を必ず実行する:
+4. **観点網羅チェック（必須・チケット必須対応内容）**: Vitest の被テスト対象（関数/メソッド）ごとに、**正常系・異常系・境界値の 3 観点それぞれに最低 1 `it`** を生成しているか確認する:
+   - 異常系（無効入力・null/undefined・例外処理）の `it` が 0 件 → **再生成必須**
+   - 境界値（最小値・最大値・境界±1）の `it` が 0 件 → **再生成必須**（境界が自明に存在しない純粋関数のみ、省略理由をコメント付きで許容）
+   - describe が単一階層（正常系/異常系の分離が無い）→ **警告強調**し、[test-patterns.md §1](references/test-patterns.md) の階層構造へ修正
+5. **命名規約チェック（必須）**: 各 `it` の説明文が「〜すると、〜になる」（条件→結果）形式かを確認する。体言止め（`it("ユーザー作成")`）・英語・結果が曖昧なものは **再生成対象**
+6. **passing-by-accident チェック**を必ず実行する:
    - 生成ファイルごとに `Grep "expect(" {file}` でヒット数を取得する
    - 0 件 → **再生成必須**（テストとして成立していない）
    - `it(` の出現数 > `expect(` の出現数 → **警告強調** してユーザーに該当ファイルを表示する
    - 通過後も「生成テストは目視レビュー必須」を Step 9 の完了報告に必ず記載する
-5. einja 共通慣例（名前付き import、日本語 describe/it、`// Given:` `// When:` `// Then:` コメント、`expect(true).toBe(true)` 等の常成立アサーション禁止）を必ず満たす
+7. einja 共通慣例（名前付き import、2 階層 describe + 正常系/異常系分離、日本語「〜すると、〜になる」 it 名、`// Given:` `// When:` `// Then:` コメント、外部依存は `vi.fn()` DI モックファクトリ、`expect(true).toBe(true)` 等の常成立アサーション禁止）を必ず満たす。詳細は [test-patterns.md §1 必須チェックリスト](references/test-patterns.md) を正とする
 
 ### Step 6: 書き込みポリシー確認 + 上書き保護
 

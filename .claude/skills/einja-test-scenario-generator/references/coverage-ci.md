@@ -1,4 +1,4 @@
-# カバレッジ計測 + CI 参考スニペット — test-scenario-generator
+# カバレッジ計測 + CI 参考スニペット — einja-test-scenario-generator
 
 > **このリファレンスの境界**: 本ファイルが扱うのは Vitest のカバレッジ計測と、CI で回すための**参考雛形（example）生成のみ**。CI ログの解析・失敗診断・原因特定は扱わない。実際の `.github/workflows/` や `package.json` を本 Skill が書き換えることはない。
 
@@ -76,7 +76,7 @@ pnpm exec vitest run {test相対パス} \
   --coverage.include={impl_path}
 ```
 
-- `coverage.include` は、テストから一度も import されていないファイルも計測対象に含める（Vitest 4 では `coverage.include` 指定だけで未到達ファイルも集計される。旧 `--coverage.all` は不要・非推奨）。
+- `coverage.include` は、テストから一度も import されていないファイルも計測対象に含める。本リポは Vitest 3.2 系のため `coverage.all`（デフォルト true）により未到達ファイルも集計される。Vitest 4 以降は `coverage.all` が廃止され `coverage.include` の指定だけで同等に振る舞う。いずれのバージョンでも上記コマンドで未到達ファイルは集計される（明示的な `--coverage.all` 付与は不要）。
 - 複数 `impl_path` は `--coverage.include` を繰り返す。
 
 **reporter の役割分担**（両方必要）:

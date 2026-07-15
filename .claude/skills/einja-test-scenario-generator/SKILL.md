@@ -1,5 +1,5 @@
 ---
-name: test-scenario-generator
+name: einja-test-scenario-generator
 description: "git diffまたは自然言語からeinja標準スタック（Vitest + Playwright）向けのテストコードを生成し、対象コードで実行してpass/fail結果とカバレッジ（行/分岐）まで報告する。入力内容からユニット/E2Eを自動判定して両方生成可能。CIで回すための参考ワークフロー雛形も.work内に生成する。出力は.work配下に必ず保存され、ユーザー確認後にリポジトリへの反映を選択できる。「テストを書いて」「テスト生成」「test scenario generator」「diffからテスト作って」「Vitest書いて」「Playwrightテスト生成」「テストコード生成」「カバレッジ取って」「coverage」「CIで回るテスト」等で起動。Do NOT use for: テスト戦略・テストプラン策定（テストケース生成ではなくテスト方針の議論。→ einja-coding-standards の testing-strategy.md）、CI設定の生成（提供するのは.work内の参考雛形のみ。CIの構築・運用・失敗診断は対象外）、テスト失敗時のデバッグ専任。"
 user-invocable: true
 metadata:

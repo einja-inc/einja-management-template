@@ -1,6 +1,9 @@
 <!-- @einja:managed:start -->
 # Vercel 新リポ追加 オンボーディング手順
 
+> **現状ステータス（2026-07 時点）**
+> 複数リポジトリを紐付けない運用方針に変更したため、本手順のうち「GitHub App の Selected repositories 確認」「既存プロジェクト横断の接続維持確認」などマルチリポ横断のチェック項目は、現状の構成では対象外です。新リポ追加時の基本手順・検証項目は引き続き参照可能です。背景は [Vercel GitHub連携 設計方針](../steering/infrastructure/vercel-git-integration.md) を参照してください。
+
 ## 概要
 
 このドキュメントでは、既存のVercelチームに新しいGitHubリポジトリを追加する際の安全な手順とチェックリストを提供します。

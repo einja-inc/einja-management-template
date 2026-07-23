@@ -589,6 +589,7 @@ gh secret set TURBO_TOKEN --body "new-token"
 - [環境変数セットアップ手順](./environment-setup.md)
 - [デプロイメント・CI/CD設計方針](../steering/infrastructure/deployment.md)
 - [環境変数設計方針](../steering/infrastructure/environment-variables.md)
+- [Vercel 新リポ追加 オンボーディング手順](./vercel-repo-onboarding.md)
 
 ## 参考リンク
 

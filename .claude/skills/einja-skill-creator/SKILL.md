@@ -523,5 +523,7 @@ SKILL.md等のmdファイルの末尾には以下を記入する:
 <!-- @einja:excluded:end -->
 
 <!-- @einja:project-private:start id="einja-skill-creator-project" -->
-<!-- プロジェクト固有の情報を記入 -->
+## 本文の責務・入出力定義（einja固有）
+
+新規SkillのSKILL.md本文には、責務・入出力・責任範囲の必須6項目（責務／スコープ外／使用タイミング／入力／出力／依存スキル）を含めること。書式は `.claude/skills/einja-skill-plan-guide/references/skill-body-template.md` を参照（einja-skill-plan-guide のワークフローA/Bと連動）。
 <!-- @einja:project-private:end -->

@@ -79,6 +79,7 @@ Planモードで親エージェントが新規Skillの設計を行う際の手�
    - `context: fork` を設定する場合、Skill内でSkill tool / Agent toolは使用不可（隔離サブエージェントの制約）
 4. **依存Skill**: Agent Teams使用時 → agent-teams-guide、Pencil使用時 → pencil-guide 等
 5. **Progressive disclosure設計**: SKILL.md本体 vs references/ の分離方針
+6. **本文の責務・入出力定義**: SKILL.md本文には責務・入出力・責任範囲の必須6項目（責務／スコープ外／使用タイミング／入力／出力／依存スキル）を含める。書式は [`references/skill-body-template.md`](./references/skill-body-template.md) を参照（`references/planning-checklist.md` の「9. SKILL.md本文の必須6項目」と対応）
 
 #### description の記述ルール
 
@@ -157,7 +158,11 @@ Skill実装完了後にSkill固有の品質を検証するレビュー。汎用�
 - MCP参照が完全修飾名か
 - 選択肢の提示にデフォルトが付いているか
 
-#### Step 5: レビュー結果の出力
+#### Step 5: 本文責務定義チェック（F）
+
+SKILL.md本文に責務・入出力・責任範囲の必須6項目（責務／スコープ外／使用タイミング／入力／出力／依存スキル）が含まれ妥当かを、`references/review-checklist.md` の「F. 本文責務定義」カテゴリで判定する。適用可否（新規Skillは必須／既存の軽微変更は N/A）は同カテゴリ冒頭の判定基準に従う。
+
+#### Step 6: レビュー結果の出力
 
 各チェック項目を pass/fail で判定し、以下の形式で出力:
 
@@ -201,6 +206,7 @@ Phase 1 通過後、`einja-review-code` Skillが利用可能であれば呼び�
 
 - `references/planning-checklist.md` — Planファイル用Skill仕様テンプレート
 - `references/review-checklist.md` — 実装レビュー用チェックリスト
+- `references/skill-body-template.md` — SKILL.md本文の必須6項目テンプレート
 
 <!-- @references
 - url: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices

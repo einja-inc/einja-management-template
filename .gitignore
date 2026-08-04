@@ -86,9 +86,6 @@ storybook-static
 .claude/worktrees/
 .husky/_/
 
-# ローカル専用作業ディレクトリ（einja-v0-prompt-generator 等が使用）
-.local/
-
 # mcp
 .vibe-kanban.json
 

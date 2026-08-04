@@ -316,7 +316,6 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `issue-team-exec` `Agent Teams` `チーム実行` `team exec` `Desktop実行` | `.claude/skills/einja-issue-team-exec/SKILL.md` |
 | `team-exec` `Team並列` `汎用チーム実行` `チームで並列` `Agent Teamsで` | `.claude/skills/einja-team-exec/SKILL.md` |
 | `Pencil` `pencil` `.pen` `design-master` `デザインマスター` `デザイン管理` | `.claude/skills/einja-pencil-design-manager/SKILL.md` |
-| `v0` `v0.dev` `v0プロンプト` `v0プロンプト作って` `Vercel v0` `v0モック` `v0.devのプロンプト` | `.claude/skills/einja-v0-prompt-generator/SKILL.md` |
 | `Skill計画` `Skill仕様策定` `skill-plan-guide` `Skill品質チェック` | `.claude/skills/einja-skill-plan-guide/SKILL.md` |
 | `Planレビュー` `plan review` `計画レビュー` | `.claude/skills/einja-review-plan/SKILL.md` |
 | `マイグレーション修復` `migration fix` `マイグレーション壊れた` `migrate失敗` `migration broken` `prisma migrate エラー` `P3006` `P3009` | `.claude/skills/einja-migration-fix/SKILL.md` |

@@ -230,3 +230,4 @@ Skill body は概要と実行フローに絞り、詳細は references に委任
 - **base=main/develop 以外の判定は `einja-create-pr` 側で実施**: 本Skillは受け取ったPR番号を無条件でレビューする（呼び出し元が発動条件を判定する責務を持つ）
 - **`einja-review-code` の Codex は内蔵版のみ使用**（R5対応、二重起動禁止）
 - **PR head を作業ツリーに反映する**（R1対応）: 未コミット変更がある状態では実行不可
+- **GitHub 側の PR head のみをレビュー対象とする**: 本Skillは `git fetch origin pull/${PR_NUMBER}/head` により GitHub 上の最新 PR head を fetch してレビューする。**ローカルに残っている未 push commit や未追跡ファイルはレビュー対象外**。手動再実行前に必要な commit を必ず push しておくこと（呼び出し元 `einja-create-pr` から呼ばれる場合は Step 4 の `gh pr create` により push 済み前提）。

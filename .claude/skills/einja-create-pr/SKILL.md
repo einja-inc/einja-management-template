@@ -236,11 +236,8 @@ if [ "$SHOULD_RUN_REVIEW" = "true" ]; then
   has_flag "--auto" && TRIGGER_REASON="--auto"
   echo "▶️  Triggering einja-pr-review for PR #${PR_NUMBER} (trigger: ${TRIGGER_REASON}, base: ${BASE})" >&2
 
-  # Skill tool 呼び出し
-  # 詳細は .claude/skills/einja-pr-review/SKILL.md 参照
-  # sticky comment 投稿は einja-pr-review 側で完結（独立した Step 5.6 は設けない）
-  # 呼び出し失敗時のリカバリ: /einja-pr-review <PR番号> で手動再実行
-  ...
+  # ここで bash ブロックを終了し、下記「Skill tool 呼び出し規約」に従って
+  # Skill tool により einja-pr-review を実行する（bash からは直接呼び出さない）
 elif [ "$SKIP_REVIEW" != "true" ]; then
   # スキップ条件に該当しないが発動フラグもない（手動 /einja-create-pr のデフォルト）
   echo "ℹ️  einja-pr-review not triggered (base=${BASE}, no --auto/--with-review flag)" >&2
@@ -264,6 +261,8 @@ fi
 |--------|------|-------|:-------:|
 | `einja-issue-exec` 最終PR: `/einja-create-pr --auto --base main` | main | --auto | ✅ |
 | `einja-issue-exec` 最終PR: `/einja-create-pr --auto --base develop` | develop | --auto | ✅ |
+| `einja-issue-team-exec` Phase PR: `einja-create-pr` Skill(--auto --base issue/{N}) | issue/* | --auto | ❌（base不一致） |
+| `einja-issue-team-exec` 最終PR: `einja-create-pr` Skill(--auto --base main/develop) | main/develop | --auto | ✅ |
 | `einja-issue-exec` Phase PR: `/einja-create-pr --auto --base issue/{N}` | issue/* | --auto | ❌（base不一致） |
 | `einja-task-exec` タスクPR: base=phase/* | phase/* | --auto | ❌（base不一致） |
 | 手動 `/einja-create-pr`（デフォルト、base=main） | main | なし | ❌（フラグなし） |

@@ -21,7 +21,7 @@
    - **§2 AIレビュー**（4観点: Asana整合性 / 影響範囲調査 / 仕様書・Mermaid更新確認 / 個別レビュー結果サマリー化）
    - **§3 人間が見るべき観点**（AI判断困難な項目のリストアップ）
    - **§4 指摘の分類サマリー**（優先度 × ジャンル、AR-PR4に統合）
-2. **`einja-create-pr` Skill拡張** — Step 4.5（レビュー発動条件判定 + `einja-pr-review` 呼び出し）を追加。コメント投稿は `einja-pr-review` 自身が担当するため、独立した Step 4.6 は不要
+2. **`einja-create-pr` Skill拡張** — Step 5.5（レビュー発動条件判定 + `einja-pr-review` 呼び出し）を追加。コメント投稿は `einja-pr-review` 自身が担当するため、独立した Step 5.6 は不要
 3. **手動再レビュー機能** — `einja-pr-review` は `user-invocable: true` により `/einja-pr-review <PR番号>` として直接呼び出し可能。**別Skillの `einja-review-pr` は不要**（当初設計から削除）
 
 **発動条件**: 「PR作成後の `einja-create-pr` 経由」かつ「base=main/develop」かつ「`--auto` フラグ（`einja-issue-exec` 経由）または `--with-review` フラグ（手動）」
@@ -95,7 +95,7 @@
 ### Plan配置規則
 
 - `docs/plans/YYYYMM/YYYYMMDD-機能名.plan.md`
-- 今回の配置先: `docs/plans/202607/20260730-pr-review-local.plan.md`（`202607/` ディレクトリは新規作成必要）
+- 今回の配置先: `docs/plans/202607/20260731-pr-review-local.plan.md`（`202607/` ディレクトリは新規作成必要）
 
 ---
 
@@ -106,7 +106,7 @@
 ### 判定ロジック
 
 ```
-einja-create-pr の Step 4.5 冒頭で判定:
+einja-create-pr の Step 5.5 冒頭で判定:
 
 SHOULD_RUN_REVIEW=false
 FORCE_REVIEW=false
@@ -155,6 +155,8 @@ fi
 |--------|------|-------|:-------:|
 | `einja-issue-exec` 最終PR: `/einja-create-pr --auto --base main` | main | --auto | ✅ |
 | `einja-issue-exec` 最終PR: `/einja-create-pr --auto --base develop` | develop | --auto | ✅ |
+| `einja-issue-team-exec` Phase PR: `einja-create-pr` Skill(--auto --base issue/{N}) | issue/* | --auto | ❌（base不一致） |
+| `einja-issue-team-exec` 最終PR: `einja-create-pr` Skill(--auto --base main/develop) | main/develop | --auto | ✅ |
 | `einja-issue-exec` Phase PR: `/einja-create-pr --auto --base issue/{N}` | issue/* | --auto | ❌（base不一致） |
 | `einja-task-exec` タスクPR: base=phase/* | phase/* | --auto | ❌（base不一致） |
 | 手動 `/einja-create-pr`（デフォルト、base=main） | main | なし | ❌（フラグなし） |
@@ -182,7 +184,7 @@ fi
 
 | パス | 修正内容 |
 |------|---------|
-| `.claude/skills/einja-create-pr/SKILL.md` | Step 4.5（発動条件判定 + `einja-pr-review <PR番号>` 呼び出し）を追加。sticky commentの投稿は `einja-pr-review` 自身が担当するため独立したStep追加は不要。`--with-review` / `--no-review` / `--force-review` フラグ処理も追加 |
+| `.claude/skills/einja-create-pr/SKILL.md` | Step 5.5（発動条件判定 + `einja-pr-review <PR番号>` 呼び出し）を追加。sticky commentの投稿は `einja-pr-review` 自身が担当するため独立したStep追加は不要。`--with-review` / `--no-review` / `--force-review` フラグ処理も追加 |
 | `CLAUDE.md` | 「Skill（直接呼び出し）」テーブルに `einja-pr-review` を追加、キーワードトリガー表に「PRレビュー」「pr-review」「PR自動レビュー」「PR再レビュー」等を追加 |
 
 ### 変更しないファイル
@@ -348,7 +350,7 @@ AR-PR4（個別レビュー結果のサマリー化）で優先度 × ジャン�
 #### 2. description
 
 ```
-Generates and posts structured PR review comments (PR summary, AI review with Asana consistency check, impact analysis, spec/mermaid update check, and finding classification, plus human-review-required items) by analyzing PR diff, PR body, Issue references, related spec files, and Asana task info locally. Posts as sticky comment on the PR (updates existing bot comment via marker-based detection). Runs entirely within the developer's Claude Code CLI subscription (no API key required). Called by einja-create-pr Step 4.5 when base=main/develop AND (--auto flag OR --with-review flag) is set. Also directly invocable as `/einja-pr-review <PR番号>` for manual re-review on existing PRs. Internally invokes einja-review-code and einja-review-spec for detailed review perspectives. Triggers: 「PRレビュー」「pr-review」「PR概要」「PR自動レビュー」「PR再レビュー」「ローカルPRレビュー」. Do NOT use for: コードdiff単体レビュー（→ einja-review-code）、Planレビュー（→ einja-review-plan）、仕様書レビュー（→ einja-review-spec）
+Generates and posts structured PR review comments (PR summary, AI review with Asana consistency check, impact analysis, spec/mermaid update check, and finding classification, plus human-review-required items) by analyzing PR diff, PR body, Issue references, related spec files, and Asana task info locally. Posts as sticky comment on the PR (updates existing bot comment via marker-based detection). Runs entirely within the developer's Claude Code CLI subscription (no API key required). Called by einja-create-pr Step 5.5 when base=main/develop AND (--auto flag OR --with-review flag) is set. Also directly invocable as `/einja-pr-review <PR番号>` for manual re-review on existing PRs. Internally invokes einja-review-code and einja-review-spec for detailed review perspectives. Triggers: 「PRレビュー」「pr-review」「PR概要」「PR自動レビュー」「PR再レビュー」「ローカルPRレビュー」. Do NOT use for: コードdiff単体レビュー（→ einja-review-code）、Planレビュー（→ einja-review-plan）、仕様書レビュー（→ einja-review-spec）
 ```
 
 #### 3. 分類
@@ -421,10 +423,10 @@ allowed-tools:
 flowchart TD
     U[開発者 or issue-exec: /einja-create-pr] --> S1[Step 1-3: 差分分析/changeset/ラベル]
     S1 --> S4[Step 4: gh pr create]
-    S4 --> S45C{Step 4.5: 発動条件判定}
-    S45C -->|base=main/develop AND<br/>--auto OR --with-review AND<br/>NOT --no-review| S45[Step 4.5: einja-pr-review PR番号 呼び出し]
-    S45C -->|条件外| S5[Step 5: CI確認 直行]
-    S45 --> PR[einja-pr-review 実行<br/>詳細は下記フロー図]
+    S4 --> S55C{Step 5.5: 発動条件判定}
+    S55C -->|base=main/develop AND<br/>--auto OR --with-review AND<br/>NOT --no-review| S55[Step 5.5: einja-pr-review PR番号 呼び出し]
+    S55C -->|条件外| S5[Step 5: CI確認 直行]
+    S55 --> PR[einja-pr-review 実行<br/>詳細は下記フロー図]
     PR --> S5
 ```
 
@@ -432,7 +434,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    C[呼び出し元: einja-create-pr Step 4.5 or 手動 /einja-pr-review] --> I[入力: PR番号]
+    C[呼び出し元: einja-create-pr Step 5.5 or 手動 /einja-pr-review] --> I[入力: PR番号]
     I --> D[差分取得: gh pr diff PR#]
     I --> B[PR本文取得: gh pr view PR# --json]
     B --> IS[Issue参照抽出: 正規表現で #N 抽出]
@@ -498,7 +500,7 @@ flowchart TD
 | ID | タスク | 使用Skill/サブエージェント | 依存 |
 |----|--------|------------------------|------|
 | **0-0** | TaskCreateで全タスクを一括登録 | TaskCreate | - |
-| **0-1** | **Planファイルを `docs/plans/202607/20260730-pr-review-local.plan.md` へ配置**（`mkdir -p` + `cp`） | Bash | 0-0 |
+| **0-1** | **Planファイルを `docs/plans/202607/20260731-pr-review-local.plan.md` へ配置**（`mkdir -p` + `cp`） | Bash | 0-0 |
 | **0-2** | worktree作成: `_einja-worktree-guide` に従い EnterWorktree | `_einja-worktree-guide` | 0-1 |
 | **0-3** | `einja-pr-review` Skill スケルトン作成（frontmatter + 概要のみ） | `einja-skill-creator` | 0-2 |
 | **0-4** | **Skill呼び出しパターン調査**: Skill tool から別Skillを呼ぶ既存事例を Grep/Read で調査（`task-reviewer.md` / `_einja-phase-review/SKILL.md` の呼び出しパターン、`allowed-tools: [Skill]` 記載事例、Skill→Skill 引数受け渡し・返り値・エラー処理プロトコル）。結果を短いメモとして残し、1-4 のSKILL.md実装方針を確定させる。判明結果により、必要ならサブエージェント（Task tool）経由への切替可能性を評価 | general-purpose (Grep/Read) | 0-2 |
@@ -506,7 +508,7 @@ flowchart TD
 | **1-2** | `einja-pr-review/references/output-format.md` 執筆（PRコメントMarkdownテンプレート、§1-§3・AR-PR4サマリー統合構造）。1-1で確定した4セクション構造に依存 | general-purpose | 1-1 |
 | **1-3** | `einja-pr-review/references/sticky-comment.md` 執筆（マーカー方式実装コード全文、マルチユーザー非サポート方針明記） | general-purpose | 0-3 |
 | **1-4** | `einja-pr-review/SKILL.md` body 執筆（実行フロー・呼び出し規約・Skill tool呼び出し規約・sticky comment投稿ロジック）。0-4の調査結果を反映 | general-purpose | 1-1, 1-2, 1-3, 0-4 |
-| **2-1** | `einja-create-pr/SKILL.md` に Step 4.5（発動条件判定 + `einja-pr-review <PR番号>` 呼び出し）を追加。sticky comment投稿は `einja-pr-review` 自身が担当するため独立Step不要。`--with-review` / `--no-review` / `--force-review` フラグ処理も追加。**`--force-review` 安全性**: (a) 使用時は Bash実装で警告ログを stderr に出力（`echo "⚠️  --force-review is for debugging only. This bypasses base branch validation." >&2`）、(b) さらに環境変数ガード `EINJA_ALLOW_FORCE_REVIEW=1` が設定されていない場合はエラー終了、の2段階セーフガードを実装 | general-purpose | 1-4 |
+| **2-1** | `einja-create-pr/SKILL.md` に Step 5.5（発動条件判定 + `einja-pr-review <PR番号>` 呼び出し）を追加。sticky comment投稿は `einja-pr-review` 自身が担当するため独立Step不要。`--with-review` / `--no-review` / `--force-review` フラグ処理も追加。**`--force-review` 安全性**: (a) 使用時は Bash実装で警告ログを stderr に出力（`echo "⚠️  --force-review is for debugging only. This bypasses base branch validation." >&2`）、(b) さらに環境変数ガード `EINJA_ALLOW_FORCE_REVIEW=1` が設定されていない場合はエラー終了、の2段階セーフガードを実装 | general-purpose | 1-4 |
 | **3-1** | `CLAUDE.md` の「Skill（直接呼び出し）」テーブル + 「キーワードトリガー」表に `einja-pr-review` を追加 | general-purpose | 0-3 |
 | **4-1** | 完了検証: 差分確認（`git diff --stat`） | Bash | 1-1〜3-1すべて |
 | **99-1** | 観点別並列コードレビュー | `einja-review-code` | 4-1 |
@@ -574,7 +576,7 @@ flowchart TD
 ### ブロッカー候補
 
 1. **`docs/einja/steering/development/coding-standards.md` / `review-guidelines.md` の実在**: 確認済み → OK
-2. **`einja-create-pr` の Step 4.5 挿入時の既存フロー破壊リスク**: `--auto` モード（`task-exec` / `issue-exec` 経由）で base=main/develop の PR にのみレビューが発動する設計のため、既存の Phase PR・タスクPR（base=issue/*, phase/*）作成フローは変わらない
+2. **`einja-create-pr` の Step 5.5 挿入時の既存フロー破壊リスク**: `--auto` モード（`task-exec` / `issue-exec` 経由）で base=main/develop の PR にのみレビューが発動する設計のため、既存の Phase PR・タスクPR（base=issue/*, phase/*）作成フローは変わらない
 3. **Skill間の相互依存（einja-pr-review → einja-review-code/spec）**: 既存パターン踏襲で実装可能。ネスト呼び出しのエラー時挙動をSKILL.md内で明示的にハンドリング
 4. **§3 人間観点 / §4 指摘分類**: Plan で暫定確定済み（本Plan §3/§4 セクション参照）。実装フェーズ 1-1 で軽微な微調整のみ実施
 
@@ -627,14 +629,14 @@ export EINJA_ALLOW_FORCE_REVIEW=1
 期待動作:
 - Step 1〜3: 既存通り動作（差分分析・changeset・ラベル判定）
 - Step 4: PR作成成功
-- Step 4.5 発動条件判定:
+- Step 5.5 発動条件判定:
   - `--force-review` により base判定バイパス → 発動
-- Step 4.5: `einja-pr-review` 起動、4セクションレビュー生成
+- Step 5.5: `einja-pr-review` 起動、4セクションレビュー生成
   - AR-PR1: Asana URL がなければセクション省略
   - AR-PR2: 影響範囲調査（README.md のみ変更なので影響小）
   - AR-PR3: 仕様書変更なし → セクション省略 or 「該当なし」
   - AR-PR4: einja-review-code 実行 → 結果を優先度×ジャンルで整理
-- Step 4.5 内で `einja-pr-review` が sticky comment を投稿（マーカー `<!-- einja-pr-review:v1 -->` 付き。独立した Step 4.6 は設けない）
+- Step 5.5 内で `einja-pr-review` が sticky comment を投稿（マーカー `<!-- einja-pr-review:v1 -->` 付き。独立した Step 5.6 は設けない）
 - Step 5: CI確認
 
 #### Step C: PRコメント欄で結果確認
@@ -740,7 +742,7 @@ gh pr close test/pr-review-local-verification --delete-branch
 - `.claude/skills/einja-pr-review/references/review-lenses.md`（新規、~250行）
 - `.claude/skills/einja-pr-review/references/output-format.md`（新規、~100行）
 - `.claude/skills/einja-pr-review/references/sticky-comment.md`（新規、~50行）
-- `.claude/skills/einja-create-pr/SKILL.md`（Step 4.5 追加、`--with-review` / `--no-review` / `--force-review` フラグ）
+- `.claude/skills/einja-create-pr/SKILL.md`（Step 5.5 追加、`--with-review` / `--no-review` / `--force-review` フラグ）
 - `CLAUDE.md`（Skill表 + キーワードトリガー表更新）
 
 ---

@@ -52,6 +52,7 @@
 | `einja-issue-spec-create` | Issue仕様書作成（Skill tool） |
 | `einja-review-code` | コード変更の観点別並列レビュー（観点自動ピック + 並列サブエージェント + codex-agent） |
 | `einja-review-plan` | Planレビュー（ExitPlanMode前） |
+| `einja-pr-review` | ローカル実行のPR自動レビュー（4セクション: PR概要 / AIレビュー4観点 / 人間観点 / 指摘サマリー統合）。einja-create-pr Step 5.5から呼び出し。手動再レビューは `/einja-pr-review <PR番号>` |
 
 #### サブエージェント質問プロトコル（PENDING_QUESTIONS）
 
@@ -322,6 +323,7 @@ Turborepoモノレポ構成（pnpm workspaces）。詳細が必要な場合は�
 | `プロジェクト要件定義書` `受託開発要件` `クライアント合意要件` `project requirements` `RFP応答後の要件確定` `システム化要件` | `.claude/skills/einja-project-requirements/SKILL.md` |
 | `プロジェクト画面遷移図` `画面遷移図 Figma` `画面フロー図` `project screen flow` `screen flow Figma` `画面遷移 Figma 生成` | `.claude/skills/einja-project-screen-flow-figma/SKILL.md` |
 | `プロジェクト機能仕様` `業務フロー機能仕様` `業務フロー仕様` `ビジネスフロー仕様` `business flow function spec` `機能仕様書 生成` `続きから 機能仕様` `resume function spec` `システムフロー仕様` `システム観点 sequenceDiagram` `画面イベント仕様` | `.claude/skills/einja-project-function-spec/SKILL.md` |
+| `PRレビュー` `pr-review` `PR自動レビュー` `PR再レビュー` `ローカルPRレビュー` | `.claude/skills/einja-pr-review/SKILL.md` |
 
 ### CLIパッケージの二重管理禁止
 

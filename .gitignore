@@ -109,3 +109,6 @@ modifications/
 
 # einja-md-export 出力先（PDF/HTML/PPTX）
 docs/exports/
+
+# test-scenario-generator 作業ディレクトリ
+.work/

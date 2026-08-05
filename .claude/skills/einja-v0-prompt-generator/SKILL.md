@@ -76,7 +76,11 @@ TaskCreate ツールで進捗を可視化します:
 
 ### Step 2: 対話ヒアリング（Q1〜Q6）
 
-`references/hearing-questions.md` に定義された質問セットを順に AskUserQuestion で実行し、回答を内部辞書（例: `{ Q1: "...", Q2: "Dashboard", Q3: [...], Q4: [...], Q5: "Modern", Q6: "..." }`）に格納する。
+`references/hearing-questions.md` に定義された質問セットを順に実行し、回答を内部辞書（例: `{ Q1: "...", Q2: "Dashboard", Q3: [...], Q4: [...], Q5: "Modern", Q6: "..." }`）に格納する。
+
+**実行方法**:
+- **Q1（機能概要・目的）**: AskUserQuestion は使用せず、`references/hearing-questions.md` §2 のプロンプト文を通常メッセージで送信し、ユーザーの次発話をそのまま回答として受け取る
+- **Q2〜Q6**: AskUserQuestion で選択肢方式（`references/hearing-questions.md` §3〜§7 参照）
 
 **分岐ロジック**: Q2/Q3/Q4/Q6 のスキップ・分岐挙動の詳細は `references/hearing-questions.md` セクション8「分岐ロジック集約」を参照。
 

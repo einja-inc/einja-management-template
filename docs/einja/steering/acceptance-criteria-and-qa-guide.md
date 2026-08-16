@@ -54,6 +54,18 @@ AC や完了条件は、対象（特に backend / API / DB / auth / 外部連携
 
 > **責務境界**: 本規約は「最終受け入れの到達下限を**仕様・レビュー時点で担保させる**入口ゲート」である。デプロイ環境で AC を実際に実行する**実行・QA層**の責務（phase-reviewer / task-qa）とは補完関係であり、本規約は実行そのものには踏み込まない。
 
+#### 人手E2E 実施運用
+
+種別 `人手E2E` のシナリオは、手順のSSOTを Markdown（**story{N}.md** の「テスト手順」テーブル）に置きつつ、人間が実際に実施する際は xlsx を用いる。
+
+> **補足**: `docs/einja/templates/qa-test.md.template` は story{N}.md の**構造テンプレート**であり、`qa-test.md` という実ファイルは生成されない。手順の実体・直接編集対象は各 `story{N}.md`。
+
+- **手順のSSOT**: story{N}.md（Markdown）。`einja-uat-workbook` Skill でこの手順から `qa-tests/手動シナリオテスト_Issue{N}.xlsx` を生成する（最終実装Phaseの Phase完了確認グループ直前の固定タスク。`einja-task-exec` 経由で task-executer が生成）。
+- **実施フロー**: 人間は xlsx の「手順マスタ」タブを複製して `テスト実施_{名前}_{YYYYMMDD}` タブを作り、手順別に OK/NG・証跡ファイル名を記入する。スクリーンショット等の証跡は `qa-tests/evidence/` に保存する。
+- **前提（openpyxl）**: xlsx 生成には openpyxl が必要（`pip install openpyxl`）。未導入時も Markdown 手順（story{N}.md）でそのまま実施可能であり、xlsx は実施を効率化する**fallback 可能な補助**という位置づけ。
+
+> **二重管理回避**: 実施記録（手順別 OK/NG・証跡）は xlsx 側に集約する。story{N}.md の SC（種別 `人手E2E`）側には全体ステータスのみ残し、詳細は xlsx を参照する。
+
 ### 振る舞い駆動テンプレート
 
 > **Note**: AC IDの直後に記載する「振る舞いの名前」は、この受け入れ基準の内容を1文で要約したものです。Given/When/Thenの詳細を読まなくても概要が把握できるようにしてください。

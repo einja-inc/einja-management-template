@@ -144,6 +144,25 @@ GitHub Issueのチェックボックスでタスクグループのステータ�
 - 次Phaseへの移行条件を完了条件に明記
 - QAチェックポイントとして機能
 
+### 人間受け入れテスト手順書生成タスク（固定・条件付き）
+
+story{N}.md に**種別 `人手E2E` のシナリオが存在する場合のみ**、**最終実装Phase**（= Phase 99 を除く最後のPhase。実装Phaseが1つの場合はそのPhase）に、人間受け入れテスト手順書（xlsx）を生成する固定タスクグループを差し込みます。
+
+- **配置**: 最終実装Phaseの **Phase完了確認タスクグループ（phase-reviewer専用）の直前**に専用タスクグループとして置く（**Phase 99 の前**）。Phase完了確認タスクグループの「中」には入れない（phase-reviewer専用ループに置き換わり task-executer で実行されないため）。Phase 99（ドキュメント反映専用）にも追加しない（成果物生成でありドキュメント反映とは性質が異なるため）。
+- **実行**: `task-executer`（決定的なスクリプト実行。`**実行サブエージェント**: [task-executer]` を明示し継承を受けない）。
+- **内容**: `einja-uat-workbook` Skill を呼び出し、種別 `人手E2E` シナリオから `qa-tests/手動シナリオテスト_Issue{N}.xlsx` を生成する。
+- **条件**: `人手E2E` シナリオが存在しない場合はこの固定タスクグループを差し込まない。
+
+```markdown
+  - X.U UATワークブック生成（Phase完了確認グループの直前）
+    - X.U.1 人間受け入れテスト手順書(xlsx)生成
+      - einja-uat-workbook Skill で qa-tests/手動シナリオテスト_Issue{N}.xlsx を生成
+      - 生成元: story{N}.md の種別「人手E2E」シナリオ
+      - **実行サブエージェント**: [task-executer]
+      - **使用Skill**: [einja-uat-workbook]
+      - **完了条件**: qa-tests/手動シナリオテスト_Issue{N}.xlsx が生成されていること
+```
+
 ### 粒度の判断基準
 
 | 階層 | ✅ 適切 | ❌ 不適切 |

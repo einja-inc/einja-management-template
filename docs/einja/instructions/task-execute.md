@@ -355,9 +355,10 @@ einja-issue-spec-create: "マジックリンク認証機能：
 
 **生成される仕様書**:
 ```
-/docs/specs/issues/auth/issue123-auth-magic-link/
+/docs/specs/issues/auth/issue123-auth-magic-link/   # 主要ファイルのみ抜粋
 ├── requirements.md    ← ユーザーストーリー、受け入れ基準
-└── design.md          ← API設計、データモデル、セキュリティ
+├── design.md          ← API設計、データモデル、セキュリティ
+└── docs-impact.md     ← Docs反映計画（Phase 99 が消費）
 
 GitHub Issue #123     ← 実装タスク一覧（Phase 1〜3）
 ```

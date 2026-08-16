@@ -255,6 +255,14 @@ AskUserQuestion:
      - AC本文は振る舞いの骨格だけを記述し、詳細条件は `→§N` の形で後続セクションに委譲すること。
      - AC詳細は `正常系` と `異常系` を分けること。
 
+   - **同時起動: docs-impact-generator エージェント → `{spec_dir}/docs-impact.md`**
+     - requirements-generator と**同一の Agent 呼び出しメッセージで並列起動**する（両者の入力は同一: 0.3で作成した「要件ヒアリングサマリ（または差分サマリ）」+ 事前調査結果）。
+     - エージェント定義: `.claude/agents/einja/issue-specs/docs-impact-generator.md`（`subagent_type: docs-impact-generator`）。
+     - 出力: `{spec_dir}/docs-impact.md`。スキーマは `einja-update-docs-by-issue-specs` Skill の「## docs-impact.md スキーマ定義」章を SSoT とする（本Skillで再定義しない）。
+     - この時点では requirements.md は並列生成中のため、docs-impact.md の `source_section` は仮置きとなり得る（確定後の突合は Phase 1c で実施）。
+     - **PENDING_QUESTIONS の扱い**: requirements-generator と docs-impact-generator の両方が PENDING_QUESTIONS を返した場合、親（オーケストレーター）が可能な限り**1回の AskUserQuestion に統合**して解決し、各エージェントを `resume` で再開する。
+     - **回答の docs-impact.md への書き戻し**: docs-impact-generator の PENDING_QUESTIONS（Feature判定・反映先確定など）について AskUserQuestion でユーザー回答を得た後、その回答を docs-impact.md の該当 `targets`（`action` / `source_section` / `status` 等）に反映する。**軽微な確定（特定 target の値修正・status 更新のみ）の場合は親が docs-impact.md を Edit で直接更新し、反映先の追加・削除や再分類など再生成が必要な場合は docs-impact-generator に `resume`（回答を渡す）を送って最終化させる**。書き戻し後に Phase 1c の整合チェックへ進む。
+
 **UI要件の判定基準**:
 - requirements.md 内に「画面」「UI」「フォーム」「ダッシュボード」「表示」「ボタン」「入力」等のキーワードが含まれる場合、UI要件あり
 - 判断が曖昧な場合はAskUserQuestionでユーザーに確認
@@ -262,28 +270,37 @@ AskUserQuestion:
 **Phase 1b（UI要件あり時のみ）**: lo-fi WF を ui-design-generator で作成
    - `mode=lo-fi`, `phase=1`, `requirements_path={仕様書ディレクトリ}/requirements.md` をパラメータで渡す
    - 出力: `{仕様書ディレクトリ}/ui-design-url.md`（YAMLフロントマター付きMarkdown）
-   - UI要件なしの場合は Phase 1b/1c をスキップし、直接 Phase 1d へ進む
+   - UI要件なしの場合は Phase 1b をスキップ。Phase 1c は docs-impact.md 整合チェックのみ実施し、Phase 1d へ進む
 
-**Phase 1c（UI要件あり時のみ）**: 横断チェック（オーケストレーター実施）
-   - requirements.md の AC（UI/NAV カテゴリ）の WF参照（`[参照: WF-S1-F01]`）と ui-design-url.md のフレーム命名が一致しているか確認
-   - 不整合がある場合は該当ファイルを修正
+**Phase 1c**: 横断チェック（オーケストレーター実施）
+   - **（UI要件あり時のみ）** requirements.md の AC（UI/NAV カテゴリ）の WF参照（`[参照: WF-S1-F01]`）と ui-design-url.md のフレーム命名が一致しているか確認。不整合がある場合は該当ファイルを修正
+   - **docs-impact.md 整合チェック（常時実施）**: docs-impact.md の各 `targets[].source_section` が、確定した requirements.md の実セクション（および参照先 design.md）と矛盾しないか確認する
+     - requirements.md は Phase 1a で docs-impact.md と並列生成されるため、生成時点の `source_section` は仮置きであり得る
+     - **requirements.md 確定後に `source_section` がズレている（指す章が存在しない／別章に移動した等）場合、親（オーケストレーター）が docs-impact.md の `source_section` / `status` を更新する責務を負う**（スキーマSSoT「source_section の事後ズレ」節に準拠）
+     - Phase 1a の PENDING_QUESTIONS 回答を docs-impact.md に書き戻し済みであることをここで確認する（未反映の回答があれば親が Edit で確定、または docs-impact-generator に `resume` を送って最終化する）。
+     - UI要件なしの場合も docs-impact.md 整合チェックは実施する
 
 **Phase 1d**: `einja-review-spec` Skillで並列レビューを実施
    - `review_scope=requirements`
    - requirements.md の内容、要件ヒアリングサマリ、残存リスクを渡す
+   - **docs-impact.md も `review_scope=requirements` のレビュー対象に含める**（review-spec 側の scope 拡張は別タスクで実施。本Skillでは docs-impact.md をレビュー対象として渡すことを明記する）
    - UI要件ありの場合は ui-design-url.md（Figma）も対象に含める
    - Phase 1 の ui-design-url.md レビュー観点（lo-fi WF）:
      - 構成・情報優先度・操作導線のみ評価
      - 色・フォント・詳細コンポーネントは評価対象外
    - **MAJOR** の場合は requirements-generator（または ui-design-generator）に修正指示を返し、再レビューする（最大2回）
 
-**Phase 1e**: ユーザーに内容確認を依頼（requirements.md + lo-fi ui-design-url.md（Figma）一括提示）
+**Phase 1e**: ユーザーに内容確認を依頼（requirements.md + lo-fi ui-design-url.md（Figma）+ docs-impact.md 一括提示）
    - 作成したファイルのパスと概要を提示
    - 確認ポイントを明示（要件の過不足、受け入れ基準の明確性など）
    - UI要件ありの場合: Figma MCP（mcp__claude_ai_Figma__get_screenshot）でlo-fi フレームプレビューを提示（ui-design-url.mdのYAMLフロントマターのfileKey/nodeIdを使用）
+   - **docs-impact.md の「反映サマリ表」を提示し、各ドキュメント反映先（`targets`）の妥当性をユーザーに承認してもらう**
+     - 反映先・反映区分（`action`）・出所（`source_section`）を表形式で提示する
+     - `status: tentative`（要件確定後に突合要）の項目と `unresolved`（反映先未確定の残課題）を明示し、ユーザーが認識できるようにする
    - `einja-review-spec` が PASS/MINOR であることを明記する
 
 **Phase 1f**: ユーザー承認後、コミット＆プッシュ
+   - コミット対象に `docs-impact.md` を含める（requirements.md・ui-design-url.md と同じコミットにまとめる）
    - コミットメッセージ: `docs: {機能名}の要件を追加`
    - ブランチは `issue/{issue番号}` にプッシュ
    - 他のメンバーがレビューできるようにする
@@ -514,6 +531,7 @@ Phase 3への引き継ぎ情報:
 └── {機能カテゴリ名}/
     └── issue{issue番号}-{機能名}/
         ├── requirements.md  # 要件定義書（ATDD形式）
+        ├── docs-impact.md   # ドキュメント反映インパクト（Phase 99 が消費。スキーマSSoT: einja-update-docs-by-issue-specs Skill）
         ├── ui-design-url.md  # UIデザイン（FigmaURL + フレームmanifest）
         ├── design.md        # 設計書（技術詳細）
         └── qa-test.md       # QAテスト仕様（feature単位の単一ファイル、テンプレート: docs/einja/templates/qa-test.md.template）
@@ -531,6 +549,7 @@ Phase 3への引き継ぎ情報:
         │   ├── overview.md          # 概要とスコープ
         │   ├── stories.md           # ユーザーストーリー
         │   └── technical.md         # 技術要件
+        ├── docs-impact.md           # ドキュメント反映インパクト（Phase 99 が消費。スキーマSSoT: einja-update-docs-by-issue-specs Skill）
         ├── ui-design-url.md            # UIデザイン（FigmaURL + フレームmanifest）
         ├── design/                  # 設計書ディレクトリ
         │   ├── README.md            # 目次

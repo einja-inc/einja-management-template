@@ -194,7 +194,8 @@ docs/specs/issues/{カテゴリ}/issue{番号}-{機能名}/
 ├── requirements.md              # 要件定義書（ATDD形式）
 ├── ui-design-url.md             # UIモックアップ（Figma URL）
 ├── design.md                    # 設計書（技術詳細）
-└── design-component-manifest.json  # DSコンポーネント一覧・不足リスト
+├── design-component-manifest.json  # DSコンポーネント一覧・不足リスト
+└── docs-impact.md               # Docs反映計画（Phase 99 が消費）
 
 GitHub Issue #{番号}   # タスク一覧（Phase別チェックボックス形式）
 Spec PR                # 仕様書レビュー用
@@ -395,7 +396,7 @@ flowchart TD
 
 | PRの種類    | 作成タイミング       | 内容                       | レビュー観点                                   |
 | ----------- | -------------------- | -------------------------- | ---------------------------------------------- |
-| **Spec PR** | `einja-issue-spec-create` Skill完了時 | requirements.md, ui-design-url.md（Figma）, design.md | 要件の妥当性、UIデザインの適切さ、設計の適切さ、スコープの確認 |
+| **Spec PR** | `einja-issue-spec-create` Skill完了時 | requirements.md, ui-design-url.md（Figma）, design.md, docs-impact.md | 要件の妥当性、UIデザインの適切さ、設計の適切さ、スコープの確認 |
 | **実装PR**  | タスクグループ完了時（Worker が自動作成） | ソースコード、テスト       | コード品質、設計書との整合性、テストカバレッジ |
 
 ### なぜ2段階でPRを作成するのか

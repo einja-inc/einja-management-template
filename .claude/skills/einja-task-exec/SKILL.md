@@ -106,18 +106,32 @@ $ARGUMENTSから以下を解析：
 ### Phase 99 タスクのフロー（ドキュメント反映）
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│               ドキュメント反映フロー                       │
-│                                                         │
-│  docs-updater（タスク仕様書をfeature/steering仕様書に反映）│
-│       │                                                 │
-│       ↓ 反映完了                                        │
-│  ┌─────────────────────────────────────────────┐       │
-│  │ einja-task-commit Skill（コミット・プッシュ） │       │
-│  │ ※ 確認なしで自動実行                         │       │
-│  └─────────────────────────────────────────────┘       │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│               ドキュメント反映フロー                            │
+│                                                              │
+│  spec ディレクトリに docs-impact.md があるか判定               │
+│       │                                                      │
+│       ├─ 存在 → 決定論ルート                                  │
+│       │    docs-updater が docs-impact.md の targets を       │
+│       │    SKILL のロジックで処理（無人・確定仕様Docsへ反映）  │
+│       │                                                      │
+│       └─ 不在（旧Issue）→ フォールバックルート                │
+│            docs-updater が Steering 3点のみ反映               │
+│       │                                                      │
+│       ↓ docs-updater 完了                                    │
+│  PENDING_QUESTIONS を返したか判定                             │
+│       │                                                      │
+│       ├─ あり → 親が _einja-subagent-question-protocol に     │
+│       │    従って自律解決 or ユーザー確認 → resume            │
+│       │    （解決後、再度この判定に戻る）                      │
+│       │                                                      │
+│       └─ なし ↓ 反映完了                                     │
+│  ┌─────────────────────────────────────────────┐            │
+│  │ einja-task-commit Skill（コミット・プッシュ） │            │
+│  │ ※ 確認なしで自動実行                         │            │
+│  └─────────────────────────────────────────────┘            │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
                            │
                            ↓ コミット完了
                        コマンド終了
@@ -127,7 +141,9 @@ $ARGUMENTSから以下を解析：
 - task-executer、task-reviewer、task-qa をスキップ
 - Step 7.5（PR作成）をスキップ（ドキュメント反映のみでPR不要）
 - docs-updater エージェントを直接呼び出し
-- 追加指示待ち状態なし（完了後は即座に終了）
+- **docs-impact.md の有無で docs-updater の挙動が分岐する**（存在→決定論ルート / 不在→Steering 3点のみのフォールバックルート）。分岐の本体ロジックは docs-updater 側（`.claude/skills/einja-update-docs-by-issue-specs/SKILL.md` の「§6 docs-impact.md 消費の決定論ロジック」「§6.5 不在時のフォールバック」）にある
+- docs-updater が PENDING_QUESTIONS を返した場合は、einja-task-commit に進む前に親が `_einja-subagent-question-protocol` に従って解決→resume する（後述「5. Phase 99 タスクの処理」参照）
+- 追加指示待ち状態なし（PENDING_QUESTIONS 解決＋コミット完了後は即座に終了）
 
 各フェーズ完了後、サブエージェントの出力を表示したら即座に次のフェーズへ進む。ユーザーの応答は待たない。
 
@@ -543,29 +559,58 @@ while true:
    - タスクグループ番号の先頭が `99` かどうかを確認
    - 例: `99.1` → Phase 99 タスク
 
-2. **docs-updater の呼び出し**
+2. **docs-impact.md 存在判定（分岐の起点）**
+   - 対象 spec ディレクトリ（`docs/specs/issues/*/issue{N}-*/`）に `docs-impact.md` が存在するかを判定する（`requirements.md` / `design.md` と同階層）
+   - **存在する → 決定論ルート**: docs-updater が `docs-impact.md` の `targets` を SKILL のロジックで処理し、確定仕様Docs（Feature 仕様 / Steering）へ無人で反映する
+   - **不在（旧Issue 等）→ フォールバックルート**: docs-updater が反映先を Steering 3点（`architecture.md` / `db-schema-design.md` / `product.md`）のみに固定して反映する
+   - **分岐の本体ロジックは docs-updater 側にある**。スキーマ・決定論ロジックは `.claude/skills/einja-update-docs-by-issue-specs/SKILL.md` の「## docs-impact.md スキーマ定義」章および「§6 docs-impact.md 消費の決定論ロジック」「§6.5 docs-impact.md 不在時のフォールバック」を参照（ここでは再定義しない）。einja-task-exec（親）は spec ディレクトリパスと docs-impact.md 参照指示を prompt に含めて渡すのみ
+
+3. **docs-updater の呼び出し**
    - Task ツールで docs-updater エージェントを呼び出し
    - prompt に以下を含める：
      - Step 4 の「全エージェント共通の必須プレフィックス」（AskUserQuestion禁止 + PENDING_QUESTIONS 形式利用指示）を prompt 先頭に含める
      - Issue番号
      - タスクグループ番号
-     - 対象タスクspecのパス（全Phaseで完了したタスクspec）
+     - 対象 spec ディレクトリのパス（`docs/specs/issues/*/issue{N}-*/`）
+     - **docs-impact.md 参照指示**: 「spec ディレクトリ直下の `docs-impact.md` の有無で挙動を分岐すること。存在すれば `targets` を決定論ロジックで処理し、不在なら Steering 3点のみのフォールバックで反映すること（詳細は `.claude/skills/einja-update-docs-by-issue-specs/SKILL.md` §6 / §6.5）」
 
-3. **コミット・プッシュ**
-   - docs-updater 完了後、Skill toolで `einja-task-commit` Skillを呼び出し
-   - ドキュメント変更をコミット・プッシュ
+4. **PENDING_QUESTIONS ハンドリング（コミット前に判定）**
+   - docs-updater は無人で動作するため、`unresolved` / tentative の突合矛盾 / docs-impact.md 不在時の判断必須点 / `targets` に無い判断が生じた場合、握りつぶさず **1本の PENDING_QUESTIONS にまとめて親へ返す**
+   - docs-updater の出力に `## PENDING_QUESTIONS` セクションが含まれる場合、einja-task-exec（親）が `.claude/skills/_einja-subagent-question-protocol/SKILL.md` に従って処理する：
+     1. **自律解決試行**: spec / requirements.md / design.md / docs-impact.md / 既存 Docs 等の調査で確実に判定可能なものは自律解決する
+     2. **ユーザー確認**: ビジネス判断・要件判断など自律解決不可な質問は AskUserQuestion でユーザーへ転送する
+     3. **resume**: `SendMessage(to: agentId, message: "resume: {回答内容}")` で docs-updater を再開する
+     4. resume 後の出力に再度 PENDING_QUESTIONS が含まれる場合は 1 に戻る（最大3回。超過時は failed 扱いで停止しユーザーに報告）
+   - **PENDING_QUESTIONS が無ければ**、従来通り 5（コミット・プッシュ）へ進む
 
-4. **終了**
+5. **コミット・プッシュ**
+   - PENDING_QUESTIONS が解決済み（または当初から無い）であることを前提に、Skill toolで `einja-task-commit` Skillを呼び出し
+   - ドキュメント変更をコミット・プッシュ（確認なしで自動実行）
+
+6. **終了**
    - Phase 99 タスクは追加指示待ち状態なし
-   - 完了後、即座にコマンド終了
+   - PENDING_QUESTIONS 解決 + コミット完了後、即座にコマンド終了
 
 **docs-updater への prompt 例**:
 ```
 Issue #123 のPhase 99 タスク（タスクグループ 99.1）を実行してください。
 
-以下のタスクspecをfeature/steering仕様書に反映してください：
-- docs/specs/tasks/feature-name/20251104-task1
-- docs/specs/tasks/feature-name/20251105-task2
+【必須】AskUserQuestionツールは使用禁止。質問が必要な場合は
+`.claude/skills/_einja-subagent-question-protocol/SKILL.md` を参照し、
+PENDING_QUESTIONS 形式で質問を返却して作業を停止すること。
+
+対象 spec ディレクトリ:
+- docs/specs/issues/202611/issue123-feature-name/
+
+このディレクトリ直下の docs-impact.md の有無で挙動を分岐してください：
+- docs-impact.md が存在する場合: その targets を決定論ロジックで処理し、
+  確定仕様Docs（Feature 仕様 / Steering）へ反映してください。
+- docs-impact.md が不在の場合（旧Issue等）: 反映先を Steering 3点
+  （architecture.md / db-schema-design.md / product.md）のみに固定して反映してください。
+
+詳細ロジックは .claude/skills/einja-update-docs-by-issue-specs/SKILL.md の
+§6（決定論ロジック）/ §6.5（不在時フォールバック）を参照してください。
+判断必須点・突合矛盾・unresolved は握りつぶさず PENDING_QUESTIONS で返却してください。
 ```
 
 ---

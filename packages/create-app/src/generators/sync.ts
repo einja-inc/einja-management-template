@@ -3,6 +3,21 @@ import type { SyncCategory } from "@/types/index.js";
 import * as logger from "@/utils/logger.js";
 
 /**
+ * apps / packages の詳細名で許可する文字種パターン
+ *
+ * - 英数字 (a-z A-Z 0-9)
+ * - ハイフン (-)
+ * - アンダースコア (_)
+ * - ピリオド (.) ※ npm パッケージ名規約に従う
+ *
+ * 拒否される例:
+ *   - "../../etc/passwd"  (path traversal)
+ *   - "web/*"            (glob 特殊文字)
+ *   - "@scope/pkg"       (スコープ付き名: 詳細フィルタでは未対応)
+ */
+const SAFE_NAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
+
+/**
  * カテゴリとファイルパターンのマッピング
  * prompts/sync.ts の CATEGORY_CONFIGS と同じ定義
  */
@@ -139,6 +154,29 @@ function extractPatternsFromCategories(
   appsDetail?: string[],
   packagesDetail?: string[]
 ): string[] {
+  // 安全のため、詳細パラメータは展開前に文字種をバリデートする
+  // （path traversal や glob 特殊文字を含む値を弾く）
+  if (appsDetail) {
+    for (const item of appsDetail) {
+      if (!SAFE_NAME_PATTERN.test(item)) {
+        logger.error(
+          `不正な app 名: ${item} (英数字・ハイフン・アンダースコア・ピリオドのみ許可)`
+        );
+        throw new Error(`Invalid apps-detail value: ${item}`);
+      }
+    }
+  }
+  if (packagesDetail) {
+    for (const item of packagesDetail) {
+      if (!SAFE_NAME_PATTERN.test(item)) {
+        logger.error(
+          `不正な package 名: ${item} (英数字・ハイフン・アンダースコア・ピリオドのみ許可)`
+        );
+        throw new Error(`Invalid packages-detail value: ${item}`);
+      }
+    }
+  }
+
   const patterns: string[] = [];
 
   for (const category of categories) {

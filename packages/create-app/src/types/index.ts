@@ -107,7 +107,9 @@ export type SyncCategoryConfig = {
  * 同期オプションの型定義
  */
 export type SyncOptions = {
-  categories?: string[]; // --categories env,tools
+  categories?: string[]; // --categories env,tools → ["env", "tools"]
+  appsDetail?: string[]; // --apps-detail web,admin → ["web", "admin"]
+  packagesDetail?: string[]; // --packages-detail admin-ui,ui → ["admin-ui", "ui"]
   all?: boolean; // --all
   dryRun?: boolean; // --dry-run
   backup?: boolean; // --backup (default: true)

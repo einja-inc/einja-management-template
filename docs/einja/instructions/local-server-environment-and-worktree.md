@@ -568,7 +568,7 @@ pnpm build
 ### 1. ランタイム環境
 
 ```bash
-# Node.jsバージョン（v22.16.0が期待値）
+# Node.jsバージョン（v22.23.4が期待値）
 node -v
 
 # pnpmバージョン

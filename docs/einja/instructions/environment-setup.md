@@ -396,7 +396,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.16.0'
+          node-version: '22.23.4'
           cache: 'pnpm'
 
       - name: Install dependencies

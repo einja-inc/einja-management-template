@@ -170,7 +170,7 @@ graph LR
 ```mermaid
 flowchart TB
     subgraph "setup/action.yml"
-        S1[pnpm setup<br/>v10.14.0] --> S2[Node.js setup<br/>v22.16.0]
+        S1[pnpm setup<br/>v10.14.0] --> S2[Node.js setup<br/>v22.23.4]
         S2 --> S3[pnpm install]
     end
 

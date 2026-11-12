@@ -91,7 +91,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.23.4
+          node-version: 22.23.5
           check-latest: true  # ランナーに入っている版ではなく、22 系の最新パッチを取る
           cache: pnpm
           registry-url: https://npm.pkg.github.com
@@ -195,7 +195,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.23.4
+          node-version: 22.23.5
           check-latest: true  # ランナーに入っている版ではなく、22 系の最新パッチを取る
           cache: pnpm
           registry-url: https://npm.pkg.github.com

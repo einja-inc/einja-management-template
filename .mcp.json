@@ -35,7 +35,7 @@
       "type": "http",
       "url": "https://api.githubcopilot.com/mcp/",
       "headers": {
-        "Authorization": "Bearer ${GITHUB_TOKEN}"
+        "Authorization": "Bearer ${GITHUB_TOKEN:-}"
       }
     },
     "drawio": {
@@ -52,7 +52,7 @@
         "nano-banana-mcp"
       ],
       "env": {
-        "GEMINI_API_KEY": "${NANOBANANA_MCP_GEMINI_API_KEY}"
+        "GEMINI_API_KEY": "${NANOBANANA_MCP_GEMINI_API_KEY:-}"
       }
     },
     "Figma": {
@@ -64,14 +64,14 @@
       "type": "http",
       "url": "https://mcp.ptengine.com/mcp",
       "headers": {
-        "X-API-KEY": "${PTENGINE_API_KEY}"
+        "X-API-KEY": "${PTENGINE_API_KEY:-}"
       }
     },
     "ahrefs": {
       "type": "http",
       "url": "https://api.ahrefs.com/mcp/mcp",
       "headers": {
-        "Authorization": "Bearer ${AHREFS_API_KEY}"
+        "Authorization": "Bearer ${AHREFS_API_KEY:-}"
       }
     },
     "mfc_ca": {

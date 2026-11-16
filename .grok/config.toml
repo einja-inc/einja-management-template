@@ -1,7 +1,7 @@
 # einja-harness:start mcp
 [mcp_servers.github]
 url = "https://api.githubcopilot.com/mcp/"
-headers = { "Authorization" = "Bearer ${GITHUB_TOKEN}" }
+headers = { "Authorization" = "Bearer ${GITHUB_TOKEN:-}" }
 
 [mcp_servers.Figma]
 url = "https://mcp.figma.com/mcp"
@@ -12,11 +12,11 @@ args = ["mcp-server"]
 
 [mcp_servers.ptengine]
 url = "https://mcp.ptengine.com/mcp"
-headers = { "X-API-KEY" = "${PTENGINE_API_KEY}" }
+headers = { "X-API-KEY" = "${PTENGINE_API_KEY:-}" }
 
 [mcp_servers.ahrefs]
 url = "https://api.ahrefs.com/mcp/mcp"
-headers = { "Authorization" = "Bearer ${AHREFS_API_KEY}" }
+headers = { "Authorization" = "Bearer ${AHREFS_API_KEY:-}" }
 
 [mcp_servers.mfc_ca]
 url = "https://beta.mcp.developers.biz.moneyforward.com/mcp/ca/v3"

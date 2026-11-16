@@ -1,59 +1,98 @@
 {
-	"mcpServers": {
-		"codex": {
-			"type": "stdio",
-			"command": "codex",
-			"args": [
-				"mcp-server"
-			]
-		},
-		"context7": {
-			"command": "npx",
-			"args": [
-				"-y",
-				"@upstash/context7-mcp"
-			]
-		},
-		"playwright": {
-			"type": "stdio",
-			"command": "npx",
-			"args": [
-				"-y",
-				"@playwright/mcp",
-				"--isolated"
-			]
-		},
-		"serena": {
-			"type": "stdio",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"$(git rev-parse --show-toplevel)/scripts/serena-mcp-bridge.sh"
-			]
-		},
-		"github": {
-			"type": "http",
-			"url": "https://api.githubcopilot.com/mcp/",
-			"headers": {
-				"Authorization": "Bearer ${GITHUB_TOKEN}"
-			}
-		},
-		"drawio": {
-			"command": "npx",
-			"args": [
-				"-y",
-				"@drawio/mcp@latest"
-			]
-		},
-		"nano-banana": {
-			"command": "npx",
-			"args": [
-				"-y",
-				"nano-banana-mcp"
-			],
-			"env": {
-				"GEMINI_API_KEY": "${NANOBANANA_MCP_GEMINI_API_KEY}"
-			}
-		}
-	}
+  "mcpServers": {
+    "codex": {
+      "type": "stdio",
+      "command": "codex",
+      "args": [
+        "mcp-server"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp",
+        "--isolated"
+      ]
+    },
+    "serena": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "$(git rev-parse --show-toplevel)/scripts/serena-mcp-bridge.sh"
+      ]
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "drawio": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@drawio/mcp@latest"
+      ]
+    },
+    "nano-banana": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "nano-banana-mcp"
+      ],
+      "env": {
+        "GEMINI_API_KEY": "${NANOBANANA_MCP_GEMINI_API_KEY}"
+      }
+    },
+    "Figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp",
+      "headers": {}
+    },
+    "ptengine": {
+      "type": "http",
+      "url": "https://mcp.ptengine.com/mcp",
+      "headers": {
+        "X-API-KEY": "${PTENGINE_API_KEY}"
+      }
+    },
+    "ahrefs": {
+      "type": "http",
+      "url": "https://api.ahrefs.com/mcp/mcp",
+      "headers": {
+        "Authorization": "Bearer ${AHREFS_API_KEY}"
+      }
+    },
+    "mfc_ca": {
+      "type": "http",
+      "url": "https://beta.mcp.developers.biz.moneyforward.com/mcp/ca/v3",
+      "headers": {}
+    },
+    "FigmaEdit": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp",
+      "headers": {}
+    },
+    "doop": {
+      "type": "http",
+      "url": "https://doop.einja.net/mcp",
+      "headers": {}
+    },
+    "plane": {
+      "type": "http",
+      "url": "https://eenchow-task-force.einja.net/mcp",
+      "headers": {}
+    }
+  }
 }

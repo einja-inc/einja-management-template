@@ -68,3 +68,15 @@
 ## Security & Configuration Tips
 - Manage env files via `pnpm env:update`; encrypted secrets require `.env.keys`.
 - Local DB runs via `docker-compose up -d postgres` (port `25432`).
+
+<!-- einja-harness:start core -->
+## 体制の根幹
+
+チームは自己組織化して、自分で決めて進める。人の判断待ちで止まらない。人は、筋の悪いものだけ止める。止められたら、仕組みを直して、同じ筋の悪さが出ないようにしてから出し直す。
+
+決めたことは、根拠を1つの URL で示して進める。
+
+例外は2つだけ。すでに使われている本番（Doop など）は慎重に扱う。本当に人にしかできない操作だけ、人に頼む。
+
+記録は `docs/ai-ops/judgment-principles.md` の D-2026-11-17-02。
+<!-- einja-harness:end core -->

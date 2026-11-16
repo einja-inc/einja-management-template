@@ -1,0 +1,32 @@
+# einja-harness:start mcp
+[mcp_servers.github]
+url = "https://api.githubcopilot.com/mcp/"
+bearer_token_env_var = "GITHUB_TOKEN"
+
+[mcp_servers.Figma]
+url = "https://mcp.figma.com/mcp"
+
+[mcp_servers.codex]
+command = "codex"
+args = ["mcp-server"]
+
+[mcp_servers.ptengine]
+url = "https://mcp.ptengine.com/mcp"
+env_http_headers = { "X-API-KEY" = "PTENGINE_API_KEY" }
+
+[mcp_servers.ahrefs]
+url = "https://api.ahrefs.com/mcp/mcp"
+bearer_token_env_var = "AHREFS_API_KEY"
+
+[mcp_servers.mfc_ca]
+url = "https://beta.mcp.developers.biz.moneyforward.com/mcp/ca/v3"
+
+[mcp_servers.FigmaEdit]
+url = "https://mcp.figma.com/mcp"
+
+[mcp_servers.doop]
+url = "https://doop.einja.net/mcp"
+
+[mcp_servers.plane]
+url = "https://eenchow-task-force.einja.net/mcp"
+# einja-harness:end mcp
